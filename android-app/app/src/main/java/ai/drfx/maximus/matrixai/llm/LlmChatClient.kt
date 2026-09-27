@@ -54,7 +54,12 @@ class LlmChatClient {
         val body = JSONObject()
             .put("model", config.selectedModel)
             .put("messages", messages)
-            .put("temperature", 0.35)
+        if (config.provider == LlmProvider.NVIDIA) {
+            body.put("max_tokens", 2048)
+            body.put("stream", false)
+        } else {
+            body.put("temperature", 0.35)
+        }
         val headers = if (config.apiKey.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer " + config.apiKey)
         val json = JSONObject(post(endpoint, body.toString(), headers))
         val text = json.optJSONArray("choices")
