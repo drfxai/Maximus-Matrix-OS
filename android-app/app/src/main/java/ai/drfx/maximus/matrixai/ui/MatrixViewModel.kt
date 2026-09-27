@@ -33,7 +33,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun runMission(objective: String) {
-        if (_status.value == "EXECUTING") return
+        if (_status.value == "EXECUTING" || _status.value == "PLANNING") return
         viewModelScope.launch {
             _status.value = "PLANNING"
             agent.execute(objective)

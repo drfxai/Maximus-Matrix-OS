@@ -1,4 +1,4 @@
-name: Build and Release MAXIMUS MATRIX AI V1.0.3
+name: Build and Release MAXIMUS AI V1.1.0
 
 on:
   push:
@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      RELEASE_TAG: v1.0.3
-      RELEASE_TITLE: MAXIMUS MATRIX AI V1.0.3
-      RELEASE_APK: MAXIMUS_MATRIX_AI_V1.0.3_arm64V8a.apk
+      RELEASE_TAG: v1.1.0
+      RELEASE_TITLE: MAXIMUS AI V1.1.0
+      RELEASE_APK: MAXIMUS_AI_V1.1.0_arm64V8a.apk
       KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       SECRET_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
       SECRET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -76,7 +76,7 @@ jobs:
               -alias "$KEY_ALIAS" \
               -keypass "$KEY_PASSWORD" \
               -keyalg RSA -keysize 4096 -validity 3650 \
-              -dname "CN=MAXIMUS MATRIX AI, OU=DrFXAi, O=DrFXAi, L=Unknown, S=Unknown, C=US"
+              -dname "CN=MAXIMUS AI Preview, OU=DrFXAi, O=DrFXAi, L=Unknown, S=Unknown, C=US"
             SIGNING_MODE="ephemeral-ci"
           fi
           echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
@@ -84,6 +84,9 @@ jobs:
           echo "KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
           echo "KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
           echo "SIGNING_MODE=$SIGNING_MODE" >> "$GITHUB_ENV"
+          if [[ "$SIGNING_MODE" == "ephemeral-ci" ]]; then
+            echo "RELEASE_APK=MAXIMUS_AI_V1.1.0_arm64V8a-PREVIEW.apk" >> "$GITHUB_ENV"
+          fi
           echo "mode=$SIGNING_MODE" >> "$GITHUB_OUTPUT"
 
       - name: Run tests
@@ -112,12 +115,16 @@ jobs:
             echo "APK does not declare arm64-v8a native code."
             exit 1
           fi
+          if ! grep -q "application-icon" dist/APK_BADGING.txt; then
+            echo "APK does not contain a launcher icon."
+            exit 1
+          fi
           (cd dist && sha256sum "$RELEASE_APK" > SHA256SUMS)
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MAXIMUS-MATRIX-AI-V1.0.3-arm64
+          name: MAXIMUS-AI-V1.1.0-${{ steps.signing.outputs.mode }}-arm64
           path: |
             dist/${{ env.RELEASE_APK }}
             dist/SHA256SUMS
@@ -125,6 +132,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub Release
+        if: steps.signing.outputs.mode == 'repository-secret' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -135,22 +143,23 @@ jobs:
             exit 0
           fi
           cat > "$RUNNER_TEMP/release-notes.md" <<NOTES
-          # MAXIMUS MATRIX AI V1.0.3
+          # MAXIMUS AI V1.1.0
 
           ARM64 Android runtime for Maximus Matrix OS.
 
           - ABI: arm64-v8a
           - Package: ai.drfx.maximus.matrixai
-          - Version: 1.0.3 (4)
-          - Mobile-first scrollable and touch-friendly interface\n          - Responsive live graph sized for phone screens\n          - Safe status-bar and navigation-bar handling\n          - Live graph-native agent interface
+          - Version: 1.1.0 (5)
+          - Mobile-first scrollable and touch-friendly interface
+          - Dedicated product navigation and persistent command dock
+          - Responsive runtime-driven Matrix graph
+          - Safe status-bar and navigation-bar handling
           - Real Android device tools: device status, web, settings, camera, alarms, calendar, dialer, SMS composer, share, clipboard and app launch
-          - Custom MAXIMUS MATRIX AI launcher icon
+          - Custom MAXIMUS AI launcher icon
           - Mission planning, policy, tool, validation, and artifact event pipeline
           - English-only repository enforcement
           - SHA-256 checksum included
-          - Signing mode: $SIGNING_MODE
-
-          If signing mode is ephemeral-ci, configure the repository signing secrets before publishing a future update. A stable production key is required for Android upgrade continuity.
+          - Signed with the configured stable production key
           NOTES
           gh release create "$RELEASE_TAG" \
             "dist/$RELEASE_APK" \

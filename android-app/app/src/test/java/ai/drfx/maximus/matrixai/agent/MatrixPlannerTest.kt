@@ -20,4 +20,10 @@ class MatrixPlannerTest {
         val plan = MatrixPlanner().plan(Mission(objective = "open camera"))
         assertTrue(plan.any { it.action.tool == "open_camera" })
     }
+
+    @Test fun alarmWithoutCustomLabelUsesProductName() {
+        val plan = MatrixPlanner().plan(Mission(objective = "alarm 09:00"))
+        val step = plan.first { it.action.tool == "set_alarm" }
+        assertEquals("MAXIMUS AI", step.action.arguments["label"])
+    }
 }

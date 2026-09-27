@@ -1,48 +1,48 @@
 # MAXIMUS MATRIX OS
 
-MAXIMUS MATRIX OS is a graph-native AI research and agent operating environment developed by DrFXAi.
+MAXIMUS MATRIX OS is the internal intelligence platform for two end-user products:
 
-The Matrix is the primary operating surface: agents, tools, memory, research, validation, artifacts, strategies, and future Pine Script intelligence are represented as live interconnected entities.
+- **MAXIMUS AI** — the graph-native Android intelligence product in `android-app/`
+- **MAXIMUS VPN** — the secure networking product (not yet present in this repository)
 
-## Current implementation
+Internal capability domains include the Control Plane, Mission Control, Agent Runtime,
+Knowledge Core, Intelligence Foundry, Research Engine, Trading Intelligence, Trading
+Genome, Quant Lab, and Agent Factory. They are architecture modules, not separate products.
 
-### Web Matrix
+## MAXIMUS AI V1.1.0 foundation
 
-The root `index.html` provides the browser Matrix concept and execution graph.
+The Android application currently provides:
 
-### Android runtime
+- A mobile-first Compose shell with Matrix, Chat, Missions, Agents, Research, Trading,
+  Knowledge, Memory, Tools, Activity, and Settings destinations
+- A persistent command dock across the product
+- A deterministic mission planner, policy engine, Android tool registry, validation gate,
+  artifact events, and an in-process Matrix event stream
+- Runtime-driven graph highlighting with no idle fake telemetry
+- Real Android intents for device status, web search, URLs, settings, camera, alarms,
+  calendar, dialer, SMS composer, share, clipboard, and application launch
+- Honest availability states for capabilities that are not implemented yet
+- ARM64 native marker, English-only guard, tests, and release automation
 
-`android-app/` contains **MAXIMUS MATRIX AI V1.0.3**, an ARM64 Android device-agent runtime with real Android capability adapters.
-
-Implemented:
-
-- Graph-native agent event model
-- Mission planner
-- Policy engine
-- Android tool registry
-- Device and battery telemetry
-- Web search and URL launch
-- Android settings launcher
-- Camera launcher
-- Alarm and calendar editor integration
-- Dialer and SMS composer integration
-- Share sheet and clipboard integration
-- Application launch by package name
-- Validation gate
-- Artifact lifecycle events
-- Mobile-first scrollable Compose interface
-- Safe system-bar and navigation-bar insets
-- Touch-friendly 48-56 dp controls
-- Responsive live Compose Canvas Matrix
-- Custom MAXIMUS MATRIX AI launcher icon
-- ARM64 native marker
-- English-only repository guard
-- Automated release workflow
-
-## Language policy
-
-Repository source code, comments, UI strings, documentation, tests, logs, prompts, and filenames are English-only.
+The current release is a foundation, not the completed platform. AI providers, streaming
+chat, persistent encrypted memory, backend APIs, ingestion, retrieval indexes, voice,
+notifications, accessibility automation, Trading Genome execution, and Quant Lab are not
+connected and are identified as unavailable or planned in the UI.
 
 ## Security
 
-High-risk or destructive actions must pass policy and confirmation gates. Communication tools use visible Android system interfaces rather than hidden execution. Production signing credentials belong in GitHub Actions secrets and must never be committed.
+The runtime does not bypass Android permissions. Communication actions open visible
+Android system interfaces. Cleartext traffic is disabled. Production signing credentials
+must be supplied through GitHub secrets and must never be committed.
+
+## Documentation
+
+- [Repository audit and migration map](docs/phase-1-audit-and-migration-map.md)
+- [Android runtime integration](docs/android-agent-integration.md)
+- [Android build notes](android-app/README.md)
+
+## Language policy
+
+Repository source, comments, UI, documentation, prompts, logs, tests, filenames, and
+workflow content are English-only. Run `python3 scripts/check_english_only.py` before a
+release.

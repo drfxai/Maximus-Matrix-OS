@@ -1,41 +1,30 @@
-# Android Agent Integration
+# MAXIMUS AI Android Runtime Integration
 
-MAXIMUS MATRIX AI is the Android device-runtime node for Maximus Matrix OS.
+MAXIMUS AI is the Android device-runtime node for MAXIMUS MATRIX OS.
 
 ## Architecture
 
-The Android runtime follows this mission path:
+The implemented mission path is:
 
 `Mission -> Memory -> Planner -> Policy -> Tool -> Validation -> Artifact -> Matrix Event Stream`
 
-Every meaningful transition emits a structured `MatrixEvent`. The live graph consumes these events and highlights the active system path instead of playing unrelated decorative animation.
+Every meaningful transition emits a structured `MatrixEvent`. The live Matrix consumes
+those events and highlights the active path. The graph remains idle when no mission is
+executing; it does not display random runtime activity.
 
-## Migration from the original Kotlin assistant
+## Current boundaries
 
-The uploaded Kotlin application established the design basis for:
-
-- Agent orchestration
-- AI-provider routing
-- Tool registration
-- Memory recall
-- Goal planning
-- Action policy
-- Confirmation gates
-- Android capability boundaries
-- Accessibility and notification integration
-- Voice-oriented interaction
-
-Version 1.0.1 creates a clean English-only graph-native runtime foundation. Device capabilities from the original app can be migrated behind the `MatrixToolRegistry` without giving the control plane authority to bypass Android permissions.
-
-## Security boundaries
-
-- High-risk actions require explicit confirmation.
-- Critical actions are denied by default.
-- Secrets are never placed in graph telemetry.
-- Cleartext network traffic is disabled.
-- The release workflow supports repository-secret signing and falls back to one-time CI signing only when no production key has been configured.
-- One-time CI signing is suitable for preview distribution, not long-term upgrade continuity.
+- The memory recall event is a lifecycle marker; persistent storage is not connected.
+- Knowledge lookup is local-only and does not claim document or vector retrieval.
+- Strategy validation registers a static validation request and does not claim market or
+  TradingView execution.
+- AI provider routing and streaming chat belong to the next runtime phase.
+- Notification and accessibility services are not registered in this release.
+- High-risk actions require confirmation and critical actions are denied by default.
+- Secrets are excluded from graph telemetry and application source.
 
 ## ABI
 
-The release pipeline compiles a small native ABI marker with the Android NDK and enables only `arm64-v8a`. This ensures the release asset is a true ARM64 APK rather than merely renaming an ABI-neutral package.
+The release compiles a native marker with the Android NDK and includes only `arm64-v8a`.
+This verifies the artifact is an ARM64 APK rather than an ABI-neutral package with a renamed
+filename.

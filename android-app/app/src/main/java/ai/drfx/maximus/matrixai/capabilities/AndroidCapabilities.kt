@@ -96,7 +96,7 @@ class AndroidCapabilities(private val context: Context) {
     fun copyToClipboard(text: String): ToolOutcome {
         if (text.isBlank()) return ToolOutcome(false, "Clipboard text is empty.")
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("MAXIMUS MATRIX AI", text))
+        clipboard.setPrimaryClip(ClipData.newPlainText("MAXIMUS AI", text))
         return ToolOutcome(true, "Copied text to clipboard", mapOf("characters" to text.length.toString()))
     }
 

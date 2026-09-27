@@ -1,47 +1,46 @@
-# MAXIMUS MATRIX AI for Android
+# MAXIMUS AI for Android
 
-Version: 1.0.3
+Version: 1.1.0
 
 Package: `ai.drfx.maximus.matrixai`
 
 Target ABI: `arm64-v8a`
 
-MAXIMUS MATRIX AI is the Android device-agent runtime for Maximus Matrix OS.
+MAXIMUS AI is the Android product interface for MAXIMUS MATRIX OS. The package remains
+stable for upgrade compatibility while all visible product branding uses MAXIMUS AI.
 
-## Real Android capabilities
+## Product surface
 
-Version 1.0.3 connects Matrix tools to Android APIs and system intents:
+The Compose application provides Matrix, Chat, Missions, Agents, Research, Trading,
+Knowledge, Memory, Tools, Activity, and Settings destinations. A persistent mission dock
+is available throughout the app. Secondary capability domains are reached from the More
+destination so phone navigation remains touch-friendly.
 
-- Device and battery information
-- Web search
-- Open URL
-- Android settings
-- Camera launcher
-- Alarm editor
-- Calendar event editor
-- Dialer
-- SMS composer
-- Android share sheet
-- Clipboard
-- Application launch by package name
-- Local mission notes
-- Research retrieval placeholder with explicit local-only evidence
-- Static strategy validation with no false TradingView execution claim
+The Chat screen intentionally reports that no AI provider is configured. It does not
+simulate responses. Research, trading, memory, and settings screens distinguish available,
+limited, planned, and unavailable functionality.
 
-Sensitive communication actions open Android system UI rather than silently sending messages or placing calls.
+## Runtime and Android tools
 
-## Agent pipeline
+The current execution path is:
 
 `Mission -> Memory -> Planner -> Policy -> Android Tool -> Validation -> Artifact -> Matrix Event Stream`
 
-## Mobile-first UI
-
-Version 1.0.3 redesigns the Android surface for small screens with a scrollable LazyColumn, safe system insets, a navigation-bar-aware command dock, 48-56 dp touch targets, a constrained responsive graph card, horizontal quick actions, and a dedicated mission event feed.
-
-## Live graph
-
-The Compose Canvas Matrix reacts to real in-process mission events. Active tool, policy, memory, validation, and artifact nodes illuminate as work moves through the runtime.
+Available deterministic commands include device status, web search, URL launch, settings,
+camera, alarms, calendar, dialer, SMS composer, share, clipboard, and app launch. Sensitive
+actions use visible Android interfaces rather than silent execution.
 
 ## Build
 
-GitHub Actions builds and verifies the ARM64 APK, runs tests, checks the English-only policy, validates the APK signature and ABI, generates SHA-256 checksums, and publishes the release.
+The release workflow tests the app, builds an ARM64 APK, verifies signing and ABI metadata,
+checks the launcher icon and English-only policy, and creates SHA-256 checksums.
+
+Production releases require these repository secrets:
+
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_STORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Without them, a build is preview-only and not upgrade-compatible with a stable production
+key.

@@ -23,8 +23,10 @@ class MatrixPlanner {
             normalized.startsWith("share ") -> steps += MissionStep(description = "Share text", action = AgentAction("share_text", mapOf("text" to objective.substringAfter("share ")), RiskLevel.MEDIUM))
             normalized.startsWith("note ") -> steps += MissionStep(description = "Store mission note", action = AgentAction("create_note", mapOf("text" to objective.substringAfter("note "))))
             normalized.startsWith("alarm ") -> {
-                val hhmm = normalized.substringAfter("alarm ").substringBefore(" ").split(":")
-                steps += MissionStep(description = "Open alarm editor", action = AgentAction("set_alarm", mapOf("hour" to (hhmm.getOrNull(0) ?: "9"), "minute" to (hhmm.getOrNull(1) ?: "0"), "label" to objective.substringAfter(" ", "MAXIMUS MATRIX AI")), RiskLevel.MEDIUM))
+                val alarmPayload = objective.substringAfter("alarm ").trim()
+                val hhmm = alarmPayload.substringBefore(" ").split(":")
+                val label = alarmPayload.substringAfter(" ", "").ifBlank { "MAXIMUS AI" }
+                steps += MissionStep(description = "Open alarm editor", action = AgentAction("set_alarm", mapOf("hour" to (hhmm.getOrNull(0) ?: "9"), "minute" to (hhmm.getOrNull(1) ?: "0"), "label" to label), RiskLevel.MEDIUM))
             }
             normalized.startsWith("calendar ") -> steps += MissionStep(description = "Open calendar event editor", action = AgentAction("create_calendar_event", mapOf("title" to objective.substringAfter("calendar ")), RiskLevel.MEDIUM))
             normalized.startsWith("app ") -> steps += MissionStep(description = "Open Android application", action = AgentAction("open_app", mapOf("package" to objective.substringAfter("app ").trim())))

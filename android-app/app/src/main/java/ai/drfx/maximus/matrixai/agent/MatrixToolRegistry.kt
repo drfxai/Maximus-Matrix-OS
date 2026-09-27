@@ -16,7 +16,7 @@ class MatrixToolRegistry(context: Context) {
         "set_alarm" -> capabilities.setAlarm(
             action.arguments["hour"]?.toIntOrNull() ?: 9,
             action.arguments["minute"]?.toIntOrNull() ?: 0,
-            action.arguments["label"].orEmpty().ifBlank { "MAXIMUS MATRIX AI" }
+            action.arguments["label"].orEmpty().ifBlank { "MAXIMUS AI" }
         )
         "create_calendar_event" -> capabilities.createCalendarEvent(action.arguments["title"].orEmpty())
         "open_dialer" -> capabilities.openDialer(action.arguments["number"].orEmpty())
