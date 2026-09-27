@@ -225,13 +225,18 @@ private fun MatrixHome(events: List<MatrixEvent>, status: String, onCommand: (St
         }
         item { SectionTitle("Mission Feed", "Real events from this app session") }
         item { EventFeedCard(events.take(6)) }
-        item { SectionTitle("System Domains", "Internal MAXIMUS MATRIX OS capabilities") }
+        item { SectionTitle("Unified Engines", "Previous projects are now internal MAXIMUS MATRIX OS capabilities") }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                DomainRow("Control Plane", "Policy, tools and execution", Blue, "ACTIVE")
-                DomainRow("Knowledge Core", "Local retrieval foundation", Purple, "LIMITED")
-                DomainRow("Trading Intelligence", "Static analysis foundation", Gold, "LIMITED")
-                DomainRow("Validation", "Outcome checks and evidence", Red, "ACTIVE")
+                DomainRow("Maximus Control Plane", "AI routing, policy, tools, observability and execution", Blue, "ACTIVE")
+                DomainRow("Maximus Mission Control", "Mission planning, execution paths and approval states", Accent, "ACTIVE")
+                DomainRow("Maximus Intelligence Foundry", "Ingestion, sanitization, classification and lineage", Cyan, "FOUNDATION")
+                DomainRow("Maximus Research Engine", "Research missions, evidence, failures and reproducibility", Purple, "FOUNDATION")
+                DomainRow("Maximus Trading Intelligence", "Market, indicator, strategy and Pine intelligence", Gold, "FOUNDATION")
+                DomainRow("Maximus Trading Genome", "Indicator DNA, Strategy DNA and reusable primitives", Gold, "FOUNDATION")
+                DomainRow("Maximus Quant Lab", "Backtest, OOS, walk-forward and stress-test architecture", Cyan, "PLANNED")
+                DomainRow("Maximus Agent Factory", "Agent identity, tools, memory policy, budgets and versions", Lime, "FOUNDATION")
+                DomainRow("Validation & Governance", "Outcome checks, evidence and security policy", Red, "ACTIVE")
             }
         }
     }
