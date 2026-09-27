@@ -1,6 +1,6 @@
 # MAXIMUS MATRIX AI for Android
 
-Version: 1.0.2
+Version: 1.0.3
 
 Package: `ai.drfx.maximus.matrixai`
 
@@ -10,7 +10,7 @@ MAXIMUS MATRIX AI is the Android device-agent runtime for Maximus Matrix OS.
 
 ## Real Android capabilities
 
-Version 1.0.2 connects Matrix tools to Android APIs and system intents:
+Version 1.0.3 connects Matrix tools to Android APIs and system intents:
 
 - Device and battery information
 - Web search
@@ -33,6 +33,10 @@ Sensitive communication actions open Android system UI rather than silently send
 ## Agent pipeline
 
 `Mission -> Memory -> Planner -> Policy -> Android Tool -> Validation -> Artifact -> Matrix Event Stream`
+
+## Mobile-first UI
+
+Version 1.0.3 redesigns the Android surface for small screens with a scrollable LazyColumn, safe system insets, a navigation-bar-aware command dock, 48-56 dp touch targets, a constrained responsive graph card, horizontal quick actions, and a dedicated mission event feed.
 
 ## Live graph
 
