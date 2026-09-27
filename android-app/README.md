@@ -30,3 +30,5 @@ The graph reacts to actual in-process agent events.
 ## Build
 
 The GitHub release workflow installs Android SDK 36, NDK 27.2, CMake 3.22.1, Gradle 9.3.1, runs tests, builds the ARM64 release APK, verifies the native ABI, generates SHA-256 checksums, and publishes release `v1.0.1`.
+
+Release channel: GitHub Releases.
