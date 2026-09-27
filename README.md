@@ -12,7 +12,7 @@ The root `index.html` provides the browser Matrix concept and execution graph.
 
 ### Android runtime
 
-`android-app/` contains **MAXIMUS MATRIX AI V1.0.2**, an ARM64 Android device-agent runtime with real Android capability adapters.
+`android-app/` contains **MAXIMUS MATRIX AI V1.0.3**, an ARM64 Android device-agent runtime with real Android capability adapters.
 
 Implemented:
 
@@ -30,7 +30,10 @@ Implemented:
 - Application launch by package name
 - Validation gate
 - Artifact lifecycle events
-- Live Compose Canvas Matrix
+- Mobile-first scrollable Compose interface
+- Safe system-bar and navigation-bar insets
+- Touch-friendly 48-56 dp controls
+- Responsive live Compose Canvas Matrix
 - Custom MAXIMUS MATRIX AI launcher icon
 - ARM64 native marker
 - English-only repository guard
