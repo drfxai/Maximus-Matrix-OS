@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,6 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -54,7 +56,16 @@ private enum class Destination(val title: String) {
     TOOLS("Tools"), ACTIVITY("Activity"), SETTINGS("Settings")
 }
 
-private data class GraphNode(val name: String, val color: Color, val x: Float, val y: Float)
+private data class GraphNode(
+    val name: String,
+    val color: Color,
+    val x: Float,
+    val y: Float,
+    val kind: String = "Runtime Node",
+    val status: String = "READY",
+    val description: String = "MAXIMUS MATRIX OS runtime entity.",
+    val relationships: String = "Connected to MAXIMUS"
+)
 private data class QuickAction(val label: String, val command: String)
 private data class Capability(val name: String, val detail: String, val state: String, val color: Color)
 
@@ -89,7 +100,7 @@ fun MatrixScreen(viewModel: MatrixViewModel = viewModel()) {
             val modifier = Modifier.padding(innerPadding)
             when (destination) {
                 Destination.MATRIX -> MatrixHome(events, status, { mission = it }, modifier)
-                Destination.CHAT -> ChatScreen(modifier)
+                Destination.CHAT -> ProviderChatScreen(viewModel, modifier)
                 Destination.MISSIONS -> MissionsScreen(events, modifier)
                 Destination.AGENTS -> AgentsScreen(modifier)
                 Destination.RESEARCH -> DomainScreen("Research", "Research missions, evidence and reproducibility", listOf(
@@ -374,18 +385,50 @@ private fun DomainRow(title: String, detail: String, color: Color, state: String
 
 @Composable
 private fun GraphCard(events: List<MatrixEvent>, isExecuting: Boolean) {
+    var selectedNode by remember { mutableStateOf<GraphNode?>(null) }
     Card(shape = RoundedCornerShape(26.dp), border = BorderStroke(1.dp, Border), colors = CardDefaults.cardColors(containerColor = Panel)) {
         Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
                     Text("Live Matrix", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text(if (isExecuting) "Runtime event path active" else "Ready for a mission", color = Muted, fontSize = 12.sp)
+                    Text(if (isExecuting) "Runtime event path active" else "Tap any node to inspect its runtime details", color = Muted, fontSize = 12.sp)
                 }
-                Text(if (isExecuting) "LIVE" else "IDLE", color = if (isExecuting) Accent else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(if (isExecuting) "LIVE" else "INTERACTIVE", color = if (isExecuting) Accent else Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(12.dp))
-            Box(Modifier.fillMaxWidth().aspectRatio(1.12f).background(Color(0xFF020605), RoundedCornerShape(20.dp))) {
-                LiveMatrixGraph(if (isExecuting) events.firstOrNull()?.type else null, isExecuting, Modifier.fillMaxSize().padding(10.dp))
+            Box(Modifier.fillMaxWidth().aspectRatio(1.02f).background(Color(0xFF020605), RoundedCornerShape(20.dp))) {
+                LiveMatrixGraph(
+                    activeType = if (isExecuting) events.firstOrNull()?.type else null,
+                    isExecuting = isExecuting,
+                    modifier = Modifier.fillMaxSize().padding(10.dp),
+                    onNodeSelected = { selectedNode = it }
+                )
+            }
+            selectedNode?.let { node ->
+                Spacer(Modifier.height(12.dp))
+                Surface(
+                    color = Color(0xFF091512),
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.dp, node.color.copy(alpha = .5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(10.dp).background(node.color, CircleShape))
+                            Spacer(Modifier.width(9.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(node.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text(node.kind, color = Muted, fontSize = 10.sp)
+                            }
+                            Text(node.status, color = node.color, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(9.dp))
+                        Text(node.description, color = Soft, fontSize = 12.sp, lineHeight = 18.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text("RELATIONSHIPS", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text(node.relationships, color = Soft, fontSize = 11.sp, lineHeight = 16.sp)
+                    }
+                }
             }
         }
     }
@@ -441,7 +484,12 @@ private fun CommandBar(mission: String, onMissionChange: (String) -> Unit, onRun
 }
 
 @Composable
-private fun LiveMatrixGraph(activeType: MatrixEventType?, isExecuting: Boolean, modifier: Modifier = Modifier) {
+private fun LiveMatrixGraph(
+    activeType: MatrixEventType?,
+    isExecuting: Boolean,
+    modifier: Modifier = Modifier,
+    onNodeSelected: (GraphNode) -> Unit = {}
+) {
     val transition = rememberInfiniteTransition(label = "matrix-runtime")
     val animatedPhase by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(1800), RepeatMode.Restart), label = "event-packet")
     val animatedPulse by transition.animateFloat(.92f, 1.12f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "event-pulse")
@@ -449,10 +497,16 @@ private fun LiveMatrixGraph(activeType: MatrixEventType?, isExecuting: Boolean, 
     val pulse = if (isExecuting) animatedPulse else 1f
     val nodes = remember {
         listOf(
-            GraphNode("MAXIMUS", Accent, .50f, .50f), GraphNode("TOOLS", Blue, .15f, .28f),
-            GraphNode("MEMORY", Purple, .82f, .25f), GraphNode("POLICY", Orange, .86f, .65f),
-            GraphNode("RESEARCH", Cyan, .16f, .72f), GraphNode("GENOME", Gold, .39f, .88f),
-            GraphNode("VALIDATION", Red, .49f, .10f), GraphNode("ARTIFACT", Lime, .73f, .88f)
+            GraphNode("MAXIMUS", Accent, .50f, .48f, "Executive Agent", "ACTIVE", "Central mission coordinator for planning, policy, tools, models, validation and artifacts.", "TOOLS · MEMORY · POLICY · MODEL · RESEARCH · VALIDATION · ARTIFACT"),
+            GraphNode("TOOLS", Blue, .13f, .28f, "Tool Gateway", "ACTIVE", "Android capability gateway for device actions and deterministic tools.", "MAXIMUS · POLICY · VALIDATION"),
+            GraphNode("MEMORY", Purple, .82f, .23f, "Memory Core", "SESSION", "Session and mission context. Persistent encrypted memory remains a controlled expansion.", "MAXIMUS · KNOWLEDGE · RESEARCH"),
+            GraphNode("POLICY", Orange, .88f, .58f, "Policy Engine", "ENFORCED", "Evaluates action risk and blocks critical operations or requires confirmation.", "MAXIMUS · TOOLS · HUMAN APPROVAL"),
+            GraphNode("RESEARCH", Cyan, .13f, .72f, "Research Engine", "FOUNDATION", "Unifies Research OS, Intelligence Foundry and evidence-oriented research missions.", "KNOWLEDGE · GENOME · VALIDATION"),
+            GraphNode("GENOME", Gold, .37f, .89f, "Trading Genome", "FOUNDATION", "Represents strategy, indicator and reusable trading primitive DNA.", "RESEARCH · QUANT LAB · ARTIFACT"),
+            GraphNode("VALIDATION", Red, .47f, .09f, "Validation Lab", "ACTIVE", "Verifies tool outcomes and tracks evidence without fabricating runtime claims.", "TOOLS · MODEL · ARTIFACT"),
+            GraphNode("ARTIFACT", Lime, .72f, .89f, "Artifact Registry", "ACTIVE", "Records mission evidence and future lineage for generated outputs.", "VALIDATION · RESEARCH · GENOME"),
+            GraphNode("MODEL", Color(0xFF6FE3FF), .70f, .48f, "LLM Router", "API-AWARE", "Detects API providers, discovers supported models and executes native chat requests.", "MAXIMUS · POLICY · KNOWLEDGE · VALIDATION"),
+            GraphNode("KNOWLEDGE", Color(0xFFB78CFF), .31f, .27f, "Knowledge Core", "FOUNDATION", "Retrieval-first layer for documents, code, research memory and company intelligence.", "MEMORY · RESEARCH · MODEL · GENOME")
         )
     }
     val activeNode = when (activeType) {
@@ -461,11 +515,32 @@ private fun LiveMatrixGraph(activeType: MatrixEventType?, isExecuting: Boolean, 
         MatrixEventType.TOOL_STARTED, MatrixEventType.TOOL_COMPLETED -> 1
         MatrixEventType.VALIDATION_STARTED, MatrixEventType.VALIDATION_PASSED, MatrixEventType.VALIDATION_FAILED -> 6
         MatrixEventType.ARTIFACT_CREATED -> 7
+        MatrixEventType.MODEL_DISCOVERY, MatrixEventType.MODEL_STARTED, MatrixEventType.MODEL_COMPLETED, MatrixEventType.MODEL_FAILED -> 8
         else -> 0
     }
-    Canvas(modifier) {
+    val interactiveModifier = modifier.pointerInput(nodes) {
+        detectTapGestures { tap ->
+            val hit = nodes.minByOrNull { node ->
+                val px = size.width * node.x
+                val py = size.height * node.y
+                val dx = tap.x - px
+                val dy = tap.y - py
+                dx * dx + dy * dy
+            }
+            if (hit != null) {
+                val dx = tap.x - size.width * hit.x
+                val dy = tap.y - size.height * hit.y
+                val threshold = 42.dp.toPx()
+                if (dx * dx + dy * dy <= threshold * threshold) onNodeSelected(hit)
+            }
+        }
+    }
+    Canvas(interactiveModifier) {
         val centers = nodes.map { Offset(size.width * it.x, size.height * it.y) }
-        val edges = listOf(0 to 1, 0 to 2, 0 to 3, 0 to 4, 0 to 5, 0 to 6, 0 to 7, 4 to 2, 5 to 6, 6 to 7)
+        val edges = listOf(
+            0 to 1, 0 to 2, 0 to 3, 0 to 4, 0 to 5, 0 to 6, 0 to 7, 0 to 8, 0 to 9,
+            4 to 9, 5 to 6, 6 to 7, 8 to 9, 8 to 6, 2 to 9
+        )
         val grid = 32.dp.toPx()
         var gx = 0f
         while (gx < size.width) { drawLine(Color(0x112A4942), Offset(gx, 0f), Offset(gx, size.height)); gx += grid }
@@ -473,9 +548,12 @@ private fun LiveMatrixGraph(activeType: MatrixEventType?, isExecuting: Boolean, 
         while (gy < size.height) { drawLine(Color(0x112A4942), Offset(0f, gy), Offset(size.width, gy)); gy += grid }
         edges.forEach { (from, to) ->
             val active = isExecuting && (from == activeNode || to == activeNode)
-            drawLine(if (active) Accent.copy(alpha = .7f) else Border.copy(alpha = .7f), centers[from], centers[to], if (active) 2.dp.toPx() else 1.dp.toPx())
+            drawLine(if (active) Accent.copy(alpha = .75f) else Border.copy(alpha = .72f), centers[from], centers[to], if (active) 2.dp.toPx() else 1.dp.toPx())
             if (active) {
-                val p = Offset(centers[from].x + (centers[to].x - centers[from].x) * phase, centers[from].y + (centers[to].y - centers[from].y) * phase)
+                val p = Offset(
+                    centers[from].x + (centers[to].x - centers[from].x) * phase,
+                    centers[from].y + (centers[to].y - centers[from].y) * phase
+                )
                 drawCircle(Accent, 2.5.dp.toPx(), p)
             }
         }
@@ -483,10 +561,18 @@ private fun LiveMatrixGraph(activeType: MatrixEventType?, isExecuting: Boolean, 
             val active = isExecuting && index == activeNode
             val radius = (if (index == 0) 17.dp else 10.dp).toPx() * if (active) pulse else 1f
             if (active) drawCircle(node.color.copy(alpha = .18f), radius * 2.2f, centers[index], style = Stroke(2.dp.toPx()))
-            drawCircle(node.color.copy(alpha = if (active) 1f else .75f), radius, centers[index])
-            drawContext.canvas.nativeCanvas.drawText(node.name, centers[index].x, centers[index].y + radius + 13.dp.toPx(), Paint().apply {
-                color = Soft.toArgb(); textSize = 9.sp.toPx(); textAlign = Paint.Align.CENTER; isAntiAlias = true
-            })
+            drawCircle(node.color.copy(alpha = if (active) 1f else .82f), radius, centers[index])
+            drawContext.canvas.nativeCanvas.drawText(
+                node.name,
+                centers[index].x,
+                centers[index].y + radius + 13.dp.toPx(),
+                Paint().apply {
+                    color = Soft.toArgb()
+                    textSize = 8.sp.toPx()
+                    textAlign = Paint.Align.CENTER
+                    isAntiAlias = true
+                }
+            )
         }
     }
 }
@@ -499,5 +585,9 @@ private fun eventColor(type: MatrixEventType): Color = when (type) {
     MatrixEventType.VALIDATION_FAILED, MatrixEventType.MISSION_FAILED -> Red
     MatrixEventType.ARTIFACT_CREATED -> Lime
     MatrixEventType.PLAN_CREATED -> Gold
+    MatrixEventType.MODEL_DISCOVERY -> Gold
+    MatrixEventType.MODEL_STARTED -> Cyan
+    MatrixEventType.MODEL_COMPLETED -> Accent
+    MatrixEventType.MODEL_FAILED -> Red
     else -> Accent
 }
