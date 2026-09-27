@@ -84,7 +84,9 @@ fun MatrixScreen(viewModel: MatrixViewModel = viewModel()) {
         topBar = { AppHeader(status) },
         bottomBar = {
             Column(modifier = Modifier.background(Bg).navigationBarsPadding()) {
-                CommandBar(mission, { mission = it }, { viewModel.runMission(mission) }, status !in setOf("EXECUTING", "PLANNING"))
+                if (destination != Destination.CHAT && !showMore) {
+                    CommandBar(mission, { mission = it }, { viewModel.runMission(mission) }, status !in setOf("EXECUTING", "PLANNING"))
+                }
                 PrimaryNavigation(destination) {
                     if (it == null) showMore = !showMore else {
                         destination = it
