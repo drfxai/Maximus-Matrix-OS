@@ -1,31 +1,46 @@
 package ai.drfx.maximus.matrixai.agent
 
-class MatrixToolRegistry {
+import android.content.Context
+import ai.drfx.maximus.matrixai.capabilities.AndroidCapabilities
+
+class MatrixToolRegistry(context: Context) {
+    private val capabilities = AndroidCapabilities(context)
     private val notes = mutableListOf<String>()
 
     suspend fun execute(action: AgentAction): ToolOutcome = when (action.tool) {
-        "system_status" -> ToolOutcome(
-            success = true,
-            output = "Android runtime healthy and Matrix event stream operational.",
-            evidence = mapOf("runtime" to "android", "status" to "healthy")
+        "system_status", "device_info" -> capabilities.deviceInfo()
+        "web_search" -> capabilities.webSearch(action.arguments["query"].orEmpty())
+        "open_url" -> capabilities.openUrl(action.arguments["url"].orEmpty())
+        "open_settings" -> capabilities.openSettings(action.arguments["section"].orEmpty())
+        "open_camera" -> capabilities.openCamera()
+        "set_alarm" -> capabilities.setAlarm(
+            action.arguments["hour"]?.toIntOrNull() ?: 9,
+            action.arguments["minute"]?.toIntOrNull() ?: 0,
+            action.arguments["label"].orEmpty().ifBlank { "MAXIMUS MATRIX AI" }
         )
+        "create_calendar_event" -> capabilities.createCalendarEvent(action.arguments["title"].orEmpty())
+        "open_dialer" -> capabilities.openDialer(action.arguments["number"].orEmpty())
+        "compose_sms" -> capabilities.composeSms(action.arguments["number"].orEmpty(), action.arguments["message"].orEmpty())
+        "share_text" -> capabilities.shareText(action.arguments["text"].orEmpty())
+        "copy_clipboard" -> capabilities.copyToClipboard(action.arguments["text"].orEmpty())
+        "open_app" -> capabilities.launchPackage(action.arguments["package"].orEmpty())
         "knowledge_lookup" -> ToolOutcome(
-            success = true,
-            output = "Knowledge retrieval completed for: ${action.arguments["query"].orEmpty()}",
-            evidence = mapOf("source" to "local-index", "retrieval" to "completed")
+            true,
+            "Local knowledge request accepted for: ${action.arguments["query"].orEmpty()}",
+            mapOf("source" to "device-runtime", "mode" to "local")
         )
         "create_note" -> {
-            val noteText = action.arguments["text"].orEmpty().trim()
-            if (noteText.isBlank()) ToolOutcome(false, "A note requires non-empty text.")
+            val text = action.arguments["text"].orEmpty().trim()
+            if (text.isBlank()) ToolOutcome(false, "A note requires non-empty text.")
             else {
-                notes += noteText
-                ToolOutcome(true, "Note stored in local mission memory.", mapOf("noteCount" to notes.size.toString()))
+                notes += text
+                ToolOutcome(true, "Note stored in mission memory.", mapOf("noteCount" to notes.size.toString()))
             }
         }
         "validate_strategy" -> ToolOutcome(
-            success = true,
-            output = "Validation request registered. No TradingView execution claim was made.",
-            evidence = mapOf("validation" to "static-demo", "authoritativeRuntime" to "false")
+            true,
+            "Static validation request registered. TradingView runtime execution was not claimed.",
+            mapOf("validation" to "static", "authoritativeRuntime" to "false")
         )
         else -> ToolOutcome(false, "Unknown tool: ${action.tool}")
     }

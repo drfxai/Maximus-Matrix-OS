@@ -1,4 +1,4 @@
-name: Build and Release MAXIMUS MATRIX AI V1.0.1
+name: Build and Release MAXIMUS MATRIX AI V1.0.2
 
 on:
   push:
@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      RELEASE_TAG: v1.0.1
-      RELEASE_TITLE: MAXIMUS MATRIX AI V1.0.1
-      RELEASE_APK: MAXIMUS_MATRIX_AI_V1.0.1_arm64V8a.apk
+      RELEASE_TAG: v1.0.2
+      RELEASE_TITLE: MAXIMUS MATRIX AI V1.0.2
+      RELEASE_APK: MAXIMUS_MATRIX_AI_V1.0.2_arm64V8a.apk
       KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       SECRET_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
       SECRET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -117,7 +117,7 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MAXIMUS-MATRIX-AI-V1.0.1-arm64
+          name: MAXIMUS-MATRIX-AI-V1.0.2-arm64
           path: |
             dist/${{ env.RELEASE_APK }}
             dist/SHA256SUMS
@@ -135,14 +135,16 @@ jobs:
             exit 0
           fi
           cat > "$RUNNER_TEMP/release-notes.md" <<NOTES
-          # MAXIMUS MATRIX AI V1.0.1
+          # MAXIMUS MATRIX AI V1.0.2
 
           ARM64 Android runtime for Maximus Matrix OS.
 
           - ABI: arm64-v8a
           - Package: ai.drfx.maximus.matrixai
-          - Version: 1.0.1 (2)
+          - Version: 1.0.2 (3)
           - Live graph-native agent interface
+          - Real Android device tools: device status, web, settings, camera, alarms, calendar, dialer, SMS composer, share, clipboard and app launch
+          - Custom MAXIMUS MATRIX AI launcher icon
           - Mission planning, policy, tool, validation, and artifact event pipeline
           - English-only repository enforcement
           - SHA-256 checksum included

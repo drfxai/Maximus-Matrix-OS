@@ -1,6 +1,7 @@
 package ai.drfx.maximus.matrixai.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import ai.drfx.maximus.matrixai.agent.MatrixEvent
 import ai.drfx.maximus.matrixai.agent.MatrixEventType
@@ -10,18 +11,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class MatrixViewModel : ViewModel() {
-    private val agent = MaximusMatrixAgent()
+class MatrixViewModel(application: Application) : AndroidViewModel(application) {
+    private val agent = MaximusMatrixAgent(application)
     private val _events = MutableStateFlow<List<MatrixEvent>>(emptyList())
     val events: StateFlow<List<MatrixEvent>> = _events.asStateFlow()
-
-    private val _status = MutableStateFlow("IDLE")
+    private val _status = MutableStateFlow("READY")
     val status: StateFlow<String> = _status.asStateFlow()
 
     init {
         viewModelScope.launch {
             agent.eventStream.collect { event ->
-                _events.value = (listOf(event) + _events.value).take(40)
+                _events.value = (listOf(event) + _events.value).take(60)
                 _status.value = when (event.type) {
                     MatrixEventType.MISSION_COMPLETED -> "READY"
                     MatrixEventType.MISSION_FAILED -> "ATTENTION"

@@ -8,31 +8,38 @@ The Matrix is the primary operating surface: agents, tools, memory, research, va
 
 ### Web Matrix
 
-The root `index.html` provides the live browser concept and execution graph.
+The root `index.html` provides the browser Matrix concept and execution graph.
 
 ### Android runtime
 
-`android-app/` contains **MAXIMUS MATRIX AI V1.0.1**, the ARM64 Android device-agent runtime.
+`android-app/` contains **MAXIMUS MATRIX AI V1.0.2**, an ARM64 Android device-agent runtime with real Android capability adapters.
 
-Implemented in the Android foundation:
+Implemented:
 
 - Graph-native agent event model
 - Mission planner
 - Policy engine
-- Tool registry
+- Android tool registry
+- Device and battery telemetry
+- Web search and URL launch
+- Android settings launcher
+- Camera launcher
+- Alarm and calendar editor integration
+- Dialer and SMS composer integration
+- Share sheet and clipboard integration
+- Application launch by package name
 - Validation gate
-- Artifact lifecycle event
-- Live Compose Canvas graph
+- Artifact lifecycle events
+- Live Compose Canvas Matrix
+- Custom MAXIMUS MATRIX AI launcher icon
 - ARM64 native marker
 - English-only repository guard
 - Automated release workflow
 
 ## Language policy
 
-Repository source code, comments, UI strings, documentation, tests, logs, prompts, and filenames are English-only. Runtime localization should be implemented through dedicated localization resources, not hard-coded non-English strings.
+Repository source code, comments, UI strings, documentation, tests, logs, prompts, and filenames are English-only.
 
 ## Security
 
-High-risk actions must pass confirmation gates. Critical policy-bypass actions are denied by default. Production signing credentials must be stored in GitHub Actions secrets, never committed to the repository.
-
-See `docs/android-agent-integration.md` for the Android architecture and migration plan.
+High-risk or destructive actions must pass policy and confirmation gates. Communication tools use visible Android system interfaces rather than hidden execution. Production signing credentials belong in GitHub Actions secrets and must never be committed.
