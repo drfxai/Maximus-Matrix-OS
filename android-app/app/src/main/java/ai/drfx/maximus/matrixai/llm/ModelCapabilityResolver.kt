@@ -14,30 +14,37 @@ object ModelCapabilityResolver {
                     capabilities += ModelCapability.STRUCTURED_OUTPUT
                     capabilities += ModelCapability.LONG_CONTEXT
                 }
-                if (id.contains("gpt-4o") || id.contains("gpt-4.1") || id.contains("gpt-5")) {
-                    capabilities += ModelCapability.VISION
+                if (id.contains("gpt-4o") || id.contains("gpt-4.1") || id.contains("gpt-5")) capabilities += ModelCapability.VISION
+                if (id.contains("gpt-5") || id.startsWith("o3") || id.startsWith("o4")) capabilities += ModelCapability.REASONING
+            }
+            LlmProvider.NVIDIA -> {
+                if (id.contains("llama") || id.contains("qwen") || id.contains("mistral") || id.contains("nemotron") || id.contains("gpt-oss")) {
+                    capabilities += ModelCapability.LONG_CONTEXT
                 }
-                if (id.contains("gpt-5") || id.startsWith("o3") || id.startsWith("o4")) {
+                if (id.contains("gpt-oss") || id.contains("reason") || id.contains("r1") || id.contains("deepseek")) {
                     capabilities += ModelCapability.REASONING
                 }
+                if (id.contains("vision") || id.contains("vl") || id.contains("vila") || id.contains("neva")) {
+                    capabilities += ModelCapability.VISION
+                }
+                if (id.contains("instruct") || id.contains("nemotron") || id.contains("llama-3.1") || id.contains("llama-3.3") || id.contains("qwen")) {
+                    capabilities += ModelCapability.TOOLS
+                }
+                if (ModelCapability.TOOLS in capabilities) capabilities += ModelCapability.STRUCTURED_OUTPUT
             }
             LlmProvider.ANTHROPIC -> {
                 capabilities += ModelCapability.TOOLS
                 capabilities += ModelCapability.VISION
                 capabilities += ModelCapability.LONG_CONTEXT
                 capabilities += ModelCapability.STRUCTURED_OUTPUT
-                if (id.contains("opus") || id.contains("sonnet") || id.contains("claude-4") || id.contains("3-7")) {
-                    capabilities += ModelCapability.REASONING
-                }
+                if (id.contains("opus") || id.contains("sonnet") || id.contains("claude-4") || id.contains("3-7")) capabilities += ModelCapability.REASONING
             }
             LlmProvider.GEMINI -> {
                 capabilities += ModelCapability.TOOLS
                 capabilities += ModelCapability.VISION
                 capabilities += ModelCapability.LONG_CONTEXT
                 capabilities += ModelCapability.STRUCTURED_OUTPUT
-                if (id.contains("pro") || id.contains("thinking") || id.contains("2.5") || id.contains("3")) {
-                    capabilities += ModelCapability.REASONING
-                }
+                if (id.contains("pro") || id.contains("thinking") || id.contains("2.5") || id.contains("3")) capabilities += ModelCapability.REASONING
             }
             LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> {
                 when {
@@ -51,9 +58,7 @@ object ModelCapabilityResolver {
                         capabilities += ModelCapability.LONG_CONTEXT
                         if (id.contains("vl")) capabilities += ModelCapability.VISION
                     }
-                    id.contains("llama") || id.contains("mistral") || id.contains("mixtral") -> {
-                        capabilities += ModelCapability.LONG_CONTEXT
-                    }
+                    id.contains("llama") || id.contains("mistral") || id.contains("mixtral") -> capabilities += ModelCapability.LONG_CONTEXT
                     id.contains("deepseek-reasoner") || id.contains("r1") -> {
                         capabilities += ModelCapability.REASONING
                         capabilities += ModelCapability.LONG_CONTEXT

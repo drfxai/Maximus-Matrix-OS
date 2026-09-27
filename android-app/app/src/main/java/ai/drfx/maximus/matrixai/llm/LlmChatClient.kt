@@ -16,7 +16,7 @@ class LlmChatClient {
         when (config.provider) {
             LlmProvider.ANTHROPIC -> anthropic(config, history, agent)
             LlmProvider.GEMINI -> gemini(config, history, agent)
-            LlmProvider.OPENAI -> openAiWithFallback(config, history, agent)
+            LlmProvider.OPENAI -> openAiWithFallback(config, history, agent)\n            LlmProvider.NVIDIA -> openAiCompatible(config, history, agent)
             LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> openAiCompatible(config, history, agent)
         }
     }

@@ -8,12 +8,11 @@ import java.net.URL
 
 class ApiDiscoveryEngine {
     suspend fun discover(rawBaseUrl: String, apiKey: String): ApiDiscoveryResult = withContext(Dispatchers.IO) {
-        require(rawBaseUrl.isNotBlank()) { "API base URL is required." }
-
-        val base = normalizeBaseUrl(rawBaseUrl)
-        val hinted = providerFromUrl(base)
+        val base = resolveBaseUrl(rawBaseUrl, apiKey)
+        val hinted = providerFromUrl(base, apiKey)
         val order = when (hinted) {
             LlmProvider.OPENAI -> listOf(LlmProvider.OPENAI, LlmProvider.OPENAI_COMPATIBLE)
+            LlmProvider.NVIDIA -> listOf(LlmProvider.NVIDIA)
             LlmProvider.ANTHROPIC -> listOf(LlmProvider.ANTHROPIC)
             LlmProvider.GEMINI -> listOf(LlmProvider.GEMINI)
             else -> listOf(LlmProvider.OPENAI_COMPATIBLE, LlmProvider.ANTHROPIC, LlmProvider.GEMINI)
@@ -45,7 +44,7 @@ class ApiDiscoveryEngine {
         }
         throw IllegalStateException(
             errors.joinToString(" | ").ifBlank {
-                "No supported API protocol was detected. Use an OpenAI-compatible endpoint, Anthropic API, or Gemini API."
+                "No supported API protocol was detected. Use NVIDIA NIM, an OpenAI-compatible endpoint, Anthropic API, or Gemini API."
             }
         )
     }
@@ -105,10 +104,10 @@ class ApiDiscoveryEngine {
     private fun open(url: String, method: String): HttpURLConnection =
         (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = method
-            connectTimeout = 12_000
-            readTimeout = 20_000
+            connectTimeout = 15_000
+            readTimeout = 30_000
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "MAXIMUS-AI/1.2")
+            setRequestProperty("User-Agent", "MAXIMUS-AI/1.3")
         }
 
     private fun read(connection: HttpURLConnection): String {
@@ -126,9 +125,10 @@ class ApiDiscoveryEngine {
         return text
     }
 
-    private fun providerFromUrl(url: String): LlmProvider {
+    private fun providerFromUrl(url: String, apiKey: String): LlmProvider {
         val host = runCatching { URL(url).host.lowercase() }.getOrDefault("")
         return when {
+            apiKey.startsWith("nvapi-") || "api.nvidia.com" in host || "nvidia.com" in host -> LlmProvider.NVIDIA
             "openai.com" in host -> LlmProvider.OPENAI
             "anthropic.com" in host -> LlmProvider.ANTHROPIC
             "googleapis.com" in host || "generativelanguage" in host -> LlmProvider.GEMINI
@@ -139,14 +139,30 @@ class ApiDiscoveryEngine {
     private fun normalizeDetectedProvider(candidate: LlmProvider, hinted: LlmProvider, base: String): LlmProvider {
         if (candidate != LlmProvider.OPENAI_COMPATIBLE) return candidate
         if (hinted == LlmProvider.OPENAI) return LlmProvider.OPENAI
+        if (hinted == LlmProvider.NVIDIA) return LlmProvider.NVIDIA
         val host = runCatching { URL(base).host.lowercase() }.getOrDefault("")
-        return if ("openai.com" in host) LlmProvider.OPENAI else LlmProvider.OPENAI_COMPATIBLE
+        return when {
+            "api.nvidia.com" in host || "nvidia.com" in host -> LlmProvider.NVIDIA
+            "openai.com" in host -> LlmProvider.OPENAI
+            else -> LlmProvider.OPENAI_COMPATIBLE
+        }
     }
 
     private fun providerRequiresKey(provider: LlmProvider): Boolean =
-        provider == LlmProvider.ANTHROPIC || provider == LlmProvider.GEMINI
+        provider == LlmProvider.NVIDIA || provider == LlmProvider.ANTHROPIC || provider == LlmProvider.GEMINI
 
     companion object {
+        const val NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+
+        fun resolveBaseUrl(rawBaseUrl: String, apiKey: String): String {
+            val input = rawBaseUrl.trim()
+            if (apiKey.startsWith("nvapi-") && (input.isBlank() || input.contains("api.openai.com", ignoreCase = true))) {
+                return NVIDIA_BASE_URL
+            }
+            require(input.isNotBlank()) { "API base URL is required." }
+            return normalizeBaseUrl(input)
+        }
+
         fun normalizeBaseUrl(input: String): String {
             var value = input.trim().trimEnd('/')
             if (!value.startsWith("http://") && !value.startsWith("https://")) value = "https://" + value

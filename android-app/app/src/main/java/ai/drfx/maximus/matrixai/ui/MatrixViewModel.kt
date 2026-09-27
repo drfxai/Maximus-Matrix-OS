@@ -10,6 +10,7 @@ import ai.drfx.maximus.matrixai.data.CompanyDataClient
 import ai.drfx.maximus.matrixai.data.DataCenterUiState
 import ai.drfx.maximus.matrixai.data.SecureDataCenterStore
 import ai.drfx.maximus.matrixai.llm.*
+import ai.drfx.maximus.matrixai.logging.AppLogStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -91,6 +92,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 status = ConnectionStatus.DETECTING,
                 statusMessage = "Detecting API protocol, models and agent compatibility..."
             )
+            AppLogStore.info("API", "API discovery started for " + (if (key.startsWith("nvapi-")) "NVIDIA NIM" else baseUrl))
             appendLlmEvent(MatrixEventType.MODEL_DISCOVERY, "model:discovery", "provider:api", "API discovery started")
             try {
                 val result = discovery.discover(baseUrl, key)
@@ -126,6 +128,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     subscriptionLabel = apiStore.loadSubscriptionLabel(),
                     monthlyBudgetUsd = apiStore.loadMonthlyBudgetUsd()
                 )
+                AppLogStore.info("API", "Detected " + result.provider.name + "; models=" + result.models.size + "; selected=" + selectedModel + "; compatibleAgents=" + supportedAgents.size)
                 appendLlmEvent(
                     MatrixEventType.MODEL_COMPLETED,
                     "provider:" + result.provider.name.lowercase(),
@@ -137,6 +140,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     status = ConnectionStatus.ERROR,
                     statusMessage = error.message ?: "API detection failed."
                 )
+                AppLogStore.error("API", error.message ?: "API detection failed")
                 appendLlmEvent(MatrixEventType.MODEL_FAILED, "model:discovery", "provider:api", error.message ?: "API detection failed")
             }
         }
@@ -216,6 +220,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             "model:" + current.selectedModel,
             selectedAgent.name + " request started"
         )
+        AppLogStore.info("CHAT", "Request started provider=" + current.provider.name + " model=" + current.selectedModel + " agent=" + selectedAgent.id)
 
         viewModelScope.launch {
             try {
@@ -231,6 +236,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 usageStore.record(current.provider, current.selectedModel, result.usage)
                 _usage.value = usageStore.summary()
                 _llmState.value = _llmState.value.copy(isGenerating = false)
+                AppLogStore.info("CHAT", "Response completed model=" + current.selectedModel + " inputTokens=" + result.usage.inputTokens + " outputTokens=" + result.usage.outputTokens + " estimated=" + result.usage.estimated)
                 appendLlmEvent(
                     MatrixEventType.MODEL_COMPLETED,
                     "model:" + current.selectedModel,
@@ -238,6 +244,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     "Model response completed"
                 )
             } catch (error: Throwable) {
+                AppLogStore.error("CHAT", error.message ?: "The model request failed.")
                 appendAssistantError(error.message ?: "The model request failed.")
                 _llmState.value = _llmState.value.copy(isGenerating = false)
                 appendLlmEvent(
@@ -274,8 +281,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val status = dataClient.status(baseUrl, token)
                 dataStore.save(baseUrl, token)
                 _dataCenter.value = _dataCenter.value.copy(baseUrl = baseUrl, status = status, busy = false)
+                AppLogStore.info("DATA", "Company data center connected: " + status.name)
                 appendLlmEvent(MatrixEventType.MEMORY_RECALLED, "company:data-center", "knowledge:core", "Company data center connected")
             } catch (error: Throwable) {
+                AppLogStore.error("DATA", error.message ?: "Company data center operation failed.")
                 _dataCenter.value = _dataCenter.value.copy(
                     busy = false,
                     status = _dataCenter.value.status.copy(
@@ -319,6 +328,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun appendEvent(event: MatrixEvent) {
         _events.value = (listOf(event) + _events.value).take(150)
+        AppLogStore.info("MATRIX", event.type.name + " | " + event.sourceNode + " -> " + (event.targetNode ?: "-") + " | " + event.message)
     }
 
     private fun appendLlmEvent(type: MatrixEventType, source: String, target: String, message: String) {

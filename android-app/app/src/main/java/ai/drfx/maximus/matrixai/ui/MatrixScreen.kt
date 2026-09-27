@@ -11,11 +11,11 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import ai.drfx.maximus.matrixai.ui.theme.AppThemeMode
 
 private enum class Destination(val label: String) {
     MATRIX("Matrix"),
@@ -26,30 +26,34 @@ private enum class Destination(val label: String) {
 }
 
 @Composable
-fun MatrixScreen(viewModel: MatrixViewModel = viewModel()) {
+fun MatrixScreen(
+    themeMode: AppThemeMode,
+    onThemeModeChange: (AppThemeMode) -> Unit,
+    viewModel: MatrixViewModel = viewModel()
+) {
     var destination by remember { mutableStateOf(Destination.MATRIX) }
     val llm by viewModel.llmState.collectAsState()
     val status by viewModel.status.collectAsState()
 
     Scaffold(
-        modifier = Modifier.fillMaxSize().background(Color(0xFF030707)),
-        containerColor = Color(0xFF030707),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
-            Surface(color = Color(0xFF030707)) {
+            Surface(color = MaterialTheme.colorScheme.background) {
                 Row(
                     modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("MAXIMUS AI", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("MAXIMUS MATRIX OS · V1.2.0", color = Color(0xFF87A29B), fontSize = 9.sp)
+                        Text("MAXIMUS AI", color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("MAXIMUS MATRIX OS · V1.3.0", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
                     }
                     Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
-                        Text(status, color = Color(0xFF5CF0BC), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text(status, color = MaterialTheme.colorScheme.primary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         Text(
                             if (llm.selectedModel.isBlank()) "NO MODEL" else llm.selectedModel.take(22),
-                            color = Color(0xFF718883),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 8.sp
                         )
                     }
@@ -58,7 +62,7 @@ fun MatrixScreen(viewModel: MatrixViewModel = viewModel()) {
         },
         bottomBar = {
             NavigationBar(
-                containerColor = Color(0xFF06100E),
+                containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 0.dp,
                 modifier = Modifier.navigationBarsPadding()
             ) {
@@ -101,7 +105,7 @@ fun MatrixScreen(viewModel: MatrixViewModel = viewModel()) {
             Destination.CHAT -> ProviderChatScreen(viewModel, modifier)
             Destination.AGENTS -> AgentsScreen(viewModel, modifier)
             Destination.DATA -> DataCenterScreen(viewModel, modifier)
-            Destination.CONTROL -> ControlHubScreen(viewModel, modifier)
+            Destination.CONTROL -> ControlHubScreen(viewModel, themeMode, onThemeModeChange, modifier)
         }
     }
 }

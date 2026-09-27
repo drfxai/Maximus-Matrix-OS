@@ -85,10 +85,10 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("MAXIMUS MATRIX", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("Live operating graph · real entities and runtime events", color = GraphMuted, fontSize = 12.sp)
+                    Text("MAXIMUS MATRIX", color = MaterialTheme.colorScheme.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Live operating graph · real entities and runtime events", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
-                Surface(shape = RoundedCornerShape(14.dp), color = GraphPanel, border = BorderStroke(1.dp, GraphBorder)) {
+                Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
                     Column(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(status, color = if (status == "READY") GraphAccent else GraphGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         Text("${topology.first.size} NODES", color = GraphMuted, fontSize = 8.sp)
@@ -98,7 +98,7 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
         }
 
         item {
-            Surface(shape = RoundedCornerShape(24.dp), color = GraphPanel, border = BorderStroke(1.dp, GraphBorder)) {
+            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
                 Column(Modifier.padding(10.dp)) {
                     Text("Pinch to zoom · drag to pan · tap a node to inspect", color = GraphMuted, fontSize = 10.sp)
                     Spacer(Modifier.height(7.dp))
@@ -124,22 +124,22 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
                             Box(Modifier.size(11.dp).background(node.color, CircleShape))
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(node.label, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(node.label, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                                 Text(node.group, color = node.color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
-                        Text(node.description, color = GraphText, fontSize = 12.sp, lineHeight = 18.sp)
+                        Text(node.description, color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, lineHeight = 18.sp)
                         Text("RELATIONSHIPS", color = GraphMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                        Text(node.relations, color = GraphText, fontSize = 11.sp, lineHeight = 16.sp)
+                        Text(node.relations, color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, lineHeight = 16.sp)
                     }
                 }
             }
         }
 
         item {
-            Surface(shape = RoundedCornerShape(20.dp), color = GraphPanel, border = BorderStroke(1.dp, GraphBorder)) {
+            Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
                 Column(Modifier.padding(12.dp)) {
-                    Text("Mission Control", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text("Mission Control", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(7.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
@@ -162,13 +162,13 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
 
         if (events.isNotEmpty()) {
             item {
-                Surface(shape = RoundedCornerShape(20.dp), color = GraphPanel, border = BorderStroke(1.dp, GraphBorder)) {
+                Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
                     Column(Modifier.padding(12.dp)) {
-                        Text("Live Matrix Events", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text("Live Matrix Events", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(7.dp))
                         events.take(6).forEachIndexed { index, event ->
                             Text(event.type.name.replace('_', ' '), color = eventColor(event), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            Text(event.message, color = GraphText, fontSize = 11.sp, lineHeight = 16.sp)
+                            Text(event.message, color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, lineHeight = 16.sp)
                             if (index != events.take(6).lastIndex) {
                                 Spacer(Modifier.height(6.dp))
                                 HorizontalDivider(color = GraphBorder)
@@ -198,91 +198,137 @@ private fun LiveMatrixCanvas(
     val nodeMap = remember(nodes) { nodes.associateBy { it.id } }
     val activeText = events.firstOrNull()?.let { (it.sourceNode + " " + (it.targetNode ?: "")).lowercase() }.orEmpty()
 
-    val gestureModifier = modifier
-        .pointerInput(nodes) {
-            detectTransformGestures { _, panChange, zoomChange, _ ->
-                zoom = (zoom * zoomChange).coerceIn(.38f, 2.4f)
-                pan += panChange
-            }
-        }
-        .pointerInput(nodes, zoom, pan) {
-            detectTapGestures { tap ->
-                val center = Offset(size.width / 2f, size.height / 2f)
-                val hit = nodes.minByOrNull { node ->
-                    val screen = Offset(center.x + node.x * zoom + pan.x, center.y + node.y * zoom + pan.y)
-                    (tap - screen).getDistance()
-                }
-                if (hit != null) {
-                    val screen = Offset(center.x + hit.x * zoom + pan.x, center.y + hit.y * zoom + pan.y)
-                    if ((tap - screen).getDistance() <= 44.dp.toPx()) onNodeSelected(hit)
+    Box(modifier) {
+        val gestureModifier = Modifier
+            .fillMaxSize()
+            .pointerInput(nodes) {
+                detectTransformGestures { _, panChange, zoomChange, _ ->
+                    zoom = (zoom * zoomChange).coerceIn(.32f, 3.2f)
+                    pan += panChange
                 }
             }
-        }
-
-    Canvas(gestureModifier) {
-        val center = Offset(size.width / 2f, size.height / 2f)
-        fun screen(node: LiveNode) = Offset(center.x + node.x * zoom + pan.x, center.y + node.y * zoom + pan.y)
-
-        val grid = 36.dp.toPx()
-        var gx = ((pan.x % grid) + grid) % grid
-        while (gx < size.width) {
-            drawLine(Color(0x112A4942), Offset(gx, 0f), Offset(gx, size.height))
-            gx += grid
-        }
-        var gy = ((pan.y % grid) + grid) % grid
-        while (gy < size.height) {
-            drawLine(Color(0x112A4942), Offset(0f, gy), Offset(size.width, gy))
-            gy += grid
-        }
-
-        edges.forEachIndexed { index, edge ->
-            val from = nodeMap[edge.from] ?: return@forEachIndexed
-            val to = nodeMap[edge.to] ?: return@forEachIndexed
-            val a = screen(from)
-            val b = screen(to)
-            val active = activeText.contains(from.id.lowercase()) || activeText.contains(to.id.lowercase()) ||
-                activeText.contains(from.label.lowercase()) || activeText.contains(to.label.lowercase())
-            drawLine(
-                color = if (active) GraphAccent.copy(alpha = .8f) else from.color.copy(alpha = .20f),
-                start = a,
-                end = b,
-                strokeWidth = if (active) 2.dp.toPx() else 1.dp.toPx()
-            )
-            if (active || index % 6 == 0) {
-                val t = (packet + index * .07f) % 1f
-                drawCircle(
-                    color = if (active) GraphAccent else GraphAccent.copy(alpha = .45f),
-                    radius = 2.dp.toPx(),
-                    center = Offset(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
-                )
-            }
-        }
-
-        nodes.forEach { node ->
-            val p = screen(node)
-            val active = activeText.contains(node.id.lowercase()) || activeText.contains(node.label.lowercase())
-            val baseRadius = node.radius.dp.toPx() * zoom.coerceAtLeast(.65f)
-            if (node.hub) {
-                drawCircle(node.color.copy(alpha = .10f), baseRadius * (if (active) 2.5f * pulse else 2.1f), p)
-                drawCircle(node.color.copy(alpha = .24f), baseRadius * 1.45f, p, style = Stroke(1.dp.toPx()))
-            }
-            drawCircle(node.color.copy(alpha = if (active) 1f else .86f), baseRadius, p)
-            if (active) drawCircle(Color.White.copy(alpha = .45f), baseRadius + 5.dp.toPx(), p, style = Stroke(1.dp.toPx()))
-
-            if (node.hub || zoom > .95f) {
-                drawContext.canvas.nativeCanvas.drawText(
-                    node.label,
-                    p.x,
-                    p.y + baseRadius + 14.dp.toPx(),
-                    Paint().apply {
-                        color = GraphText.toArgb()
-                        textSize = (if (node.hub) 10.sp else 8.sp).toPx()
-                        textAlign = Paint.Align.CENTER
-                        isAntiAlias = true
+            .pointerInput(nodes, zoom, pan) {
+                detectTapGestures(
+                    onDoubleTap = {
+                        zoom = 0.82f
+                        pan = Offset.Zero
+                    },
+                    onTap = { tap ->
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val hit = nodes.minByOrNull { node ->
+                            val screen = Offset(center.x + node.x * zoom + pan.x, center.y + node.y * zoom + pan.y)
+                            (tap - screen).getDistance()
+                        }
+                        if (hit != null) {
+                            val screen = Offset(center.x + hit.x * zoom + pan.x, center.y + hit.y * zoom + pan.y)
+                            if ((tap - screen).getDistance() <= 48.dp.toPx()) onNodeSelected(hit)
+                        }
                     }
                 )
             }
+
+        Canvas(gestureModifier) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            fun screen(node: LiveNode) = Offset(center.x + node.x * zoom + pan.x, center.y + node.y * zoom + pan.y)
+
+            val grid = 36.dp.toPx()
+            var gx = ((pan.x % grid) + grid) % grid
+            while (gx < size.width) {
+                drawLine(Color(0x112A4942), Offset(gx, 0f), Offset(gx, size.height))
+                gx += grid
+            }
+            var gy = ((pan.y % grid) + grid) % grid
+            while (gy < size.height) {
+                drawLine(Color(0x112A4942), Offset(0f, gy), Offset(size.width, gy))
+                gy += grid
+            }
+
+            edges.forEachIndexed { index, edge ->
+                val from = nodeMap[edge.from] ?: return@forEachIndexed
+                val to = nodeMap[edge.to] ?: return@forEachIndexed
+                val a = screen(from)
+                val b = screen(to)
+                val active = activeText.contains(from.id.lowercase()) || activeText.contains(to.id.lowercase()) ||
+                    activeText.contains(from.label.lowercase()) || activeText.contains(to.label.lowercase())
+                drawLine(
+                    color = if (active) GraphAccent.copy(alpha = .8f) else from.color.copy(alpha = .20f),
+                    start = a,
+                    end = b,
+                    strokeWidth = if (active) 2.dp.toPx() else 1.dp.toPx()
+                )
+                if (active || index % 6 == 0) {
+                    val t = (packet + index * .07f) % 1f
+                    drawCircle(
+                        color = if (active) GraphAccent else GraphAccent.copy(alpha = .45f),
+                        radius = 2.dp.toPx(),
+                        center = Offset(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+                    )
+                }
+            }
+
+            nodes.forEach { node ->
+                val p = screen(node)
+                val active = activeText.contains(node.id.lowercase()) || activeText.contains(node.label.lowercase())
+                val baseRadius = node.radius.dp.toPx() * zoom.coerceAtLeast(.65f)
+                if (node.hub) {
+                    drawCircle(node.color.copy(alpha = .10f), baseRadius * (if (active) 2.5f * pulse else 2.1f), p)
+                    drawCircle(node.color.copy(alpha = .24f), baseRadius * 1.45f, p, style = Stroke(1.dp.toPx()))
+                }
+                drawCircle(node.color.copy(alpha = if (active) 1f else .86f), baseRadius, p)
+                if (active) drawCircle(Color.White.copy(alpha = .45f), baseRadius + 5.dp.toPx(), p, style = Stroke(1.dp.toPx()))
+
+                if (node.hub || zoom > .95f) {
+                    drawContext.canvas.nativeCanvas.drawText(
+                        node.label,
+                        p.x,
+                        p.y + baseRadius + 14.dp.toPx(),
+                        Paint().apply {
+                            color = GraphText.toArgb()
+                            textSize = (if (node.hub) 10.sp else 8.sp).toPx()
+                            textAlign = Paint.Align.CENTER
+                            isAntiAlias = true
+                        }
+                    )
+                }
+            }
         }
+
+        Column(
+            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            SmallGraphButton("+") { zoom = (zoom * 1.2f).coerceAtMost(3.2f) }
+            SmallGraphButton("−") { zoom = (zoom / 1.2f).coerceAtLeast(.32f) }
+            SmallGraphButton("⌂") {
+                zoom = .82f
+                pan = Offset.Zero
+            }
+        }
+
+        Surface(
+            modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
+            color = Color(0xCC071110),
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.dp, GraphBorder)
+        ) {
+            Text(
+                "Pinch with two fingers · drag to pan · tap to inspect · double-tap to reset",
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                color = GraphMuted,
+                fontSize = 8.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun SmallGraphButton(label: String, onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = Modifier.size(38.dp),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Text(label, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     }
 }
 

@@ -53,3 +53,12 @@ release.
 The Android product now includes provider-aware LLM chat, capability-gated agent selection, a larger interactive live Matrix graph, API usage/subscription metadata, and a company data-center gateway for Pine sources, documents, projects and research.
 
 The repository does not contain the private 3,000-source Pine library or production company database credentials. Those assets remain external and are exposed through the configurable data-center connector rather than fabricated in the app.
+
+
+## MAXIMUS AI V1.3.0
+
+- NVIDIA NIM API Catalog support with automatic `nvapi-` key recognition and the NVIDIA hosted base URL.
+- Copyable redacted diagnostic log for API discovery, chat failures, data-center operations and Matrix runtime events.
+- Light, dark and system appearance modes.
+- Larger Matrix graph with two-finger pinch zoom, drag-to-pan, tap inspection, double-tap reset and explicit zoom controls.
+- Credentials are never written to the repository or diagnostic log.

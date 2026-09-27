@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -18,7 +17,9 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
     val state by viewModel.llmState.collectAsState()
     val usage by viewModel.usage.collectAsState()
     var planLabel by remember(state.subscriptionLabel) { mutableStateOf(state.subscriptionLabel) }
-    var budget by remember(state.monthlyBudgetUsd) { mutableStateOf(if (state.monthlyBudgetUsd > 0) state.monthlyBudgetUsd.toString() else "") }
+    var budget by remember(state.monthlyBudgetUsd) {
+        mutableStateOf(if (state.monthlyBudgetUsd > 0) state.monthlyBudgetUsd.toString() else "")
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -26,66 +27,77 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("API Control", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+            Text("API Control", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Manage the active provider, local subscription metadata and measured token usage. MAXIMUS AI does not invent provider billing data.",
-                color = Color(0xFF87A29B), fontSize = 12.sp, lineHeight = 17.sp
+                "Manage the active provider, local subscription metadata and measured token usage. Provider billing remains authoritative.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                lineHeight = 17.sp
             )
         }
         item {
-            Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFF071110), border = BorderStroke(1.dp, Color(0xFF15342D))) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MetricLine("Connection", state.status.name, if (state.status == ConnectionStatus.CONNECTED) Color(0xFF5CF0BC) else Color(0xFFE4B34D))
-                    MetricLine("Provider", state.provider.name.replace('_', ' '), Color.White)
-                    MetricLine("Model", state.selectedModel.ifBlank { "None" }, Color.White)
-                    MetricLine("Compatible agents", state.supportedAgents.size.toString(), Color.White)
+            ControlCard {
+                MetricLine(
+                    "Connection",
+                    state.status.name,
+                    if (state.status == ConnectionStatus.CONNECTED) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.tertiary
+                )
+                MetricLine("Provider", state.provider.name.replace('_', ' '), MaterialTheme.colorScheme.onSurface)
+                MetricLine("Model", state.selectedModel.ifBlank { "None" }, MaterialTheme.colorScheme.onSurface)
+                MetricLine("Compatible agents", state.supportedAgents.size.toString(), MaterialTheme.colorScheme.onSurface)
+            }
+        }
+        item {
+            ControlCard {
+                Text("Usage", fontWeight = FontWeight.SemiBold)
+                MetricLine("Requests", usage.requests.toString(), MaterialTheme.colorScheme.onSurface)
+                MetricLine("Input tokens", usage.inputTokens.toString(), MaterialTheme.colorScheme.onSurface)
+                MetricLine("Output tokens", usage.outputTokens.toString(), MaterialTheme.colorScheme.onSurface)
+                MetricLine("Total tokens", usage.totalTokens.toString(), MaterialTheme.colorScheme.primary)
+                MetricLine(
+                    "Estimated responses",
+                    usage.estimatedResponses.toString(),
+                    if (usage.estimatedResponses > 0) MaterialTheme.colorScheme.tertiary
+                    else MaterialTheme.colorScheme.onSurface
+                )
+                if (state.models.size > 1 && state.selectedAgentId.isNotBlank()) {
+                    Text(
+                        "Optimization: use the least expensive model that still exposes every capability required by the selected agent.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+                OutlinedButton(onClick = viewModel::clearUsage) {
+                    Text("Reset local usage counters")
                 }
             }
         }
         item {
-            Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFF071110), border = BorderStroke(1.dp, Color(0xFF15342D))) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Usage", color = Color.White, fontWeight = FontWeight.SemiBold)
-                    MetricLine("Requests", usage.requests.toString(), Color.White)
-                    MetricLine("Input tokens", usage.inputTokens.toString(), Color.White)
-                    MetricLine("Output tokens", usage.outputTokens.toString(), Color.White)
-                    MetricLine("Total tokens", usage.totalTokens.toString(), Color(0xFF5CF0BC))
-                    MetricLine("Estimated responses", usage.estimatedResponses.toString(), if (usage.estimatedResponses > 0) Color(0xFFE4B34D) else Color.White)
-                    if (state.models.size > 1 && state.selectedAgentId.isNotBlank()) {
-                        Text(
-                            "Optimization: use the least expensive model in this API that still exposes every capability required by the selected agent.",
-                            color = Color(0xFF87A29B), fontSize = 11.sp, lineHeight = 16.sp
-                        )
-                    }
-                    OutlinedButton(onClick = viewModel::clearUsage, border = BorderStroke(1.dp, Color(0xFF15342D))) {
-                        Text("Reset local usage counters", color = Color(0xFFB8CBC5))
-                    }
-                }
-            }
-        }
-        item {
-            Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFF071110), border = BorderStroke(1.dp, Color(0xFF15342D))) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("Subscription Metadata", color = Color.White, fontWeight = FontWeight.SemiBold)
-                    Text("Stored locally for planning only. Provider billing remains authoritative.", color = Color(0xFF87A29B), fontSize = 10.sp)
-                    OutlinedTextField(
-                        value = planLabel,
-                        onValueChange = { planLabel = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Plan / subscription label") },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = budget,
-                        onValueChange = { value -> budget = value.filter { it.isDigit() || it == '.' }.take(10) },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Monthly budget (USD)") },
-                        singleLine = true
-                    )
-                    Button(
-                        onClick = { viewModel.saveSubscription(planLabel.trim(), budget.toDoubleOrNull() ?: 0.0) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0E3A2E), contentColor = Color(0xFF5CF0BC))
-                    ) { Text("Save") }
+            ControlCard {
+                Text("Subscription Metadata", fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Stored locally for planning only.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp
+                )
+                OutlinedTextField(
+                    value = planLabel,
+                    onValueChange = { planLabel = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Plan / subscription label") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = budget,
+                    onValueChange = { value -> budget = value.filter { it.isDigit() || it == '.' }.take(10) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Monthly budget (USD)") },
+                    singleLine = true
+                )
+                Button(onClick = { viewModel.saveSubscription(planLabel.trim(), budget.toDoubleOrNull() ?: 0.0) }) {
+                    Text("Save")
                 }
             }
         }
@@ -93,9 +105,20 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
 }
 
 @Composable
-private fun MetricLine(label: String, value: String, color: Color) {
+private fun ControlCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+    }
+}
+
+@Composable
+private fun MetricLine(label: String, value: String, color: androidx.compose.ui.graphics.Color) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Color(0xFF87A29B), fontSize = 11.sp)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
         Text(value, color = color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
     }
 }

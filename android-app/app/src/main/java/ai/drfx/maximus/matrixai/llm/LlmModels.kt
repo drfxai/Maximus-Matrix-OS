@@ -2,6 +2,7 @@ package ai.drfx.maximus.matrixai.llm
 
 enum class LlmProvider {
     OPENAI,
+    NVIDIA,
     ANTHROPIC,
     GEMINI,
     OPENAI_COMPATIBLE,
