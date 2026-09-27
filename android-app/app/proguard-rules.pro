@@ -1,0 +1,2 @@
+-keep class ai.drfx.maximus.matrixai.** { *; }
+-dontwarn kotlinx.coroutines.**
