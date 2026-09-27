@@ -44,3 +44,13 @@ Production releases require these repository secrets:
 
 Without them, a build is preview-only and not upgrade-compatible with a stable production
 key.
+
+
+## V1.2.0
+
+- Auto-detects OpenAI-compatible, Anthropic and Gemini APIs.
+- Profiles discovered model capabilities and shows only compatible MAXIMUS agents.
+- Tracks provider/model token usage locally and stores subscription/budget metadata.
+- Adds a configurable company data-center gateway for the Pine library and company knowledge.
+- Replaces the compact graph with a larger pan/zoom/tap live Matrix topology.
+- Integrates legacy product concepts as internal Matrix OS modules.

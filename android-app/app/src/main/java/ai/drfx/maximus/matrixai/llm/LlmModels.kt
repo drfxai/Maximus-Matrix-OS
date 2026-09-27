@@ -1,18 +1,25 @@
 package ai.drfx.maximus.matrixai.llm
 
-enum class LlmProvider { OPENAI, ANTHROPIC, GEMINI, OPENAI_COMPATIBLE, UNKNOWN }
+enum class LlmProvider {
+    OPENAI,
+    ANTHROPIC,
+    GEMINI,
+    OPENAI_COMPATIBLE,
+    UNKNOWN
+}
 
 data class ModelDescriptor(
     val id: String,
     val displayName: String = id,
-    val capabilities: Set<String> = emptySet()
+    val capabilities: Set<ModelCapability> = emptySet()
 )
 
 data class ApiConnectionConfig(
     val baseUrl: String,
     val apiKey: String,
     val provider: LlmProvider,
-    val selectedModel: String
+    val selectedModel: String,
+    val selectedAgentId: String
 )
 
 data class ApiDiscoveryResult(
@@ -22,6 +29,18 @@ data class ApiDiscoveryResult(
     val message: String
 )
 
+data class ChatUsage(
+    val inputTokens: Int = 0,
+    val outputTokens: Int = 0,
+    val totalTokens: Int = inputTokens + outputTokens,
+    val estimated: Boolean = false
+)
+
+data class ChatCompletionResult(
+    val text: String,
+    val usage: ChatUsage
+)
+
 data class ChatMessage(
     val role: String,
     val content: String,
@@ -29,7 +48,12 @@ data class ChatMessage(
     val isError: Boolean = false
 )
 
-enum class ConnectionStatus { DISCONNECTED, DETECTING, CONNECTED, ERROR }
+enum class ConnectionStatus {
+    DISCONNECTED,
+    DETECTING,
+    CONNECTED,
+    ERROR
+}
 
 data class LlmUiState(
     val status: ConnectionStatus = ConnectionStatus.DISCONNECTED,
@@ -37,7 +61,11 @@ data class LlmUiState(
     val baseUrl: String = "",
     val models: List<ModelDescriptor> = emptyList(),
     val selectedModel: String = "",
+    val selectedAgentId: String = "general",
+    val supportedAgents: List<AgentDescriptor> = emptyList(),
     val hasSavedKey: Boolean = false,
     val statusMessage: String = "Configure an API endpoint to begin.",
-    val isGenerating: Boolean = false
+    val isGenerating: Boolean = false,
+    val subscriptionLabel: String = "",
+    val monthlyBudgetUsd: Double = 0.0
 )

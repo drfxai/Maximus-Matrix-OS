@@ -46,3 +46,10 @@ must be supplied through GitHub secrets and must never be committed.
 Repository source, comments, UI, documentation, prompts, logs, tests, filenames, and
 workflow content are English-only. Run `python3 scripts/check_english_only.py` before a
 release.
+
+
+## MAXIMUS AI V1.2.0
+
+The Android product now includes provider-aware LLM chat, capability-gated agent selection, a larger interactive live Matrix graph, API usage/subscription metadata, and a company data-center gateway for Pine sources, documents, projects and research.
+
+The repository does not contain the private 3,000-source Pine library or production company database credentials. Those assets remain external and are exposed through the configurable data-center connector rather than fabricated in the app.

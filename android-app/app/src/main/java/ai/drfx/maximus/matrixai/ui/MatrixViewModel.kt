@@ -6,14 +6,10 @@ import androidx.lifecycle.viewModelScope
 import ai.drfx.maximus.matrixai.agent.MatrixEvent
 import ai.drfx.maximus.matrixai.agent.MatrixEventType
 import ai.drfx.maximus.matrixai.agent.MaximusMatrixAgent
-import ai.drfx.maximus.matrixai.llm.ApiConnectionConfig
-import ai.drfx.maximus.matrixai.llm.ApiDiscoveryEngine
-import ai.drfx.maximus.matrixai.llm.ChatMessage
-import ai.drfx.maximus.matrixai.llm.ConnectionStatus
-import ai.drfx.maximus.matrixai.llm.LlmChatClient
-import ai.drfx.maximus.matrixai.llm.LlmProvider
-import ai.drfx.maximus.matrixai.llm.LlmUiState
-import ai.drfx.maximus.matrixai.llm.SecureApiConfigStore
+import ai.drfx.maximus.matrixai.data.CompanyDataClient
+import ai.drfx.maximus.matrixai.data.DataCenterUiState
+import ai.drfx.maximus.matrixai.data.SecureDataCenterStore
+import ai.drfx.maximus.matrixai.llm.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,10 +17,13 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 class MatrixViewModel(application: Application) : AndroidViewModel(application) {
-    private val agent = MaximusMatrixAgent(application)
+    private val agentRuntime = MaximusMatrixAgent(application)
     private val discovery = ApiDiscoveryEngine()
     private val chatClient = LlmChatClient()
     private val apiStore = SecureApiConfigStore(application)
+    private val usageStore = ApiUsageStore(application)
+    private val dataClient = CompanyDataClient()
+    private val dataStore = SecureDataCenterStore(application)
 
     private val _events = MutableStateFlow<List<MatrixEvent>>(emptyList())
     val events: StateFlow<List<MatrixEvent>> = _events.asStateFlow()
@@ -32,18 +31,26 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val _status = MutableStateFlow("READY")
     val status: StateFlow<String> = _status.asStateFlow()
 
+    private val _usage = MutableStateFlow(usageStore.summary())
+    val usage: StateFlow<ApiUsageSummary> = _usage.asStateFlow()
+
+    private val initialCapabilities = emptySet<ModelCapability>()
     private val _llmState = MutableStateFlow(
         LlmUiState(
             status = ConnectionStatus.DISCONNECTED,
             provider = apiStore.loadProvider(),
             baseUrl = apiStore.loadBaseUrl(),
             selectedModel = apiStore.loadModel(),
+            selectedAgentId = apiStore.loadAgentId(),
+            supportedAgents = AgentRegistry.supportedAgents(initialCapabilities),
             hasSavedKey = apiStore.hasApiKey(),
-            statusMessage = if (apiStore.hasApiKey()) {
-                "Saved API configuration found. Detect the API to refresh supported models."
+            statusMessage = if (apiStore.loadBaseUrl().isNotBlank()) {
+                "Saved API configuration found. Detect the API to refresh models and compatible agents."
             } else {
                 "Configure an API endpoint to begin."
-            }
+            },
+            subscriptionLabel = apiStore.loadSubscriptionLabel(),
+            monthlyBudgetUsd = apiStore.loadMonthlyBudgetUsd()
         )
     )
     val llmState: StateFlow<LlmUiState> = _llmState.asStateFlow()
@@ -51,9 +58,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
+    private val _dataCenter = MutableStateFlow(DataCenterUiState(baseUrl = dataStore.baseUrl()))
+    val dataCenter: StateFlow<DataCenterUiState> = _dataCenter.asStateFlow()
+
     init {
         viewModelScope.launch {
-            agent.eventStream.collect { event ->
+            agentRuntime.eventStream.collect { event ->
                 appendEvent(event)
                 _status.value = when (event.type) {
                     MatrixEventType.MISSION_COMPLETED -> "READY"
@@ -69,7 +79,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         if (_status.value == "EXECUTING" || _status.value == "PLANNING") return
         viewModelScope.launch {
             _status.value = "PLANNING"
-            agent.execute(objective)
+            agentRuntime.execute(objective)
         }
     }
 
@@ -79,50 +89,108 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             val key = apiKeyInput.ifBlank { apiStore.loadApiKey() }
             _llmState.value = _llmState.value.copy(
                 status = ConnectionStatus.DETECTING,
-                statusMessage = "Detecting provider and supported models..."
+                statusMessage = "Detecting API protocol, models and agent compatibility..."
             )
             appendLlmEvent(MatrixEventType.MODEL_DISCOVERY, "model:discovery", "provider:api", "API discovery started")
             try {
                 val result = discovery.discover(baseUrl, key)
                 val remembered = apiStore.loadModel()
-                val selected = result.models.firstOrNull { it.id == remembered }?.id
+                val selectedModel = result.models.firstOrNull { it.id == remembered }?.id
+                    ?: result.models.firstOrNull { ModelCapability.CHAT in it.capabilities }?.id
                     ?: result.models.firstOrNull()?.id.orEmpty()
-                apiStore.save(result.baseUrl, key, result.provider, selected)
+                val model = result.models.firstOrNull { it.id == selectedModel }
+                val supportedAgents = AgentRegistry.supportedAgents(model?.capabilities.orEmpty())
+                val rememberedAgent = apiStore.loadAgentId()
+                val selectedAgent = supportedAgents.firstOrNull { it.id == rememberedAgent }?.id
+                    ?: supportedAgents.firstOrNull()?.id.orEmpty()
+
+                apiStore.save(
+                    result.baseUrl,
+                    key,
+                    result.provider,
+                    selectedModel,
+                    selectedAgent,
+                    apiStore.loadSubscriptionLabel(),
+                    apiStore.loadMonthlyBudgetUsd()
+                )
                 _llmState.value = LlmUiState(
                     status = ConnectionStatus.CONNECTED,
                     provider = result.provider,
                     baseUrl = result.baseUrl,
                     models = result.models,
-                    selectedModel = selected,
-                    hasSavedKey = true,
-                    statusMessage = result.message
+                    selectedModel = selectedModel,
+                    selectedAgentId = selectedAgent,
+                    supportedAgents = supportedAgents,
+                    hasSavedKey = key.isNotBlank(),
+                    statusMessage = result.message + " " + supportedAgents.size + " compatible agent(s) available.",
+                    subscriptionLabel = apiStore.loadSubscriptionLabel(),
+                    monthlyBudgetUsd = apiStore.loadMonthlyBudgetUsd()
                 )
                 appendLlmEvent(
                     MatrixEventType.MODEL_COMPLETED,
                     "provider:" + result.provider.name.lowercase(),
-                    "model:" + selected,
-                    result.message
+                    "model:" + selectedModel,
+                    "API detected and model catalog loaded"
                 )
             } catch (error: Throwable) {
                 _llmState.value = _llmState.value.copy(
                     status = ConnectionStatus.ERROR,
                     statusMessage = error.message ?: "API detection failed."
                 )
-                appendLlmEvent(
-                    MatrixEventType.MODEL_FAILED,
-                    "model:discovery",
-                    "provider:api",
-                    error.message ?: "API detection failed"
-                )
+                appendLlmEvent(MatrixEventType.MODEL_FAILED, "model:discovery", "provider:api", error.message ?: "API detection failed")
             }
         }
     }
 
     fun selectModel(modelId: String) {
         val current = _llmState.value
-        if (current.models.none { it.id == modelId }) return
-        _llmState.value = current.copy(selectedModel = modelId)
-        apiStore.save(current.baseUrl, "", current.provider, modelId)
+        val model = current.models.firstOrNull { it.id == modelId } ?: return
+        val agents = AgentRegistry.supportedAgents(model.capabilities)
+        val selectedAgent = agents.firstOrNull { it.id == current.selectedAgentId }?.id
+            ?: agents.firstOrNull()?.id.orEmpty()
+        _llmState.value = current.copy(
+            selectedModel = modelId,
+            selectedAgentId = selectedAgent,
+            supportedAgents = agents
+        )
+        apiStore.save(
+            current.baseUrl,
+            "",
+            current.provider,
+            modelId,
+            selectedAgent,
+            current.subscriptionLabel,
+            current.monthlyBudgetUsd
+        )
+    }
+
+    fun selectAgent(agentId: String) {
+        val current = _llmState.value
+        if (current.supportedAgents.none { it.id == agentId }) return
+        _llmState.value = current.copy(selectedAgentId = agentId)
+        apiStore.save(
+            current.baseUrl,
+            "",
+            current.provider,
+            current.selectedModel,
+            agentId,
+            current.subscriptionLabel,
+            current.monthlyBudgetUsd
+        )
+    }
+
+    fun saveSubscription(label: String, monthlyBudgetUsd: Double) {
+        val current = _llmState.value
+        _llmState.value = current.copy(subscriptionLabel = label, monthlyBudgetUsd = monthlyBudgetUsd.coerceAtLeast(0.0))
+        apiStore.save(
+            current.baseUrl,
+            "",
+            current.provider,
+            current.selectedModel,
+            current.selectedAgentId,
+            label,
+            monthlyBudgetUsd.coerceAtLeast(0.0)
+        )
     }
 
     fun sendChat(text: String) {
@@ -130,23 +198,23 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         if (prompt.isBlank()) return
         val current = _llmState.value
         if (current.status != ConnectionStatus.CONNECTED || current.selectedModel.isBlank()) {
-            _chatMessages.value = _chatMessages.value + ChatMessage(
-                role = "assistant",
-                content = "Connect an API and select a supported model before sending a message.",
-                isError = true
-            )
+            appendAssistantError("Connect an API and select a supported model before sending a message.")
+            return
+        }
+        val selectedAgent = current.supportedAgents.firstOrNull { it.id == current.selectedAgentId }
+        if (selectedAgent == null) {
+            appendAssistantError("Select an agent supported by the current model.")
             return
         }
         if (current.isGenerating) return
 
-        val userMessage = ChatMessage(role = "user", content = prompt)
-        _chatMessages.value = _chatMessages.value + userMessage
+        _chatMessages.value = _chatMessages.value + ChatMessage(role = "user", content = prompt)
         _llmState.value = current.copy(isGenerating = true)
         appendLlmEvent(
             MatrixEventType.MODEL_STARTED,
-            "chat:user",
+            "agent:" + selectedAgent.id,
             "model:" + current.selectedModel,
-            "Model request started"
+            selectedAgent.name + " request started"
         )
 
         viewModelScope.launch {
@@ -155,28 +223,27 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     baseUrl = current.baseUrl,
                     apiKey = apiStore.loadApiKey(),
                     provider = current.provider,
-                    selectedModel = current.selectedModel
+                    selectedModel = current.selectedModel,
+                    selectedAgentId = selectedAgent.id
                 )
-                val answer = chatClient.send(config, _chatMessages.value)
-                _chatMessages.value = _chatMessages.value + ChatMessage(role = "assistant", content = answer)
+                val result = chatClient.send(config, _chatMessages.value, selectedAgent)
+                _chatMessages.value = _chatMessages.value + ChatMessage(role = "assistant", content = result.text)
+                usageStore.record(current.provider, current.selectedModel, result.usage)
+                _usage.value = usageStore.summary()
                 _llmState.value = _llmState.value.copy(isGenerating = false)
                 appendLlmEvent(
                     MatrixEventType.MODEL_COMPLETED,
                     "model:" + current.selectedModel,
-                    "chat:assistant",
+                    "agent:" + selectedAgent.id,
                     "Model response completed"
                 )
             } catch (error: Throwable) {
-                _chatMessages.value = _chatMessages.value + ChatMessage(
-                    role = "assistant",
-                    content = error.message ?: "The model request failed.",
-                    isError = true
-                )
+                appendAssistantError(error.message ?: "The model request failed.")
                 _llmState.value = _llmState.value.copy(isGenerating = false)
                 appendLlmEvent(
                     MatrixEventType.MODEL_FAILED,
                     "model:" + current.selectedModel,
-                    "chat:assistant",
+                    "agent:" + selectedAgent.id,
                     error.message ?: "Model request failed"
                 )
             }
@@ -193,19 +260,76 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         appendLlmEvent(MatrixEventType.MODEL_DISCOVERY, "provider:api", "model:none", "API configuration cleared")
     }
 
+    fun clearUsage() {
+        usageStore.clear()
+        _usage.value = usageStore.summary()
+    }
+
+    fun connectDataCenter(baseUrl: String, tokenInput: String) {
+        if (_dataCenter.value.busy) return
+        viewModelScope.launch {
+            val token = tokenInput.ifBlank { dataStore.token() }
+            _dataCenter.value = _dataCenter.value.copy(baseUrl = baseUrl, busy = true)
+            try {
+                val status = dataClient.status(baseUrl, token)
+                dataStore.save(baseUrl, token)
+                _dataCenter.value = _dataCenter.value.copy(baseUrl = baseUrl, status = status, busy = false)
+                appendLlmEvent(MatrixEventType.MEMORY_RECALLED, "company:data-center", "knowledge:core", "Company data center connected")
+            } catch (error: Throwable) {
+                _dataCenter.value = _dataCenter.value.copy(
+                    busy = false,
+                    status = _dataCenter.value.status.copy(
+                        connected = false,
+                        message = error.message ?: "Company data center connection failed."
+                    )
+                )
+            }
+        }
+    }
+
+    fun searchDataCenter(query: String) {
+        val current = _dataCenter.value
+        if (!current.status.connected || current.busy || query.isBlank()) return
+        viewModelScope.launch {
+            _dataCenter.value = current.copy(busy = true, query = query)
+            try {
+                val results = dataClient.search(current.baseUrl, dataStore.token(), query)
+                _dataCenter.value = _dataCenter.value.copy(searchResults = results, busy = false, query = query)
+            } catch (error: Throwable) {
+                _dataCenter.value = _dataCenter.value.copy(
+                    busy = false,
+                    status = _dataCenter.value.status.copy(message = error.message ?: "Search failed.")
+                )
+            }
+        }
+    }
+
+    fun disconnectDataCenter() {
+        dataStore.clear()
+        _dataCenter.value = DataCenterUiState()
+    }
+
+    private fun appendAssistantError(message: String) {
+        _chatMessages.value = _chatMessages.value + ChatMessage(
+            role = "assistant",
+            content = message,
+            isError = true
+        )
+    }
+
     private fun appendEvent(event: MatrixEvent) {
-        _events.value = (listOf(event) + _events.value).take(100)
+        _events.value = (listOf(event) + _events.value).take(150)
     }
 
     private fun appendLlmEvent(type: MatrixEventType, source: String, target: String, message: String) {
         appendEvent(
             MatrixEvent(
-                missionId = "chat-" + UUID.randomUUID().toString(),
+                missionId = "system-" + UUID.randomUUID().toString(),
                 type = type,
                 sourceNode = source,
                 targetNode = target,
                 message = message,
-                metadata = mapOf("domain" to "llm")
+                metadata = mapOf("domain" to "matrix")
             )
         )
     }

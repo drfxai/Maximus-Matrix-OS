@@ -14,17 +14,32 @@ class SecureApiConfigStore(context: Context) {
     private val preferences = context.getSharedPreferences("maximus_secure_api", Context.MODE_PRIVATE)
     private val alias = "maximus_ai_api_key"
 
-    fun save(baseUrl: String, apiKey: String, provider: LlmProvider, model: String) {
+    fun save(
+        baseUrl: String,
+        apiKey: String,
+        provider: LlmProvider,
+        model: String,
+        agentId: String = "general",
+        subscriptionLabel: String = loadSubscriptionLabel(),
+        monthlyBudgetUsd: Double = loadMonthlyBudgetUsd()
+    ) {
         val editor = preferences.edit()
             .putString("base_url", baseUrl)
             .putString("provider", provider.name)
             .putString("model", model)
+            .putString("agent_id", agentId)
+            .putString("subscription_label", subscriptionLabel)
+            .putLong("monthly_budget_bits", java.lang.Double.doubleToRawLongBits(monthlyBudgetUsd))
         if (apiKey.isNotBlank()) editor.putString("api_key", encrypt(apiKey))
         editor.apply()
     }
 
     fun loadBaseUrl(): String = preferences.getString("base_url", "").orEmpty()
     fun loadModel(): String = preferences.getString("model", "").orEmpty()
+    fun loadAgentId(): String = preferences.getString("agent_id", "general").orEmpty().ifBlank { "general" }
+    fun loadSubscriptionLabel(): String = preferences.getString("subscription_label", "").orEmpty()
+    fun loadMonthlyBudgetUsd(): Double =
+        java.lang.Double.longBitsToDouble(preferences.getLong("monthly_budget_bits", java.lang.Double.doubleToRawLongBits(0.0)))
 
     fun loadProvider(): LlmProvider = runCatching {
         LlmProvider.valueOf(preferences.getString("provider", LlmProvider.UNKNOWN.name).orEmpty())

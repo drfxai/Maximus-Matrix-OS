@@ -9,7 +9,6 @@ import java.net.URL
 class ApiDiscoveryEngine {
     suspend fun discover(rawBaseUrl: String, apiKey: String): ApiDiscoveryResult = withContext(Dispatchers.IO) {
         require(rawBaseUrl.isNotBlank()) { "API base URL is required." }
-        require(apiKey.isNotBlank()) { "API key is required." }
 
         val base = normalizeBaseUrl(rawBaseUrl)
         val hinted = providerFromUrl(base)
@@ -23,21 +22,32 @@ class ApiDiscoveryEngine {
         val errors = mutableListOf<String>()
         for (provider in order) {
             try {
+                if (providerRequiresKey(provider) && apiKey.isBlank()) {
+                    errors += providerLabel(provider) + ": API key required"
+                    continue
+                }
                 val models = fetchModels(base, apiKey, provider)
                 if (models.isNotEmpty()) {
-                    val detected = if (provider == LlmProvider.OPENAI_COMPATIBLE && hinted == LlmProvider.OPENAI) LlmProvider.OPENAI else provider
+                    val detected = normalizeDetectedProvider(provider, hinted, base)
+                    val profiled = models.map { model ->
+                        model.copy(capabilities = ModelCapabilityResolver.resolve(detected, model.id))
+                    }
                     return@withContext ApiDiscoveryResult(
                         provider = detected,
                         baseUrl = base,
-                        models = models.distinctBy { it.id }.sortedBy { it.displayName.lowercase() },
-                        message = "Detected " + providerLabel(detected) + " with " + models.size + " supported model(s)."
+                        models = profiled,
+                        message = "Detected " + providerLabel(detected) + " with " + profiled.size + " model(s)."
                     )
                 }
             } catch (error: Throwable) {
                 errors += providerLabel(provider) + ": " + (error.message ?: "request failed")
             }
         }
-        throw IllegalStateException(errors.joinToString(" | ").ifBlank { "No compatible model endpoint was detected." })
+        throw IllegalStateException(
+            errors.joinToString(" | ").ifBlank {
+                "No supported API protocol was detected. Use an OpenAI-compatible endpoint, Anthropic API, or Gemini API."
+            }
+        )
     }
 
     private fun fetchModels(base: String, apiKey: String, provider: LlmProvider): List<ModelDescriptor> {
@@ -46,14 +56,7 @@ class ApiDiscoveryEngine {
             else -> apiRoot(base) + "/models"
         }
         val connection = open(url, "GET")
-        when (provider) {
-            LlmProvider.ANTHROPIC -> {
-                connection.setRequestProperty("x-api-key", apiKey)
-                connection.setRequestProperty("anthropic-version", "2023-06-01")
-            }
-            LlmProvider.GEMINI -> Unit
-            else -> connection.setRequestProperty("Authorization", "Bearer " + apiKey)
-        }
+        applyAuth(connection, provider, apiKey)
         val body = read(connection)
         val json = JSONObject(body)
         return when (provider) {
@@ -70,7 +73,7 @@ class ApiDiscoveryEngine {
                         val rawName = model.optString("name")
                         if (rawName.isBlank()) continue
                         val id = rawName.removePrefix("models/")
-                        add(ModelDescriptor(id, model.optString("displayName").ifBlank { id }, setOf("chat")))
+                        add(ModelDescriptor(id, model.optString("displayName").ifBlank { id }))
                     }
                 }
             }
@@ -80,10 +83,22 @@ class ApiDiscoveryEngine {
                     for (i in 0 until array.length()) {
                         val model = array.optJSONObject(i) ?: continue
                         val id = model.optString("id")
-                        if (id.isNotBlank()) add(ModelDescriptor(id, id, setOf("chat")))
+                        if (id.isNotBlank()) add(ModelDescriptor(id, id))
                     }
                 }
             }
+        }
+    }
+
+    private fun applyAuth(connection: HttpURLConnection, provider: LlmProvider, apiKey: String) {
+        if (apiKey.isBlank()) return
+        when (provider) {
+            LlmProvider.ANTHROPIC -> {
+                connection.setRequestProperty("x-api-key", apiKey)
+                connection.setRequestProperty("anthropic-version", "2023-06-01")
+            }
+            LlmProvider.GEMINI -> Unit
+            else -> connection.setRequestProperty("Authorization", "Bearer " + apiKey)
         }
     }
 
@@ -93,7 +108,7 @@ class ApiDiscoveryEngine {
             connectTimeout = 12_000
             readTimeout = 20_000
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "MAXIMUS-AI/1.1")
+            setRequestProperty("User-Agent", "MAXIMUS-AI/1.2")
         }
 
     private fun read(connection: HttpURLConnection): String {
@@ -101,7 +116,11 @@ class ApiDiscoveryEngine {
         val text = (if (code in 200..299) connection.inputStream else connection.errorStream)
             ?.bufferedReader()?.use { it.readText() }.orEmpty()
         if (code !in 200..299) {
-            val message = runCatching { JSONObject(text).optJSONObject("error")?.optString("message") }.getOrNull()
+            val message = runCatching {
+                val root = JSONObject(text)
+                root.optJSONObject("error")?.optString("message")
+                    ?.ifBlank { root.optString("message") }
+            }.getOrNull()
             throw IllegalStateException(message?.takeIf { it.isNotBlank() } ?: "HTTP " + code)
         }
         return text
@@ -117,6 +136,16 @@ class ApiDiscoveryEngine {
         }
     }
 
+    private fun normalizeDetectedProvider(candidate: LlmProvider, hinted: LlmProvider, base: String): LlmProvider {
+        if (candidate != LlmProvider.OPENAI_COMPATIBLE) return candidate
+        if (hinted == LlmProvider.OPENAI) return LlmProvider.OPENAI
+        val host = runCatching { URL(base).host.lowercase() }.getOrDefault("")
+        return if ("openai.com" in host) LlmProvider.OPENAI else LlmProvider.OPENAI_COMPATIBLE
+    }
+
+    private fun providerRequiresKey(provider: LlmProvider): Boolean =
+        provider == LlmProvider.ANTHROPIC || provider == LlmProvider.GEMINI
+
     companion object {
         fun normalizeBaseUrl(input: String): String {
             var value = input.trim().trimEnd('/')
@@ -124,7 +153,10 @@ class ApiDiscoveryEngine {
             return value
         }
 
-        fun apiRoot(base: String): String = if (base.endsWith("/v1")) base else base + "/v1"
+        fun apiRoot(base: String): String {
+            val normalized = base.trimEnd('/')
+            return if (normalized.endsWith("/v1")) normalized else normalized + "/v1"
+        }
 
         fun geminiRoot(base: String): String {
             val normalized = base.trimEnd('/')
