@@ -1,365 +1,402 @@
 package ai.drfx.maximus.matrixai.ui
 
-import android.graphics.Paint
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Paint
 import android.speech.RecognizerIntent
+import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import ai.drfx.maximus.matrixai.agent.MatrixEvent
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import ai.drfx.maximus.matrixai.llm.ConnectionStatus
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.min
+import kotlinx.coroutines.isActive
 import java.util.Locale
+import kotlin.math.*
 
-private val GraphBg = Color(0xFF020405)
-private val GraphPanel = Color(0xFF071110)
-private val GraphBorder = Color(0xFF15342D)
-private val GraphText = Color(0xFFDCE8E7)
-private val GraphMuted = Color(0xFF87A29B)
-private val GraphAccent = Color(0xFF5CF0BC)
-private val GraphBlue = Color(0xFF4C9EFF)
-private val GraphPurple = Color(0xFF9B72FF)
-private val GraphGold = Color(0xFFF3B735)
-private val GraphRed = Color(0xFFE65D83)
-private val GraphCyan = Color(0xFF6AC7D8)
-private val GraphOrange = Color(0xFFEF8E54)
-private val GraphLime = Color(0xFFB2D15B)
+private val GraphAccent = Color(0xFF38C79B)
+private val GraphBlue = Color(0xFF578CDB)
+private val GraphPurple = Color(0xFF9B72DA)
+private val GraphGold = Color(0xFFE4B739)
+private val GraphRed = Color(0xFFD664A2)
+private val GraphCyan = Color(0xFF6ABCC9)
+private val GraphOrange = Color(0xFFE99148)
+private val GraphLime = Color(0xFFAAC56A)
 
-private data class LiveNode(
-    val id: String,
-    val label: String,
-    val group: String,
-    val x: Float,
-    val y: Float,
-    val radius: Float,
-    val color: Color,
-    val description: String,
-    val relations: String,
-    val hub: Boolean = false
-)
-
+private data class LiveNode(val id: String, val label: String, val group: String,
+    val x: Float, val y: Float, val radius: Float, val color: Color,
+    val description: String, val relations: String, val hub: Boolean = false)
 private data class LiveEdge(val from: String, val to: String, val relation: String)
+private data class MeshPoint(val point: SpacePoint, val parent: String, val color: Color)
+private enum class GraphPanel { INSPECTOR, FILTERS }
 
 @Composable
 fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
-    val lightGraph = MaterialTheme.colorScheme.background.luminance() > .5f
+    val light = MaterialTheme.colorScheme.background.luminance() > .5f
+    val bg = if (light) Color(0xFFF4F7FA) else Color(0xFF050608)
+    val panelColor = if (light) Color(0xF5FFFFFF) else Color(0xF5101217)
+    val ink = if (light) Color(0xFF182434) else Color(0xFFE5E9EF)
+    val muted = if (light) Color(0xFF586778) else Color(0xFF8D939F)
+    val border = if (light) Color(0xFFD7DFE8) else Color(0xFF262930)
     val events by viewModel.events.collectAsState()
     val status by viewModel.status.collectAsState()
     val llm by viewModel.llmState.collectAsState()
     val dataCenter by viewModel.dataCenter.collectAsState()
-
-    var selected by remember { mutableStateOf<LiveNode?>(null) }
+    val topology = remember(llm.status, llm.provider, llm.selectedModel, dataCenter.status.connected) {
+        buildTopology(llm.status == ConnectionStatus.CONNECTED, llm.provider.name.replace('_', ' '),
+            llm.selectedModel, dataCenter.status.connected)
+    }
+    val nodes = topology.first
+    val edges = topology.second
+    var selectedId by remember { mutableStateOf<String?>(null) }
+    val selected = nodes.find { it.id == selectedId }
+    var search by remember { mutableStateOf("") }
+    var hiddenGroups by remember { mutableStateOf(emptySet<String>()) }
+    var openPanel by remember { mutableStateOf<GraphPanel?>(null) }
+    var rotation by remember { mutableStateOf(GraphRotation().orbit(pitch = -.12f, yaw = .20f)) }
+    var zoom by remember { mutableFloatStateOf(1f) }
+    var autoRotate by remember { mutableStateOf(true) }
+    var touching by remember { mutableStateOf(false) }
+    var lastTouch by remember { mutableLongStateOf(0L) }
+    var labels by remember { mutableStateOf(true) }
+    var mesh by remember { mutableStateOf(true) }
+    var spread by remember { mutableFloatStateOf(1f) }
+    var linkOpacity by remember { mutableFloatStateOf(.28f) }
     var mission by remember { mutableStateOf("") }
-    var pendingVoiceCommand by remember { mutableStateOf<String?>(null) }
+    var pendingVoice by remember { mutableStateOf<String?>(null) }
     var voiceError by remember { mutableStateOf<String?>(null) }
     val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val words = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-            if (!words.isNullOrBlank()) {
-                mission = words
-                pendingVoiceCommand = words
-                voiceError = null
-            } else voiceError = "No command was recognized. Please try again."
+            if (!words.isNullOrBlank()) { mission = words; pendingVoice = words; voiceError = null }
+            else voiceError = "No command was recognized. Please try again."
         }
     }
-    if (pendingVoiceCommand != null) {
-        AlertDialog(
-            onDismissRequest = { pendingVoiceCommand = null },
-            title = { Text("Execute voice command?") },
-            text = { Text(pendingVoiceCommand.orEmpty()) },
-            confirmButton = {
-                TextButton(onClick = {
-                    pendingVoiceCommand?.let(viewModel::runMission)
-                    mission = ""
-                    pendingVoiceCommand = null
-                }, enabled = status != "EXECUTING" && status != "PLANNING") { Text("Execute") }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingVoiceCommand = null }) { Text("Edit or cancel") }
-            }
-        )
-    }
-
-    val topology = remember(llm.status, llm.provider, llm.selectedModel, dataCenter.status.connected) {
-        buildTopology(
-            llmConnected = llm.status == ConnectionStatus.CONNECTED,
-            provider = llm.provider.name.replace('_', ' '),
-            model = llm.selectedModel,
-            dataConnected = dataCenter.status.connected
-        )
-    }
-
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("NEURAL MATRIX", color = MaterialTheme.colorScheme.onBackground, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                    Text("LIVE OPERATING GRAPH", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, letterSpacing = 1.sp)
+    fun reset() { rotation = GraphRotation().orbit(pitch = -.12f, yaw = .20f); zoom = 1f; selectedId = null; lastTouch = SystemClock.uptimeMillis() }
+    val owner = LocalLifecycleOwner.current
+    LaunchedEffect(owner, autoRotate) {
+        owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            var previous = 0L
+            while (isActive) {
+                withFrameNanos { now ->
+                    val dt = if (previous == 0L) 0f else ((now - previous) / 1_000_000_000f).coerceAtMost(.05f)
+                    previous = now
+                    if (autoRotate && !touching && selectedId == null && openPanel == null && SystemClock.uptimeMillis() - lastTouch > 2200L)
+                        rotation = rotation.orbit(yaw = dt * .045f)
                 }
-                Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                    Column(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(status, color = if (status == "READY") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Text("${topology.first.size} NODES", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp)
+            }
+        }
+    }
+    if (pendingVoice != null) AlertDialog(onDismissRequest = { pendingVoice = null },
+        title = { Text("Execute voice command?") }, text = { Text(pendingVoice.orEmpty()) },
+        confirmButton = { TextButton(onClick = { pendingVoice?.let(viewModel::runMission); mission = ""; pendingVoice = null },
+            enabled = status != "EXECUTING" && status != "PLANNING") { Text("Execute") } },
+        dismissButton = { TextButton(onClick = { pendingVoice = null }) { Text("Edit or cancel") } })
+
+    val inspector: @Composable () -> Unit = {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("MAXIMUS MATRIX OS", color = ink, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text("${nodes.size} modules · ${edges.size} connections", color = muted, fontSize = 10.sp)
+            OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(), singleLine = true,
+                placeholder = { Text("Search the matrix…", fontSize = 11.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(16.dp)) })
+            Text("INSPECTOR", color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
+            Surface(color = bg, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, border)) {
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(selected?.label ?: "Explore the matrix", color = ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(selected?.description ?: "Tap a node to focus its connections. Drag to orbit in 3D. Twist with two fingers to roll.",
+                        color = muted, fontSize = 11.sp, lineHeight = 16.sp)
+                    if (selected != null) {
+                        Text(selected.group, color = graphTone(selected.color, light), fontSize = 9.sp)
+                        Text(selected.relations, color = muted, fontSize = 10.sp)
+                        TextButton(onClick = { selectedId = null }) { Text("Clear focus") }
                     }
                 }
             }
-        }
-
-        item {
-            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                Column(Modifier.padding(10.dp)) {
-                    Text("NEURAL MATRIX   •   Pinch to zoom   •   Tap a node", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, letterSpacing = .4.sp)
-                    Spacer(Modifier.height(7.dp))
-                    LiveMatrixCanvas(
-                        nodes = topology.first,
-                        edges = topology.second,
-                        events = events,
-                        selected = selected,
-                        light = lightGraph,
-                        onNodeSelected = { selected = it },
-                        onDismiss = { selected = null },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(500.dp)
-                            .background(GraphBg, RoundedCornerShape(18.dp))
-                    )
+            Text(if (search.isBlank()) "TOP HUBS" else "SEARCH RESULTS", color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
+            nodes.filter { if (search.isBlank()) it.hub else it.label.contains(search, true) }.forEach { node ->
+                Row(Modifier.fillMaxWidth().clickable { selectedId = node.id; hiddenGroups = hiddenGroups - node.group; openPanel = null }
+                    .padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(6.dp).background(graphTone(node.color, light), CircleShape))
+                    Text(node.label, Modifier.weight(1f).padding(start = 7.dp), color = ink, fontSize = 11.sp)
+                    Text(edges.count { it.from == node.id || it.to == node.id }.toString(), color = muted, fontSize = 10.sp)
                 }
             }
+            if (search.isNotBlank() && nodes.none { it.label.contains(search, true) }) Text("No matching modules", color = muted, fontSize = 11.sp)
+            HorizontalDivider(color = border)
+            Text("DISPLAY", color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
+            Text("Cluster spread", color = muted, fontSize = 11.sp)
+            Slider(spread, { spread = it }, valueRange = .65f..1.5f)
+            Text("Link visibility", color = muted, fontSize = 11.sp)
+            Slider(linkOpacity, { linkOpacity = it }, valueRange = .12f.. .7f)
+            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(labels, { labels = it }); Text("Node labels", color = ink, fontSize = 11.sp) }
+            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(mesh, { mesh = it }); Text("Ambient neural mesh", color = ink, fontSize = 11.sp) }
+            Text("Mesh particles are visual detail; module counts represent the application topology.", color = muted, fontSize = 10.sp)
         }
+    }
+    val filters: @Composable () -> Unit = {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("FILTER", color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
+            nodes.groupBy { it.group }.forEach { (group, members) ->
+                Row(Modifier.fillMaxWidth().clickable {
+                    hiddenGroups = if (group in hiddenGroups) hiddenGroups - group else hiddenGroups + group
+                    if (selected?.group in hiddenGroups) selectedId = null
+                }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(6.dp).background(if (group in hiddenGroups) muted.copy(alpha = .3f) else graphTone(members.first().color, light), CircleShape))
+                    Text(group.lowercase().replaceFirstChar { it.uppercase() }, Modifier.weight(1f).padding(horizontal = 7.dp),
+                        color = if (group in hiddenGroups) muted.copy(alpha = .5f) else ink, fontSize = 10.sp)
+                    Text(members.size.toString(), color = muted, fontSize = 9.sp)
+                }
+            }
+            TextButton(onClick = { hiddenGroups = emptySet(); search = "" }) { Text("Show all", fontSize = 11.sp) }
+        }
+    }
 
-        item {
-            Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                Column(Modifier.padding(12.dp)) {
-                    Text("Mission Control", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(7.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = mission,
-                            onValueChange = { mission = it },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            placeholder = { Text("Describe a mission") }
-                        )
-                        IconButton(onClick = {
-                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
-                                .putExtra(RecognizerIntent.EXTRA_PROMPT, "Describe the mission to execute")
-                            try { voiceLauncher.launch(intent) }
-                            catch (_: Exception) { voiceError = "Voice recognition is unavailable on this device." }
-                        }) { Icon(Icons.Default.Mic, "Speak a mission command") }
-                        Button(
-                            onClick = { viewModel.runMission(mission); mission = "" },
-                            enabled = mission.isNotBlank() && status != "EXECUTING" && status != "PLANNING",
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0E3A2E), contentColor = GraphAccent)
-                        ) { Text("Run") }
+    Column(modifier.background(bg)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("MAXIMUS AI", color = ink, fontSize = 17.sp, letterSpacing = 1.sp, fontWeight = FontWeight.ExtraBold)
+                Text("NEURAL WORKSPACE / 1.7.0", color = muted, fontSize = 9.sp, letterSpacing = .8.sp)
+            }
+            Box(Modifier.size(6.dp).background(if (status == "READY") GraphAccent else GraphGold, CircleShape))
+            Text(status, Modifier.padding(start = 6.dp), color = graphTone(GraphAccent, light), fontSize = 10.sp)
+        }
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val wide = maxWidth >= 760.dp
+            Row(Modifier.fillMaxSize()) {
+                if (wide) Surface(Modifier.width(205.dp).fillMaxHeight().padding(start = 8.dp, bottom = 8.dp),
+                    color = panelColor, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, border)) {
+                    Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) { inspector() }
+                }
+                Box(Modifier.weight(1f).fillMaxHeight()) {
+                    NeuralScene(nodes, edges, rotation, zoom, spread, linkOpacity, labels, mesh, hiddenGroups, search, selectedId, light,
+                        onGesture = { dx, dy, magnification, roll ->
+                            rotation = rotation.orbit(pitch = dy * .006f, yaw = dx * .006f, roll = roll * PI.toFloat() / 180f)
+                            zoom = (zoom * magnification).coerceIn(.55f, 3.5f); lastTouch = SystemClock.uptimeMillis()
+                        }, onTouch = { touching = it; lastTouch = SystemClock.uptimeMillis() },
+                        onSelect = { selectedId = it }, onReset = { reset() })
+                    Surface(Modifier.align(Alignment.TopCenter).padding(top = 5.dp), color = panelColor,
+                        shape = RoundedCornerShape(28.dp), border = BorderStroke(1.dp, border)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (!wide) IconButton(onClick = { openPanel = GraphPanel.INSPECTOR }) { Icon(Icons.Default.Search, "Search and inspect nodes", tint = ink, modifier = Modifier.size(18.dp)) }
+                            TextButton(onClick = { reset() }) { Text("Fit", color = ink, fontSize = 12.sp) }
+                            IconButton(onClick = { autoRotate = !autoRotate }) { Icon(if (autoRotate) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                if (autoRotate) "Pause automatic rotation" else "Start automatic rotation", tint = graphTone(GraphPurple, light), modifier = Modifier.size(18.dp)) }
+                            if (!wide) IconButton(onClick = { openPanel = GraphPanel.FILTERS }) { Icon(Icons.Default.FilterList, "Filter node groups", tint = ink, modifier = Modifier.size(18.dp)) }
+                        }
                     }
-                    if (voiceError != null) Text(voiceError!!, color = MaterialTheme.colorScheme.error,
-                        fontSize = 11.sp)
-                }
-            }
-        }
-
-        if (events.isNotEmpty()) {
-            item {
-                Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text("Live Matrix Events", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(7.dp))
-                        events.take(6).forEachIndexed { index, event ->
-                            Text(event.type.name.replace('_', ' '), color = eventColor(event), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            Text(event.message, color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, lineHeight = 16.sp)
-                            if (index != events.take(6).lastIndex) {
-                                Spacer(Modifier.height(6.dp))
-                                HorizontalDivider(color = GraphBorder)
-                                Spacer(Modifier.height(6.dp))
+                    Column(Modifier.align(Alignment.BottomStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("${nodes.count { it.group !in hiddenGroups }} MODULES · ${edges.count { edge -> nodes.none { it.group in hiddenGroups && (it.id == edge.from || it.id == edge.to) } }} CONNECTIONS", color = muted, fontSize = 8.sp, letterSpacing = .6.sp)
+                        Text("Drag X/Y · Twist Z · Pinch zoom", color = muted, fontSize = 10.sp)
+                        Text(if (selected != null) "FOCUS LOCKED" else if (autoRotate) "AUTO ORBIT" else "MANUAL ORBIT",
+                            color = graphTone(GraphAccent, light), fontSize = 8.sp, letterSpacing = 1.sp)
+                    }
+                    if (!wide) IntelligenceRing(status, light, Modifier.align(Alignment.BottomEnd).padding(10.dp).size(78.dp))
+                    if (!wide && selected != null) Surface(Modifier.align(Alignment.TopStart).padding(top = 62.dp, start = 10.dp, end = 10.dp).fillMaxWidth(),
+                        color = panelColor, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, graphTone(selected.color, light))) {
+                        Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f).clickable { openPanel = GraphPanel.INSPECTOR }.padding(vertical = 10.dp)) {
+                                Text(selected.label, color = ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("${edges.count { it.from == selected.id || it.to == selected.id }} connections · Tap for details", color = muted, fontSize = 10.sp)
                             }
+                            IconButton(onClick = { selectedId = null }) { Icon(Icons.Default.Close, "Clear node focus", tint = ink, modifier = Modifier.size(18.dp)) }
                         }
                     }
                 }
+                if (wide) Column(Modifier.width(174.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = 8.dp)) {
+                    Surface(color = panelColor, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, border)) {
+                        Column(Modifier.padding(10.dp)) { filters() }
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    IntelligenceRing(status, light, Modifier.fillMaxWidth().aspectRatio(1f))
+                    Text(if (llm.status == ConnectionStatus.CONNECTED) "MODEL CONNECTED" else "MODEL OFFLINE", Modifier.align(Alignment.CenterHorizontally),
+                        color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
+                }
+            }
+            if (openPanel != null) AlertDialog(onDismissRequest = { openPanel = null }, containerColor = panelColor,
+                title = { Text(if (openPanel == GraphPanel.INSPECTOR) "Matrix inspector" else "Node filters", color = ink) },
+                text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { if (openPanel == GraphPanel.INSPECTOR) inspector() else filters() } },
+                confirmButton = { TextButton(onClick = { openPanel = null }) { Text("Done") } })
+        }
+        Surface(Modifier.fillMaxWidth().imePadding().padding(horizontal = 10.dp, vertical = 6.dp), color = panelColor,
+            shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, border)) {
+            Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Text(events.firstOrNull()?.message ?: "Your matrix is ready. Explore a node or describe a mission.",
+                    color = muted, fontSize = 11.sp, maxLines = 2, lineHeight = 15.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(mission, { mission = it }, Modifier.weight(1f), singleLine = true,
+                        placeholder = { Text("Ask MAXIMUS…", fontSize = 12.sp) }, shape = RoundedCornerShape(25.dp))
+                    IconButton(onClick = {
+                        try { voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+                            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Describe the mission to execute")) }
+                        catch (_: Exception) { voiceError = "Voice recognition is unavailable on this device." }
+                    }) { Icon(Icons.Default.Mic, "Speak a mission command", tint = graphTone(GraphPurple, light)) }
+                    IconButton(onClick = { viewModel.runMission(mission); mission = "" },
+                        enabled = mission.isNotBlank() && status != "EXECUTING" && status != "PLANNING") {
+                        Icon(Icons.Default.ArrowUpward, "Run mission", tint = if (mission.isBlank()) muted else graphTone(GraphAccent, light))
+                    }
+                }
+                voiceError?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
             }
         }
     }
 }
 
 @Composable
-private fun LiveMatrixCanvas(
-    nodes: List<LiveNode>, edges: List<LiveEdge>, events: List<MatrixEvent>,
-    selected: LiveNode?, light: Boolean, onNodeSelected: (LiveNode) -> Unit, onDismiss: () -> Unit,
-    modifier: Modifier
-) {
-    var zoom by remember { mutableFloatStateOf(1f) }
-    var pan by remember { mutableStateOf(Offset.Zero) }
-    val animation = rememberInfiniteTransition(label = "neural matrix")
-    val packet by animation.animateFloat(0f, 1f, infiniteRepeatable(tween(3500), RepeatMode.Restart), label = "signal")
-    val pulse by animation.animateFloat(.95f, 1.08f, infiniteRepeatable(tween(1600), RepeatMode.Reverse), label = "glow")
-    val lookup = remember(nodes) { nodes.associateBy { it.id } }
-    val active = events.firstOrNull()?.let { (it.sourceNode + " " + (it.targetNode ?: "")).lowercase() }.orEmpty()
+private fun IntelligenceRing(status: String, light: Boolean, modifier: Modifier) {
+    val purple = graphTone(GraphPurple, light)
+    Box(modifier.semantics { contentDescription = "MAXIMUS engine $status" }, contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val r = size.minDimension * .40f
+            drawCircle(Brush.radialGradient(listOf(purple.copy(alpha = .13f), Color.Transparent), radius = r*1.2f), r*1.2f)
+            repeat(64) { i ->
+                val a = i * PI.toFloat() / 32f
+                val unit = Offset(cos(a), sin(a))
+                drawLine(purple.copy(alpha = if (i % 4 == 0) .8f else .4f), center + unit * r, center + unit * (r + if (i % 4 == 0) 6.dp.toPx() else 3.dp.toPx()), 1.dp.toPx())
+            }
+            drawCircle(purple.copy(alpha = .4f), r * .91f, style = Stroke(1.dp.toPx()))
+            drawArc(purple, 200f, 210f, false, Offset(center.x-r*.85f,center.y-r*.85f), Size(r*1.7f,r*1.7f), style = Stroke(2.dp.toPx()))
+            drawCircle(graphTone(GraphAccent, light).copy(alpha = .4f), r * .54f, style = Stroke(.7.dp.toPx()))
+        }
+        Text("M.A.X.", color = if (light) Color(0xFF40365F) else Color(0xFFD9CBF7), fontSize = 9.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
+    }
+}
 
-    val background = if (light) listOf(Color(0xFFFFFFFF), Color(0xFFF0F8F8), Color(0xFFE3F0EF))
-        else listOf(Color(0xFF12322F), Color(0xFF091725), GraphBg)
-    val ink = if (light) Color(0xFF142C36) else GraphText
-    val mutedInk = if (light) Color(0xFF49686E) else GraphMuted
-    Box(modifier.background(Brush.radialGradient(background, radius = 1100f))) {
-        Canvas(Modifier.fillMaxSize()
-            .pointerInput(nodes) {
-                detectTransformGestures { _, translation, magnification, _ ->
-                    zoom = (zoom * magnification).coerceIn(.55f, 2.6f)
-                    pan += translation
-                }
-            }
-            .pointerInput(nodes, zoom, pan, selected) {
-                detectTapGestures(
-                    onDoubleTap = { zoom = 1f; pan = Offset.Zero; onDismiss() },
-                    onTap = { tap ->
-                        if (selected != null && tap.y > size.height - 170.dp.toPx()) return@detectTapGestures
-                        val hit = nodes.filter { it.hub }.minByOrNull {
-                            (tap - project(it, size.width.toFloat(), size.height.toFloat(), zoom, pan)).getDistance()
-                        }
-                        if (hit != null && (tap - project(hit, size.width.toFloat(), size.height.toFloat(), zoom, pan)).getDistance() < 42.dp.toPx()) {
-                            onNodeSelected(hit)
-                        }
-                    }
-                )
-            }
-        ) {
-            val w = size.width
-            val h = size.height
-            fun position(node: LiveNode) = project(node, w, h, zoom, pan)
-            // Deterministic ambient stars, independent from application status.
-            repeat(145) { i ->
-                val p = Offset(((i * 97 + 41) % 157) / 157f * w, ((i * 131 + 23) % 163) / 163f * h)
-                drawCircle(graphTone(listOf(GraphCyan, GraphPurple, GraphGold, GraphAccent)[i % 4], light)
-                    .copy(alpha = if (i % 13 == 0) .34f else .12f),
-                    (if (i % 13 == 0) 1.6f else .7f).dp.toPx(), p)
-            }
-            edges.forEachIndexed { i, edge ->
-                val from = lookup[edge.from] ?: return@forEachIndexed
-                val to = lookup[edge.to] ?: return@forEachIndexed
-                val a = position(from)
-                val b = position(to)
-                val control = Offset((a.x + b.x) / 2f, (a.y + b.y) / 2f - (if (from.hub && to.hub) 16f else 5f).dp.toPx())
-                val path = Path().apply { moveTo(a.x, a.y); quadraticTo(control.x, control.y, b.x, b.y) }
-                val lit = active.contains(from.id.lowercase()) || active.contains(to.id.lowercase())
-                val link = graphTone(from.color, light)
-                drawPath(path, link.copy(alpha = if (lit) .20f else if (light) .11f else .05f), style = Stroke(6.dp.toPx()))
-                drawPath(path, link.copy(alpha = if (lit) .83f else if (from.hub && to.hub) .55f else if (light) .27f else .2f),
-                    style = Stroke(if (lit) 1.6.dp.toPx() else .8.dp.toPx()))
-                if (i % 3 == 0) {
-                    val t = (packet + i * .113f) % 1f
-                    val inv = 1f - t
-                    drawCircle(link.copy(alpha = .8f), 1.7.dp.toPx(),
-                        Offset(inv * inv * a.x + 2 * inv * t * control.x + t * t * b.x,
-                            inv * inv * a.y + 2 * inv * t * control.y + t * t * b.y))
-                }
-            }
-            nodes.sortedBy { depth(it) }.forEach { node ->
-                val p = position(node)
-                if (p.x < -80 || p.x > w + 80 || p.y < -80 || p.y > h + 80) return@forEach
-                val radius = node.radius.dp.toPx() * zoom *
-                    (1.2f - depth(node) * .002f).coerceIn(.7f, 1.4f) * (if (node.hub) 1.35f else .68f)
-                val tone = graphTone(node.color, light)
-                if (node.hub) {
-                    drawCircle(brush = Brush.radialGradient(listOf(tone.copy(alpha = if (light) .15f else .26f), tone.copy(alpha = 0f)),
-                        center = p, radius = radius * 2.8f * pulse), radius = radius * 2.8f * pulse, center = p)
-                    drawOval(tone.copy(alpha = .55f), topLeft = Offset(p.x - radius * 1.65f, p.y + radius * .4f),
-                        size = Size(radius * 3.3f, radius * .9f), style = Stroke(1.dp.toPx()))
-                    drawOval(tone.copy(alpha = .28f), topLeft = Offset(p.x - radius * 2f, p.y + radius * .2f),
-                        size = Size(radius * 4f, radius * 1.4f), style = Stroke(.7.dp.toPx()))
-                }
-                drawCircle(brush = Brush.radialGradient(
-                    if (light) listOf(Color.White, Color.White, tone.copy(alpha = .70f), tone)
-                        else listOf(Color.White, tone, tone.copy(alpha = .65f), Color(0xFF08131C)),
-                    center = Offset(p.x - radius * .28f, p.y - radius * .31f), radius = radius * 1.65f),
-                    radius = radius, center = p)
-                drawCircle(tone.copy(alpha = if (selected?.id == node.id) .95f else if (light) .65f else .47f),
-                    radius * (if (selected?.id == node.id) 1.25f else 1.05f), p, style = Stroke(1.dp.toPx()))
-                if (node.hub) {
-                    val centerLabel = node.id == "maximus"
-                    drawContext.canvas.nativeCanvas.drawText(node.label, p.x,
-                        if (centerLabel) p.y + 4.dp.toPx() else p.y + radius + 14.dp.toPx(),
-                        Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                            color = (if (light) Color(0xFF132C33) else GraphText).toArgb()
-                            textSize = (if (centerLabel) 13.sp else 10.sp).toPx()
-                            typeface = android.graphics.Typeface.DEFAULT_BOLD
-                            textAlign = Paint.Align.CENTER
-                            setShadowLayer(4.dp.toPx(), 0f, 1f,
-                                if (light) android.graphics.Color.WHITE else android.graphics.Color.BLACK)
-                        })
-                }
+private fun world(node: LiveNode, spread: Float): SpacePoint = SpacePoint(node.x * spread, node.y * spread,
+    if (node.id == "maximus") 0f else (((node.id.hashCode() ushr 3) and 511) - 255f) * .85f)
+
+@Composable
+private fun NeuralScene(nodes: List<LiveNode>, edges: List<LiveEdge>, rotation: GraphRotation, zoom: Float,
+    spread: Float, linkOpacity: Float, labels: Boolean, mesh: Boolean, hidden: Set<String>, search: String,
+    selected: String?, light: Boolean, onGesture: (Float, Float, Float, Float) -> Unit,
+    onTouch: (Boolean) -> Unit, onSelect: (String?) -> Unit, onReset: () -> Unit) {
+    val points = remember(nodes, spread) {
+        nodes.associate { node ->
+            val p = world(node, spread)
+            val parent = nodes.find { it.id == node.relations }
+            node.id to if (parent != null) p.copy(z = world(parent, spread).z + p.z * .28f) else p
+        }
+    }
+    val lookup = remember(nodes) { nodes.associateBy { it.id } }
+    // Decorative scaffolding gives depth and density without inventing application modules.
+    val scaffold = remember(nodes, spread) {
+        nodes.filter { it.hub }.flatMapIndexed { h, node ->
+            val p = world(node, spread)
+            List(20) { i ->
+                val a = (i * 2.39996 + h).toFloat()
+                val y = 1f - 2f * (i + .5f) / 20f
+                val r = sqrt(1f - y*y)
+                val distance = (60f + (i * 17 % 70)) * spread
+                MeshPoint(SpacePoint(p.x + cos(a)*r*distance, p.y+y*distance, p.z+sin(a)*r*distance), node.id,
+                    if (i % 4 == 0) Color(0xFF565B6B) else node.color)
             }
         }
-        Column(Modifier.align(Alignment.TopEnd).padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            SmallGraphButton("+") { zoom = (zoom * 1.2f).coerceAtMost(2.6f) }
-            SmallGraphButton("−") { zoom = (zoom / 1.2f).coerceAtLeast(.55f) }
-            SmallGraphButton("⌂") { zoom = 1f; pan = Offset.Zero; onDismiss() }
-        }
-        if (selected != null) {
-            Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(10.dp),
-                color = if (light) Color(0xFFF8FFFE) else Color(0xF2091320), shape = RoundedCornerShape(18.dp),
-                shadowElevation = 15.dp, border = BorderStroke(1.dp, graphTone(selected.color, light).copy(alpha = .85f))) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(30.dp).background(graphTone(selected.color, light).copy(alpha = .18f), CircleShape),
-                            contentAlignment = Alignment.Center) {
-                            Box(Modifier.size(11.dp).background(graphTone(selected.color, light), CircleShape))
-                        }
-                        Spacer(Modifier.width(9.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(selected.label, color = ink, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            Text(selected.group, color = graphTone(selected.color, light), fontSize = 10.sp)
-                        }
-                        Text("✕", Modifier.clickable(onClick = onDismiss).padding(8.dp), color = ink, fontSize = 16.sp)
-                    }
-                    Text(selected.description, color = ink.copy(alpha = .83f), fontSize = 11.sp,
-                        lineHeight = 15.sp, maxLines = 3)
-                    HorizontalDivider(color = graphTone(selected.color, light).copy(alpha = .3f))
-                    Text("CONNECTED  •  " + selected.relations, color = mutedInk, fontSize = 10.sp,
-                        maxLines = 2, lineHeight = 14.sp)
-                }
+    }
+    val radius = remember(points, scaffold) { max(points.values.maxOf { it.length }, scaffold.maxOf { it.point.length }) }
+    val visible = remember(nodes, hidden) { nodes.filter { it.group !in hidden } }
+    val neighbors = remember(selected, edges) { edges.filter { it.from == selected || it.to == selected }.flatMap { listOf(it.from, it.to) }.toSet() }
+    val gesture by rememberUpdatedState(onGesture)
+    val touch by rememberUpdatedState(onTouch)
+    val select by rememberUpdatedState(onSelect)
+    val reset by rememberUpdatedState(onReset)
+    val currentRotation by rememberUpdatedState(rotation)
+    val currentZoom by rememberUpdatedState(zoom)
+    val currentVisible by rememberUpdatedState(visible)
+    val currentPoints by rememberUpdatedState(points)
+    val currentRadius by rememberUpdatedState(radius)
+    val density = LocalDensity.current.density
+    Canvas(Modifier.fillMaxSize().semantics { contentDescription = "Interactive 3D node graph. Drag to rotate X and Y, twist two fingers for Z, pinch to zoom, double tap to fit. Use the inspector to select modules by name." }
+        .pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) { val event = awaitPointerEvent(PointerEventPass.Initial); touch(event.changes.any { it.pressed }) }
             }
-        } else {
-            Surface(Modifier.align(Alignment.BottomCenter).padding(8.dp),
-                color = if (light) Color(0xF8FFFFFF) else Color(0xD0071110), shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, if (light) Color(0xFFC0D7D4) else GraphBorder)) {
-                Text("Pinch · drag · tap a node · double-tap to reset",
-                    Modifier.padding(horizontal = 10.dp, vertical = 7.dp), color = mutedInk, fontSize = 9.sp)
+        }
+        .pointerInput(Unit) { detectTransformGestures { _, pan, scale, twist -> gesture(pan.x / density, pan.y / density, scale, twist) } }
+        .pointerInput(Unit) {
+            detectTapGestures(onDoubleTap = { reset() }, onTap = { tap ->
+                val hits = currentVisible.map { node ->
+                    node to projectGraph(currentPoints.getValue(node.id), currentRotation, size.width.toFloat(), size.height.toFloat(), currentRadius, currentZoom)
+                }.filter { (_, p) -> (tap - Offset(p.x, p.y)).getDistance() <= 22.dp.toPx() }
+                // Distance chooses the intended sphere; depth breaks ties for overlapping spheres.
+                val hit = hits.minWithOrNull(compareBy<Pair<LiveNode, GraphProjection>> { (_, p) -> (tap-Offset(p.x,p.y)).getDistance() }.thenByDescending { it.second.z })
+                select(hit?.first?.id)
+            })
+        }) {
+        val projected = points.mapValues { projectGraph(it.value, rotation, size.width, size.height, radius, zoom) }
+        fun at(id: String) = projected.getValue(id).let { Offset(it.x, it.y) }
+        fun emphasized(node: LiveNode) = (selected == null || node.id in neighbors) && (search.isBlank() || node.label.contains(search, true))
+        if (mesh) {
+            val projectedMesh = scaffold.map { it to projectGraph(it.point, rotation, size.width, size.height, radius, zoom) }.sortedBy { it.second.z }
+            projectedMesh.forEach { (particle, p) ->
+                val parent = lookup.getValue(particle.parent)
+                if (parent.group in hidden) return@forEach
+                val alpha = if (emphasized(parent)) 1f else .12f
+                val center = Offset(p.x,p.y)
+                val tone = graphTone(particle.color, light)
+                drawLine(tone.copy(alpha = linkOpacity * .3f * alpha), at(particle.parent), center, .45.dp.toPx())
+                drawCircle(tone.copy(alpha = (if (light) .5f else .46f) * alpha), (1.4f + (particle.point.x.toInt() and 3)*.35f).dp.toPx()*p.perspective*sqrt(zoom), center)
+            }
+        }
+        edges.forEach { edge ->
+            val from = lookup.getValue(edge.from); val to = lookup.getValue(edge.to)
+            if (from.group in hidden || to.group in hidden) return@forEach
+            val focused = selected != null && (edge.from == selected || edge.to == selected)
+            val alpha = if (focused) .8f else if (selected != null) .04f else linkOpacity
+            drawLine(graphTone(from.color, light).copy(alpha = alpha), at(edge.from), at(edge.to), (if (focused) .9f else .55f).dp.toPx())
+        }
+        val labelRects = mutableListOf<android.graphics.RectF>()
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = android.graphics.Typeface.DEFAULT }
+        visible.sortedBy { projected.getValue(it.id).z }.forEach { node ->
+            val p = projected.getValue(node.id)
+            val center = Offset(p.x,p.y)
+            val alpha = if (emphasized(node)) 1f else .15f
+            val r = (if (node.hub) 5.8f else 3.1f).dp.toPx()*p.perspective*sqrt(zoom)
+            val tone = graphTone(node.color, light)
+            if (node.id == selected) {
+                drawCircle(tone.copy(alpha = .10f), r*3f, center)
+                drawCircle(tone.copy(alpha = .8f), r+4.dp.toPx(), center, style = Stroke(1.dp.toPx()))
+            }
+            drawCircle(Brush.radialGradient(listOf(lerp(tone, Color.White, .50f).copy(alpha = alpha), tone.copy(alpha = alpha),
+                lerp(tone, if (light) Color.White else Color.Black, .25f).copy(alpha = alpha)),
+                center-Offset(r*.3f,r*.35f), r*1.6f), r, center)
+            drawCircle(tone.copy(alpha = .4f*alpha), r, center, style = Stroke(.5.dp.toPx()))
+            if ((labels && node.hub || node.id == selected || search.isNotBlank() && node.label.contains(search,true)) && alpha > .2f) {
+                paint.textSize = (if (node.id == selected) 11.sp else 9.sp).toPx()
+                paint.color = (if (light) Color(0xFF253446) else Color(0xFFCED5DF)).copy(alpha = alpha).toArgb()
+                paint.setShadowLayer(2.dp.toPx(), 0f, 1f, if (light) android.graphics.Color.WHITE else android.graphics.Color.BLACK)
+                val width = paint.measureText(node.label)
+                val rect = android.graphics.RectF(center.x-width/2-3,center.y+r+2,center.x+width/2+3,center.y+r+paint.textSize+6)
+                if (node.id == selected || labelRects.none { android.graphics.RectF.intersects(it,rect) }) {
+                    drawContext.canvas.nativeCanvas.drawText(node.label, center.x, center.y+r+paint.textSize+4,paint)
+                    labelRects += rect
+                }
             }
         }
     }
@@ -367,46 +404,14 @@ private fun LiveMatrixCanvas(
 
 private fun graphTone(color: Color, light: Boolean): Color {
     if (!light) return color
-    return when (color) {
-        GraphAccent -> Color(0xFF007D68)
-        GraphBlue -> Color(0xFF265CAA)
-        GraphPurple -> Color(0xFF6944A8)
-        GraphGold -> Color(0xFF956000)
-        GraphRed -> Color(0xFFAE315E)
-        GraphCyan -> Color(0xFF007485)
-        GraphOrange -> Color(0xFFB35425)
-        GraphLime -> Color(0xFF687C20)
-        else -> color
+    return when(color) {
+        GraphAccent -> Color(0xFF087F68); GraphBlue -> Color(0xFF3469B7)
+        GraphPurple -> Color(0xFF794AB3); GraphGold -> Color(0xFF9C7208)
+        GraphRed -> Color(0xFFAD427F); GraphCyan -> Color(0xFF287C8F)
+        GraphOrange -> Color(0xFFAF622D); GraphLime -> Color(0xFF637C29)
+        else -> Color(0xFF8995A5)
     }
 }
-
-private fun depth(node: LiveNode): Float =
-    if (node.id == "maximus") 70f else (node.id.hashCode() and 255) * .65f - 85f
-
-/** Perspective projection shared by drawing and hit testing. */
-private fun project(node: LiveNode, width: Float, height: Float, zoom: Float, pan: Offset): Offset {
-    val z = depth(node)
-    val yaw = .16f
-    val pitch = -.10f
-    val rotatedX = node.x * cos(yaw) + z * sin(yaw)
-    val rotatedZ = z * cos(yaw) - node.x * sin(yaw)
-    val rotatedY = node.y * cos(pitch) - rotatedZ * sin(pitch)
-    val perspective = (1.2f - rotatedZ * .002f).coerceIn(.7f, 1.4f)
-    val scale = min(width / 690f, height / 720f) * zoom * perspective
-    return Offset(width / 2f + rotatedX * scale + pan.x, height * .46f + rotatedY * scale + pan.y)
-}
-
-@Composable
-private fun SmallGraphButton(label: String, onClick: () -> Unit) {
-    FilledTonalButton(
-        onClick = onClick,
-        modifier = Modifier.size(38.dp),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Text(label, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
 private fun buildTopology(
     llmConnected: Boolean,
     provider: String,
@@ -481,13 +486,4 @@ private fun buildTopology(
     child("api","subscription","Subscription", 2.2f, 60f, GraphRed, "Local subscription and budget metadata")
 
     return nodes to edges
-}
-
-private fun eventColor(event: MatrixEvent): Color = when {
-    event.type.name.contains("FAILED") -> GraphRed
-    event.type.name.contains("MODEL") -> GraphCyan
-    event.type.name.contains("VALIDATION") -> GraphOrange
-    event.type.name.contains("POLICY") -> GraphGold
-    event.type.name.contains("MEMORY") -> GraphPurple
-    else -> GraphAccent
 }
