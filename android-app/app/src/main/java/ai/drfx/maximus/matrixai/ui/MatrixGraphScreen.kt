@@ -5,6 +5,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
@@ -16,10 +17,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,6 +35,9 @@ import ai.drfx.maximus.matrixai.agent.MatrixEvent
 import ai.drfx.maximus.matrixai.llm.ConnectionStatus
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.min
+import kotlin.math.min
+import kotlin.math.max
 
 private val GraphBg = Color(0xFF020405)
 private val GraphPanel = Color(0xFF071110)
@@ -85,8 +95,8 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("MAXIMUS MATRIX", color = MaterialTheme.colorScheme.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("Live operating graph · real entities and runtime events", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text("MAXIMUS AI", color = MaterialTheme.colorScheme.onBackground, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    Text("MAXIMUS MATRIX OS · V1.4.0", color = GraphMuted, fontSize = 10.sp, letterSpacing = 1.sp)
                 }
                 Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
                     Column(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -100,38 +110,20 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
         item {
             Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
                 Column(Modifier.padding(10.dp)) {
-                    Text("Pinch to zoom · drag to pan · tap a node to inspect", color = GraphMuted, fontSize = 10.sp)
+                    Text("NEURAL MATRIX   •   Pinch to zoom   •   Tap a node", color = GraphMuted, fontSize = 10.sp, letterSpacing = .4.sp)
                     Spacer(Modifier.height(7.dp))
                     LiveMatrixCanvas(
                         nodes = topology.first,
                         edges = topology.second,
                         events = events,
+                        selected = selected,
                         onNodeSelected = { selected = it },
+                        onDismiss = { selected = null },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 430.dp, max = 620.dp)
+                            .height(630.dp)
                             .background(GraphBg, RoundedCornerShape(18.dp))
                     )
-                }
-            }
-        }
-
-        selected?.let { node ->
-            item {
-                Surface(shape = RoundedCornerShape(20.dp), color = GraphPanel, border = BorderStroke(1.dp, node.color.copy(alpha = .6f))) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(11.dp).background(node.color, CircleShape))
-                            Spacer(Modifier.width(8.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(node.label, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                                Text(node.group, color = node.color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                        Text(node.description, color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, lineHeight = 18.sp)
-                        Text("RELATIONSHIPS", color = GraphMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                        Text(node.relations, color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, lineHeight = 16.sp)
-                    }
                 }
             }
         }
@@ -184,141 +176,156 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
 
 @Composable
 private fun LiveMatrixCanvas(
-    nodes: List<LiveNode>,
-    edges: List<LiveEdge>,
-    events: List<MatrixEvent>,
-    onNodeSelected: (LiveNode) -> Unit,
+    nodes: List<LiveNode>, edges: List<LiveEdge>, events: List<MatrixEvent>,
+    selected: LiveNode?, onNodeSelected: (LiveNode) -> Unit, onDismiss: () -> Unit,
     modifier: Modifier
 ) {
-    var zoom by remember { mutableFloatStateOf(0.82f) }
+    var zoom by remember { mutableFloatStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
-    val transition = rememberInfiniteTransition(label = "matrix")
-    val packet by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(1800), RepeatMode.Restart), label = "packet")
-    val pulse by transition.animateFloat(.9f, 1.12f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse")
-    val nodeMap = remember(nodes) { nodes.associateBy { it.id } }
-    val activeText = events.firstOrNull()?.let { (it.sourceNode + " " + (it.targetNode ?: "")).lowercase() }.orEmpty()
+    val animation = rememberInfiniteTransition(label = "neural matrix")
+    val packet by animation.animateFloat(0f, 1f, infiniteRepeatable(tween(3500), RepeatMode.Restart), label = "signal")
+    val pulse by animation.animateFloat(.95f, 1.08f, infiniteRepeatable(tween(1600), RepeatMode.Reverse), label = "glow")
+    val lookup = remember(nodes) { nodes.associateBy { it.id } }
+    val active = events.firstOrNull()?.let { (it.sourceNode + " " + (it.targetNode ?: "")).lowercase() }.orEmpty()
 
-    Box(modifier) {
-        val gestureModifier = Modifier
-            .fillMaxSize()
+    Box(modifier.background(Brush.radialGradient(listOf(Color(0xFF12322F), Color(0xFF091725), GraphBg), radius = 1100f))) {
+        Canvas(Modifier.fillMaxSize()
             .pointerInput(nodes) {
-                detectTransformGestures { _, panChange, zoomChange, _ ->
-                    zoom = (zoom * zoomChange).coerceIn(.32f, 3.2f)
-                    pan += panChange
+                detectTransformGestures { _, translation, magnification, _ ->
+                    zoom = (zoom * magnification).coerceIn(.55f, 2.6f)
+                    pan += translation
                 }
             }
-            .pointerInput(nodes, zoom, pan) {
+            .pointerInput(nodes, zoom, pan, selected) {
                 detectTapGestures(
-                    onDoubleTap = {
-                        zoom = 0.82f
-                        pan = Offset.Zero
-                    },
+                    onDoubleTap = { zoom = 1f; pan = Offset.Zero; onDismiss() },
                     onTap = { tap ->
-                        val center = Offset(size.width / 2f, size.height / 2f)
-                        val hit = nodes.minByOrNull { node ->
-                            val screen = Offset(center.x + node.x * zoom + pan.x, center.y + node.y * zoom + pan.y)
-                            (tap - screen).getDistance()
+                        if (selected != null && tap.y > size.height - 170.dp.toPx()) return@detectTapGestures
+                        val hit = nodes.filter { it.hub }.minByOrNull {
+                            (tap - project(it, size.width.toFloat(), size.height.toFloat(), zoom, pan)).getDistance()
                         }
-                        if (hit != null) {
-                            val screen = Offset(center.x + hit.x * zoom + pan.x, center.y + hit.y * zoom + pan.y)
-                            if ((tap - screen).getDistance() <= 48.dp.toPx()) onNodeSelected(hit)
+                        if (hit != null && (tap - project(hit, size.width.toFloat(), size.height.toFloat(), zoom, pan)).getDistance() < 42.dp.toPx()) {
+                            onNodeSelected(hit)
                         }
                     }
                 )
             }
-
-        Canvas(gestureModifier) {
-            val center = Offset(size.width / 2f, size.height / 2f)
-            fun screen(node: LiveNode) = Offset(center.x + node.x * zoom + pan.x, center.y + node.y * zoom + pan.y)
-
-            val grid = 36.dp.toPx()
-            var gx = ((pan.x % grid) + grid) % grid
-            while (gx < size.width) {
-                drawLine(Color(0x112A4942), Offset(gx, 0f), Offset(gx, size.height))
-                gx += grid
+        ) {
+            val w = size.width
+            val h = size.height
+            fun position(node: LiveNode) = project(node, w, h, zoom, pan)
+            // Deterministic ambient stars, independent from application status.
+            repeat(145) { i ->
+                val p = Offset(((i * 97 + 41) % 157) / 157f * w, ((i * 131 + 23) % 163) / 163f * h)
+                drawCircle(listOf(GraphCyan, GraphPurple, GraphGold, GraphAccent)[i % 4].copy(alpha = if (i % 13 == 0) .52f else .19f),
+                    (if (i % 13 == 0) 1.6f else .7f).dp.toPx(), p)
             }
-            var gy = ((pan.y % grid) + grid) % grid
-            while (gy < size.height) {
-                drawLine(Color(0x112A4942), Offset(0f, gy), Offset(size.width, gy))
-                gy += grid
-            }
-
-            edges.forEachIndexed { index, edge ->
-                val from = nodeMap[edge.from] ?: return@forEachIndexed
-                val to = nodeMap[edge.to] ?: return@forEachIndexed
-                val a = screen(from)
-                val b = screen(to)
-                val active = activeText.contains(from.id.lowercase()) || activeText.contains(to.id.lowercase()) ||
-                    activeText.contains(from.label.lowercase()) || activeText.contains(to.label.lowercase())
-                drawLine(
-                    color = if (active) GraphAccent.copy(alpha = .8f) else from.color.copy(alpha = .20f),
-                    start = a,
-                    end = b,
-                    strokeWidth = if (active) 2.dp.toPx() else 1.dp.toPx()
-                )
-                if (active || index % 6 == 0) {
-                    val t = (packet + index * .07f) % 1f
-                    drawCircle(
-                        color = if (active) GraphAccent else GraphAccent.copy(alpha = .45f),
-                        radius = 2.dp.toPx(),
-                        center = Offset(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
-                    )
+            edges.forEachIndexed { i, edge ->
+                val from = lookup[edge.from] ?: return@forEachIndexed
+                val to = lookup[edge.to] ?: return@forEachIndexed
+                val a = position(from)
+                val b = position(to)
+                val control = Offset((a.x + b.x) / 2f, (a.y + b.y) / 2f - (if (from.hub && to.hub) 16f else 5f).dp.toPx())
+                val path = Path().apply { moveTo(a.x, a.y); quadraticTo(control.x, control.y, b.x, b.y) }
+                val lit = active.contains(from.id.lowercase()) || active.contains(to.id.lowercase())
+                drawPath(path, from.color.copy(alpha = if (lit) .16f else .05f), style = Stroke(6.dp.toPx()))
+                drawPath(path, from.color.copy(alpha = if (lit) .8f else if (from.hub && to.hub) .48f else .2f),
+                    style = Stroke(if (lit) 1.6.dp.toPx() else .8.dp.toPx()))
+                if (i % 3 == 0) {
+                    val t = (packet + i * .113f) % 1f
+                    val inv = 1f - t
+                    drawCircle(from.color.copy(alpha = .8f), 1.7.dp.toPx(),
+                        Offset(inv * inv * a.x + 2 * inv * t * control.x + t * t * b.x,
+                            inv * inv * a.y + 2 * inv * t * control.y + t * t * b.y))
                 }
             }
-
-            nodes.forEach { node ->
-                val p = screen(node)
-                val active = activeText.contains(node.id.lowercase()) || activeText.contains(node.label.lowercase())
-                val baseRadius = node.radius.dp.toPx() * zoom.coerceAtLeast(.65f)
+            nodes.sortedBy { depth(it) }.forEach { node ->
+                val p = position(node)
+                if (p.x < -80 || p.x > w + 80 || p.y < -80 || p.y > h + 80) return@forEach
+                val radius = node.radius.dp.toPx() * zoom *
+                    (1.2f - depth(node) * .002f).coerceIn(.7f, 1.4f) * (if (node.hub) 1.35f else .68f)
                 if (node.hub) {
-                    drawCircle(node.color.copy(alpha = .10f), baseRadius * (if (active) 2.5f * pulse else 2.1f), p)
-                    drawCircle(node.color.copy(alpha = .24f), baseRadius * 1.45f, p, style = Stroke(1.dp.toPx()))
+                    drawCircle(brush = Brush.radialGradient(listOf(node.color.copy(alpha = .26f), node.color.copy(alpha = 0f)),
+                        center = p, radius = radius * 2.8f * pulse), radius = radius * 2.8f * pulse, center = p)
+                    drawOval(node.color.copy(alpha = .43f), topLeft = Offset(p.x - radius * 1.65f, p.y + radius * .4f),
+                        size = Size(radius * 3.3f, radius * .9f), style = Stroke(1.dp.toPx()))
+                    drawOval(node.color.copy(alpha = .23f), topLeft = Offset(p.x - radius * 2f, p.y + radius * .2f),
+                        size = Size(radius * 4f, radius * 1.4f), style = Stroke(.7.dp.toPx()))
                 }
-                drawCircle(node.color.copy(alpha = if (active) 1f else .86f), baseRadius, p)
-                if (active) drawCircle(Color.White.copy(alpha = .45f), baseRadius + 5.dp.toPx(), p, style = Stroke(1.dp.toPx()))
-
-                if (node.hub || zoom > .95f) {
-                    drawContext.canvas.nativeCanvas.drawText(
-                        node.label,
-                        p.x,
-                        p.y + baseRadius + 14.dp.toPx(),
-                        Paint().apply {
+                drawCircle(brush = Brush.radialGradient(
+                    listOf(Color.White, node.color, node.color.copy(alpha = .65f), Color(0xFF08131C)),
+                    center = Offset(p.x - radius * .28f, p.y - radius * .31f), radius = radius * 1.65f),
+                    radius = radius, center = p)
+                drawCircle(node.color.copy(alpha = if (selected?.id == node.id) .95f else .47f),
+                    radius * (if (selected?.id == node.id) 1.25f else 1.05f), p, style = Stroke(1.dp.toPx()))
+                if (node.hub) {
+                    val centerLabel = node.id == "maximus"
+                    drawContext.canvas.nativeCanvas.drawText(node.label, p.x,
+                        if (centerLabel) p.y + 4.dp.toPx() else p.y + radius + 14.dp.toPx(),
+                        Paint(Paint.ANTI_ALIAS_FLAG).apply {
                             color = GraphText.toArgb()
-                            textSize = (if (node.hub) 10.sp else 8.sp).toPx()
+                            textSize = (if (centerLabel) 13.sp else 10.sp).toPx()
+                            typeface = android.graphics.Typeface.create(null, android.graphics.Typeface.BOLD)
                             textAlign = Paint.Align.CENTER
-                            isAntiAlias = true
-                        }
-                    )
+                            setShadowLayer(5.dp.toPx(), 0f, 1f, android.graphics.Color.BLACK)
+                        })
                 }
             }
         }
-
-        Column(
-            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            SmallGraphButton("+") { zoom = (zoom * 1.2f).coerceAtMost(3.2f) }
-            SmallGraphButton("−") { zoom = (zoom / 1.2f).coerceAtLeast(.32f) }
-            SmallGraphButton("⌂") {
-                zoom = .82f
-                pan = Offset.Zero
-            }
+        Column(Modifier.align(Alignment.TopEnd).padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            SmallGraphButton("+") { zoom = (zoom * 1.2f).coerceAtMost(2.6f) }
+            SmallGraphButton("−") { zoom = (zoom / 1.2f).coerceAtLeast(.55f) }
+            SmallGraphButton("⌂") { zoom = 1f; pan = Offset.Zero; onDismiss() }
         }
-
-        Surface(
-            modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
-            color = Color(0xCC071110),
-            shape = RoundedCornerShape(10.dp),
-            border = BorderStroke(1.dp, GraphBorder)
-        ) {
-            Text(
-                "Pinch with two fingers · drag to pan · tap to inspect · double-tap to reset",
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                color = GraphMuted,
-                fontSize = 8.sp
-            )
+        if (selected != null) {
+            Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(10.dp),
+                color = Color(0xF2091320), shape = RoundedCornerShape(18.dp),
+                shadowElevation = 15.dp, border = BorderStroke(1.dp, selected.color.copy(alpha = .85f))) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(30.dp).background(selected.color.copy(alpha = .22f), CircleShape),
+                            contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(11.dp).background(selected.color, CircleShape))
+                        }
+                        Spacer(Modifier.width(9.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(selected.label, color = GraphText, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(selected.group, color = selected.color, fontSize = 10.sp)
+                        }
+                        Text("✕", Modifier.clickable(onClick = onDismiss).padding(8.dp), color = GraphText, fontSize = 16.sp)
+                    }
+                    Text(selected.description, color = GraphText.copy(alpha = .83f), fontSize = 11.sp,
+                        lineHeight = 15.sp, maxLines = 3)
+                    HorizontalDivider(color = selected.color.copy(alpha = .3f))
+                    Text("CONNECTED  •  " + selected.relations, color = GraphMuted, fontSize = 10.sp,
+                        maxLines = 2, lineHeight = 14.sp)
+                }
+            }
+        } else {
+            Surface(Modifier.align(Alignment.BottomCenter).padding(8.dp),
+                color = Color(0xD0071110), shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, GraphBorder)) {
+                Text("Pinch · drag · tap a node · double-tap to reset",
+                    Modifier.padding(horizontal = 10.dp, vertical = 7.dp), color = GraphMuted, fontSize = 9.sp)
+            }
         }
     }
+}
+
+private fun depth(node: LiveNode): Float =
+    if (node.id == "maximus") 70f else (node.id.hashCode() and 255) * .65f - 85f
+
+/** Perspective projection shared by drawing and hit testing. */
+private fun project(node: LiveNode, width: Float, height: Float, zoom: Float, pan: Offset): Offset {
+    val z = depth(node)
+    val yaw = .16f
+    val pitch = -.10f
+    val rotatedX = node.x * cos(yaw) + z * sin(yaw)
+    val rotatedZ = z * cos(yaw) - node.x * sin(yaw)
+    val rotatedY = node.y * cos(pitch) - rotatedZ * sin(pitch)
+    val perspective = (1.2f - rotatedZ * .002f).coerceIn(.7f, 1.4f)
+    val scale = min(width / 690f, height / 720f) * zoom * perspective
+    return Offset(width / 2f + rotatedX * scale + pan.x, height * .46f + rotatedY * scale + pan.y)
 }
 
 @Composable

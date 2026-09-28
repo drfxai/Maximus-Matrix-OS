@@ -46,8 +46,8 @@ fun MatrixScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("MAXIMUS AI", color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("MAXIMUS MATRIX OS · V1.3.0", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
+                        Text("MAXIMUS AI", color = MaterialTheme.colorScheme.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                        Text("MAXIMUS MATRIX OS · V1.4.0", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, letterSpacing = .7.sp)
                     }
                     Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
                         Text(status, color = MaterialTheme.colorScheme.primary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
