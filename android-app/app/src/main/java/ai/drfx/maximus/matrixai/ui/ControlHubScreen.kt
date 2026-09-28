@@ -24,12 +24,12 @@ fun ControlHubScreen(
         ) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("API & Usage") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Modules") })
-            Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Diagnostics") })
+            Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Telemetry") })
         }
         when (tab) {
             0 -> ApiControlScreen(viewModel, Modifier.weight(1f))
             1 -> ModulesScreen(Modifier.weight(1f))
-            else -> DiagnosticsScreen(themeMode, onThemeModeChange, Modifier.weight(1f))
+            else -> DiagnosticsScreen(viewModel, themeMode, onThemeModeChange, Modifier.weight(1f))
         }
     }
 }

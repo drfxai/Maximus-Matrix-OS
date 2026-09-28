@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -65,6 +66,7 @@ private data class LiveEdge(val from: String, val to: String, val relation: Stri
 
 @Composable
 fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
+    val lightGraph = MaterialTheme.colorScheme.background.luminance() > .5f
     val events by viewModel.events.collectAsState()
     val status by viewModel.status.collectAsState()
     val llm by viewModel.llmState.collectAsState()
@@ -91,12 +93,12 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("NEURAL MATRIX", color = MaterialTheme.colorScheme.onBackground, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                    Text("LIVE OPERATING GRAPH", color = GraphMuted, fontSize = 10.sp, letterSpacing = 1.sp)
+                    Text("LIVE OPERATING GRAPH", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, letterSpacing = 1.sp)
                 }
                 Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
                     Column(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(status, color = if (status == "READY") GraphAccent else GraphGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Text("${topology.first.size} NODES", color = GraphMuted, fontSize = 8.sp)
+                        Text(status, color = if (status == "READY") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("${topology.first.size} NODES", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp)
                     }
                 }
             }
@@ -105,18 +107,19 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
         item {
             Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
                 Column(Modifier.padding(10.dp)) {
-                    Text("NEURAL MATRIX   •   Pinch to zoom   •   Tap a node", color = GraphMuted, fontSize = 10.sp, letterSpacing = .4.sp)
+                    Text("NEURAL MATRIX   •   Pinch to zoom   •   Tap a node", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, letterSpacing = .4.sp)
                     Spacer(Modifier.height(7.dp))
                     LiveMatrixCanvas(
                         nodes = topology.first,
                         edges = topology.second,
                         events = events,
                         selected = selected,
+                        light = lightGraph,
                         onNodeSelected = { selected = it },
                         onDismiss = { selected = null },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(630.dp)
+                            .height(500.dp)
                             .background(GraphBg, RoundedCornerShape(18.dp))
                     )
                 }
@@ -172,7 +175,7 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
 @Composable
 private fun LiveMatrixCanvas(
     nodes: List<LiveNode>, edges: List<LiveEdge>, events: List<MatrixEvent>,
-    selected: LiveNode?, onNodeSelected: (LiveNode) -> Unit, onDismiss: () -> Unit,
+    selected: LiveNode?, light: Boolean, onNodeSelected: (LiveNode) -> Unit, onDismiss: () -> Unit,
     modifier: Modifier
 ) {
     var zoom by remember { mutableFloatStateOf(1f) }
@@ -183,7 +186,11 @@ private fun LiveMatrixCanvas(
     val lookup = remember(nodes) { nodes.associateBy { it.id } }
     val active = events.firstOrNull()?.let { (it.sourceNode + " " + (it.targetNode ?: "")).lowercase() }.orEmpty()
 
-    Box(modifier.background(Brush.radialGradient(listOf(Color(0xFF12322F), Color(0xFF091725), GraphBg), radius = 1100f))) {
+    val background = if (light) listOf(Color(0xFFFFFFFF), Color(0xFFF0F8F8), Color(0xFFE3F0EF))
+        else listOf(Color(0xFF12322F), Color(0xFF091725), GraphBg)
+    val ink = if (light) Color(0xFF142C36) else GraphText
+    val mutedInk = if (light) Color(0xFF49686E) else GraphMuted
+    Box(modifier.background(Brush.radialGradient(background, radius = 1100f))) {
         Canvas(Modifier.fillMaxSize()
             .pointerInput(nodes) {
                 detectTransformGestures { _, translation, magnification, _ ->
@@ -212,7 +219,8 @@ private fun LiveMatrixCanvas(
             // Deterministic ambient stars, independent from application status.
             repeat(145) { i ->
                 val p = Offset(((i * 97 + 41) % 157) / 157f * w, ((i * 131 + 23) % 163) / 163f * h)
-                drawCircle(listOf(GraphCyan, GraphPurple, GraphGold, GraphAccent)[i % 4].copy(alpha = if (i % 13 == 0) .52f else .19f),
+                drawCircle(graphTone(listOf(GraphCyan, GraphPurple, GraphGold, GraphAccent)[i % 4], light)
+                    .copy(alpha = if (i % 13 == 0) .34f else .12f),
                     (if (i % 13 == 0) 1.6f else .7f).dp.toPx(), p)
             }
             edges.forEachIndexed { i, edge ->
@@ -223,13 +231,14 @@ private fun LiveMatrixCanvas(
                 val control = Offset((a.x + b.x) / 2f, (a.y + b.y) / 2f - (if (from.hub && to.hub) 16f else 5f).dp.toPx())
                 val path = Path().apply { moveTo(a.x, a.y); quadraticTo(control.x, control.y, b.x, b.y) }
                 val lit = active.contains(from.id.lowercase()) || active.contains(to.id.lowercase())
-                drawPath(path, from.color.copy(alpha = if (lit) .16f else .05f), style = Stroke(6.dp.toPx()))
-                drawPath(path, from.color.copy(alpha = if (lit) .8f else if (from.hub && to.hub) .48f else .2f),
+                val link = graphTone(from.color, light)
+                drawPath(path, link.copy(alpha = if (lit) .20f else if (light) .11f else .05f), style = Stroke(6.dp.toPx()))
+                drawPath(path, link.copy(alpha = if (lit) .83f else if (from.hub && to.hub) .55f else if (light) .27f else .2f),
                     style = Stroke(if (lit) 1.6.dp.toPx() else .8.dp.toPx()))
                 if (i % 3 == 0) {
                     val t = (packet + i * .113f) % 1f
                     val inv = 1f - t
-                    drawCircle(from.color.copy(alpha = .8f), 1.7.dp.toPx(),
+                    drawCircle(link.copy(alpha = .8f), 1.7.dp.toPx(),
                         Offset(inv * inv * a.x + 2 * inv * t * control.x + t * t * b.x,
                             inv * inv * a.y + 2 * inv * t * control.y + t * t * b.y))
                 }
@@ -239,30 +248,33 @@ private fun LiveMatrixCanvas(
                 if (p.x < -80 || p.x > w + 80 || p.y < -80 || p.y > h + 80) return@forEach
                 val radius = node.radius.dp.toPx() * zoom *
                     (1.2f - depth(node) * .002f).coerceIn(.7f, 1.4f) * (if (node.hub) 1.35f else .68f)
+                val tone = graphTone(node.color, light)
                 if (node.hub) {
-                    drawCircle(brush = Brush.radialGradient(listOf(node.color.copy(alpha = .26f), node.color.copy(alpha = 0f)),
+                    drawCircle(brush = Brush.radialGradient(listOf(tone.copy(alpha = if (light) .15f else .26f), tone.copy(alpha = 0f)),
                         center = p, radius = radius * 2.8f * pulse), radius = radius * 2.8f * pulse, center = p)
-                    drawOval(node.color.copy(alpha = .43f), topLeft = Offset(p.x - radius * 1.65f, p.y + radius * .4f),
+                    drawOval(tone.copy(alpha = .55f), topLeft = Offset(p.x - radius * 1.65f, p.y + radius * .4f),
                         size = Size(radius * 3.3f, radius * .9f), style = Stroke(1.dp.toPx()))
-                    drawOval(node.color.copy(alpha = .23f), topLeft = Offset(p.x - radius * 2f, p.y + radius * .2f),
+                    drawOval(tone.copy(alpha = .28f), topLeft = Offset(p.x - radius * 2f, p.y + radius * .2f),
                         size = Size(radius * 4f, radius * 1.4f), style = Stroke(.7.dp.toPx()))
                 }
                 drawCircle(brush = Brush.radialGradient(
-                    listOf(Color.White, node.color, node.color.copy(alpha = .65f), Color(0xFF08131C)),
+                    if (light) listOf(Color.White, Color.White, tone.copy(alpha = .70f), tone)
+                        else listOf(Color.White, tone, tone.copy(alpha = .65f), Color(0xFF08131C)),
                     center = Offset(p.x - radius * .28f, p.y - radius * .31f), radius = radius * 1.65f),
                     radius = radius, center = p)
-                drawCircle(node.color.copy(alpha = if (selected?.id == node.id) .95f else .47f),
+                drawCircle(tone.copy(alpha = if (selected?.id == node.id) .95f else if (light) .65f else .47f),
                     radius * (if (selected?.id == node.id) 1.25f else 1.05f), p, style = Stroke(1.dp.toPx()))
                 if (node.hub) {
                     val centerLabel = node.id == "maximus"
                     drawContext.canvas.nativeCanvas.drawText(node.label, p.x,
                         if (centerLabel) p.y + 4.dp.toPx() else p.y + radius + 14.dp.toPx(),
                         Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                            color = GraphText.toArgb()
+                            color = (if (light) Color(0xFF132C33) else GraphText).toArgb()
                             textSize = (if (centerLabel) 13.sp else 10.sp).toPx()
                             typeface = android.graphics.Typeface.DEFAULT_BOLD
                             textAlign = Paint.Align.CENTER
-                            setShadowLayer(5.dp.toPx(), 0f, 1f, android.graphics.Color.BLACK)
+                            setShadowLayer(4.dp.toPx(), 0f, 1f,
+                                if (light) android.graphics.Color.WHITE else android.graphics.Color.BLACK)
                         })
                 }
             }
@@ -274,36 +286,51 @@ private fun LiveMatrixCanvas(
         }
         if (selected != null) {
             Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(10.dp),
-                color = Color(0xF2091320), shape = RoundedCornerShape(18.dp),
-                shadowElevation = 15.dp, border = BorderStroke(1.dp, selected.color.copy(alpha = .85f))) {
+                color = if (light) Color(0xFFF8FFFE) else Color(0xF2091320), shape = RoundedCornerShape(18.dp),
+                shadowElevation = 15.dp, border = BorderStroke(1.dp, graphTone(selected.color, light).copy(alpha = .85f))) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(30.dp).background(selected.color.copy(alpha = .22f), CircleShape),
+                        Box(Modifier.size(30.dp).background(graphTone(selected.color, light).copy(alpha = .18f), CircleShape),
                             contentAlignment = Alignment.Center) {
-                            Box(Modifier.size(11.dp).background(selected.color, CircleShape))
+                            Box(Modifier.size(11.dp).background(graphTone(selected.color, light), CircleShape))
                         }
                         Spacer(Modifier.width(9.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(selected.label, color = GraphText, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            Text(selected.group, color = selected.color, fontSize = 10.sp)
+                            Text(selected.label, color = ink, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(selected.group, color = graphTone(selected.color, light), fontSize = 10.sp)
                         }
-                        Text("✕", Modifier.clickable(onClick = onDismiss).padding(8.dp), color = GraphText, fontSize = 16.sp)
+                        Text("✕", Modifier.clickable(onClick = onDismiss).padding(8.dp), color = ink, fontSize = 16.sp)
                     }
-                    Text(selected.description, color = GraphText.copy(alpha = .83f), fontSize = 11.sp,
+                    Text(selected.description, color = ink.copy(alpha = .83f), fontSize = 11.sp,
                         lineHeight = 15.sp, maxLines = 3)
-                    HorizontalDivider(color = selected.color.copy(alpha = .3f))
-                    Text("CONNECTED  •  " + selected.relations, color = GraphMuted, fontSize = 10.sp,
+                    HorizontalDivider(color = graphTone(selected.color, light).copy(alpha = .3f))
+                    Text("CONNECTED  •  " + selected.relations, color = mutedInk, fontSize = 10.sp,
                         maxLines = 2, lineHeight = 14.sp)
                 }
             }
         } else {
             Surface(Modifier.align(Alignment.BottomCenter).padding(8.dp),
-                color = Color(0xD0071110), shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, GraphBorder)) {
+                color = if (light) Color(0xF8FFFFFF) else Color(0xD0071110), shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, if (light) Color(0xFFC0D7D4) else GraphBorder)) {
                 Text("Pinch · drag · tap a node · double-tap to reset",
-                    Modifier.padding(horizontal = 10.dp, vertical = 7.dp), color = GraphMuted, fontSize = 9.sp)
+                    Modifier.padding(horizontal = 10.dp, vertical = 7.dp), color = mutedInk, fontSize = 9.sp)
             }
         }
+    }
+}
+
+private fun graphTone(color: Color, light: Boolean): Color {
+    if (!light) return color
+    return when (color) {
+        GraphAccent -> Color(0xFF007D68)
+        GraphBlue -> Color(0xFF265CAA)
+        GraphPurple -> Color(0xFF6944A8)
+        GraphGold -> Color(0xFF956000)
+        GraphRed -> Color(0xFFAE315E)
+        GraphCyan -> Color(0xFF007485)
+        GraphOrange -> Color(0xFFB35425)
+        GraphLime -> Color(0xFF687C20)
+        else -> color
     }
 }
 

@@ -46,7 +46,17 @@ data class ChatMessage(
     val role: String,
     val content: String,
     val timestampMs: Long = System.currentTimeMillis(),
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val attachment: ChatAttachment? = null,
+    val fromVoice: Boolean = false
+)
+
+/** Local, ephemeral content. Never written to preferences, diagnostics, or persistent storage. */
+data class ChatAttachment(
+    val name: String,
+    val mimeType: String,
+    val data: String,
+    val isText: Boolean
 )
 
 enum class ConnectionStatus {

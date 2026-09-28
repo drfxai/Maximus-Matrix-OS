@@ -30,6 +30,7 @@ class LlmChatClient {
         return try {
             openAiCompatible(config, history, agent)
         } catch (chatError: Throwable) {
+            if (history.takeLast(30).any { it.attachment != null && !it.attachment.isText }) throw chatError
             try {
                 openAiResponses(config, history, agent)
             } catch (responsesError: Throwable) {
@@ -50,7 +51,14 @@ class LlmChatClient {
         val messages = JSONArray()
             .put(JSONObject().put("role", "system").put("content", agent.systemPrompt))
         history.takeLast(30).forEach { message ->
-            messages.put(JSONObject().put("role", message.role).put("content", message.content))
+            val attachment = message.attachment
+            val content: Any = if (attachment != null && attachment.mimeType.startsWith("image/") && !attachment.isText) {
+                JSONArray()
+                    .put(JSONObject().put("type", "text").put("text", message.content))
+                    .put(JSONObject().put("type", "image_url").put("image_url",
+                        JSONObject().put("url", "data:${attachment.mimeType};base64,${attachment.data}")))
+            } else textWithFile(message)
+            messages.put(JSONObject().put("role", message.role).put("content", content))
         }
         val body = JSONObject()
             .put("model", config.selectedModel)
@@ -79,7 +87,7 @@ class LlmChatClient {
     ): ChatCompletionResult {
         val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/responses"
         val transcript = history.takeLast(24).joinToString("\n") {
-            (if (it.role == "assistant") "ASSISTANT" else "USER") + ": " + it.content
+            (if (it.role == "assistant") "ASSISTANT" else "USER") + ": " + textWithFile(it)
         }
         val body = JSONObject()
             .put("model", config.selectedModel)
@@ -116,10 +124,19 @@ class LlmChatClient {
         val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/messages"
         val messages = JSONArray()
         history.filter { it.role != "system" }.takeLast(30).forEach { message ->
+            val attachment = message.attachment
+            val content: Any = if (attachment != null && !attachment.isText) {
+                val block = if (attachment.mimeType == "application/pdf")
+                    JSONObject().put("type", "document")
+                        .put("source", JSONObject().put("type", "base64").put("media_type", attachment.mimeType).put("data", attachment.data))
+                else JSONObject().put("type", "image")
+                    .put("source", JSONObject().put("type", "base64").put("media_type", attachment.mimeType).put("data", attachment.data))
+                JSONArray().put(JSONObject().put("type", "text").put("text", message.content)).put(block)
+            } else textWithFile(message)
             messages.put(
                 JSONObject()
                     .put("role", if (message.role == "assistant") "assistant" else "user")
-                    .put("content", message.content)
+                    .put("content", content)
             )
         }
         val body = JSONObject()
@@ -169,10 +186,16 @@ class LlmChatClient {
             java.net.URLEncoder.encode(config.apiKey, "UTF-8")
         val contents = JSONArray()
         history.filter { it.role != "system" }.takeLast(30).forEach { message ->
+            val attachment = message.attachment
+            val parts = JSONArray().put(JSONObject().put("text", textWithFile(message)))
+            if (attachment != null && !attachment.isText) {
+                parts.put(JSONObject().put("inline_data",
+                    JSONObject().put("mime_type", attachment.mimeType).put("data", attachment.data)))
+            }
             contents.put(
                 JSONObject()
                     .put("role", if (message.role == "assistant") "model" else "user")
-                    .put("parts", JSONArray().put(JSONObject().put("text", message.content)))
+                    .put("parts", parts)
             )
         }
         val body = JSONObject()
@@ -224,10 +247,17 @@ class LlmChatClient {
     }
 
     private fun estimateUsage(history: List<ChatMessage>, response: String): ChatUsage {
-        val inputChars = history.takeLast(30).sumOf { it.content.length }
+        val inputChars = history.takeLast(30).sumOf { textWithFile(it).length }
         val input = (inputChars / 4.0).toInt().coerceAtLeast(1)
         val output = (response.length / 4.0).toInt().coerceAtLeast(1)
         return ChatUsage(input, output, input + output, estimated = true)
+    }
+
+    private fun textWithFile(message: ChatMessage): String {
+        val file = message.attachment
+        return if (file != null && file.isText)
+            message.content + "\n\n[Attached text file: " + file.name + "]\n" + file.data
+        else message.content
     }
 
     private fun post(url: String, body: String, headers: Map<String, String>): String {

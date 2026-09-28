@@ -54,9 +54,10 @@ object AppLogStore {
         return input
             .replace(Regex("""nvapi-[A-Za-z0-9_-]{12,}"""), "nvapi-[REDACTED]")
             .replace(Regex("""sk-[A-Za-z0-9_-]{12,}"""), "sk-[REDACTED]")
-            .replace(Regex("""Bearers+[A-Za-z0-9._-]{12,}""", RegexOption.IGNORE_CASE), "Bearer [REDACTED]")
-            .replace(Regex("""(?i)(api[_ -]?key|token|authorization)s*[:=]s*[^s,;]+""")) {
+            .replace(Regex("""Bearer\s+[A-Za-z0-9._~-]{8,}""", RegexOption.IGNORE_CASE), "Bearer [REDACTED]")
+            .replace(Regex("""(?i)(api[_ -]?key|access[_ -]?token|token|authorization)\s*[:=]\s*[^\s,;&]+""")) {
                 it.groupValues[1] + "=[REDACTED]"
             }
+            .replace(Regex("""(?i)([?&](?:key|api_key|token)=)[^&\s]+"""), "$1[REDACTED]")
     }
 }

@@ -197,9 +197,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
-    fun sendChat(text: String) {
-        val prompt = text.trim()
-        if (prompt.isBlank()) return
+    fun sendChat(text: String, attachment: ChatAttachment? = null, fromVoice: Boolean = false) {
+        val prompt = text.trim().ifBlank {
+            if (attachment == null) return else "Please analyze the attached ${if (attachment.mimeType.startsWith("image/")) "image" else "document"}."
+        }
         val current = _llmState.value
         if (current.status != ConnectionStatus.CONNECTED || current.selectedModel.isBlank()) {
             appendAssistantError("Connect an API and select a supported model before sending a message.")
@@ -211,8 +212,22 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
         if (current.isGenerating) return
+        if (attachment != null) {
+            val vision = current.models.firstOrNull { it.id == current.selectedModel }
+                ?.capabilities?.contains(ModelCapability.VISION) == true
+            if (!attachment.isText && !vision) {
+                appendAssistantError("The selected model does not advertise image or document vision. Choose a compatible model.")
+                return
+            }
+            if (attachment.mimeType == "application/pdf" &&
+                current.provider != LlmProvider.ANTHROPIC && current.provider != LlmProvider.GEMINI) {
+                appendAssistantError("PDF upload is supported with Anthropic or Gemini here. Text files work with all providers.")
+                return
+            }
+        }
 
-        _chatMessages.value = _chatMessages.value + ChatMessage(role = "user", content = prompt)
+        _chatMessages.value = _chatMessages.value +
+            ChatMessage(role = "user", content = prompt, attachment = attachment, fromVoice = fromVoice)
         _llmState.value = current.copy(isGenerating = true)
         appendLlmEvent(
             MatrixEventType.MODEL_STARTED,

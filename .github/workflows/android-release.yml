@@ -1,4 +1,4 @@
-name: Build and Release MAXIMUS AI V1.4.0
+name: Build and Release MAXIMUS AI V1.5.0
 
 on:
   push:
@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      RELEASE_TAG: v1.4.0
-      RELEASE_TITLE: MAXIMUS AI V1.4.0
-      RELEASE_APK: MAXIMUS_AI_V1.4.0_arm64V8a.apk
+      RELEASE_TAG: v1.5.0
+      RELEASE_TITLE: MAXIMUS AI V1.5.0
+      RELEASE_APK: MAXIMUS_AI_V1.5.0_arm64V8a.apk
       KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       SECRET_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
       SECRET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -85,7 +85,7 @@ jobs:
           echo "KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
           echo "SIGNING_MODE=$SIGNING_MODE" >> "$GITHUB_ENV"
           if [[ "$SIGNING_MODE" == "ephemeral-ci" ]]; then
-            echo "RELEASE_APK=MAXIMUS_AI_V1.4.0_arm64V8a-PREVIEW.apk" >> "$GITHUB_ENV"
+            echo "RELEASE_APK=MAXIMUS_AI_V1.5.0_arm64V8a-PREVIEW.apk" >> "$GITHUB_ENV"
           fi
           echo "mode=$SIGNING_MODE" >> "$GITHUB_OUTPUT"
 
@@ -124,7 +124,7 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MAXIMUS-AI-V1.4.0-${{ steps.signing.outputs.mode }}-arm64
+          name: MAXIMUS-AI-V1.5.0-${{ steps.signing.outputs.mode }}-arm64
           path: |
             dist/${{ env.RELEASE_APK }}
             dist/SHA256SUMS
@@ -143,15 +143,15 @@ jobs:
             exit 0
           fi
           cat > "$RUNNER_TEMP/release-notes.md" <<NOTES
-          # MAXIMUS AI V1.4.0
+          # MAXIMUS AI V1.5.0
 
           ARM64 Android runtime for Maximus Matrix OS.
 
           - ABI: arm64-v8a
           - Package: ai.drfx.maximus.matrixai
-          - Version: 1.4.0 (8)
+          - Version: 1.5.0 (9)
           - Mobile-first scrollable and touch-friendly interface
-          - Perspective neural Matrix graph with illuminated nodes, animated links, pinch zoom, pan and an in-viewport node inspector
+          - Light and dark neural Matrix graph, responsive node inspector, redesigned AI chat with image and document attachments, speech input and spoken replies, and telemetry console
           - NVIDIA NIM support plus provider-aware LLM chat, model discovery and compatible-agent filtering
           - Safe status-bar and navigation-bar handling
           - Real Android device tools: device status, web, settings, camera, alarms, calendar, dialer, SMS composer, share, clipboard and app launch
