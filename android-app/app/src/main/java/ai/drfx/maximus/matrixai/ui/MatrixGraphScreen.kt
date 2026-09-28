@@ -21,12 +21,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,8 +33,6 @@ import ai.drfx.maximus.matrixai.llm.ConnectionStatus
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.min
-import kotlin.math.min
-import kotlin.math.max
 
 private val GraphBg = Color(0xFF020405)
 private val GraphPanel = Color(0xFF071110)
@@ -95,8 +90,8 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("MAXIMUS AI", color = MaterialTheme.colorScheme.onBackground, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                    Text("MAXIMUS MATRIX OS · V1.4.0", color = GraphMuted, fontSize = 10.sp, letterSpacing = 1.sp)
+                    Text("NEURAL MATRIX", color = MaterialTheme.colorScheme.onBackground, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    Text("LIVE OPERATING GRAPH", color = GraphMuted, fontSize = 10.sp, letterSpacing = 1.sp)
                 }
                 Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
                     Column(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
