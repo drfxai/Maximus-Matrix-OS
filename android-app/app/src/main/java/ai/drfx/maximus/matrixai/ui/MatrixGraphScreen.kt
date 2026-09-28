@@ -260,7 +260,7 @@ private fun LiveMatrixCanvas(
                         Paint(Paint.ANTI_ALIAS_FLAG).apply {
                             color = GraphText.toArgb()
                             textSize = (if (centerLabel) 13.sp else 10.sp).toPx()
-                            typeface = android.graphics.Typeface.create(null, android.graphics.Typeface.BOLD)
+                            typeface = android.graphics.Typeface.DEFAULT_BOLD
                             textAlign = Paint.Align.CENTER
                             setShadowLayer(5.dp.toPx(), 0f, 1f, android.graphics.Color.BLACK)
                         })
