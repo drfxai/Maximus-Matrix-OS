@@ -197,32 +197,41 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
-    fun sendChat(text: String, attachment: ChatAttachment? = null, fromVoice: Boolean = false) {
+    fun sendChat(text: String, attachment: ChatAttachment? = null, fromVoice: Boolean = false): Boolean {
         val prompt = text.trim().ifBlank {
-            if (attachment == null) return else "Please analyze the attached ${if (attachment.mimeType.startsWith("image/")) "image" else "document"}."
+            if (attachment == null) return false else when {
+                attachment.mimeType.startsWith("audio/") -> "Transcribe and respond to this voice message."
+                attachment.mimeType.startsWith("image/") -> "Please analyze the attached image."
+                else -> "Please analyze the attached document."
+            }
         }
         val current = _llmState.value
         if (current.status != ConnectionStatus.CONNECTED || current.selectedModel.isBlank()) {
             appendAssistantError("Connect an API and select a supported model before sending a message.")
-            return
+            return false
         }
         val selectedAgent = current.supportedAgents.firstOrNull { it.id == current.selectedAgentId }
         if (selectedAgent == null) {
             appendAssistantError("Select an agent supported by the current model.")
-            return
+            return false
         }
-        if (current.isGenerating) return
+        if (current.isGenerating) return false
         if (attachment != null) {
+            val audio = attachment.mimeType.startsWith("audio/")
             val vision = current.models.firstOrNull { it.id == current.selectedModel }
                 ?.capabilities?.contains(ModelCapability.VISION) == true
-            if (!attachment.isText && !vision) {
+            if (audio && current.provider != LlmProvider.GEMINI && current.provider != LlmProvider.OPENAI) {
+                appendAssistantError("Raw voice notes need a Gemini or OpenAI connection. Use Dictate to send speech as text with this provider.")
+                return false
+            }
+            if (!attachment.isText && !audio && !vision) {
                 appendAssistantError("The selected model does not advertise image or document vision. Choose a compatible model.")
-                return
+                return false
             }
             if (attachment.mimeType == "application/pdf" &&
                 current.provider != LlmProvider.ANTHROPIC && current.provider != LlmProvider.GEMINI) {
                 appendAssistantError("PDF upload is supported with Anthropic or Gemini here. Text files work with all providers.")
-                return
+                return false
             }
         }
 
@@ -247,6 +256,14 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     selectedAgentId = selectedAgent.id
                 )
                 val result = chatClient.send(config, _chatMessages.value, selectedAgent)
+                if (result.transcript != null) {
+                    val index = _chatMessages.value.indexOfLast { it.role == "user" && it.attachment?.mimeType?.startsWith("audio/") == true }
+                    if (index >= 0) {
+                        _chatMessages.value = _chatMessages.value.toMutableList().also { list ->
+                            list[index] = list[index].copy(content = result.transcript)
+                        }
+                    }
+                }
                 _chatMessages.value = _chatMessages.value + ChatMessage(role = "assistant", content = result.text)
                 usageStore.record(current.provider, current.selectedModel, result.usage)
                 _usage.value = usageStore.summary()
@@ -270,6 +287,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
             }
         }
+        return true
     }
 
     fun clearChat() {

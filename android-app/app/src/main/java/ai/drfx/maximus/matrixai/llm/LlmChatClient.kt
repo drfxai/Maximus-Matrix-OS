@@ -6,6 +6,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import android.util.Base64
+import java.util.UUID
 
 class LlmChatClient {
     suspend fun send(
@@ -13,12 +15,52 @@ class LlmChatClient {
         history: List<ChatMessage>,
         agent: AgentDescriptor
     ): ChatCompletionResult = withContext(Dispatchers.IO) {
+        val last = history.lastOrNull()
+        val audio = last?.attachment?.takeIf { it.mimeType.startsWith("audio/") }
+        if (config.provider == LlmProvider.OPENAI && audio != null) {
+            val transcript = transcribeOpenAi(config, audio)
+            val textHistory = history.dropLast(1) + requireNotNull(last).copy(content = transcript, attachment = null)
+            return@withContext openAiWithFallback(config, textHistory, agent).copy(transcript = transcript)
+        }
         when (config.provider) {
             LlmProvider.ANTHROPIC -> anthropic(config, history, agent)
             LlmProvider.GEMINI -> gemini(config, history, agent)
             LlmProvider.OPENAI -> openAiWithFallback(config, history, agent)
             LlmProvider.NVIDIA -> openAiCompatible(config, history, agent)
             LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> openAiCompatible(config, history, agent)
+        }
+    }
+
+    /** Uploads the recorded M4A only to the configured OpenAI transcription endpoint. */
+    private fun transcribeOpenAi(config: ApiConnectionConfig, attachment: ChatAttachment): String {
+        val boundary = "MaximusVoice" + UUID.randomUUID().toString().replace("-", "")
+        val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/audio/transcriptions"
+        val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            readTimeout = 90_000
+            doOutput = true
+            setRequestProperty("Authorization", "Bearer " + config.apiKey)
+            setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary)
+        }
+        try {
+            connection.outputStream.use { output ->
+                fun write(text: String) = output.write(text.toByteArray(Charsets.UTF_8))
+                write("--$boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-transcribe\r\n")
+                write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"voice.m4a\"\r\n")
+                write("Content-Type: audio/m4a\r\n\r\n")
+                output.write(Base64.decode(attachment.data, Base64.DEFAULT))
+                write("\r\n--$boundary--\r\n")
+            }
+            val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
+            val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (connection.responseCode !in 200..299) {
+                throw IllegalStateException("Audio transcription failed (HTTP " + connection.responseCode + ").")
+            }
+            return JSONObject(response).optString("text").takeIf { it.isNotBlank() }
+                ?: throw IllegalStateException("Audio transcription returned no text.")
+        } finally {
+            connection.disconnect()
         }
     }
 

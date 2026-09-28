@@ -39,7 +39,8 @@ data class ChatUsage(
 
 data class ChatCompletionResult(
     val text: String,
-    val usage: ChatUsage
+    val usage: ChatUsage,
+    val transcript: String? = null
 )
 
 data class ChatMessage(
@@ -56,7 +57,8 @@ data class ChatAttachment(
     val name: String,
     val mimeType: String,
     val data: String,
-    val isText: Boolean
+    val isText: Boolean,
+    val durationMs: Long = 0
 )
 
 enum class ConnectionStatus {

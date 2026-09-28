@@ -1,6 +1,11 @@
 package ai.drfx.maximus.matrixai.ui
 
 import android.graphics.Paint
+import android.app.Activity
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -13,6 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +41,7 @@ import ai.drfx.maximus.matrixai.llm.ConnectionStatus
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.min
+import java.util.Locale
 
 private val GraphBg = Color(0xFF020405)
 private val GraphPanel = Color(0xFF071110)
@@ -74,6 +82,35 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
 
     var selected by remember { mutableStateOf<LiveNode?>(null) }
     var mission by remember { mutableStateOf("") }
+    var pendingVoiceCommand by remember { mutableStateOf<String?>(null) }
+    var voiceError by remember { mutableStateOf<String?>(null) }
+    val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val words = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (!words.isNullOrBlank()) {
+                mission = words
+                pendingVoiceCommand = words
+                voiceError = null
+            } else voiceError = "No command was recognized. Please try again."
+        }
+    }
+    if (pendingVoiceCommand != null) {
+        AlertDialog(
+            onDismissRequest = { pendingVoiceCommand = null },
+            title = { Text("Execute voice command?") },
+            text = { Text(pendingVoiceCommand.orEmpty()) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingVoiceCommand?.let(viewModel::runMission)
+                    mission = ""
+                    pendingVoiceCommand = null
+                }, enabled = status != "EXECUTING" && status != "PLANNING") { Text("Execute") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingVoiceCommand = null }) { Text("Edit or cancel") }
+            }
+        )
+    }
 
     val topology = remember(llm.status, llm.provider, llm.selectedModel, dataCenter.status.connected) {
         buildTopology(
@@ -139,13 +176,22 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
                             singleLine = true,
                             placeholder = { Text("Describe a mission") }
                         )
-                        Spacer(Modifier.width(8.dp))
+                        IconButton(onClick = {
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+                                .putExtra(RecognizerIntent.EXTRA_PROMPT, "Describe the mission to execute")
+                            try { voiceLauncher.launch(intent) }
+                            catch (_: Exception) { voiceError = "Voice recognition is unavailable on this device." }
+                        }) { Icon(Icons.Default.Mic, "Speak a mission command") }
                         Button(
                             onClick = { viewModel.runMission(mission); mission = "" },
-                            enabled = mission.isNotBlank() && status != "EXECUTING",
+                            enabled = mission.isNotBlank() && status != "EXECUTING" && status != "PLANNING",
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0E3A2E), contentColor = GraphAccent)
                         ) { Text("Run") }
                     }
+                    if (voiceError != null) Text(voiceError!!, color = MaterialTheme.colorScheme.error,
+                        fontSize = 11.sp)
                 }
             }
         }

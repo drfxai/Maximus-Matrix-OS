@@ -1,8 +1,11 @@
 package ai.drfx.maximus.matrixai.ui
 
 import android.app.Activity
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
@@ -23,6 +26,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.StopCircle
+import androidx.compose.material.icons.filled.KeyboardVoice
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.VolumeOff
@@ -37,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import java.util.Locale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +57,8 @@ import ai.drfx.maximus.matrixai.llm.ChatMessage
 import ai.drfx.maximus.matrixai.llm.ChatAttachment
 import ai.drfx.maximus.matrixai.llm.ConnectionStatus
 import ai.drfx.maximus.matrixai.llm.ModelCapability
+import ai.drfx.maximus.matrixai.llm.LlmProvider
+import androidx.core.content.ContextCompat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +78,43 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var settingsOpen by remember { mutableStateOf(false) }
     var attachment by remember { mutableStateOf<ChatAttachment?>(null) }
     var attachmentError by remember { mutableStateOf<String?>(null) }
+    var recording by remember { mutableStateOf(false) }
+    var recordingSeconds by remember { mutableIntStateOf(0) }
+    val recorder = remember(context) { VoiceMessageRecorder(context) }
+    DisposableEffect(recorder) { onDispose { recorder.cancel() } }
+    fun startRecording() {
+        try {
+            recorder.start()
+            recording = true
+            recordingSeconds = 0
+            attachmentError = null
+        } catch (_: Exception) {
+            attachmentError = "Microphone recording could not start."
+        }
+    }
+    fun finishRecording() {
+        try {
+            attachment = recorder.stop()
+            attachmentError = null
+        } catch (error: Exception) {
+            attachmentError = error.message ?: "Voice recording could not be saved."
+        } finally {
+            recording = false
+        }
+    }
+    LaunchedEffect(recording) {
+        if (recording) {
+            repeat(60) {
+                delay(1_000)
+                if (!recording) return@LaunchedEffect
+                recordingSeconds = it + 1
+            }
+            if (recording) finishRecording()
+        }
+    }
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startRecording() else attachmentError = "Microphone permission is required to record a voice message."
+    }
     var voiceReplies by remember { mutableStateOf(false) }
     var speechReady by remember { mutableStateOf(false) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
@@ -85,10 +132,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     fun send(text: String = prompt, fromVoice: Boolean = false) {
         if (state.isGenerating || state.status != ConnectionStatus.CONNECTED ||
             (text.isBlank() && attachment == null)) return
-        viewModel.sendChat(text, attachment, fromVoice)
-        prompt = ""
-        attachment = null
-        attachmentError = null
+        if (viewModel.sendChat(text, attachment, fromVoice)) {
+            prompt = ""
+            attachment = null
+            attachmentError = null
+        }
     }
     fun load(uri: Uri) {
         scope.launch {
@@ -106,7 +154,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     val voiceInput = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val transcript = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-            if (!transcript.isNullOrBlank()) send(transcript, fromVoice = true)
+            if (!transcript.isNullOrBlank()) {
+                if (state.status == ConnectionStatus.CONNECTED) send(transcript, fromVoice = true)
+                else prompt = transcript
+            }
             else attachmentError = "No speech was recognized."
         }
     }
@@ -192,6 +243,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         ChatBubble(message, onSpeak = {
                             if (speechReady) tts?.speak(message.content, TextToSpeech.QUEUE_FLUSH,
                                 null, "replay-" + message.timestampMs)
+                        }, onPlayVoice = {
+                            message.attachment?.let { voice ->
+                                runCatching { playVoiceMessage(context, voice) }
+                                    .onFailure { attachmentError = "Voice playback is unavailable." }
+                            }
                         })
                     }
                     if (state.isGenerating) {
@@ -209,8 +265,24 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
 
         if (attachment != null) {
             AssistChip(onClick = { attachment = null },
-                label = { Text(attachment!!.name + "  ·  remove", maxLines = 1) },
-                leadingIcon = { Icon(Icons.Default.AttachFile, null) })
+                label = { Text(attachment!!.name +
+                    (if (attachment!!.mimeType.startsWith("audio/")) " · " + attachment!!.durationMs / 1_000 + "s" else "") +
+                    "  ·  remove", maxLines = 1) },
+                leadingIcon = { Icon(if (attachment!!.mimeType.startsWith("audio/"))
+                    Icons.Default.Mic else Icons.Default.AttachFile, null) })
+        }
+        if (attachment?.mimeType?.startsWith("audio/") == true &&
+            state.provider != LlmProvider.GEMINI && state.provider != LlmProvider.OPENAI) {
+            Text("Recorded audio requires Gemini or OpenAI. Use Dictate with this provider.",
+                color = MaterialTheme.colorScheme.tertiary, fontSize = 11.sp)
+        }
+        if (recording) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Recording voice message · " + recordingSeconds + "s / 60s",
+                    color = MaterialTheme.colorScheme.error, fontSize = 11.sp,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = { recorder.cancel(); recording = false }) { Text("Discard") }
+            }
         }
         if (attachmentError != null) {
             Text(attachmentError!!, color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
@@ -220,14 +292,15 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             Column(Modifier.padding(8.dp)) {
                 OutlinedTextField(value = prompt, onValueChange = { prompt = it },
                     modifier = Modifier.fillMaxWidth(), maxLines = 3,
+                    enabled = !recording,
                     placeholder = { Text("Message the selected agent…") },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { send() }))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { imagePicker.launch("image/*") }) {
+                    IconButton(onClick = { imagePicker.launch("image/*") }, enabled = !recording) {
                         Icon(Icons.Default.Image, "Attach image")
                     }
-                    IconButton(onClick = { filePicker.launch(arrayOf("text/*", "application/pdf", "application/json")) }) {
+                    IconButton(onClick = { filePicker.launch(arrayOf("text/*", "application/pdf", "application/json")) }, enabled = !recording) {
                         Icon(Icons.Default.AttachFile, "Attach document")
                     }
                     IconButton(onClick = {
@@ -237,11 +310,23 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             .putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your message")
                         try { voiceInput.launch(intent) }
                         catch (_: Exception) { attachmentError = "Speech recognition is unavailable on this device." }
-                    }) { Icon(Icons.Default.Mic, "Speak a message") }
+                    }, enabled = !recording) { Icon(Icons.Default.KeyboardVoice, "Dictate text message") }
+                    IconButton(onClick = {
+                        if (recording) finishRecording()
+                        else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                            PackageManager.PERMISSION_GRANTED) startRecording()
+                        else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    }) {
+                        Icon(if (recording) Icons.Default.StopCircle else Icons.Default.FiberManualRecord,
+                            if (recording) "Finish voice message" else "Record voice message",
+                            tint = if (recording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                    }
                     Spacer(Modifier.weight(1f))
                     Button(onClick = { send() },
-                        enabled = !state.isGenerating && (prompt.isNotBlank() || attachment != null) &&
-                            state.status == ConnectionStatus.CONNECTED && state.selectedAgentId.isNotBlank(),
+                        enabled = !recording && !state.isGenerating && (prompt.isNotBlank() || attachment != null) &&
+                            state.status == ConnectionStatus.CONNECTED && state.selectedAgentId.isNotBlank() &&
+                            (attachment?.mimeType?.startsWith("audio/") != true ||
+                                state.provider == LlmProvider.GEMINI || state.provider == LlmProvider.OPENAI),
                         modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(15.dp)) {
                         Icon(Icons.Default.Send, "Send message")
@@ -423,7 +508,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
 }
 
 @Composable
-private fun ChatBubble(message: ChatMessage, onSpeak: () -> Unit) {
+private fun ChatBubble(message: ChatMessage, onSpeak: () -> Unit, onPlayVoice: () -> Unit) {
     val assistant = message.role == "assistant"
     Row(
         Modifier.fillMaxWidth(),
@@ -453,7 +538,13 @@ private fun ChatBubble(message: ChatMessage, onSpeak: () -> Unit) {
                 )
                 Spacer(Modifier.height(4.dp))
                 if (message.attachment != null) {
-                    Text("Attached: " + message.attachment.name,
+                    if (message.attachment.mimeType.startsWith("audio/")) {
+                        TextButton(onClick = onPlayVoice, contentPadding = PaddingValues(0.dp)) {
+                            Icon(Icons.Default.PlayArrow, "Play voice message", Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Voice message · " + message.attachment.durationMs / 1_000 + "s", fontSize = 11.sp)
+                        }
+                    } else Text("Attached: " + message.attachment.name,
                         color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                 }
                 Text(message.content, fontSize = 13.sp, lineHeight = 19.sp)
@@ -516,4 +607,31 @@ private suspend fun loadChatAttachment(context: Context, uri: Uri): ChatAttachme
     if (bytes.isEmpty()) throw IllegalArgumentException("The selected file is empty.")
     ChatAttachment(name, mime, if (isText) bytes.toString(Charsets.UTF_8)
         else Base64.encodeToString(bytes, Base64.NO_WRAP), isText)
+}
+
+
+private fun playVoiceMessage(context: Context, attachment: ChatAttachment) {
+    require(attachment.mimeType.startsWith("audio/") && attachment.data.isNotBlank())
+    val file = java.io.File.createTempFile("maximus-playback-", ".m4a", context.cacheDir)
+    try {
+        file.writeBytes(Base64.decode(attachment.data, Base64.DEFAULT))
+        val player = MediaPlayer()
+        try {
+            player.setDataSource(file.absolutePath)
+            player.setOnCompletionListener { it.release(); file.delete() }
+            player.setOnErrorListener { media, _, _ ->
+                media.release()
+                file.delete()
+                true
+            }
+            player.prepare()
+            player.start()
+        } catch (error: Exception) {
+            player.release()
+            throw error
+        }
+    } catch (error: Exception) {
+        file.delete()
+        throw error
+    }
 }
