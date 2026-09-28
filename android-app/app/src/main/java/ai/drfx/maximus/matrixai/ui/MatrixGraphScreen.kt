@@ -181,7 +181,7 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("MAXIMUS AI", color = ink, fontSize = 17.sp, letterSpacing = 1.sp, fontWeight = FontWeight.ExtraBold)
-                Text("NEURAL WORKSPACE / 1.7.0", color = muted, fontSize = 9.sp, letterSpacing = .8.sp)
+                Text("NEURAL WORKSPACE / 1.0.1", color = muted, fontSize = 9.sp, letterSpacing = .8.sp)
             }
             Box(Modifier.size(6.dp).background(if (status == "READY") GraphAccent else GraphGold, CircleShape))
             Text(status, Modifier.padding(start = 6.dp), color = graphTone(GraphAccent, light), fontSize = 10.sp)

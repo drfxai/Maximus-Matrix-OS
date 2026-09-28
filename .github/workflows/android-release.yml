@@ -1,4 +1,4 @@
-name: Build and Release MAXIMUS AI V1.7.0
+name: Build and Release MAXIMUS MATRIX AI V1.0.1
 
 on:
   push:
@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      RELEASE_TAG: v1.7.0
-      RELEASE_TITLE: MAXIMUS AI V1.7.0
-      RELEASE_APK: MAXIMUS_AI_V1.7.0_arm64V8a.apk
+      RELEASE_TAG: v1.0.1
+      RELEASE_TITLE: MAXIMUS MATRIX AI V1.0.1
+      RELEASE_APK: MAXIMUS_MATRIX_AI_V1.0.1_arm64V8a.apk
       KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       SECRET_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
       SECRET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -85,7 +85,7 @@ jobs:
           echo "KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
           echo "SIGNING_MODE=$SIGNING_MODE" >> "$GITHUB_ENV"
           if [[ "$SIGNING_MODE" == "ephemeral-ci" ]]; then
-            echo "RELEASE_APK=MAXIMUS_AI_V1.7.0_arm64V8a-PREVIEW.apk" >> "$GITHUB_ENV"
+            echo "RELEASE_APK=MAXIMUS_MATRIX_AI_V1.0.1_arm64V8a-PREVIEW.apk" >> "$GITHUB_ENV"
           fi
           echo "mode=$SIGNING_MODE" >> "$GITHUB_OUTPUT"
 
@@ -124,47 +124,68 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MAXIMUS-AI-V1.7.0-${{ steps.signing.outputs.mode }}-arm64
+          name: MAXIMUS-MATRIX-AI-V1.0.1-${{ steps.signing.outputs.mode }}-arm64
           path: |
             dist/${{ env.RELEASE_APK }}
             dist/SHA256SUMS
             dist/APK_BADGING.txt
           if-no-files-found: error
 
-      - name: Publish GitHub Release
-        if: steps.signing.outputs.mode == 'repository-secret' && github.ref == 'refs/heads/main'
+      - name: Replace old releases and publish V1.0.1
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
+          # These IDs are the three pre-existing releases. Only delete them when
+          # their tag still matches the inspected release; reruns preserve the new one.
+          for entry in "v1.0.1:397702650" "v1.0.2:397746356" "v1.0.3:397757576"; do
+            IFS=: read -r old_tag old_id <<< "$entry"
+            found="$(gh api "repos/$GITHUB_REPOSITORY/releases/$old_id" --jq .tag_name 2>/dev/null || true)"
+            if [[ -n "$found" ]]; then
+              if [[ "$found" != "$old_tag" ]]; then
+                echo "Release ID $old_id no longer matches $old_tag. Stopping before deletion."
+                exit 1
+              fi
+              gh release delete "$old_tag" --cleanup-tag --yes
+            fi
+          done
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Release $RELEASE_TAG already exists. Preserving the existing release to avoid signing-key drift."
-            exit 0
+            current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha)"
+            if [[ "$current_sha" == "$GITHUB_SHA" ]]; then
+              echo "The verified V1.0.1 release already points to this commit."
+              exit 0
+            fi
+            echo "An unrelated V1.0.1 release already exists. Stopping."
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "A stale V1.0.1 tag remains; refusing to publish at the wrong commit."
+            exit 1
           fi
           cat > "$RUNNER_TEMP/release-notes.md" <<NOTES
-          # MAXIMUS AI V1.7.0
+          # MAXIMUS MATRIX AI V1.0.1
 
-          ARM64 Android runtime for Maximus Matrix OS.
+          Android ARM64 build of the neural workspace. This release replaces the older V1.0.1–V1.0.3 releases and tags.
 
-          - ABI: arm64-v8a
           - Package: ai.drfx.maximus.matrixai
-          - Version: 1.7.0 (10)
-          - Mobile-first scrollable and touch-friendly interface
-          - Recorded voice messages for Gemini and OpenAI, speech dictation for other providers, confirmed voice commands in Mission Control, spoken replies, and multimodal chat
-          - NVIDIA NIM support plus provider-aware LLM chat, model discovery and compatible-agent filtering
-          - Safe status-bar and navigation-bar handling
-          - Real Android device tools: device status, web, settings, camera, alarms, calendar, dialer, SMS composer, share, clipboard and app launch
-          - Custom MAXIMUS AI launcher icon
-          - Copyable redacted diagnostic logs, light/dark/system themes, Agent Factory, API usage control, data-center gateway and Matrix events
-          - English-only repository enforcement
-          - SHA-256 checksum included
-          - Signed with the configured stable production key
+          - Version: 1.0.1 (version code 12)
+          - 3D node graph with X/Y drag orbit, two-finger Z roll, pinch zoom, and slow automatic horizontal rotation
+          - Search, node inspector, category filters, light/dark graph styling, and mission command dock
+          - LLM and agent chat with voice messages, images, files, spoken replies, and confirmed voice commands
+          - ARM64 APK, SHA-256 checksum, and package metadata attached
+          - Signing mode: $SIGNING_MODE
+
+          A preview-signed APK uses a temporary key and cannot upgrade an earlier installation signed with another key. Set the repository signing secrets to publish a stable-key update.
           NOTES
+          release_flags=()
+          if [[ "$SIGNING_MODE" == "ephemeral-ci" ]]; then release_flags+=(--prerelease); fi
           gh release create "$RELEASE_TAG" \
             "dist/$RELEASE_APK" \
             "dist/SHA256SUMS" \
             "dist/APK_BADGING.txt" \
             --target "$GITHUB_SHA" \
             --title "$RELEASE_TITLE" \
-            --notes-file "$RUNNER_TEMP/release-notes.md"
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            "${release_flags[@]}"

@@ -1,4 +1,4 @@
-# Neural workspace — Android 1.7.0
+# Neural workspace — Android 1.0.1
 
 The home screen follows the supplied workspace references: near-black canvas,
 small colored spheres, fine links, a compact toolbar, inspector and filters,
