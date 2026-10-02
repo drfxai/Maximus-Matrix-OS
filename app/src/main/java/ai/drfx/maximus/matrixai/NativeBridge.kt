@@ -4,7 +4,7 @@ object NativeBridge {
     init {
         try {
             System.loadLibrary("maximus_matrix_native")
-        } catch (_: Throwable) {
+        } catch (ignored: Throwable) {
             // Fallback gracefully
         }
     }
