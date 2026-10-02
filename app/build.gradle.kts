@@ -17,8 +17,22 @@ android {
     }
 
     signingConfigs {
-        getByName("debug") {
-            // Default debug keystore
+        create("release") {
+            val path = System.getenv("KEYSTORE_PATH")
+            if (!path.isNullOrBlank() && file(path).exists()) {
+                storeFile = file(path)
+                storePassword = System.getenv("STORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS") ?: "maximus"
+                keyPassword = System.getenv("KEY_PASSWORD")
+            } else {
+                val debugKeystore = file("${rootDir}/debug.keystore")
+                if (debugKeystore.exists()) {
+                    storeFile = debugKeystore
+                    storePassword = "android"
+                    keyAlias = "androiddebugkey"
+                    keyPassword = "android"
+                }
+            }
         }
     }
 
@@ -30,6 +44,10 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning?.storeFile != null) {
+                signingConfig = releaseSigning
+            }
         }
     }
 

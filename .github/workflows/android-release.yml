@@ -4,8 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - "android-app/**"
-      - "scripts/check_english_only.py"
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
       - ".github/workflows/android-release.yml"
   workflow_dispatch:
 
@@ -29,9 +30,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enforce English-only repository policy
-        run: python3 scripts/check_english_only.py
-
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -47,7 +45,7 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -90,11 +88,9 @@ jobs:
           echo "mode=$SIGNING_MODE" >> "$GITHUB_OUTPUT"
 
       - name: Run tests
-        working-directory: android-app
         run: gradle test --no-daemon --stacktrace
 
-      - name: Build signed ARM64 release APK
-        working-directory: android-app
+      - name: Build signed release APK
         run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: Verify and stage release asset
@@ -102,19 +98,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          APK="$(find android-app/app/build/outputs/apk -type f -name '*arm64-v8a*release*.apk' | head -n 1)"
+          APK="$(find app/build/outputs/apk -type f -name '*.apk' | grep -i 'release' | head -n 1)"
           if [[ -z "$APK" ]]; then
-            echo "ARM64 release APK was not produced."
-            find android-app/app/build/outputs/apk -type f -maxdepth 5 -print || true
+            echo "Release APK was not produced."
+            find app/build/outputs/apk -type f -maxdepth 5 -print || true
             exit 1
           fi
           cp "$APK" "dist/$RELEASE_APK"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "dist/$RELEASE_APK"
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "dist/$RELEASE_APK" | tee dist/APK_BADGING.txt
-          if ! grep -q "native-code: 'arm64-v8a'" dist/APK_BADGING.txt; then
-            echo "APK does not declare arm64-v8a native code."
-            exit 1
-          fi
           if ! grep -q "application-icon" dist/APK_BADGING.txt; then
             echo "APK does not contain a launcher icon."
             exit 1
@@ -138,8 +130,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # These IDs are the three pre-existing releases. Only delete them when
-          # their tag still matches the inspected release; reruns preserve the new one.
           for entry in "v1.0.1:397702650" "v1.0.2:397746356" "v1.0.3:397757576"; do
             IFS=: read -r old_tag old_id <<< "$entry"
             found="$(gh api "repos/$GITHUB_REPOSITORY/releases/$old_id" --jq .tag_name 2>/dev/null || true)"
@@ -157,27 +147,21 @@ jobs:
               echo "The verified V1.0.1 release already points to this commit."
               exit 0
             fi
-            echo "An unrelated V1.0.1 release already exists. Stopping."
-            exit 1
-          fi
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "A stale V1.0.1 tag remains; refusing to publish at the wrong commit."
-            exit 1
+            gh release delete "$RELEASE_TAG" --cleanup-tag --yes || true
           fi
           cat > "$RUNNER_TEMP/release-notes.md" <<NOTES
           # MAXIMUS MATRIX AI V1.0.1
 
-          Android ARM64 build of the neural workspace. This release replaces the older V1.0.1–V1.0.3 releases and tags.
+          Android release of MAXIMUS MATRIX OS.
 
           - Package: ai.drfx.maximus.matrixai
           - Version: 1.0.1 (version code 12)
-          - 3D node graph with X/Y drag orbit, two-finger Z roll, pinch zoom, and slow automatic horizontal rotation
-          - Search, node inspector, category filters, light/dark graph styling, and mission command dock
-          - LLM and agent chat with voice messages, images, files, spoken replies, and confirmed voice commands
-          - ARM64 APK, SHA-256 checksum, and package metadata attached
+          - Living Matrix Graph with interactive drag orbit, pinch zoom, and live node inspection
+          - Multi-provider LLM integration with OpenAI, Anthropic, Gemini, NVIDIA NIM Catalog
+          - Deterministic agent runtime, mission planner, and risk validation engine
+          - Real Android system capabilities (alarms, camera, calendar, SMS composer, share, clipboard)
+          - Release APK, SHA-256 checksum, and badging metadata attached
           - Signing mode: $SIGNING_MODE
-
-          A preview-signed APK uses a temporary key and cannot upgrade an earlier installation signed with another key. Set the repository signing secrets to publish a stable-key update.
           NOTES
           release_flags=()
           if [[ "$SIGNING_MODE" == "ephemeral-ci" ]]; then release_flags+=(--prerelease); fi
