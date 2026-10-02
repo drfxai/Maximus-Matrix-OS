@@ -65,14 +65,6 @@ android {
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
     }
-
-    sourceSets {
-        getByName("main") {
-            manifest.srcFile("src/main/AndroidManifest.xml")
-            res.srcDirs("src/main/res")
-            java.srcDirs("src/main/java")
-        }
-    }
 }
 
 ksp {
