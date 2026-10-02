@@ -1,64 +1,18 @@
-# MAXIMUS MATRIX OS
+# MAXIMUS MATRIX OS (Android)
 
-MAXIMUS MATRIX OS is the internal intelligence platform for two end-user products:
+MAXIMUS MATRIX OS is a graph-native intelligence platform and executive Android assistant app built with Kotlin and Jetpack Compose.
 
-- **MAXIMUS AI** — the graph-native Android intelligence product in `android-app/`
-- **MAXIMUS VPN** — the secure networking product (not yet present in this repository)
+## Key Features & Capabilities
 
-Internal capability domains include the Control Plane, Mission Control, Agent Runtime,
-Knowledge Core, Intelligence Foundry, Research Engine, Trading Intelligence, Trading
-Genome, Quant Lab, and Agent Factory. They are architecture modules, not separate products.
+- **Living Matrix Graph**: Interactive canvas graph visualization featuring multi-touch pinch zoom, drag-to-pan, node inspection, and live mission path telemetry.
+- **AI Control Hub & Multi-Provider LLM Chat**: Integration architecture for OpenAI, Anthropic, Gemini, NVIDIA NIM API Catalog, and custom endpoints with capability discovery and usage tracking.
+- **Deterministic Agent Runtime**: Matrix event stream, policy engine with risk gate validation, mission planner, and execution pipeline.
+- **Android Capabilities & Tools**: Real system integration for alarms, camera, calendar, dialer, SMS composer, share, clipboard, and app launching.
+- **Data Center & Knowledge Connector**: Configurable gateway for documents, research sources, and enterprise datasets.
+- **Redacted Diagnostics & Telemetry**: Full runtime event logging and diagnostic tracing with sensitive data redaction.
+- **Adaptive Material 3 Design**: Supports dark, light, and system themes with edge-to-edge support.
 
-## MAXIMUS AI V1.1.0 foundation
+## Architecture
 
-The Android application currently provides:
-
-- A mobile-first Compose shell with Matrix, Chat, Missions, Agents, Research, Trading,
-  Knowledge, Memory, Tools, Activity, and Settings destinations
-- A persistent command dock across the product
-- A deterministic mission planner, policy engine, Android tool registry, validation gate,
-  artifact events, and an in-process Matrix event stream
-- Runtime-driven graph highlighting with no idle fake telemetry
-- Real Android intents for device status, web search, URLs, settings, camera, alarms,
-  calendar, dialer, SMS composer, share, clipboard, and application launch
-- Honest availability states for capabilities that are not implemented yet
-- ARM64 native marker, English-only guard, tests, and release automation
-
-The current release is a foundation, not the completed platform. AI providers, streaming
-chat, persistent encrypted memory, backend APIs, ingestion, retrieval indexes, voice,
-notifications, accessibility automation, Trading Genome execution, and Quant Lab are not
-connected and are identified as unavailable or planned in the UI.
-
-## Security
-
-The runtime does not bypass Android permissions. Communication actions open visible
-Android system interfaces. Cleartext traffic is disabled. Production signing credentials
-must be supplied through GitHub secrets and must never be committed.
-
-## Documentation
-
-- [Repository audit and migration map](docs/phase-1-audit-and-migration-map.md)
-- [Android runtime integration](docs/android-agent-integration.md)
-- [Android build notes](android-app/README.md)
-
-## Language policy
-
-Repository source, comments, UI, documentation, prompts, logs, tests, filenames, and
-workflow content are English-only. Run `python3 scripts/check_english_only.py` before a
-release.
-
-
-## MAXIMUS AI V1.2.0
-
-The Android product now includes provider-aware LLM chat, capability-gated agent selection, a larger interactive live Matrix graph, API usage/subscription metadata, and a company data-center gateway for Pine sources, documents, projects and research.
-
-The repository does not contain the private 3,000-source Pine library or production company database credentials. Those assets remain external and are exposed through the configurable data-center connector rather than fabricated in the app.
-
-
-## MAXIMUS AI V1.3.0
-
-- NVIDIA NIM API Catalog support with automatic `nvapi-` key recognition and the NVIDIA hosted base URL.
-- Copyable redacted diagnostic log for API discovery, chat failures, data-center operations and Matrix runtime events.
-- Light, dark and system appearance modes.
-- Larger Matrix graph with two-finger pinch zoom, drag-to-pan, tap inspection, double-tap reset and explicit zoom controls.
-- Credentials are never written to the repository or diagnostic log.
+- **Runtime**: Android SDK 36 (Min SDK 26), Kotlin 2.2.10, AGP 9.1.1, Jetpack Compose Material 3.
+- **State Management**: Kotlin Coroutines, StateFlow, ViewModel.

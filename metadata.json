@@ -1,0 +1,8 @@
+{
+  "name": "MAXIMUS AI",
+  "description": "Maximus Matrix OS - Graph-native Research & Agent Operating System with AI Control Hub, Multi-Provider LLM Chat, Tool Registry, and Living Matrix Graph",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
