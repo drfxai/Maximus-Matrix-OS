@@ -10,3 +10,4 @@ data class UserSessionDataEntity(
     val category: String = "general",
     val updatedMs: Long = System.currentTimeMillis()
 )
+

@@ -94,3 +94,4 @@ class RoomDatabaseEntitiesTest {
         assertEquals("DARK", sessionData.value)
     }
 }
+

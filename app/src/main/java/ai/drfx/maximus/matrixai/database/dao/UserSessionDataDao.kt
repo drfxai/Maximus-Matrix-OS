@@ -18,3 +18,4 @@ interface UserSessionDataDao {
     @Query("DELETE FROM user_session_data WHERE `key` = :key")
     suspend fun delete(key: String): Int
 }
+

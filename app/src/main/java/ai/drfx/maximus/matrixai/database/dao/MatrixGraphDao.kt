@@ -40,3 +40,4 @@ interface MatrixGraphDao {
     @Query("DELETE FROM matrix_edges")
     suspend fun clearEdges(): Int
 }
+

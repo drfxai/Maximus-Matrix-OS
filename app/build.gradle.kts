@@ -12,7 +12,7 @@ android {
         applicationId = "ai.drfx.maximus.matrixai"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
+        versionCode = 13
         versionName = "1.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -90,5 +90,10 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
+

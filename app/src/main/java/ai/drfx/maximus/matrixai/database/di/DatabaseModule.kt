@@ -52,3 +52,4 @@ class DatabaseModule private constructor(context: Context) {
         }
     }
 }
+

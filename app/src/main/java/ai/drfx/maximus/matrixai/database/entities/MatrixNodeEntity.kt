@@ -18,3 +18,4 @@ data class MatrixNodeEntity(
     val isCustom: Boolean = false,
     val lastUpdatedMs: Long = System.currentTimeMillis()
 )
+

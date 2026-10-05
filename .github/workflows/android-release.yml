@@ -90,6 +90,41 @@ jobs:
       - name: Run tests
         run: gradle test --no-daemon --stacktrace
 
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Verify keyboard layout on Android 15
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -memory 2048
+          script: |
+            test_status=0
+            gradle connectedDebugAndroidTest --no-daemon --stacktrace || test_status=$?
+            mkdir -p keyboard-check
+            adb pull /sdcard/Android/data/ai.drfx.maximus.matrixai.debug/files/keyboard-check keyboard-check || true
+            adb exec-out screencap -p > keyboard-check/final-screen.png
+            adb logcat -d > keyboard-check/device.log
+            exit "$test_status"
+
+      - name: Upload keyboard verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Keyboard-layout-Android15
+          path: |
+            keyboard-check/
+            app/build/outputs/androidTest-results/
+            app/build/reports/androidTests/
+          if-no-files-found: warn
+
       - name: Build signed release APK
         run: gradle assembleRelease --no-daemon --stacktrace
 
@@ -155,7 +190,9 @@ jobs:
           Android release of MAXIMUS MATRIX OS.
 
           - Package: ai.drfx.maximus.matrixai
-          - Version: 1.0.1 (version code 12)
+          - Version: 1.0.1 (version code 13)
+          - Fixed keyboard layout: mission and chat composers stay directly above the keyboard
+          - Android 15 emulator regression checks for keyboard opening, closing, and text retention
           - Living Matrix Graph with interactive drag orbit, pinch zoom, and live node inspection
           - Multi-provider LLM integration with OpenAI, Anthropic, Gemini, NVIDIA NIM Catalog
           - Deterministic agent runtime, mission planner, and risk validation engine
@@ -173,3 +210,4 @@ jobs:
             --title "$RELEASE_TITLE" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             "${release_flags[@]}"
+

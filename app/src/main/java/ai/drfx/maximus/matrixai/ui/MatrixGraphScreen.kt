@@ -11,6 +11,11 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -57,6 +62,8 @@ private enum class GraphPanel { INSPECTOR, FILTERS }
 
 @Composable
 fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     val light = MaterialTheme.colorScheme.background.luminance() > .5f
     val bg = if (light) Color(0xFFF4F7FA) else Color(0xFF050608)
     val panelColor = if (light) Color(0xF5FFFFFF) else Color(0xF5101217)
@@ -246,7 +253,8 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
                 text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { if (openPanel == GraphPanel.INSPECTOR) inspector() else filters() } },
                 confirmButton = { TextButton(onClick = { openPanel = null }) { Text("Done") } })
         }
-        Surface(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp), color = panelColor,
+        Surface(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)
+            .semantics { contentDescription = "Mission composer" }, color = panelColor,
             shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, border)) {
             Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                 if (mission.isBlank()) {
@@ -254,7 +262,10 @@ fun MatrixGraphScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier)
                         color = muted, fontSize = 11.sp, maxLines = 1, lineHeight = 15.sp)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(mission, { mission = it }, Modifier.weight(1f), singleLine = true,
+                    OutlinedTextField(mission, { mission = it },
+                        Modifier.weight(1f).semantics { contentDescription = "Mission input" }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { keyboard?.hide(); focusManager.clearFocus() }),
                         placeholder = { Text("Ask MAXIMUS…", fontSize = 12.sp) }, shape = RoundedCornerShape(25.dp))
                     IconButton(onClick = {
                         try { voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -492,3 +503,4 @@ private fun buildTopology(
 
     return nodes to edges
 }
+

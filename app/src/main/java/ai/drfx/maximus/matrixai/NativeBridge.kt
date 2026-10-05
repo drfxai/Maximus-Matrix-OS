@@ -13,3 +13,4 @@ object NativeBridge {
         return 64
     }
 }
+

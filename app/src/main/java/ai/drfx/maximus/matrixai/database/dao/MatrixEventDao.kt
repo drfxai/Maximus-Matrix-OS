@@ -24,3 +24,4 @@ interface MatrixEventDao {
     @Query("DELETE FROM matrix_events")
     suspend fun clearEvents(): Int
 }
+

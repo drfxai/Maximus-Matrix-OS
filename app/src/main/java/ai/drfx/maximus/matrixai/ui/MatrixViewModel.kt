@@ -487,3 +487,4 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 }
+

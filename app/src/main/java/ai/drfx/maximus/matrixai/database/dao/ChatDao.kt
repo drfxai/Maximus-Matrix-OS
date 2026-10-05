@@ -34,3 +34,4 @@ interface ChatDao {
     @Query("DELETE FROM chat_messages")
     suspend fun clearAllMessages(): Int
 }
+

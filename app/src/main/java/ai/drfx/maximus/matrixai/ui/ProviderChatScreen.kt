@@ -42,6 +42,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -311,8 +313,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             Text(attachmentError!!, color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
         }
 
-        // Compact message input field
+        // Compact message input field; screen-level IME insets keep it above the keyboard.
         Surface(
+            modifier = Modifier.semantics { contentDescription = "Chat composer" },
             color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -321,7 +324,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 OutlinedTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Chat input" },
                     maxLines = 3,
                     enabled = !recording,
                     placeholder = { Text("Message the selected agent…", fontSize = 13.sp) },
@@ -606,3 +609,4 @@ private fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
         isText = isText
     )
 }
+

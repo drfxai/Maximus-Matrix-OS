@@ -29,3 +29,4 @@ class MatrixEventRepository(private val dao: MatrixEventDao) {
         dao.clearEvents()
     }
 }
+

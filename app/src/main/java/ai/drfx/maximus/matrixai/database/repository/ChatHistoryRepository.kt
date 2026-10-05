@@ -32,3 +32,4 @@ class ChatHistoryRepository(private val dao: ChatDao) {
         dao.clearAllMessages()
     }
 }
+

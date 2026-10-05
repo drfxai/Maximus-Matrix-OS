@@ -13,3 +13,4 @@ data class MatrixEventEntity(
     val message: String,
     val timestampMs: Long = System.currentTimeMillis()
 )
+

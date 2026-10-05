@@ -11,3 +11,4 @@ data class MatrixEdgeEntity(
     val relation: String,
     val lastUpdatedMs: Long = System.currentTimeMillis()
 )
+

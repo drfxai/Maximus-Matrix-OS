@@ -39,15 +39,17 @@ fun MatrixScreen(
     val isImeVisible = WindowInsets.isImeVisible
 
     Scaffold(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        // The root owns IME padding and consumes it before any destination is laid out.
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).imePadding(),
         containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets.statusBars,
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             if (destination != Destination.MATRIX && !isImeVisible) {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -87,7 +89,7 @@ fun MatrixScreen(
         bottomBar = {
             if (!isImeVisible) {
                 NavigationBar(
-                    modifier = Modifier.navigationBarsPadding(),
+                    modifier = Modifier,
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 0.dp
                 ) {
@@ -128,9 +130,8 @@ fun MatrixScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = innerPadding.calculateTopPadding())
-                .padding(bottom = if (isImeVisible) 0.dp else innerPadding.calculateBottomPadding())
-                .imePadding()
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
         ) {
             when (destination) {
                 Destination.MATRIX -> MatrixGraphScreen(viewModel, Modifier.fillMaxSize())
@@ -142,3 +143,4 @@ fun MatrixScreen(
         }
     }
 }
+

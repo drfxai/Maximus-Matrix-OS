@@ -22,3 +22,4 @@ class DatabaseModuleTest {
         assertEquals("MAXIMUS", node.label)
     }
 }
+

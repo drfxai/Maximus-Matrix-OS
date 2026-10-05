@@ -24,3 +24,4 @@ class MatrixGraphRepository(private val dao: MatrixGraphDao) {
         dao.clearNodes()
     }
 }
+

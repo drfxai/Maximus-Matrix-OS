@@ -11,8 +11,8 @@ import ai.drfx.maximus.matrixai.ui.theme.ThemePreferenceStore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         NativeBridge.nativeAbiMarker()
         val themeStore = ThemePreferenceStore(this)
         setContent {
@@ -29,3 +29,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+

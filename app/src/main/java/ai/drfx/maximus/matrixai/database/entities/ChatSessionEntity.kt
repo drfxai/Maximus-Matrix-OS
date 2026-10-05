@@ -13,3 +13,4 @@ data class ChatSessionEntity(
     val createdAtMs: Long = System.currentTimeMillis(),
     val updatedAtMs: Long = System.currentTimeMillis()
 )
+

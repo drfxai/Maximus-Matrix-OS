@@ -15,3 +15,4 @@ data class ChatMessageEntity(
     val attachmentName: String? = null,
     val attachmentMimeType: String? = null
 )
+
