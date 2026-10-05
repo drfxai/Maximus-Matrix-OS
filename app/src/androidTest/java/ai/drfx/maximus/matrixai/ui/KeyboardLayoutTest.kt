@@ -15,7 +15,6 @@ import ai.drfx.maximus.matrixai.MainActivity
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 /** Uses the real system keyboard, without Compose's animation-idling clock. */
 @RunWith(AndroidJUnit4::class)
@@ -26,13 +25,13 @@ class KeyboardLayoutTest {
     @Test fun missionComposerStaysAboveKeyboardAndRestoresAfterClose() {
         device.executeShellCommand("settings put secure show_ime_with_hard_keyboard 1")
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            val input = objectWithDescription("Mission input")
             val closed = objectWithDescription("Mission composer").visibleBounds
             assertTrue("Home header must be visible", device.hasObject(By.text("MAXIMUS AI")))
             repeat(2) { cycle ->
-                input.click()
+                objectWithDescription("Mission input").click()
                 awaitCondition("Mission keyboard did not open") { isImeVisible(scenario) }
-                objectWithDescription("Mission input").text = "Keyboard test $cycle"
+                device.executeShellCommand("input text Keyboard%stest%s$cycle")
+                awaitCondition("Mission test text was not entered") { device.hasObject(By.text("Keyboard test $cycle")) }
                 screenshot("mission-keyboard-$cycle.png")
                 assertComposerAboveIme(scenario, "Mission composer")
                 assertTrue("Home header moved off screen", device.hasObject(By.text("MAXIMUS AI")))
@@ -56,7 +55,8 @@ class KeyboardLayoutTest {
             checkNotNull(device.wait(Until.findObject(By.text("Chat")), 10_000)).click()
             objectWithDescription("Chat input").click()
             awaitCondition("Chat keyboard did not open") { isImeVisible(scenario) }
-            objectWithDescription("Chat input").text = "Chat keyboard test"
+            device.executeShellCommand("input text Chat%skeyboard%stest")
+            awaitCondition("Chat test text was not entered") { device.hasObject(By.text("Chat keyboard test")) }
             screenshot("chat-keyboard-open.png")
             assertComposerAboveIme(scenario, "Chat composer")
             device.pressBack()
@@ -109,8 +109,10 @@ class KeyboardLayoutTest {
     }
 
     private fun screenshot(name: String) {
-        val folder = File(instrumentation.targetContext.getExternalFilesDir(null), "keyboard-check")
-        folder.mkdirs()
-        assertTrue("Could not capture $name", device.takeScreenshot(File(folder, name)))
+        // Shell-owned captures survive the test runner uninstalling the app.
+        val path = "/data/local/tmp/keyboard-check/$name"
+        device.executeShellCommand("mkdir -p /data/local/tmp/keyboard-check")
+        device.executeShellCommand("screencap -p $path")
+        assertTrue("Could not capture $name", device.executeShellCommand("ls $path").trim() == path)
     }
 }

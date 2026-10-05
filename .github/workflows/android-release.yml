@@ -109,7 +109,7 @@ jobs:
             test_status=0
             gradle connectedDebugAndroidTest --no-daemon --stacktrace || test_status=$?
             mkdir -p keyboard-check
-            adb pull /sdcard/Android/data/ai.drfx.maximus.matrixai.debug/files/keyboard-check keyboard-check || true
+            adb pull /data/local/tmp/keyboard-check keyboard-check || true
             adb exec-out screencap -p > keyboard-check/final-screen.png
             adb logcat -d > keyboard-check/device.log
             exit "$test_status"
