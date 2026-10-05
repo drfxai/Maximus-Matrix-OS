@@ -8,6 +8,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
+import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
@@ -20,7 +21,10 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class KeyboardLayoutTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
-    private val device = UiDevice.getInstance(instrumentation)
+    private val device = UiDevice.getInstance(instrumentation).also {
+        // The graph animates continuously; explicit conditions own settling.
+        Configurator.getInstance().setWaitForIdleTimeout(500L)
+    }
 
     @Test fun missionComposerStaysAboveKeyboardAndRestoresAfterClose() {
         device.executeShellCommand("settings put secure show_ime_with_hard_keyboard 1")
@@ -30,8 +34,9 @@ class KeyboardLayoutTest {
             repeat(2) { cycle ->
                 objectWithDescription("Mission input").click()
                 awaitCondition("Mission keyboard did not open") { isImeVisible(scenario) }
-                device.executeShellCommand("input text Keyboard%stest%s$cycle")
-                awaitCondition("Mission test text was not entered") { device.hasObject(By.text("Keyboard test $cycle")) }
+                val expected = if (cycle == 0) "Keyboard test" else "Keyboard test again"
+                device.executeShellCommand(if (cycle == 0) "input text Keyboard%stest" else "input text %sagain")
+                awaitCondition("Mission test text was not entered") { device.hasObject(By.text(expected)) }
                 screenshot("mission-keyboard-$cycle.png")
                 assertComposerAboveIme(scenario, "Mission composer")
                 assertTrue("Home header moved off screen", device.hasObject(By.text("MAXIMUS AI")))
@@ -43,7 +48,7 @@ class KeyboardLayoutTest {
                     val restored = objectWithDescription("Mission composer").visibleBounds
                     kotlin.math.abs(restored.bottom - closed.bottom) <= 8
                 }
-                assertTrue("Mission text was lost", device.hasObject(By.text("Keyboard test $cycle")))
+                assertTrue("Mission text was lost", device.hasObject(By.text(expected)))
             }
             screenshot("mission-keyboard-closed.png")
         }
