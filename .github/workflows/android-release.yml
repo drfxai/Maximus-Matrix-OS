@@ -159,17 +159,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for entry in "v1.0.1:397702650" "v1.0.2:397746356" "v1.0.3:397757576"; do
-            IFS=: read -r old_tag old_id <<< "$entry"
-            found="$(gh api "repos/$GITHUB_REPOSITORY/releases/$old_id" --jq .tag_name 2>/dev/null || true)"
-            if [[ -n "$found" ]]; then
-              if [[ "$found" != "$old_tag" ]]; then
-                echo "Release ID $old_id no longer matches $old_tag. Stopping before deletion."
-                exit 1
-              fi
-              gh release delete "$old_tag" --cleanup-tag --yes
-            fi
-          done
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha)"
             if [[ "$current_sha" == "$GITHUB_SHA" ]]; then
