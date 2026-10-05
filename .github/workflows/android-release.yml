@@ -8,6 +8,7 @@ on:
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - ".github/workflows/android-release.yml"
+      - ".github/scripts/verify-keyboard.sh"
   workflow_dispatch:
 
 permissions:
@@ -105,14 +106,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -memory 2048
-          script: |
-            test_status=0
-            gradle connectedDebugAndroidTest --no-daemon --stacktrace || test_status=$?
-            mkdir -p keyboard-check
-            adb pull /data/local/tmp/keyboard-check keyboard-check || true
-            adb exec-out screencap -p > keyboard-check/final-screen.png
-            adb logcat -d > keyboard-check/device.log
-            exit "$test_status"
+          script: bash .github/scripts/verify-keyboard.sh
 
       - name: Upload keyboard verification
         if: always()
