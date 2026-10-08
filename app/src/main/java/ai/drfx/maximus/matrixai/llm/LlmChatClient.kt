@@ -23,10 +23,11 @@ class LlmChatClient {
             return@withContext openAiWithFallback(config, textHistory, agent).copy(transcript = transcript)
         }
         when (config.provider) {
-            LlmProvider.ANTHROPIC -> anthropic(config, history, agent)
             LlmProvider.GEMINI -> gemini(config, history, agent)
-            LlmProvider.OPENAI -> openAiWithFallback(config, history, agent)
             LlmProvider.NVIDIA -> openAiCompatible(config, history, agent)
+            LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> router9(config, history, agent)
+            LlmProvider.ANTHROPIC -> anthropic(config, history, agent)
+            LlmProvider.OPENAI -> openAiWithFallback(config, history, agent)
             LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> openAiCompatible(config, history, agent)
         }
     }
@@ -84,6 +85,46 @@ class LlmChatClient {
         }
     }
 
+    private fun router9(
+        config: ApiConnectionConfig,
+        history: List<ChatMessage>,
+        agent: AgentDescriptor
+    ): ChatCompletionResult {
+        val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/chat/completions"
+        val messages = JSONArray()
+            .put(JSONObject().put("role", "system").put("content", agent.systemPrompt))
+        history.takeLast(30).forEach { message ->
+            val attachment = message.attachment
+            val content: Any = if (attachment != null && attachment.mimeType.startsWith("image/") && !attachment.isText) {
+                JSONArray()
+                    .put(JSONObject().put("type", "text").put("text", message.content))
+                    .put(JSONObject().put("type", "image_url").put("image_url",
+                        JSONObject().put("url", "data:${attachment.mimeType};base64,${attachment.data}")))
+            } else textWithFile(message)
+            messages.put(JSONObject().put("role", message.role).put("content", content))
+        }
+        val mode = if (config.provider == LlmProvider.ROUTER_9_COMBO) "combo" else "smart"
+        val body = JSONObject()
+            .put("model", config.selectedModel)
+            .put("messages", messages)
+            .put("temperature", 0.4)
+            .put("stream", false)
+        val headers = mutableMapOf<String, String>()
+        if (config.apiKey.isNotBlank()) {
+            headers["Authorization"] = "Bearer " + config.apiKey
+        }
+        headers["X-Router-Mode"] = mode
+        headers["X-Client-Platform"] = "Android-MaximusMatrix"
+        val json = JSONObject(post(endpoint, body.toString(), headers))
+        val text = json.optJSONArray("choices")
+            ?.optJSONObject(0)
+            ?.optJSONObject("message")
+            ?.optString("content")
+            ?.takeIf { it.isNotBlank() }
+            ?: throw IllegalStateException("9Router returned no assistant message.")
+        return ChatCompletionResult(text, parseOpenAiUsage(json) ?: estimateUsage(history, text))
+    }
+
     private fun openAiCompatible(
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
@@ -106,8 +147,9 @@ class LlmChatClient {
             .put("model", config.selectedModel)
             .put("messages", messages)
         if (config.provider == LlmProvider.NVIDIA) {
-            body.put("max_tokens", 2048)
+            body.put("max_tokens", 4096)
             body.put("stream", false)
+            body.put("temperature", 0.3)
         } else {
             body.put("temperature", 0.35)
         }
@@ -183,7 +225,7 @@ class LlmChatClient {
         }
         val body = JSONObject()
             .put("model", config.selectedModel)
-            .put("max_tokens", 2048)
+            .put("max_tokens", 4096)
             .put("system", agent.systemPrompt)
             .put("messages", messages)
         val json = JSONObject(
@@ -224,15 +266,20 @@ class LlmChatClient {
         agent: AgentDescriptor
     ): ChatCompletionResult {
         val root = ApiDiscoveryEngine.geminiRoot(config.baseUrl)
-        val endpoint = root + "/models/" + config.selectedModel + ":generateContent?key=" +
+        val cleanModel = config.selectedModel.removePrefix("models/").ifBlank { "gemini-3.8-flash" }
+        val endpoint = root + "/models/" + cleanModel + ":generateContent?key=" +
             java.net.URLEncoder.encode(config.apiKey, "UTF-8")
         val contents = JSONArray()
         history.filter { it.role != "system" }.takeLast(30).forEach { message ->
             val attachment = message.attachment
             val parts = JSONArray().put(JSONObject().put("text", textWithFile(message)))
             if (attachment != null && !attachment.isText) {
-                parts.put(JSONObject().put("inline_data",
-                    JSONObject().put("mime_type", attachment.mimeType).put("data", attachment.data)))
+                parts.put(
+                    JSONObject().put(
+                        "inlineData",
+                        JSONObject().put("mimeType", attachment.mimeType).put("data", attachment.data)
+                    )
+                )
             }
             contents.put(
                 JSONObject()
@@ -253,7 +300,7 @@ class LlmChatClient {
             }
         }
         val text = texts.joinToString("\n").takeIf { it.isNotBlank() }
-            ?: throw IllegalStateException("The provider returned no assistant message.")
+            ?: throw IllegalStateException("Gemini returned no assistant response text.")
         val usage = json.optJSONObject("usageMetadata")
         return ChatCompletionResult(
             text,
@@ -289,9 +336,8 @@ class LlmChatClient {
     }
 
     private fun estimateUsage(history: List<ChatMessage>, response: String): ChatUsage {
-        val inputChars = history.takeLast(30).sumOf { textWithFile(it).length }
-        val input = (inputChars / 4.0).toInt().coerceAtLeast(1)
-        val output = (response.length / 4.0).toInt().coerceAtLeast(1)
+        val input = history.sumOf { (it.content.length / 4).coerceAtLeast(1) }
+        val output = (response.length / 4).coerceAtLeast(1)
         return ChatUsage(input, output, input + output, estimated = true)
     }
 
@@ -310,7 +356,7 @@ class LlmChatClient {
             doOutput = true
             setRequestProperty("Content-Type", "application/json")
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "MAXIMUS-AI/1.2")
+            setRequestProperty("User-Agent", "MAXIMUS-AI/1.3")
             headers.forEach { (key, value) -> setRequestProperty(key, value) }
         }
         connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }

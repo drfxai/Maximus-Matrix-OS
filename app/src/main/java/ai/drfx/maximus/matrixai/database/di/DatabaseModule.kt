@@ -5,10 +5,12 @@ import ai.drfx.maximus.matrixai.database.AppDatabase
 import ai.drfx.maximus.matrixai.database.dao.ChatDao
 import ai.drfx.maximus.matrixai.database.dao.MatrixEventDao
 import ai.drfx.maximus.matrixai.database.dao.MatrixGraphDao
+import ai.drfx.maximus.matrixai.database.dao.TradingSignalDao
 import ai.drfx.maximus.matrixai.database.dao.UserSessionDataDao
 import ai.drfx.maximus.matrixai.database.repository.ChatHistoryRepository
 import ai.drfx.maximus.matrixai.database.repository.MatrixEventRepository
 import ai.drfx.maximus.matrixai.database.repository.MatrixGraphRepository
+import ai.drfx.maximus.matrixai.database.repository.TradingSignalRepository
 import ai.drfx.maximus.matrixai.database.repository.UserSessionRepository
 
 /**
@@ -22,6 +24,7 @@ class DatabaseModule private constructor(context: Context) {
     val chatDao: ChatDao by lazy { database.chatDao() }
     val matrixEventDao: MatrixEventDao by lazy { database.matrixEventDao() }
     val userSessionDataDao: UserSessionDataDao by lazy { database.userSessionDataDao() }
+    val tradingSignalDao: TradingSignalDao by lazy { database.tradingSignalDao() }
 
     val matrixGraphRepository: MatrixGraphRepository by lazy {
         MatrixGraphRepository(matrixGraphDao)
@@ -37,6 +40,10 @@ class DatabaseModule private constructor(context: Context) {
 
     val userSessionRepository: UserSessionRepository by lazy {
         UserSessionRepository(userSessionDataDao)
+    }
+
+    val tradingSignalRepository: TradingSignalRepository by lazy {
+        TradingSignalRepository(tradingSignalDao)
     }
 
     companion object {

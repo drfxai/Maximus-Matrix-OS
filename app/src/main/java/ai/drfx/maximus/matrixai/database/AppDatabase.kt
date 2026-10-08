@@ -8,6 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import ai.drfx.maximus.matrixai.database.dao.ChatDao
 import ai.drfx.maximus.matrixai.database.dao.MatrixEventDao
 import ai.drfx.maximus.matrixai.database.dao.MatrixGraphDao
+import ai.drfx.maximus.matrixai.database.dao.TradingSignalDao
 import ai.drfx.maximus.matrixai.database.dao.UserSessionDataDao
 import ai.drfx.maximus.matrixai.database.entities.*
 import kotlinx.coroutines.CoroutineScope
@@ -21,9 +22,10 @@ import kotlinx.coroutines.launch
         ChatSessionEntity::class,
         ChatMessageEntity::class,
         MatrixEventEntity::class,
-        UserSessionDataEntity::class
+        UserSessionDataEntity::class,
+        TradingSignalEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,6 +33,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun matrixEventDao(): MatrixEventDao
     abstract fun userSessionDataDao(): UserSessionDataDao
+    abstract fun tradingSignalDao(): TradingSignalDao
 
     companion object {
         const val DATABASE_NAME = "maximus_matrix.db"

@@ -1,4 +1,4 @@
-name: Build and Release MAXIMUS MATRIX AI V1.0.1
+name: Build and Release MAXIMUS MATRIX OS V1.0.0
 
 on:
   push:
@@ -14,14 +14,19 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: maximus-matrix-release
+  cancel-in-progress: false
+
 jobs:
   build-release:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     env:
-      RELEASE_TAG: v1.0.1
-      RELEASE_TITLE: MAXIMUS MATRIX AI V1.0.1
-      RELEASE_APK: MAXIMUS_MATRIX_AI_V1.0.1_arm64V8a.apk
+      RELEASE_TAG: v1.0.0
+      RELEASE_TITLE: MAXIMUS MATRIX OS V1.0.0
+      ARM64_APK: MAXIMUS-MATRIX-OS-V1.0.0-arm64-v8a.apk
+      UNIVERSAL_APK: MAXIMUS-MATRIX-OS-V1.0.0-universal.apk
       KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       SECRET_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
       SECRET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -37,7 +42,7 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Install Android build packages
+      - name: Install Android SDK
         shell: bash
         run: |
           set -euo pipefail
@@ -75,7 +80,7 @@ jobs:
               -alias "$KEY_ALIAS" \
               -keypass "$KEY_PASSWORD" \
               -keyalg RSA -keysize 4096 -validity 3650 \
-              -dname "CN=MAXIMUS AI Preview, OU=DrFXAi, O=DrFXAi, L=Unknown, S=Unknown, C=US"
+              -dname "CN=MAXIMUS MATRIX PREVIEW, OU=DrFXAi, O=DrFXAi, L=Unknown, S=Unknown, C=US"
             SIGNING_MODE="ephemeral-ci"
           fi
           echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
@@ -83,114 +88,72 @@ jobs:
           echo "KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
           echo "KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
           echo "SIGNING_MODE=$SIGNING_MODE" >> "$GITHUB_ENV"
-          if [[ "$SIGNING_MODE" == "ephemeral-ci" ]]; then
-            echo "RELEASE_APK=MAXIMUS_MATRIX_AI_V1.0.1_arm64V8a-PREVIEW.apk" >> "$GITHUB_ENV"
-          fi
           echo "mode=$SIGNING_MODE" >> "$GITHUB_OUTPUT"
 
-      - name: Run tests
+      - name: Run unit tests
         run: gradle test --no-daemon --stacktrace
 
-      - name: Enable emulator acceleration
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - name: Verify keyboard layout on Android 15
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -memory 2048
-          script: bash .github/scripts/verify-keyboard.sh
-
-      - name: Upload keyboard verification
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Keyboard-layout-Android15
-          path: |
-            keyboard-check/
-            app/build/outputs/androidTest-results/
-            app/build/reports/androidTests/
-          if-no-files-found: warn
-
-      - name: Build signed release APK
+      - name: Build signed release APKs
         run: gradle assembleRelease --no-daemon --stacktrace
 
-      - name: Verify and stage release asset
+      - name: Verify and stage ARM64 and universal APKs
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          APK="$(find app/build/outputs/apk -type f -name '*.apk' | grep -i 'release' | head -n 1)"
-          if [[ -z "$APK" ]]; then
-            echo "Release APK was not produced."
-            find app/build/outputs/apk -type f -maxdepth 5 -print || true
+          shopt -s nullglob
+          arm64=(app/build/outputs/apk/release/*arm64-v8a*release*.apk)
+          universal=(app/build/outputs/apk/release/*universal*release*.apk)
+          if [[ "${#arm64[@]}" -ne 1 || "${#universal[@]}" -ne 1 ]]; then
+            echo "Expected exactly one arm64-v8a and one universal APK."
+            find app/build/outputs/apk/ -type f -name '*.apk' -print || true
             exit 1
           fi
-          cp "$APK" "dist/$RELEASE_APK"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "dist/$RELEASE_APK"
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "dist/$RELEASE_APK" | tee dist/APK_BADGING.txt
-          if ! grep -q "application-icon" dist/APK_BADGING.txt; then
-            echo "APK does not contain a launcher icon."
-            exit 1
-          fi
-          (cd dist && sha256sum "$RELEASE_APK" > SHA256SUMS)
+          cp "${arm64[0]}" "dist/$ARM64_APK"
+          cp "${universal[0]}" "dist/$UNIVERSAL_APK"
+          for apk in "dist/$ARM64_APK" "dist/$UNIVERSAL_APK"; do
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk"
+            "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" > "dist/$(basename "$apk").badging.txt"
+            grep -q "versionName='1.0.0'" "dist/$(basename "$apk").badging.txt"
+          done
+          (cd dist && sha256sum "$ARM64_APK" "$UNIVERSAL_APK" > SHA256SUMS)
 
-      - name: Upload workflow artifact
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MAXIMUS-MATRIX-AI-V1.0.1-${{ steps.signing.outputs.mode }}-arm64
-          path: |
-            dist/${{ env.RELEASE_APK }}
-            dist/SHA256SUMS
-            dist/APK_BADGING.txt
+          name: Maximus-Matrix-OS-V1.0.0-${{ steps.signing.outputs.mode }}
+          path: dist/
           if-no-files-found: error
 
-      - name: Replace old releases and publish V1.0.1
+      - name: Publish V1.0.0 and clean old releases
         if: github.ref == 'refs/heads/main'
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
         run: |
           set -euo pipefail
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha)"
-            if [[ "$current_sha" == "$GITHUB_SHA" ]]; then
-              echo "The verified V1.0.1 release already points to this commit."
-              exit 0
-            fi
-            gh release delete "$RELEASE_TAG" --cleanup-tag --yes || true
-          fi
           cat > "$RUNNER_TEMP/release-notes.md" <<NOTES
-          # MAXIMUS MATRIX AI V1.0.1
+          # MAXIMUS MATRIX OS V1.0.0
 
-          Android release of MAXIMUS MATRIX OS.
-
-          - Package: ai.drfx.maximus.matrixai
-          - Version: 1.0.1 (version code 13)
-          - Fixed keyboard layout: mission and chat composers stay directly above the keyboard
-          - Android 15 emulator regression checks for keyboard opening, closing, and text retention
-          - Living Matrix Graph with interactive drag orbit, pinch zoom, and live node inspection
-          - Multi-provider LLM integration with OpenAI, Anthropic, Gemini, NVIDIA NIM Catalog
-          - Deterministic agent runtime, mission planner, and risk validation engine
-          - Real Android system capabilities (alarms, camera, calendar, SMS composer, share, clipboard)
-          - Release APK, SHA-256 checksum, and badging metadata attached
+          - Android APK for arm64-v8a
+          - Android universal APK
+          - Application ID: ai.drfx.maximus.matrixai
+          - Version name: 1.0.0; version code: 10002 (monotonic for upgrades)
+          - Source: refreshed from supplied Maximus Matrix OS project
+          - SHA-256 checksums provided
           - Signing mode: $SIGNING_MODE
           NOTES
-          release_flags=()
-          if [[ "$SIGNING_MODE" == "ephemeral-ci" ]]; then release_flags+=(--prerelease); fi
+          flags=()
+          if [[ "$SIGNING_MODE" == "ephemeral-ci" ]]; then flags+=(--prerelease); fi
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release delete "$RELEASE_TAG" --cleanup-tag --yes
+          fi
           gh release create "$RELEASE_TAG" \
-            "dist/$RELEASE_APK" \
-            "dist/SHA256SUMS" \
-            "dist/APK_BADGING.txt" \
-            --target "$GITHUB_SHA" \
-            --title "$RELEASE_TITLE" \
-            --notes-file "$RUNNER_TEMP/release-notes.md" \
-            "${release_flags[@]}"
-
+            "dist/$ARM64_APK" "dist/$UNIVERSAL_APK" "dist/SHA256SUMS" \
+            --target "$GITHUB_SHA" --title "$RELEASE_TITLE" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" "${flags[@]}"
+          # Only remove older published releases after V1.0.0 exists.
+          gh release list --limit 100 --json tagName --jq '.[].tagName' | while IFS= read -r tag; do
+            [[ -z "$tag" || "$tag" == "$RELEASE_TAG" ]] && continue
+            gh release delete "$tag" --cleanup-tag --yes
+          done

@@ -63,6 +63,13 @@ object AgentRegistry {
             requiredCapabilities = setOf(ModelCapability.CHAT)
         ),
         AgentDescriptor(
+            id = "news",
+            name = "News Intelligence Agent",
+            description = "Live macroeconomic catalysts, Forex Factory calendar feeds and multi-asset sentiment.",
+            systemPrompt = "You are the MAXIMUS News Intelligence Agent. Synthesize financial news feeds, categorize market impact, interpret economic indicators, and correlate breaking catalysts with Forex, Gold, and Crypto markets.",
+            requiredCapabilities = setOf(ModelCapability.CHAT)
+        ),
+        AgentDescriptor(
             id = "vision",
             name = "Vision Research Agent",
             description = "Image, screenshot and visual chart analysis.",

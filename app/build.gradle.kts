@@ -12,9 +12,18 @@ android {
         applicationId = "ai.drfx.maximus.matrixai"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.0.1"
+        versionCode = 10002
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
+        }
     }
 
     signingConfigs {
@@ -39,8 +48,7 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
+            isMinifyEnabled = false
         }
         release {
             isMinifyEnabled = false
@@ -90,6 +98,7 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core-ktx:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

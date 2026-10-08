@@ -24,6 +24,8 @@ private data class ModuleItem(
 @Composable
 fun ModulesScreen(modifier: Modifier = Modifier) {
     val modules = listOf(
+        ModuleItem("Maximus News Intelligence", "Forex Factory AI Agent", "Live market catalysts, macro analysis, Forex Factory calendar events & multi-asset sentiment.", "ACTIVE", Color(0xFFB388FF)),
+        ModuleItem("Maximus AI Chart Vision", "Gemini 3.8 Multimodal Radar", "Screenshot chart ingestion, dynamic trendline detection, pattern recognition & trade setups.", "ACTIVE", Color(0xFF00E676)),
         ModuleItem("Maximus Control Plane", "AI Ops Hub", "Provider routing, policy, tools, observability and usage control.", "ACTIVE", Color(0xFF4C9EFF)),
         ModuleItem("Maximus Mission Control", "AI Ops Hub Mission Control", "Mission planning, execution paths, approvals and runtime events.", "ACTIVE", Color(0xFF35B98E)),
         ModuleItem("Maximus Intelligence Foundry", "DrFXAi Intelligence Foundry", "Ingestion, sanitization, metadata, classification and lineage.", "FOUNDATION", Color(0xFF299AAF)),

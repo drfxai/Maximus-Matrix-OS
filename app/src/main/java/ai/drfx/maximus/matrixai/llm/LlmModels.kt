@@ -1,18 +1,27 @@
 package ai.drfx.maximus.matrixai.llm
 
-enum class LlmProvider {
-    OPENAI,
-    NVIDIA,
-    ANTHROPIC,
-    GEMINI,
-    OPENAI_COMPATIBLE,
-    UNKNOWN
+enum class LlmProvider(
+    val displayName: String,
+    val defaultBaseUrl: String,
+    val defaultModel: String
+) {
+    GEMINI("Google Gemini", "https://generativelanguage.googleapis.com", "gemini-3.8-flash"),
+    NVIDIA("NVIDIA NIM", "https://integrate.api.nvidia.com/v1", "meta/llama-3.3-70b-instruct"),
+    ROUTER_9_SMART("9Router Smart", "https://api.9router.com/v1", "9router-smart-auto"),
+    ROUTER_9_COMBO("9Router Combo", "https://api.9router.com/v1", "9router-combo-synthesis"),
+    OPENAI("OpenAI", "https://api.openai.com/v1", "gpt-4o"),
+    ANTHROPIC("Anthropic Claude", "https://api.anthropic.com/v1", "claude-3-5-sonnet-20241022"),
+    OPENAI_COMPATIBLE("OpenAI Compatible", "https://api.openai.com/v1", "gpt-4o"),
+    UNKNOWN("Unknown Provider", "", "");
+
+    val isNineRouter: Boolean get() = this == ROUTER_9_SMART || this == ROUTER_9_COMBO
 }
 
 data class ModelDescriptor(
     val id: String,
     val displayName: String = id,
-    val capabilities: Set<ModelCapability> = emptySet()
+    val capabilities: Set<ModelCapability> = emptySet(),
+    val contextWindowTokens: Int = 128_000
 )
 
 data class ApiConnectionConfig(
@@ -35,6 +44,19 @@ data class ChatUsage(
     val outputTokens: Int = 0,
     val totalTokens: Int = inputTokens + outputTokens,
     val estimated: Boolean = false
+)
+
+data class TokenMetrics(
+    val consumedTurnInputTokens: Int = 0,
+    val consumedTurnOutputTokens: Int = 0,
+    val consumedTurnTotalTokens: Int = 0,
+    val consumedSessionTokens: Long = 0L,
+    val consumedLifetimeTokens: Long = 0L,
+    val contextCapacity: Int = 1_048_576,
+    val remainingContextTokens: Int = 1_048_576,
+    val monthlyTokenBudget: Long = 0L,
+    val remainingBudgetTokens: Long? = null,
+    val contextUsagePercent: Float = 0f
 )
 
 data class ChatCompletionResult(
@@ -80,5 +102,7 @@ data class LlmUiState(
     val statusMessage: String = "Configure an API endpoint to begin.",
     val isGenerating: Boolean = false,
     val subscriptionLabel: String = "",
-    val monthlyBudgetUsd: Double = 0.0
+    val monthlyBudgetUsd: Double = 0.0,
+    val monthlyTokenBudget: Long = 0L,
+    val tokenMetrics: TokenMetrics = TokenMetrics()
 )

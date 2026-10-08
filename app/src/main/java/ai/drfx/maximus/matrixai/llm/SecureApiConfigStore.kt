@@ -21,7 +21,8 @@ class SecureApiConfigStore(context: Context) {
         model: String,
         agentId: String = "general",
         subscriptionLabel: String = loadSubscriptionLabel(),
-        monthlyBudgetUsd: Double = loadMonthlyBudgetUsd()
+        monthlyBudgetUsd: Double = loadMonthlyBudgetUsd(),
+        monthlyTokenBudget: Long = loadMonthlyTokenBudget()
     ) {
         val editor = preferences.edit()
             .putString("base_url", baseUrl)
@@ -30,6 +31,7 @@ class SecureApiConfigStore(context: Context) {
             .putString("agent_id", agentId)
             .putString("subscription_label", subscriptionLabel)
             .putLong("monthly_budget_bits", java.lang.Double.doubleToRawLongBits(monthlyBudgetUsd))
+            .putLong("monthly_token_budget", monthlyTokenBudget)
         if (apiKey.isNotBlank()) editor.putString("api_key", encrypt(apiKey))
         editor.apply()
     }
@@ -40,12 +42,37 @@ class SecureApiConfigStore(context: Context) {
     fun loadSubscriptionLabel(): String = preferences.getString("subscription_label", "").orEmpty()
     fun loadMonthlyBudgetUsd(): Double =
         java.lang.Double.longBitsToDouble(preferences.getLong("monthly_budget_bits", java.lang.Double.doubleToRawLongBits(0.0)))
+    fun loadMonthlyTokenBudget(): Long = preferences.getLong("monthly_token_budget", 0L)
 
     fun loadProvider(): LlmProvider = runCatching {
-        LlmProvider.valueOf(preferences.getString("provider", LlmProvider.UNKNOWN.name).orEmpty())
-    }.getOrDefault(LlmProvider.UNKNOWN)
+        LlmProvider.valueOf(preferences.getString("provider", LlmProvider.GEMINI.name).orEmpty())
+    }.getOrDefault(LlmProvider.GEMINI)
 
     fun hasApiKey(): Boolean = !preferences.getString("api_key", null).isNullOrBlank()
+
+    fun saveKeyForProvider(provider: LlmProvider, key: String) {
+        if (key.isNotBlank()) {
+            preferences.edit()
+                .putString("api_key_" + provider.name, encrypt(key))
+                .putString("api_key", encrypt(key))
+                .apply()
+        }
+    }
+
+    fun loadKeyForProvider(provider: LlmProvider): String {
+        val specific = preferences.getString("api_key_" + provider.name, null)
+        if (!specific.isNullOrBlank()) {
+            val decrypted = runCatching { decrypt(specific) }.getOrDefault("")
+            if (decrypted.isNotBlank()) return decrypted
+        }
+        return loadApiKey()
+    }
+
+    fun hasKeyForProvider(provider: LlmProvider): Boolean {
+        val specific = preferences.getString("api_key_" + provider.name, null)
+        if (!specific.isNullOrBlank()) return true
+        return hasApiKey()
+    }
 
     fun loadApiKey(): String {
         val encrypted = preferences.getString("api_key", null) ?: return ""

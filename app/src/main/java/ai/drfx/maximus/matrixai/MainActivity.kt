@@ -13,16 +13,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        NativeBridge.nativeAbiMarker()
-        val themeStore = ThemePreferenceStore(this)
+
+        val themeStore = ThemePreferenceStore(applicationContext)
+
         setContent {
-            var themeMode by remember { mutableStateOf(themeStore.load()) }
-            MaximusMatrixTheme(mode = themeMode) {
+            var currentThemeMode by remember { mutableStateOf(themeStore.load()) }
+
+            MaximusMatrixTheme(mode = currentThemeMode) {
                 MatrixScreen(
-                    themeMode = themeMode,
-                    onThemeModeChange = { mode ->
-                        themeMode = mode
-                        themeStore.save(mode)
+                    themeMode = currentThemeMode,
+                    onThemeModeChange = { newMode ->
+                        currentThemeMode = newMode
+                        themeStore.save(newMode)
                     }
                 )
             }

@@ -15,14 +15,14 @@ private val MatrixDarkColors = darkColorScheme(
     primary = Color(0xFF5CF0BC),
     secondary = Color(0xFF58C1D7),
     tertiary = Color(0xFFE4B34D),
-    background = Color(0xFF030707),
-    surface = Color(0xFF071110),
-    surfaceVariant = Color(0xFF0A1714),
+    background = Color(0xFF020409),
+    surface = Color(0xFF060B18),
+    surfaceVariant = Color(0xFF0B1428),
     onPrimary = Color(0xFF00140D),
-    onBackground = Color(0xFFDDE8E5),
-    onSurface = Color(0xFFDDE8E5),
-    onSurfaceVariant = Color(0xFF9BB0AA),
-    outline = Color(0xFF15342D),
+    onBackground = Color(0xFFE2E8F0),
+    onSurface = Color(0xFFE2E8F0),
+    onSurfaceVariant = Color(0xFF94A3B8),
+    outline = Color(0xFF1E293B),
     error = Color(0xFFE96E91)
 )
 

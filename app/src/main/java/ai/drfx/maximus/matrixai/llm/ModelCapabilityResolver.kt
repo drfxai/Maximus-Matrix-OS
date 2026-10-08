@@ -8,14 +8,21 @@ object ModelCapabilityResolver {
         val capabilities = linkedSetOf(ModelCapability.CHAT)
 
         when (provider) {
-            LlmProvider.OPENAI -> {
-                if (id.contains("gpt-4o") || id.contains("gpt-4.1") || id.contains("gpt-5") || id.startsWith("o3") || id.startsWith("o4")) {
-                    capabilities += ModelCapability.TOOLS
-                    capabilities += ModelCapability.STRUCTURED_OUTPUT
-                    capabilities += ModelCapability.LONG_CONTEXT
-                }
-                if (id.contains("gpt-4o") || id.contains("gpt-4.1") || id.contains("gpt-5")) capabilities += ModelCapability.VISION
-                if (id.contains("gpt-5") || id.startsWith("o3") || id.startsWith("o4")) capabilities += ModelCapability.REASONING
+            LlmProvider.GEMINI -> {
+                capabilities += ModelCapability.TOOLS
+                capabilities += ModelCapability.VISION
+                capabilities += ModelCapability.LONG_CONTEXT
+                capabilities += ModelCapability.STRUCTURED_OUTPUT
+                // Gemini 3.8 Flash, 3.5 Flash, 3.1 Pro, etc. all feature advanced reasoning
+                capabilities += ModelCapability.REASONING
+            }
+            LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> {
+                // 9Router dynamically synthesizes and routes across top frontier models
+                capabilities += ModelCapability.TOOLS
+                capabilities += ModelCapability.VISION
+                capabilities += ModelCapability.LONG_CONTEXT
+                capabilities += ModelCapability.STRUCTURED_OUTPUT
+                capabilities += ModelCapability.REASONING
             }
             LlmProvider.NVIDIA -> {
                 if (id.contains("llama") || id.contains("qwen") || id.contains("mistral") || id.contains("nemotron") || id.contains("gpt-oss")) {
@@ -32,19 +39,21 @@ object ModelCapabilityResolver {
                 }
                 if (ModelCapability.TOOLS in capabilities) capabilities += ModelCapability.STRUCTURED_OUTPUT
             }
+            LlmProvider.OPENAI -> {
+                if (id.contains("gpt-4o") || id.contains("gpt-4.1") || id.contains("gpt-5") || id.startsWith("o3") || id.startsWith("o4")) {
+                    capabilities += ModelCapability.TOOLS
+                    capabilities += ModelCapability.STRUCTURED_OUTPUT
+                    capabilities += ModelCapability.LONG_CONTEXT
+                }
+                if (id.contains("gpt-4o") || id.contains("gpt-4.1") || id.contains("gpt-5")) capabilities += ModelCapability.VISION
+                if (id.contains("gpt-5") || id.startsWith("o3") || id.startsWith("o4") || id.startsWith("o1")) capabilities += ModelCapability.REASONING
+            }
             LlmProvider.ANTHROPIC -> {
                 capabilities += ModelCapability.TOOLS
                 capabilities += ModelCapability.VISION
                 capabilities += ModelCapability.LONG_CONTEXT
                 capabilities += ModelCapability.STRUCTURED_OUTPUT
                 if (id.contains("opus") || id.contains("sonnet") || id.contains("claude-4") || id.contains("3-7")) capabilities += ModelCapability.REASONING
-            }
-            LlmProvider.GEMINI -> {
-                capabilities += ModelCapability.TOOLS
-                capabilities += ModelCapability.VISION
-                capabilities += ModelCapability.LONG_CONTEXT
-                capabilities += ModelCapability.STRUCTURED_OUTPUT
-                if (id.contains("pro") || id.contains("thinking") || id.contains("2.5") || id.contains("3")) capabilities += ModelCapability.REASONING
             }
             LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> {
                 when {
