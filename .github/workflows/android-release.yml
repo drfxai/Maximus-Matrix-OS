@@ -64,25 +64,26 @@ jobs:
         run: |
           set -euo pipefail
           KEYSTORE_PATH="$RUNNER_TEMP/maximus-release.jks"
-          if [[ -n "${KEYSTORE_B64:-}" && -n "${SECRET_STORE_PASSWORD:-}" && -n "${SECRET_KEY_ALIAS:-}" && -n "${SECRET_KEY_PASSWORD:-}" ]]; then
-            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_PATH"
-            STORE_PASSWORD="$SECRET_STORE_PASSWORD"
-            KEY_ALIAS="$SECRET_KEY_ALIAS"
-            KEY_PASSWORD="$SECRET_KEY_PASSWORD"
-            SIGNING_MODE="repository-secret"
-          else
-            STORE_PASSWORD="$(openssl rand -hex 24)"
-            KEY_PASSWORD="$STORE_PASSWORD"
-            KEY_ALIAS="maximus"
-            keytool -genkeypair -v \
-              -keystore "$KEYSTORE_PATH" \
-              -storepass "$STORE_PASSWORD" \
-              -alias "$KEY_ALIAS" \
-              -keypass "$KEY_PASSWORD" \
-              -keyalg RSA -keysize 4096 -validity 3650 \
-              -dname "CN=MAXIMUS MATRIX PREVIEW, OU=DrFXAi, O=DrFXAi, L=Unknown, S=Unknown, C=US"
-            SIGNING_MODE="ephemeral-ci"
+          # Only the persistent release keystore may sign production APKs.
+          # Missing or invalid secrets must never trigger a new key.
+          if [[ -z "${KEYSTORE_B64:-}" || -z "${SECRET_STORE_PASSWORD:-}" || -z "${SECRET_KEY_ALIAS:-}" || -z "${SECRET_KEY_PASSWORD:-}" ]]; then
+            echo "::error::Permanent signing secrets are missing. Set all four ANDROID_* repository secrets."
+            exit 1
           fi
+          umask 077
+          if ! printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_PATH"; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is invalid."
+            exit 1
+          fi
+          test -s "$KEYSTORE_PATH" || { echo "::error::Decoded keystore is empty."; exit 1; }
+          STORE_PASSWORD="$SECRET_STORE_PASSWORD"
+          KEY_ALIAS="$SECRET_KEY_ALIAS"
+          KEY_PASSWORD="$SECRET_KEY_PASSWORD"
+          if ! keytool -list -keystore "$KEYSTORE_PATH" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+            echo "::error::Keystore password or alias is invalid."
+            exit 1
+          fi
+          SIGNING_MODE="repository-secret"
           echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
           echo "STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
           echo "KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
@@ -143,15 +144,14 @@ jobs:
           - SHA-256 checksums provided
           - Signing mode: $SIGNING_MODE
           NOTES
-          flags=()
-          if [[ "$SIGNING_MODE" == "ephemeral-ci" ]]; then flags+=(--prerelease); fi
+          # A valid permanent signing key is mandatory; never publish previews here.
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release delete "$RELEASE_TAG" --cleanup-tag --yes
           fi
           gh release create "$RELEASE_TAG" \
             "dist/$ARM64_APK" "dist/$UNIVERSAL_APK" "dist/SHA256SUMS" \
             --target "$GITHUB_SHA" --title "$RELEASE_TITLE" \
-            --notes-file "$RUNNER_TEMP/release-notes.md" "${flags[@]}"
+            --notes-file "$RUNNER_TEMP/release-notes.md"
           # Only remove older published releases after V1.0.0 exists.
           gh release list --limit 100 --json tagName --jq '.[].tagName' | while IFS= read -r tag; do
             [[ -z "$tag" || "$tag" == "$RELEASE_TAG" ]] && continue
