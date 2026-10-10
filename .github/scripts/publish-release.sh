@@ -16,6 +16,9 @@ gh release download "$RELEASE_TAG" --pattern "$ARM64_APK" --pattern "$UNIVERSAL_
 (cd published && sha256sum --check SHA256SUMS)
 cmp "dist/$ARM64_APK" "published/$ARM64_APK"
 cmp "dist/$UNIVERSAL_APK" "published/$UNIVERSAL_APK"
+# Retarget the existing tag only after every replacement APK is verified.
+# Source archives then describe the exact validated build source.
+gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" -f sha="$GITHUB_SHA" -F force=true
 trap - ERR
 echo "Validated source commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
 echo "Updated existing Stable $RELEASE_TAG assets; public version remains 1.0.0." >> "$GITHUB_STEP_SUMMARY"

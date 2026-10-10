@@ -3,7 +3,7 @@ name: Build and Release MAXIMUS MATRIX OS V1.0.0
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, release/validated-v1]
   workflow_dispatch:
     inputs:
       publish:
@@ -75,7 +75,7 @@ jobs:
             keyboard-check/
   build-release:
     needs: [validate, emulator-smoke]
-    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/release/validated-v1')
     permissions:
       contents: write
     runs-on: ubuntu-latest
