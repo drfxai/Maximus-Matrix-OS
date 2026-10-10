@@ -106,6 +106,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var agentExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val voicePlayback = remember(context) { VoicePlaybackController(context) }
+    DisposableEffect(voicePlayback) { onDispose { voicePlayback.stop() } }
     var settingsOpen by remember { mutableStateOf(false) }
     var tokenDetailsOpen by remember { mutableStateOf(false) }
     var quickKeyDialogOpen by remember { mutableStateOf(false) }
@@ -331,6 +333,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             Spacer(Modifier.width(4.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { tts?.stop(); voicePlayback.stop() }) { Icon(Icons.Default.Stop, "Stop audio") }
                 IconButton(
                     onClick = { voiceReplies = !voiceReplies; if (!voiceReplies) tts?.stop() },
                     modifier = Modifier.size(34.dp)
@@ -440,11 +443,16 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 ) {
                     items(messages) { message ->
                         ChatBubble(message, onSpeak = {
-                            if (speechReady) tts?.speak(message.content, TextToSpeech.QUEUE_FLUSH,
-                                null, "replay-" + message.timestampMs)
+                            if (speechReady) {
+                                val language = if (message.content.any { it in '\u0600'..'\u06ff' }) Locale("fa", "IR") else Locale.ENGLISH
+                                if ((tts?.isLanguageAvailable(language) ?: TextToSpeech.LANG_NOT_SUPPORTED) >= TextToSpeech.LANG_AVAILABLE) {
+                                    tts?.language = language
+                                    tts?.speak(message.content, TextToSpeech.QUEUE_FLUSH, null, "replay-" + message.timestampMs)
+                                } else attachmentError = "No installed speech voice supports this response language."
+                            }
                         }, onPlayVoice = {
                             message.attachment?.let { voice ->
-                                runCatching { playVoiceMessage(context, voice) }
+                                runCatching { voicePlayback.play(voice) }
                                     .onFailure { attachmentError = "Voice playback is unavailable." }
                             }
                         })
@@ -1295,23 +1303,31 @@ private fun ChatBubble(message: ChatMessage, onSpeak: () -> Unit, onPlayVoice: (
     }
 }
 
-private fun playVoiceMessage(context: Context, attachment: ChatAttachment) {
-    require(attachment.data.isNotBlank() && attachment.data.length <= 4 * 1024 * 1024) {
-        "Voice payload is unavailable or exceeds the playback limit."
+/** One playback owner per screen; stop, completion, error and disposal all remove cache bytes. */
+private class VoicePlaybackController(private val context: Context) {
+    private var player: MediaPlayer? = null
+    private var file: File? = null
+    fun stop() {
+        player?.let { active -> runCatching { active.stop() }; active.release() }
+        player = null
+        file?.delete()
+        file = null
     }
-    val tempFile = File.createTempFile("matrix_voice_play_", ".m4a", context.cacheDir)
-    val player = MediaPlayer()
-    try {
-        FileOutputStream(tempFile).use { it.write(Base64.decode(attachment.data, Base64.DEFAULT)) }
-        player.setDataSource(tempFile.absolutePath)
-        player.setOnCompletionListener { player.release(); tempFile.delete() }
-        player.setOnErrorListener { _, _, _ -> player.release(); tempFile.delete(); true }
-        player.prepare()
-        player.start()
-    } catch (error: Exception) {
-        player.release()
-        tempFile.delete()
-        throw error
+    fun play(attachment: ChatAttachment) {
+        stop()
+        require(attachment.data.isNotBlank() && attachment.data.length <= 4 * 1024 * 1024) { "Voice payload is unavailable or exceeds playback limit." }
+        val temp = File.createTempFile("matrix_voice_play_", ".m4a", context.cacheDir)
+        file = temp
+        val active = MediaPlayer()
+        player = active
+        try {
+            FileOutputStream(temp).use { it.write(Base64.decode(attachment.data, Base64.DEFAULT)) }
+            active.setDataSource(temp.absolutePath)
+            active.setOnPreparedListener { if (player === it) it.start() }
+            active.setOnCompletionListener { if (player === it) stop() }
+            active.setOnErrorListener { failed, _, _ -> if (player === failed) stop(); true }
+            active.prepareAsync()
+        } catch (error: Exception) { stop(); throw error }
     }
 }
 
