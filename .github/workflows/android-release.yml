@@ -1,25 +1,52 @@
 name: Build and Release MAXIMUS MATRIX OS V1.0.0
 
 on:
+  pull_request:
   push:
     branches: [main]
-    paths:
-      - "app/**"
-      - "build.gradle.kts"
-      - "settings.gradle.kts"
-      - ".github/workflows/android-release.yml"
-      - ".github/scripts/verify-keyboard.sh"
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Replace validated assets in the existing Stable v1.0.0 release
+        type: boolean
+        default: false
+
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: maximus-matrix-release
   cancel-in-progress: false
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+      - run: python3 .github/scripts/test-release-identity.py
+      - run: bash -n .github/scripts/*.sh
+      - run: gradle testDebugUnitTest lintRelease assembleDebug --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-reports
+          path: app/build/reports/
   build-release:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
@@ -94,6 +121,9 @@ jobs:
       - name: Run unit tests
         run: gradle test --no-daemon --stacktrace
 
+      - name: Android release lint
+        run: gradle lintRelease --no-daemon --stacktrace
+
       - name: Build signed release APKs
         run: gradle assembleRelease --no-daemon --stacktrace
 
@@ -126,34 +156,23 @@ jobs:
           path: dist/
           if-no-files-found: error
 
-      - name: Publish V1.0.0 and clean old releases
-        if: github.ref == 'refs/heads/main'
-        shell: bash
+      - name: Verify upgrade identity against currently published APKs
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          cat > "$RUNNER_TEMP/release-notes.md" <<NOTES
-          # MAXIMUS MATRIX OS V1.0.0
+        run: bash .github/scripts/verify-release-upgrade.sh
 
-          - Android APK for arm64-v8a
-          - Android universal APK
-          - Application ID: ai.drfx.maximus.matrixai
-          - Version name: 1.0.0; version code: 10002 (monotonic for upgrades)
-          - Source: refreshed from supplied Maximus Matrix OS project
-          - SHA-256 checksums provided
-          - Signing mode: $SIGNING_MODE
-          NOTES
-          # A valid permanent signing key is mandatory; never publish previews here.
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release delete "$RELEASE_TAG" --cleanup-tag --yes
-          fi
-          gh release create "$RELEASE_TAG" \
-            "dist/$ARM64_APK" "dist/$UNIVERSAL_APK" "dist/SHA256SUMS" \
-            --target "$GITHUB_SHA" --title "$RELEASE_TITLE" \
-            --notes-file "$RUNNER_TEMP/release-notes.md"
-          # Only remove older published releases after V1.0.0 exists.
-          gh release list --limit 100 --json tagName --jq '.[].tagName' | while IFS= read -r tag; do
-            [[ -z "$tag" || "$tag" == "$RELEASE_TAG" ]] && continue
-            gh release delete "$tag" --cleanup-tag --yes
-          done
+      - name: Preserve current release APKs before replacement
+        uses: actions/upload-artifact@v4
+        with:
+          name: previous-release-apks
+          path: previous/
+          if-no-files-found: error
+
+      - name: Update existing Stable V1.0.0 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/publish-release.sh
+
+      - name: Remove decoded keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/maximus-release.jks"
