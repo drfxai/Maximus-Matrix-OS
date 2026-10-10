@@ -201,6 +201,28 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash .github/scripts/verify-release-upgrade.sh
 
+      - name: Enable KVM for signed upgrade test
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Verify permanent-key Android in-place upgrade
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: bash .github/scripts/verify-signed-upgrade.sh
+
+      - name: Preserve signed upgrade evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: signed-upgrade-evidence
+          path: upgrade-check/
+
       - name: Preserve current release APKs before replacement
         uses: actions/upload-artifact@v4
         with:
