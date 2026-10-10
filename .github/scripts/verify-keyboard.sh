@@ -19,4 +19,8 @@ timeout --kill-after=2s 10s sudo -n dmesg --ctime > keyboard-check/host-kernel.l
 timeout --kill-after=2s 15s python3 .github/scripts/collect-emulator-diagnostics.py keyboard-check || true
 free -m > keyboard-check/host-memory.txt
 ps -eo pid,ppid,rss,comm > keyboard-check/host-processes.txt
+if [[ "$test_status" -ne 0 ]]; then
+  # Emit bounded test-only hierarchy/inset diagnostics for remote investigation.
+  rg "KeyboardLayoutTest|FATAL EXCEPTION" keyboard-check/live-device.log | tail -n 90 || true
+fi
 exit "$test_status"

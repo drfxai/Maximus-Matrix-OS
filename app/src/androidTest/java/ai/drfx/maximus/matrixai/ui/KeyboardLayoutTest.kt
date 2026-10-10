@@ -88,7 +88,26 @@ class KeyboardLayoutTest {
         val packageName = instrumentation.targetContext.packageName
         device.executeShellCommand("am start -W -n $packageName/${MainActivity::class.java.name}")
         android.util.Log.i("KeyboardLayoutTest", "Shell launch completed; waiting for visible composer")
-        try { block() } finally { withResumedActivity { it.finish() } }
+        try { block() } catch (error: Throwable) {
+            dumpFailureState()
+            throw error
+        } finally { withResumedActivity { it.finish() } }
+    }
+
+    private fun dumpFailureState() {
+        runCatching {
+            withResumedActivity { activity ->
+                val insets = ViewCompat.getRootWindowInsets(activity.window.decorView)
+                phase("Failure insets: imeVisible=" + insets?.isVisible(WindowInsetsCompat.Type.ime()) +
+                    " imeBottom=" + insets?.getInsets(WindowInsetsCompat.Type.ime())?.bottom)
+            }
+            val hierarchy = java.io.ByteArrayOutputStream()
+            device.dumpWindowHierarchy(hierarchy)
+            hierarchy.toString("UTF-8").take(180_000).chunked(2800).forEachIndexed { index, chunk ->
+                phase("Failure hierarchy[$index]: $chunk")
+            }
+            screenshot("failure-state.png")
+        }.onFailure { phase("Failure diagnostics unavailable: " + it.javaClass.simpleName) }
     }
 
     private fun withResumedActivity(block: (MainActivity) -> Unit) {
