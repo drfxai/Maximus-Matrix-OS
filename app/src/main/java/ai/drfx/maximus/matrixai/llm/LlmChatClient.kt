@@ -13,7 +13,8 @@ class LlmChatClient {
     suspend fun send(
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
-        agent: AgentDescriptor
+        agent: AgentDescriptor,
+        onDelta: ((String) -> Unit)? = null
     ): ChatCompletionResult = CancellableHttp.execute {
         EndpointPolicy.validate(config.baseUrl, config.provider)
         require(config.selectedModel.isNotBlank()) { "Select a discovered model before inference." }
@@ -28,11 +29,11 @@ class LlmChatClient {
         }
         when (config.provider) {
             LlmProvider.GEMINI -> gemini(config, history, agent)
-            LlmProvider.NVIDIA -> openAiCompatible(config, history, agent)
-            LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> router9(config, history, agent)
+            LlmProvider.NVIDIA -> openAiCompatible(config, history, agent, onDelta)
+            LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> openAiCompatible(config, history, agent, onDelta)
             LlmProvider.ANTHROPIC -> anthropic(config, history, agent)
-            LlmProvider.OPENAI -> openAiWithFallback(config, history, agent)
-            LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> openAiCompatible(config, history, agent)
+            LlmProvider.OPENAI -> openAiCompatible(config, history, agent, onDelta)
+            LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> openAiCompatible(config, history, agent, onDelta)
         }
     }
 
@@ -92,7 +93,8 @@ class LlmChatClient {
     private fun openAiCompatible(
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
-        agent: AgentDescriptor
+        agent: AgentDescriptor,
+        onDelta: ((String) -> Unit)? = null
     ): ChatCompletionResult {
         val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/chat/completions"
         val messages = JSONArray()
@@ -118,6 +120,11 @@ class LlmChatClient {
             body.put("temperature", 0.35)
         }
         val headers = if (config.apiKey.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer " + config.apiKey)
+        if (onDelta != null) {
+            body.put("stream", true)
+            if (config.provider == LlmProvider.OPENAI) body.put("stream_options", JSONObject().put("include_usage", true))
+            return streamOpenAi(endpoint, body.toString(), headers, history, onDelta)
+        }
         val json = JSONObject(post(endpoint, body.toString(), headers))
         val text = json.optJSONArray("choices")
             ?.optJSONObject(0)
@@ -309,6 +316,49 @@ class LlmChatClient {
         return if (file != null && file.isText)
             message.content + "\n\n[Attached text file: " + file.name + "]\n" + file.data
         else message.content
+    }
+
+    private fun streamOpenAi(
+        endpoint: String, body: String, headers: Map<String, String>,
+        history: List<ChatMessage>, onDelta: (String) -> Unit
+    ): ChatCompletionResult {
+        val connection = CancellableHttp.register(URL(endpoint).openConnection() as HttpURLConnection).apply {
+            instanceFollowRedirects = false
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            readTimeout = 90_000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Accept", "text/event-stream")
+            headers.forEach { (name, value) -> setRequestProperty(name, value) }
+        }
+        try {
+            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            if (connection.responseCode !in 200..299) throw ProviderRequestException.fromHttp(connection.responseCode)
+            require(connection.contentType?.startsWith("text/event-stream", true) == true) { "Provider did not return a supported event stream." }
+            val parser = OpenAiStreamParser(onDelta)
+            connection.inputStream.bufferedReader().use { reader ->
+                val line = StringBuilder()
+                var count = 0
+                while (true) {
+                    val next = reader.read()
+                    if (next == -1) break
+                    require(++count <= 4 * 1024 * 1024) { "Provider event stream exceeds the safe response limit." }
+                    if (next == 10) {
+                        if (!parser.line(line.toString().trimEnd('\r'))) break
+                        line.setLength(0)
+                    } else {
+                        require(line.length < 512 * 1024) { "Provider event exceeds the safe response limit." }
+                        line.append(next.toChar())
+                    }
+                }
+                if (line.isNotEmpty()) parser.line(line.toString())
+            }
+            require(parser.completed) { "Provider stream ended unexpectedly. Retry explicitly; partial text was not saved as success." }
+            val text = parser.text()
+            require(text.isNotBlank()) { "Provider stream returned no assistant text." }
+            return ChatCompletionResult(text, parser.usage ?: estimateUsage(history, text))
+        } finally { connection.disconnect() }
     }
 
     private fun post(url: String, body: String, headers: Map<String, String>): String {
