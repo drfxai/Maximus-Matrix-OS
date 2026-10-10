@@ -17,7 +17,7 @@ object ChatContextPolicy {
         val eligible = messages.filter { !it.isError && it.role in setOf("user", "assistant") }
         val selected = mutableListOf<ChatMessage>()
         var tokens = 0
-        for (message in eligible.asReversed()) {
+        for (message in eligible.takeLast(30).asReversed()) {
             // Media requires model-specific accounting; reserve conservatively and label all counts estimated.
             val cost = estimateTokens(message.content) + if (message.attachment != null) 4096 else 0
             if (tokens + cost > budget) break

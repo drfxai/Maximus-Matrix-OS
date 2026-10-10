@@ -66,7 +66,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Text("Provider Quick Presets", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 Text(
-                    "Switch engines with preset endpoints, context capacity, and optimized agent routing.",
+                    "Select an isolated provider configuration; model availability requires authenticated discovery.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
@@ -83,13 +83,13 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         onClick = { viewModel.applyProviderPreset(LlmProvider.GEMINI) }
                     )
                     ProviderPresetChip(
-                        name = "9Router Smart",
+                        name = "9Router",
                         selected = state.provider == LlmProvider.ROUTER_9_SMART,
                         accentColor = Color(0xFF00E5FF),
                         onClick = { viewModel.applyProviderPreset(LlmProvider.ROUTER_9_SMART) }
                     )
                     ProviderPresetChip(
-                        name = "9Router Combo",
+                        name = "9Router (server combo)",
                         selected = state.provider == LlmProvider.ROUTER_9_COMBO,
                         accentColor = Color(0xFF7C4DFF),
                         onClick = { viewModel.applyProviderPreset(LlmProvider.ROUTER_9_COMBO) }

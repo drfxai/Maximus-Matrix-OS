@@ -106,6 +106,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
 
     var attachment by remember { mutableStateOf<ChatAttachment?>(null) }
     var attachmentError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.provider) { apiKey = ""; quickKeyInput = ""; attachment = null }
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
@@ -310,7 +311,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Left: ${numberFormat.format(metrics.remainingContextTokens)}",
+                            text = "Est. left: ${numberFormat.format(metrics.remainingContextTokens)}",
                             fontSize = 8.sp,
                             color = Color(0xFF00E676),
                             fontWeight = FontWeight.Bold
@@ -351,12 +352,14 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             hasSavedKey = state.hasSavedKey,
             onSelectProvider = { provider ->
                 viewModel.applyProviderPreset(provider)
-                baseUrl = provider.defaultBaseUrl
+                baseUrl = viewModel.llmState.value.baseUrl
             },
             onSelectModel = { modelId ->
                 viewModel.selectModel(modelId)
             },
             onConfigureKey = { provider ->
+                if (state.provider != provider) viewModel.applyProviderPreset(provider)
+                baseUrl = viewModel.llmState.value.baseUrl
                 quickKeyTargetProvider = provider
                 quickKeyInput = ""
                 quickKeyDialogOpen = true
@@ -615,14 +618,17 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         text = when (quickKeyTargetProvider) {
                             LlmProvider.GEMINI -> "Enter your Google AI Studio API key, then discover available models and test inference."
                             LlmProvider.NVIDIA -> "Enter your NVIDIA NIM API key (starts with nvapi-). Direct access to Llama 3.3 70B and DeepSeek R1."
-                            LlmProvider.ROUTER_9_SMART -> "Enter your 9Router API key for autonomous task routing across frontier models."
-                            LlmProvider.ROUTER_9_COMBO -> "Enter your 9Router API key for multi-model synthesis and consensus."
+                            LlmProvider.ROUTER_9_SMART -> "Enter your deployment endpoint and key. Select a model returned by its catalog."
+                            LlmProvider.ROUTER_9_COMBO -> "Combo names must exist in your server catalog. Routing behavior is managed by that server."
                             else -> "Enter the API key for ${quickKeyTargetProvider.displayName}."
                         },
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 16.sp
                     )
+                    if (quickKeyTargetProvider.isNineRouter || quickKeyTargetProvider == LlmProvider.OPENAI_COMPATIBLE) {
+                        OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it }, label = { Text("Trusted HTTPS deployment endpoint") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
                     OutlinedTextField(
                         value = quickKeyInput,
                         onValueChange = { quickKeyInput = it },
@@ -651,7 +657,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     onClick = {
                         val key = quickKeyInput.trim()
                         if (key.isNotBlank()) {
-                            viewModel.detectApi(quickKeyTargetProvider.defaultBaseUrl, key)
+                            viewModel.detectApi(baseUrl.ifBlank { quickKeyTargetProvider.defaultBaseUrl }, key)
                             quickKeyDialogOpen = false
                         }
                     },
@@ -797,7 +803,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             viewModel.applyProviderPreset(LlmProvider.ROUTER_9_SMART)
                             baseUrl = viewModel.llmState.value.baseUrl
                         },
-                        label = { Text("9Router Smart", fontSize = 11.sp) }
+                        label = { Text("9Router", fontSize = 11.sp) }
                     )
                     FilterChip(
                         selected = state.provider == LlmProvider.ROUTER_9_COMBO,
@@ -805,7 +811,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             viewModel.applyProviderPreset(LlmProvider.ROUTER_9_COMBO)
                             baseUrl = viewModel.llmState.value.baseUrl
                         },
-                        label = { Text("9Router Combo", fontSize = 11.sp) }
+                        label = { Text("9Router (server combo)", fontSize = 11.sp) }
                     )
                     FilterChip(
                         selected = state.provider == LlmProvider.NVIDIA,
@@ -1042,10 +1048,10 @@ private fun ChatProviderSwitcherBar(
                     onDropdownClick = { modelPickerOpen = true }
                 )
 
-                // 3. 9Router Smart
+                // 3. 9Router
                 MicroProviderChip(
-                    name = "9Router Smart",
-                    modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_SMART) "Auto" else null,
+                    name = "9Router",
+                    modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_SMART) currentModel.take(10) else null,
                     icon = Icons.Default.Hub,
                     brandColor = Color(0xFF00E5FF),
                     selected = currentProvider == LlmProvider.ROUTER_9_SMART,
@@ -1053,10 +1059,10 @@ private fun ChatProviderSwitcherBar(
                     onDropdownClick = { modelPickerOpen = true }
                 )
 
-                // 4. 9Router Combo
+                // 4. 9Router (server combo)
                 MicroProviderChip(
-                    name = "9Router Combo",
-                    modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_COMBO) "Multi" else null,
+                    name = "9Router (server combo)",
+                    modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_COMBO) currentModel.take(10) else null,
                     icon = Icons.Default.AltRoute,
                     brandColor = Color(0xFF7C4DFF),
                     selected = currentProvider == LlmProvider.ROUTER_9_COMBO,
