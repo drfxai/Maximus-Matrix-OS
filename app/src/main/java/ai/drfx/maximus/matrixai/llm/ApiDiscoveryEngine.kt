@@ -39,7 +39,7 @@ class ApiDiscoveryEngine {
                             val methods = model.optJSONArray("supportedGenerationMethods")
                             val supportsGenerate = methods?.let { arr ->
                                 (0 until arr.length()).any { arr.optString(it) == "generateContent" }
-                            } ?: true
+                            } ?: false
                             if (!supportsGenerate) continue
                             val rawName = model.optString("name")
                             if (rawName.isBlank()) continue
@@ -117,11 +117,6 @@ class ApiDiscoveryEngine {
             ?.bufferedReader()?.use { it.readText() }.orEmpty()
         connection.disconnect()
         if (code !in 200..299) {
-            val message = runCatching {
-                val root = JSONObject(text)
-                root.optJSONObject("error")?.optString("message")
-                    ?.ifBlank { root.optString("message") }
-            }.getOrNull()
             throw ProviderRequestException.fromHttp(code)
         }
         return text
@@ -140,25 +135,6 @@ class ApiDiscoveryEngine {
             else -> LlmProvider.UNKNOWN
         }
     }
-
-    private fun normalizeDetectedProvider(candidate: LlmProvider, hinted: LlmProvider, base: String): LlmProvider {
-        if (candidate != LlmProvider.OPENAI_COMPATIBLE) return candidate
-        if (hinted == LlmProvider.OPENAI) return LlmProvider.OPENAI
-        if (hinted == LlmProvider.NVIDIA) return LlmProvider.NVIDIA
-        if (hinted == LlmProvider.ROUTER_9_SMART) return LlmProvider.ROUTER_9_SMART
-        if (hinted == LlmProvider.ROUTER_9_COMBO) return LlmProvider.ROUTER_9_COMBO
-        val host = runCatching { URL(base).host.lowercase() }.getOrDefault("")
-        return when {
-            "api.nvidia.com" in host || "nvidia.com" in host -> LlmProvider.NVIDIA
-            "9router" in host -> LlmProvider.ROUTER_9_SMART
-            host == "api.openai.com" -> LlmProvider.OPENAI
-            else -> LlmProvider.OPENAI_COMPATIBLE
-        }
-    }
-
-    private fun providerRequiresKey(provider: LlmProvider): Boolean =
-        provider == LlmProvider.NVIDIA || provider == LlmProvider.ANTHROPIC ||
-            provider == LlmProvider.GEMINI || provider.isNineRouter
 
     companion object {
         const val NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"

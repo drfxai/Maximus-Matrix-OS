@@ -17,6 +17,7 @@ class LlmChatClient {
     ): ChatCompletionResult = withContext(Dispatchers.IO) {
         EndpointPolicy.validate(config.baseUrl, config.provider)
         require(config.selectedModel.isNotBlank()) { "Select a discovered model before inference." }
+        require(history.sumOf { it.content.length.toLong() + (it.attachment?.data?.length ?: 0) } <= AttachmentPolicy.MAX_BYTES * 4L / 3) { "Conversation payload exceeds the safe request limit. Start a new session or remove old attachments." }
         history.forEach { it.attachment?.let { attachment -> AttachmentPolicy.validate(config.provider, attachment) } }
         val last = history.lastOrNull()
         val audio = last?.attachment?.takeIf { it.mimeType.startsWith("audio/") }
