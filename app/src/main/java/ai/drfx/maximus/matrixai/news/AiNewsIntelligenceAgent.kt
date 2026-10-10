@@ -23,7 +23,7 @@ class AiNewsIntelligenceAgent(
                 summary = value.getString("summary"), sentiment = MarketSentiment.NEUTRAL,
                 sourceName = value.getString("publisher"), sourceUrl = value.getString("url"),
                 publishedAtMs = value.optLong("publication", 0).takeIf { it > 0 }, retrievedAtMs = value.getLong("retrieved"))
-        }.filter { article -> VerifiedNewsFeed.SOURCES.any { java.net.URI(article.sourceUrl).host == it.publisherHost } }
+        }.filter { article -> VerifiedNewsFeed.SOURCES.any { java.net.URI(article.sourceUrl).scheme == "https" && java.net.URI(article.sourceUrl).host == it.publisherHost } }
     }.getOrDefault(emptyList())
     fun getDefaultHeroStory() = HeroNewsStory(
         headline = "News not synchronized", subheadline = "Refresh to retrieve official publisher reports.",

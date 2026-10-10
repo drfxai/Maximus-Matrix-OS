@@ -35,6 +35,7 @@ class VerifiedNewsFeed(private val fetch: (String) -> ByteArray = ::download) {
         fun parse(bytes: ByteArray, source: NewsFeedSource, now: Long): List<NewsArticle> {
             require(bytes.size <= MAX_BYTES) { "Feed exceeds size limit" }
             // Reject DTD/entity declarations before XML parsing on all Android parser implementations.
+            require(bytes.none { it == 0.toByte() }) { "Unsupported XML encoding" }
             val xml = bytes.toString(Charsets.UTF_8)
             require(!Regex("<!\\s*(DOCTYPE|ENTITY)", RegexOption.IGNORE_CASE).containsMatchIn(xml)) { "Unsafe XML" }
             val factory = DocumentBuilderFactory.newInstance().apply {
