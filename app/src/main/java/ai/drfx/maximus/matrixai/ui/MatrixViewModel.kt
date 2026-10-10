@@ -217,11 +217,19 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun runMission(objective: String) {
-        if (_status.value == "EXECUTING" || _status.value == "PLANNING") return
+    fun runMission(objective: String) = executeMission(objective, false)
+
+    private fun executeMission(objective: String, reportToChat: Boolean) {
+        if (_status.value in setOf("EXECUTING", "PLANNING", "CONFIRM")) return
+        val sessionId = _activeChatSessionId.value
         viewModelScope.launch {
             _status.value = "PLANNING"
-            agentRuntime.execute(objective)
+            val result = agentRuntime.execute(objective)
+            if (reportToChat) {
+                val message = ChatMessage("assistant", "Runtime execution evidence:\n" + result.summary, isError = !result.success)
+                chatRepository.saveMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = message.content, isError = message.isError, timestampMs = message.timestampMs))
+                if (_activeChatSessionId.value == sessionId) _chatMessages.value += message
+            }
         }
     }
 
@@ -466,7 +474,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun sendChat(text: String, attachment: ChatAttachment? = null, fromVoice: Boolean = false): Boolean {
-        if (text.trim().startsWith("/mission ")) { runMission(text.trim().removePrefix("/mission ")); return true }
+        if (text.trim().startsWith("/mission ")) { executeMission(text.trim().removePrefix("/mission "), true); return true }
         val prompt = text.trim().ifBlank {
             if (attachment == null) return false else when {
                 attachment.mimeType.startsWith("audio/") -> "Transcribe and respond to this voice message."
@@ -943,7 +951,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
     fun appendEvent(event: MatrixEvent) {
         _events.value = (listOf(event) + _events.value).take(150)
-        AppLogStore.info("MATRIX", event.type.name + " | " + event.sourceNode + " -> " + (event.targetNode ?: "-") + " | " + event.message)
+        AppLogStore.info("MATRIX", event.type.name + " | " + event.sourceNode + " -> " + (event.targetNode ?: "-"))
         viewModelScope.launch {
             eventRepository.recordEvent(event)
         }

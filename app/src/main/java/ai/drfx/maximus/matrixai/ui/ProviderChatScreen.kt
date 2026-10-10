@@ -77,6 +77,14 @@ import java.util.Locale
 @Composable
 fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.llmState.collectAsState()
+    val pendingAction by viewModel.pendingAgentConfirmation.collectAsState()
+    pendingAction?.let { request ->
+        AlertDialog(onDismissRequest = { viewModel.approveAgentAction(request.id, false) },
+            title = { Text("Approve runtime action") },
+            text = { Text(request.action.tool + "\n" + request.action.arguments.entries.joinToString("\n") { "${it.key}: ${it.value}" }) },
+            confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text("Approve") } },
+            dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text("Reject") } })
+    }
     val messages by viewModel.chatMessages.collectAsState()
     val sessions by viewModel.chatSessions.collectAsState()
     val activeSessionId by viewModel.activeChatSessionId.collectAsState()

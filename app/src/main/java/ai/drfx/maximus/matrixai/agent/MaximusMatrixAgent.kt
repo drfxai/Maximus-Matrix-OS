@@ -26,7 +26,7 @@ class MaximusMatrixAgent(
             for (step in steps) {
                 val decision = policy.evaluate(step.action)
                 emit(mission, MatrixEventType.POLICY_CHECKED, "policy:engine", "tool:${step.action.tool}", "Policy decision: $decision", mapOf("risk" to step.action.risk.name))
-                if (decision == PolicyDecision.DENY) return fail(mission, "Action denied by policy")
+                if (decision == PolicyDecision.DENY) return fail(mission, "Tool ${step.action.tool} is unavailable or denied; the requested objective was not completed.")
                 var confirmed = false
                 if (decision == PolicyDecision.REQUIRE_CONFIRMATION) {
                     emit(mission, MatrixEventType.CONFIRMATION_REQUIRED, "policy:engine", "human:operator", "This action requires an explicit confirmation flow")
