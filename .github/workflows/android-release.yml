@@ -50,6 +50,7 @@ jobs:
           name: validation-reports
           path: app/build/reports/
   emulator-smoke:
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
