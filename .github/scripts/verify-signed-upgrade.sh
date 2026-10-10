@@ -8,7 +8,7 @@ PACKAGE=ai.drfx.maximus.matrixai
 mkdir -p upgrade-check
 timeout --kill-after=5s 8m "$adb_binary" logcat -v threadtime > upgrade-check/live-device.log 2>&1 &
 log_pid=$!
-trap 'kill "$log_pid" 2>/dev/null || true; wait "$log_pid" 2>/dev/null || true; timeout --kill-after=2s 10s sudo -n dmesg --ctime > upgrade-check/host-kernel.log 2>&1 || true; free -m > upgrade-check/host-memory.txt' EXIT
+trap 'kill "$log_pid" 2>/dev/null || true; wait "$log_pid" 2>/dev/null || true; timeout --kill-after=2s 10s sudo -n dmesg --ctime > upgrade-check/host-kernel.log 2>&1 || true; free -m > upgrade-check/host-memory.txt; timeout --kill-after=2s 15s python3 .github/scripts/collect-emulator-diagnostics.py upgrade-check || true' EXIT
 adb install "previous/$UNIVERSAL_APK" | tee upgrade-check/old-install.txt
 adb shell am start -W -n "$PACKAGE/.MainActivity" | tee upgrade-check/old-launch.txt
 grep -q 'Status: ok' upgrade-check/old-launch.txt

@@ -16,6 +16,7 @@ timeout --kill-after=2s 15s adb pull /data/local/tmp/keyboard-check keyboard-che
 timeout --kill-after=2s 10s adb exec-out screencap -p > keyboard-check/final-screen.png || true
 timeout --kill-after=2s 10s adb logcat -d > keyboard-check/device.log 2>&1 || true
 timeout --kill-after=2s 10s sudo -n dmesg --ctime > keyboard-check/host-kernel.log 2>&1 || true
+timeout --kill-after=2s 15s python3 .github/scripts/collect-emulator-diagnostics.py keyboard-check || true
 free -m > keyboard-check/host-memory.txt
 ps -eo pid,ppid,rss,comm > keyboard-check/host-processes.txt
 exit "$test_status"
