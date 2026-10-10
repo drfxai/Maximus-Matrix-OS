@@ -78,6 +78,13 @@ import java.util.Locale
 fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.llmState.collectAsState()
     val messages by viewModel.chatMessages.collectAsState()
+    val sessions by viewModel.chatSessions.collectAsState()
+    val activeSessionId by viewModel.activeChatSessionId.collectAsState()
+    var sessionsOpen by remember { mutableStateOf(false) }
+    var renameOpen by remember { mutableStateOf(false) }
+    var deleteOpen by remember { mutableStateOf(false) }
+    var sessionTitle by remember { mutableStateOf("") }
+    val sendable = state.status in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED)
     val metrics = state.tokenMetrics
     val numberFormat = remember { NumberFormat.getNumberInstance(Locale.US) }
     val clipboardManager = LocalClipboardManager.current
@@ -155,11 +162,18 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     LaunchedEffect(messages.lastOrNull()?.timestampMs, voiceReplies, speechReady) {
         val last = messages.lastOrNull()
         if (voiceReplies && speechReady && last?.role == "assistant" && !last.isError) {
-            tts?.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "reply-" + last.timestampMs)
+            val language = if (last.content.any { it in '\u0600'..'\u06ff' }) Locale("fa", "IR") else Locale.ENGLISH
+            val engine = tts
+            if (engine == null || engine.isLanguageAvailable(language) < TextToSpeech.LANG_AVAILABLE) {
+                attachmentError = "The installed speech engine has no voice for this response language."
+                return@LaunchedEffect
+            }
+            engine.language = language
+            engine.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "reply-" + last.timestampMs)
         }
     }
     fun send(text: String = prompt, fromVoice: Boolean = false) {
-        if (state.isGenerating || state.status != ConnectionStatus.CONNECTED ||
+        if (state.isGenerating || !sendable ||
             (text.isBlank() && attachment == null)) return
         if (viewModel.sendChat(text, attachment, fromVoice)) {
             prompt = ""
@@ -184,7 +198,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         if (result.resultCode == Activity.RESULT_OK) {
             val transcript = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!transcript.isNullOrBlank()) {
-                if (state.status == ConnectionStatus.CONNECTED) send(transcript, fromVoice = true)
+                if (sendable) send(transcript, fromVoice = true)
                 else prompt = transcript
             }
             else attachmentError = "No speech was recognized."
@@ -195,6 +209,30 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         modifier = modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box {
+                TextButton(onClick = { sessionsOpen = true }) {
+                    Text(sessions.firstOrNull { it.id == activeSessionId }?.title ?: "Conversation")
+                }
+                DropdownMenu(expanded = sessionsOpen, onDismissRequest = { sessionsOpen = false }) {
+                    sessions.forEach { session ->
+                        DropdownMenuItem(text = { Text(session.title + " · " + session.provider) },
+                            onClick = { viewModel.switchChatSession(session.id); sessionsOpen = false })
+                    }
+                }
+            }
+            TextButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) { Text("New") }
+            TextButton(onClick = {
+                sessionTitle = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty()
+                renameOpen = true
+            }, enabled = sessions.any { it.id == activeSessionId }) { Text("Rename") }
+            TextButton(onClick = { deleteOpen = true }, enabled = sessions.any { it.id == activeSessionId }) { Text("Delete") }
+        }
+        if (messages.lastOrNull()?.isError == true && !state.isGenerating && sendable) {
+            TextButton(onClick = {
+                messages.lastOrNull { it.role == "user" }?.let { viewModel.sendChat(it.content, it.attachment, false) }
+            }) { Text("Retry last request") }
+        }
         // Compact unified header: Model info, Token telemetry badge, settings trigger, voice toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -214,14 +252,14 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Surface(
                         modifier = Modifier.size(8.dp),
                         shape = CircleShape,
-                        color = if (state.status == ConnectionStatus.CONNECTED) MaterialTheme.colorScheme.primary
+                        color = if (sendable) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.tertiary
                     ) {}
                     Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = if (state.status == ConnectionStatus.CONNECTED) state.selectedModel
+                                text = if (sendable) state.selectedModel
                                 else "Connect ${state.provider.displayName}",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
@@ -230,7 +268,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             )
                         }
                         Text(
-                            text = if (state.status == ConnectionStatus.CONNECTED)
+                            text = if (sendable)
                                 state.supportedAgents.firstOrNull { it.id == state.selectedAgentId }?.name.orEmpty()
                             else state.statusMessage,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -534,7 +572,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Button(
                         onClick = { send() },
                         enabled = !recording && !state.isGenerating && (prompt.isNotBlank() || attachment != null) &&
-                            state.status == ConnectionStatus.CONNECTED && state.selectedAgentId.isNotBlank() &&
+                            sendable && state.selectedAgentId.isNotBlank() &&
                             (attachment?.mimeType?.startsWith("audio/") != true ||
                                 state.provider == LlmProvider.GEMINI || state.provider == LlmProvider.OPENAI),
                         modifier = Modifier.size(36.dp),
@@ -548,6 +586,18 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         }
     }
 
+    if (renameOpen) {
+        AlertDialog(onDismissRequest = { renameOpen = false }, title = { Text("Rename conversation") },
+            text = { OutlinedTextField(value = sessionTitle, onValueChange = { sessionTitle = it }, singleLine = true) },
+            confirmButton = { TextButton(onClick = { viewModel.renameChatSession(activeSessionId, sessionTitle); renameOpen = false }) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { renameOpen = false }) { Text("Cancel") } })
+    }
+    if (deleteOpen) {
+        AlertDialog(onDismissRequest = { deleteOpen = false }, title = { Text("Delete conversation?") },
+            text = { Text("This removes its locally saved messages.") },
+            confirmButton = { TextButton(onClick = { viewModel.deleteChatSession(activeSessionId); deleteOpen = false }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { deleteOpen = false }) { Text("Cancel") } })
+    }
     // Quick In-Chat API Key Entry Dialog
     if (quickKeyDialogOpen) {
         AlertDialog(
@@ -692,7 +742,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         }
                         if (metrics.remainingBudgetTokens != null) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Monthly Budget Remaining", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Local Lifetime Budget Remaining (not provider quota)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text("${numberFormat.format(metrics.remainingBudgetTokens)} / ${numberFormat.format(metrics.monthlyTokenBudget)}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E676))
                             }
                         }
