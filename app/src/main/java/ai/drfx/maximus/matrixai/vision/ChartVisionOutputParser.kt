@@ -6,6 +6,7 @@ import org.json.JSONObject
 /** No prose inference or fabricated fallback when the structured output is incomplete. */
 object ChartVisionOutputParser {
     fun parse(raw: String, model: String, usage: ChatUsage, elapsedMs: Long): ChartVisionAnalysis {
+        require(raw.length <= 256_000) { "Chart response exceeds the supported size." }
         val text = raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
         val obj = try { JSONObject(text) } catch (_: Exception) {
             throw IllegalArgumentException("Chart model returned invalid JSON. Retry with a supported model.")
@@ -27,9 +28,13 @@ object ChartVisionOutputParser {
             require(array.length() <= 30) { "Chart response contains too many $name." }
             return (0 until array.length()).map { array.optJSONObject(it) ?: throw IllegalArgumentException("Invalid $name item.") }
         }
-        fun JSONObject.field(name: String): String = optString(name).takeIf { it.isNotBlank() }
-            ?: throw IllegalArgumentException("Chart item missing $name.")
+        fun JSONObject.field(name: String): String {
+            require(opt(name) is String) { "Chart item $name must be a string." }
+            return getString(name).takeIf { it.isNotBlank() }
+                ?: throw IllegalArgumentException("Chart item missing $name.")
+        }
         val levels = rows("keyLevels")
+        require(obj.has("tradePlan") && (obj.isNull("tradePlan") || obj.opt("tradePlan") is JSONObject)) { "Chart tradePlan must be an object or null." }
         val planObject = obj.optJSONObject("tradePlan")
         require(readable || (levels.isEmpty() && planObject == null)) { "Trading prices require readable chart evidence." }
         val plan = planObject?.let {

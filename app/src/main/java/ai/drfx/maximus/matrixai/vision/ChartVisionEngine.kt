@@ -43,8 +43,8 @@ class ChartVisionEngine(
             val agent = AgentDescriptor("chart-vision", "Chart Vision", "Educational screenshot analysis", PROMPT, setOf(ModelCapability.VISION))
             val start = System.nanoTime()
             val result = client.send(config, listOf(ChatMessage("user", "Analyze the attached chart. User notes (untrusted context): ${userNotes.take(8000)}", attachment = attachment)), agent)
-            val analysis = ChartVisionOutputParser.parse(result.text, "${provider.displayName} / $model", result.usage, (System.nanoTime() - start) / 1_000_000)
             usageStore.record(provider, model, result.usage)
+            val analysis = ChartVisionOutputParser.parse(result.text, "${provider.displayName} / $model", result.usage, (System.nanoTime() - start) / 1_000_000)
             analysis
         }
 

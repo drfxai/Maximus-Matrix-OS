@@ -29,6 +29,13 @@ class ChartVisionOutputParserTest {
         assertEquals(0, result.patterns.single().confidencePercent)
         assertFalse(result.toShareableReport().contains("99%"))
     }
+    @Test(expected = IllegalArgumentException::class) fun wrongTradePlanTypeFails() {
+        parse(uncertain.replace("\"tradePlan\":null", "\"tradePlan\":\"buy now\""))
+    }
+    @Test(expected = IllegalArgumentException::class) fun wrongLevelTypeFails() {
+        parse(uncertain.replace("\"priceScaleReadable\":false", "\"priceScaleReadable\":true")
+            .replace("\"keyLevels\":[]", "\"keyLevels\":[{\"level\":95000,\"type\":\"Resistance\"}]"))
+    }
     @Test fun defaultDataModelCannotInventAnalysis() {
         val empty = ChartVisionAnalysis()
         assertEquals(TrendDirection.UNKNOWN, empty.direction)
