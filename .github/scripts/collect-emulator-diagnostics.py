@@ -3,7 +3,6 @@ from pathlib import Path
 import hashlib
 import json
 import os
-import shutil
 import sys
 
 out = Path(sys.argv[1]) / 'emulator-host'
@@ -26,7 +25,14 @@ for root in dict.fromkeys(roots):
             # Raw dumps/database blobs can contain inherited authentication or
             # signing environment values; retain their inventory, not memory.
             if path.suffix in ('.log', '.txt') and size <= 2 * 1024 * 1024:
-                shutil.copyfile(path, out / (hashlib.sha256(str(path).encode()).hexdigest()[:8] + '-' + path.name))
+                text = path.read_text(errors='replace')
+                for name in ('KEYSTORE_B64', 'SECRET_STORE_PASSWORD', 'SECRET_KEY_PASSWORD',
+                             'STORE_PASSWORD', 'KEY_PASSWORD', 'GH_TOKEN', 'GITHUB_TOKEN',
+                             'ACTIONS_RUNTIME_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN'):
+                    value = os.environ.get(name)
+                    if value:
+                        text = text.replace(value, '[REDACTED]')
+                (out / (hashlib.sha256(str(path).encode()).hexdigest()[:8] + '-' + path.name)).write_text(text)
             entries.append(item)
 (out / 'crash-file-inventory.json').write_text(json.dumps(entries, indent=2))
 for proc in Path('/proc').iterdir():
