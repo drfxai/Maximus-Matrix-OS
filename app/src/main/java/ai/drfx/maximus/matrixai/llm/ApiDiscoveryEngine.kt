@@ -7,10 +7,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class ApiDiscoveryEngine {
-    suspend fun discover(rawBaseUrl: String, apiKey: String): ApiDiscoveryResult = withContext(Dispatchers.IO) {
-        val base = resolveBaseUrl(rawBaseUrl, apiKey)
+    suspend fun discover(rawBaseUrl: String, apiKey: String, selectedProvider: LlmProvider? = null): ApiDiscoveryResult = withContext(Dispatchers.IO) {
+        val base = if (selectedProvider == null) resolveBaseUrl(rawBaseUrl, apiKey) else normalizeBaseUrl(rawBaseUrl)
         val hinted = providerFromUrl(base, apiKey)
-        val provider = if (hinted == LlmProvider.UNKNOWN) LlmProvider.OPENAI_COMPATIBLE else hinted
+        val provider = selectedProvider?.takeIf { it != LlmProvider.UNKNOWN }
+            ?: if (hinted == LlmProvider.UNKNOWN) LlmProvider.OPENAI_COMPATIBLE else hinted
         require(apiKey.isNotBlank()) { "Credentials are required to verify the catalog." }
         EndpointPolicy.validate(base, provider)
         val models = fetchModels(base, apiKey, provider)
