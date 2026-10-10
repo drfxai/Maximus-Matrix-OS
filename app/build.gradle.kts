@@ -32,7 +32,7 @@ android {
             if (!path.isNullOrBlank() && file(path).exists()) {
                 storeFile = file(path)
                 storePassword = System.getenv("STORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS") ?: "maximus"
+                keyAlias = System.getenv("KEY_ALIAS")
                 keyPassword = System.getenv("KEY_PASSWORD")
             }
         }
