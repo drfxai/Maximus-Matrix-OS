@@ -35,6 +35,9 @@ class ChatHistoryRepository(private val dao: ChatDao, private val cipher: ChatCo
         dao.insertMessage(message.copy(content = cipher?.encrypt(message.content) ?: message.content))
     }
 
+    suspend fun updateMessageContent(sessionId: String, timestampMs: Long, role: String, content: String): Int =
+        dao.updateMessageContent(sessionId, timestampMs, role, cipher?.encrypt(content) ?: content)
+
     suspend fun clearSession(sessionId: String = "default_session") {
         dao.deleteMessagesForSession(sessionId)
     }
