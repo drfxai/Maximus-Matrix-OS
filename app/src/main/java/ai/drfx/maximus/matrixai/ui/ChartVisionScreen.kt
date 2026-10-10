@@ -617,7 +617,7 @@ fun ChartVisionScreen(
                                 Text("STRENGTH", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = textSecondary)
                                 Spacer(Modifier.height(2.dp))
                                 Text(
-                                    "${analysis.trendStrength.name} (82%)",
+                                    "${analysis.trendStrength.name}",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF00E5FF)
@@ -629,7 +629,7 @@ fun ChartVisionScreen(
                     // Description text
                     Text(
                         text = analysis.trendSummary.ifBlank {
-                            "Strong downward trend with significant selling pressure visible across all timeframe candles."
+                            "Insufficient visible evidence."
                         },
                         fontSize = 12.5.sp,
                         color = textSecondary,
