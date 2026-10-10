@@ -119,6 +119,20 @@ fun MatrixGraphScreen(
     val ink = if (light) Color(0xFF182434) else Color(0xFFE5E9EF)
     val muted = if (light) Color(0xFF586778) else Color(0xFF8D939F)
     val border = if (light) Color(0xFFD7DFE8) else Color(0xFF262930)
+    val pendingApproval by viewModel.pendingAgentConfirmation.collectAsState()
+    pendingApproval?.let { request ->
+        AlertDialog(
+            onDismissRequest = { viewModel.approveAgentAction(request.id, false) },
+            title = { Text("Authorize device action?") },
+            text = { Column {
+                Text("Tool: " + request.action.tool)
+                request.action.arguments.forEach { (name, value) -> Text(name + ": " + value.take(500)) }
+                Text("Approval applies only to this action. External apps may require another confirmation.")
+            } },
+            confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text("Approve") } },
+            dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text("Reject") } }
+        )
+    }
     val events by viewModel.events.collectAsState()
     val status by viewModel.status.collectAsState()
     val llm by viewModel.llmState.collectAsState()

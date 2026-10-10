@@ -11,6 +11,9 @@ class MaximusMatrixAgent(
 ) {
     private val tools = MatrixToolRegistry(context.applicationContext)
     val eventStream = events.events
+    private val confirmations = AgentConfirmationGate()
+    val pendingConfirmation = confirmations.pending
+    fun approveAction(requestId: String, approved: Boolean): Boolean = confirmations.respond(requestId, approved)
 
     suspend fun execute(objective: String): MissionResult {
         val mission = Mission(objective = objective.trim().ifBlank { "Inspect Matrix runtime" })
@@ -19,16 +22,20 @@ class MaximusMatrixAgent(
             emit(mission, MatrixEventType.MEMORY_RECALLED, "memory:core", "agent:maximus", "Mission context prepared")
             val steps = planner.plan(mission)
             emit(mission, MatrixEventType.PLAN_CREATED, "planner:core", "agent:maximus", "Plan contains ${steps.size} steps")
+            val evidence = mutableListOf<String>()
             for (step in steps) {
                 val decision = policy.evaluate(step.action)
                 emit(mission, MatrixEventType.POLICY_CHECKED, "policy:engine", "tool:${step.action.tool}", "Policy decision: $decision", mapOf("risk" to step.action.risk.name))
                 if (decision == PolicyDecision.DENY) return fail(mission, "Action denied by policy")
+                var confirmed = false
                 if (decision == PolicyDecision.REQUIRE_CONFIRMATION) {
                     emit(mission, MatrixEventType.CONFIRMATION_REQUIRED, "policy:engine", "human:operator", "This action requires an explicit confirmation flow")
-                    return MissionResult(mission.id, false, "Mission paused for confirmation.")
+                    confirmed = confirmations.awaitApproval(mission.id, step.action)
+                    if (!confirmed) return fail(mission, "User rejected ${step.action.tool}; no action was executed.")
                 }
                 emit(mission, MatrixEventType.TOOL_STARTED, "agent:maximus", "tool:${step.action.tool}", "Executing ${step.action.tool}")
-                val outcome = tools.execute(step.action)
+                val outcome = tools.execute(step.action, confirmed = confirmed)
+                evidence += "${step.action.tool}: ${outcome.output}"
                 emit(mission, MatrixEventType.TOOL_COMPLETED, "tool:${step.action.tool}", "validation:lab", outcome.output, outcome.evidence + ("success" to outcome.success.toString()))
                 emit(mission, MatrixEventType.VALIDATION_STARTED, "validation:lab", "tool:${step.action.tool}", "Validating outcome")
                 if (!outcome.success) {
@@ -39,7 +46,7 @@ class MaximusMatrixAgent(
             }
             emit(mission, MatrixEventType.VALIDATION_PASSED, "artifact:registry", "mission:${mission.id}", "Mission event evidence emitted (not persisted)")
             emit(mission, MatrixEventType.MISSION_COMPLETED, "agent:maximus", "mission:${mission.id}", "Mission completed successfully")
-            MissionResult(mission.id, true, "Mission completed successfully.")
+            MissionResult(mission.id, true, evidence.joinToString("\n"))
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
