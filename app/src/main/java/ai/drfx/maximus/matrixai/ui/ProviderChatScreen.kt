@@ -170,6 +170,19 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         tts = engine
         onDispose { engine.stop(); engine.shutdown(); tts = null }
     }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, recorder, voicePlayback, tts) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                recorder.cancel()
+                recording = false
+                voicePlayback.stop()
+                tts?.stop()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(messages.lastOrNull()?.timestampMs, voiceReplies, speechReady, state.isGenerating) {
         val last = messages.lastOrNull()
         if (!state.isGenerating && voiceReplies && speechReady && last?.role == "assistant" && !last.isError) {
