@@ -5,13 +5,15 @@ import java.util.UUID
 enum class TrendDirection(val displayName: String, val symbol: String) {
     BULLISH("Bullish Trend", "↗"),
     BEARISH("Bearish Trend", "↘"),
-    RANGING("Sideways / Ranging", "↔")
+    RANGING("Sideways / Ranging", "↔"),
+    UNKNOWN("Insufficient visible evidence", "?")
 }
 
 enum class TrendStrength {
     STRONG,
     MODERATE,
-    WEAK
+    WEAK,
+    UNKNOWN
 }
 
 data class ChartTrendline(
@@ -54,22 +56,23 @@ data class TradePlan(
 data class ChartVisionAnalysis(
     val id: String = UUID.randomUUID().toString(),
     val timestampMs: Long = System.currentTimeMillis(),
-    val modelUsed: String = "gemini-3.8-flash",
+    val modelUsed: String = "Unverified",
     val assetIdentifier: String = "Unspecified Asset",
     val timeframeEstimate: String = "Not detected",
-    val direction: TrendDirection = TrendDirection.BULLISH,
-    val trendStrength: TrendStrength = TrendStrength.STRONG,
+    val direction: TrendDirection = TrendDirection.UNKNOWN,
+    val trendStrength: TrendStrength = TrendStrength.UNKNOWN,
     val trendSummary: String = "",
     val trendlines: List<ChartTrendline> = emptyList(),
     val patterns: List<ChartPatternItem> = emptyList(),
     val keyLevels: List<PriceZone> = emptyList(),
     val candleSignals: List<CandleSignal> = emptyList(),
-    val tradePlan: TradePlan = TradePlan("NEUTRAL", "-", "-", "-", "-", "1:1"),
+    val tradePlan: TradePlan = TradePlan("WAIT", "Unavailable", "Unavailable", "Unavailable", "", "Unavailable"),
     val comprehensiveReport: String = "",
     val inputTokens: Int = 0,
     val outputTokens: Int = 0,
     val totalTokens: Int = 0,
     val processingMs: Long = 0L,
+    val usageEstimated: Boolean = true,
     val imageBase64: String? = null
 ) {
     fun toShareableReport(): String {
@@ -91,7 +94,7 @@ data class ChartVisionAnalysis(
             if (patterns.isNotEmpty()) {
                 appendLine("🔮 DETECTED CHART PATTERNS")
                 patterns.forEach { p ->
-                    appendLine("• ${p.name} [${p.patternType}]: ${p.confidencePercent}% Confidence (${p.status})")
+                    appendLine("• ${p.name} [${p.patternType}]: ${p.status} (uncalibrated AI interpretation)")
                     if (p.implication.isNotBlank()) appendLine("  → ${p.implication}")
                 }
                 appendLine()
@@ -104,7 +107,7 @@ data class ChartVisionAnalysis(
                 }
                 appendLine()
             }
-            appendLine("🎯 ACTIONABLE TRADE SETUP")
+            appendLine("🎯 EDUCATIONAL SCENARIO")
             appendLine("• Bias: ${tradePlan.bias}")
             appendLine("• Entry Zone: ${tradePlan.entryZone}")
             appendLine("• Stop Loss: ${tradePlan.stopLoss}")
@@ -131,6 +134,8 @@ data class ChartVisionAnalysis(
                 appendLine()
             }
             appendLine("══════════════════════════════════════════════════")
+            appendLine(comprehensiveReport)
+            appendLine("Educational AI interpretation; verify against original chart. Token usage: ${if (usageEstimated) "estimated" else "provider reported"}.")
             appendLine("Generated with MAXIMUS AI · DrFXAi Matrix OS")
             appendLine("══════════════════════════════════════════════════")
         }

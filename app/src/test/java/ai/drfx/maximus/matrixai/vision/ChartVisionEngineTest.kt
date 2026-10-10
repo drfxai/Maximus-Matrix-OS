@@ -113,7 +113,7 @@ class ChartVisionEngineTest {
         assertTrue(report.contains("CHART VISION INTELLIGENCE REPORT"))
         assertTrue(report.contains("ETH/USDT"))
         assertTrue(report.contains("Double Bottom"))
-        assertTrue(report.contains("91% Confidence"))
+        assertTrue(report.contains("uncalibrated AI interpretation"))
         assertTrue(report.contains("Ascending Channel"))
         assertTrue(report.contains("3,420"))
         assertTrue(report.contains("1:3.1"))
