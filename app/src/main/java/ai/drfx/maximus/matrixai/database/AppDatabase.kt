@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import ai.drfx.maximus.matrixai.database.dao.ChatDao
 import ai.drfx.maximus.matrixai.database.dao.MatrixEventDao
@@ -38,6 +39,21 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         const val DATABASE_NAME = "maximus_matrix.db"
 
+        // Version 1 differs only by the absence of live_trading_signals. Preserve every existing table.
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `live_trading_signals` (
+                    `id` TEXT NOT NULL, `symbol` TEXT NOT NULL, `assetClass` TEXT NOT NULL,
+                    `direction` TEXT NOT NULL, `signalType` TEXT NOT NULL, `timeframe` TEXT NOT NULL,
+                    `entryPrice` REAL NOT NULL, `stopLoss` REAL NOT NULL, `takeProfit1` REAL NOT NULL,
+                    `takeProfit2` REAL NOT NULL, `takeProfit3` REAL, `currentPrice` REAL NOT NULL,
+                    `status` TEXT NOT NULL, `winProbability` INTEGER NOT NULL, `riskRewardRatio` TEXT NOT NULL,
+                    `strategyName` TEXT NOT NULL, `confluenceFactors` TEXT NOT NULL, `aiRationale` TEXT NOT NULL,
+                    `authorAgent` TEXT NOT NULL, `timestampMs` INTEGER NOT NULL, `isBookmarked` INTEGER NOT NULL,
+                    `isCustomUserSignal` INTEGER NOT NULL, PRIMARY KEY(`id`))""")
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -53,7 +69,7 @@ abstract class AppDatabase : RoomDatabase() {
                     DATABASE_NAME
                 )
                 .addCallback(DatabaseCallback())
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRATION_1_2)
                 .build()
                 INSTANCE = instance
                 instance
@@ -61,6 +77,24 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         private class DatabaseCallback : RoomDatabase.Callback() {
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                super.onOpen(db)
+                // Migration is atomic: a key/storage error rolls back rather than replacing user messages.
+                val cipher = ChatContentCipher()
+                db.beginTransaction()
+                try {
+                    db.query("SELECT id, content FROM chat_messages").use { cursor ->
+                        while (cursor.moveToNext()) {
+                            val body = cursor.getString(1)
+                            if (!cipher.isEncrypted(body)) {
+                                db.execSQL("UPDATE chat_messages SET content = ? WHERE id = ?", arrayOf(cipher.encrypt(body), cursor.getLong(0)))
+                            }
+                        }
+                    }
+                    db.setTransactionSuccessful()
+                } finally { db.endTransaction() }
+            }
+
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
                 INSTANCE?.let { database ->
@@ -141,8 +175,8 @@ abstract class AppDatabase : RoomDatabase() {
                     ChatSessionEntity(
                         id = "default_session",
                         title = "Primary Matrix Chat",
-                        provider = "OPENAI",
-                        model = "gpt-4o",
+                        provider = "UNKNOWN",
+                        model = "",
                         agentId = "executive"
                     )
                 )
