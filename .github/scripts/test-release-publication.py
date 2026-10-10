@@ -33,7 +33,9 @@ class PublicationTests(unittest.TestCase):
             import hashlib
             checksum=hashlib.sha256(b'new validated fixture').hexdigest()
             (root/'dist/SHA256SUMS').write_text(''.join(f'{checksum}  {name}\n' for name in names))
-            if verified: (root/'dist/upgrade-verified').touch()
+            if verified:
+                (root/'dist/upgrade-verified').touch()
+                (root/'dist/android-upgrade-verified').touch()
             env=dict(os.environ, PATH=str(root/'bin')+os.pathsep+os.environ['PATH'], RELEASE_TAG='v1.0.0',ARM64_APK=names[0],UNIVERSAL_APK=names[1],GITHUB_SHA='tested-commit',GITHUB_REPOSITORY='owner/repo',GITHUB_STEP_SUMMARY=str(root/'summary'),FAIL_UPLOAD=str(int(fail)))
             result=subprocess.run(['bash',str(SCRIPT)],cwd=root,env=env,capture_output=True,text=True)
             import json

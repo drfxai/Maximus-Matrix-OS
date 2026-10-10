@@ -39,4 +39,5 @@ if grep -E 'FATAL EXCEPTION|Fatal signal|ANR in ai.drfx.maximus.matrixai' upgrad
   echo 'Updated APK crashed during launch'; exit 1
 fi
 adb exec-out screencap -p > upgrade-check/updated-app.png
+touch dist/android-upgrade-verified
 echo 'Permanent signed APK installed over previous V1.0.0 with package UID/data directory retained; updated app launched without observed startup crash.' >> "$GITHUB_STEP_SUMMARY"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-[[ -f dist/upgrade-verified ]] || { echo 'Upgrade verification required'; exit 1; }
+[[ -f dist/upgrade-verified && -f dist/android-upgrade-verified ]] || { echo 'Upgrade verification required'; exit 1; }
 # Keep the release/tag and previous assets intact until all checks have passed.
 # GitHub replaces assets individually; restore the complete prior set on failure.
 restore_previous() {
