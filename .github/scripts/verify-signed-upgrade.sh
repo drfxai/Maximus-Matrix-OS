@@ -2,10 +2,11 @@
 set -euo pipefail
 [[ -f dist/upgrade-verified ]] || { echo 'Permanent signature verification required'; exit 1; }
 # Bound every device command so lost emulators cannot hang release diagnostics.
-adb() { timeout --kill-after=5s 90s command adb "$@"; }
+adb_binary=$(type -P adb)
+adb() { timeout --kill-after=5s 90s "$adb_binary" "$@"; }
 PACKAGE=ai.drfx.maximus.matrixai
 mkdir -p upgrade-check
-timeout --kill-after=5s 8m command adb logcat -v threadtime > upgrade-check/live-device.log 2>&1 &
+timeout --kill-after=5s 8m "$adb_binary" logcat -v threadtime > upgrade-check/live-device.log 2>&1 &
 log_pid=$!
 trap 'kill "$log_pid" 2>/dev/null || true; wait "$log_pid" 2>/dev/null || true; timeout --kill-after=2s 10s sudo -n dmesg --ctime > upgrade-check/host-kernel.log 2>&1 || true; free -m > upgrade-check/host-memory.txt' EXIT
 adb install "previous/$UNIVERSAL_APK" | tee upgrade-check/old-install.txt
