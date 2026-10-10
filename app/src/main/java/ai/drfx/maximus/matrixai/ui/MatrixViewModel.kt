@@ -136,7 +136,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     val chatSessions: StateFlow<List<ChatSessionEntity>> = _chatSessions.asStateFlow()
 
     init {
-        viewModelScope.launch { chatRepository.sessions.collect { _chatSessions.value = it } }
+        viewModelScope.launch { chatRepository.sessions.collect { sessions -> _chatSessions.value = sessions.map { if (it.id == "default_session") it.copy(title = "Legacy history (read only)", provider = "UNKNOWN") else it } } }
         restoreChatSession(_activeChatSessionId.value)
 
 
@@ -698,14 +698,15 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
     fun switchChatSession(id: String) {
         val session = _chatSessions.value.firstOrNull { it.id == id } ?: return
-        if (session.provider != _llmState.value.provider.name || session.model != _llmState.value.selectedModel) {
+        if (id != "default_session" && (session.provider != _llmState.value.provider.name || session.model != _llmState.value.selectedModel)) {
             appendAssistantError("This conversation belongs to a different provider/model. Select its provider and model before opening it.")
             return
         }
         cancelChat()
-        _activeChatSessionId.value = id
-        sessionPreferences.edit().putString("active", id).apply()
-        restoreChatSession(id)
+        val targetId = if (id == "default_session") "legacy_unassigned" else id
+        _activeChatSessionId.value = targetId
+        sessionPreferences.edit().putString("active", targetId).apply()
+        restoreChatSession(targetId)
     }
 
     fun renameChatSession(id: String, title: String) {
@@ -715,7 +716,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun deleteChatSession(id: String) {
-        if (_activeChatSessionId.value == id) createChatSession()
+        if (_activeChatSessionId.value == id || (id == "default_session" && _activeChatSessionId.value == "legacy_unassigned")) createChatSession()
         viewModelScope.launch { chatRepository.deleteSession(id) }
     }
 
