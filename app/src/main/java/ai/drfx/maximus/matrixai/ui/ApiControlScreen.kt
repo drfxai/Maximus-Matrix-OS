@@ -271,7 +271,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Speed, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Quotas & Budgets", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text("Local Budget Preferences", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 Text(
                     "Configure local usage tracking. Provider account quotas are not enforced here.",
@@ -282,7 +282,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     value = tokenBudgetInput,
                     onValueChange = { value -> tokenBudgetInput = value.filter { it.isDigit() }.take(12) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Monthly Token Quota (e.g., 1000000)") },
+                    label = { Text("Local lifetime token budget (e.g., 1000000)") },
                     placeholder = { Text("Leave blank for unlimited") },
                     singleLine = true
                 )
@@ -297,7 +297,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     value = budgetUsd,
                     onValueChange = { value -> budgetUsd = value.filter { it.isDigit() || it == '.' }.take(10) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Monthly USD budget limit") },
+                    label = { Text("USD planning preference (not enforced)") },
                     singleLine = true
                 )
                 Button(
