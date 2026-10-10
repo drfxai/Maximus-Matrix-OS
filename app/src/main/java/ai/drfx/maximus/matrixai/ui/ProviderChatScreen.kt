@@ -397,7 +397,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            "Switch engines instantly above: Gemini 3.8 Flash (1M tokens), NVIDIA NIM (Llama 3.3 / DeepSeek R1), or 9Router (Smart & Combo).",
+                            "Select a provider and verify its models. Conversations remain isolated; /mission invokes approved runtime tools.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 24.dp),
@@ -613,7 +613,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = when (quickKeyTargetProvider) {
-                            LlmProvider.GEMINI -> "Enter your Google AI Studio API key (starts with AIza). Access Gemini 3.8 Flash with up to 1,048,576 tokens."
+                            LlmProvider.GEMINI -> "Enter your Google AI Studio API key, then discover available models and test inference."
                             LlmProvider.NVIDIA -> "Enter your NVIDIA NIM API key (starts with nvapi-). Direct access to Llama 3.3 70B and DeepSeek R1."
                             LlmProvider.ROUTER_9_SMART -> "Enter your 9Router API key for autonomous task routing across frontier models."
                             LlmProvider.ROUTER_9_COMBO -> "Enter your 9Router API key for multi-model synthesis and consensus."
@@ -789,7 +789,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             viewModel.applyProviderPreset(LlmProvider.GEMINI)
                             baseUrl = LlmProvider.GEMINI.defaultBaseUrl
                         },
-                        label = { Text("Gemini 3.8 Flash", fontSize = 11.sp) }
+                        label = { Text("Google Gemini", fontSize = 11.sp) }
                     )
                     FilterChip(
                         selected = state.provider == LlmProvider.ROUTER_9_SMART,
