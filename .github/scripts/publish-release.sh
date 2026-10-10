@@ -16,6 +16,12 @@ gh release download "$RELEASE_TAG" --pattern "$ARM64_APK" --pattern "$UNIVERSAL_
 (cd published && sha256sum --check SHA256SUMS)
 cmp "dist/$ARM64_APK" "published/$ARM64_APK"
 cmp "dist/$UNIVERSAL_APK" "published/$UNIVERSAL_APK"
+gh release view "$RELEASE_TAG" --json isDraft,isPrerelease > published/release.json
+python3 - <<'PYVERIFY'
+import json
+release = json.load(open('published/release.json'))
+assert not release['isDraft'] and not release['isPrerelease'], 'Published release is not Stable'
+PYVERIFY
 # Retarget the existing tag only after every replacement APK is verified.
 # Source archives then describe the exact validated build source.
 gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" -f sha="$GITHUB_SHA" -F force=true
