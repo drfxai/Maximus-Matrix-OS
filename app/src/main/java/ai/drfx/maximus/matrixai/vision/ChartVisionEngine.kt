@@ -24,10 +24,10 @@ class ChartVisionEngine(
             val provider = apiStore.loadProvider()
             val model = modelOverride.ifBlank { apiStore.loadModel() }
             require(provider != LlmProvider.UNKNOWN && model.isNotBlank()) { "Configure a provider and select a verified vision model in API Hub." }
-            val key = apiStore.loadKeyForProvider(provider)
             val base = apiStore.loadBaseUrl()
+            val key = apiStore.resolveCredential(provider, base)
             // Discovery failure must fail closed; an offline suggestion is never model verification.
-            val catalog = ApiDiscoveryEngine().discover(base, key)
+            val catalog = ApiDiscoveryEngine().discover(base, key, provider)
             require(catalog.provider == provider || (catalog.provider.isNineRouter && provider.isNineRouter)) { "Provider endpoint does not match the selected provider." }
             val descriptor = catalog.models.firstOrNull { it.id.removePrefix("models/") == model.removePrefix("models/") }
                 ?: throw IllegalStateException("Selected model is unavailable in the authenticated catalog.")

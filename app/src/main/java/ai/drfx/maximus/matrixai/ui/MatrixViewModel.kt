@@ -128,6 +128,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private var validationJob: Job? = null
     private var restoreJob: Job? = null
     private var historyReady = false
+    private var streamingTimestamp: Long? = null
     private val sessionPreferences = application.getSharedPreferences("matrix_chat_sessions", android.content.Context.MODE_PRIVATE)
     private val _activeChatSessionId = MutableStateFlow(sessionPreferences.getString("active", "legacy_unassigned").orEmpty())
     val activeChatSessionId: StateFlow<String> = _activeChatSessionId.asStateFlow()
@@ -229,7 +230,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         validationJob?.cancel()
         val current = _llmState.value
         val catalog = ApiDiscoveryEngine.defaultCatalog(provider)
-        val defaultModel = provider.defaultModel
+        val defaultModel = apiStore.loadModelForProvider(provider).ifBlank { provider.defaultModel }
+        val providerEndpoint = apiStore.loadBaseUrlForProvider(provider).ifBlank { provider.defaultBaseUrl }
         val capabilities = ModelCapabilityResolver.resolve(provider, defaultModel)
         val supportedAgents = AgentRegistry.supportedAgents(capabilities)
         val selectedAgent = supportedAgents.firstOrNull { it.id == current.selectedAgentId }?.id
@@ -248,7 +250,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             status = if (apiStore.hasKeyForProvider(provider)) ConnectionStatus.CONFIGURED else ConnectionStatus.DISCONNECTED,
             hasSavedKey = apiStore.hasKeyForProvider(provider),
             provider = provider,
-            baseUrl = provider.defaultBaseUrl,
+            baseUrl = providerEndpoint,
             models = catalog,
             selectedModel = defaultModel,
             selectedAgentId = selectedAgent,
@@ -257,8 +259,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             tokenMetrics = updatedMetrics
         )
         createChatSession()
-        if (provider.defaultBaseUrl.isNotBlank()) apiStore.save(
-            provider.defaultBaseUrl,
+        apiStore.save(
+            providerEndpoint,
             "",
             provider,
             defaultModel,
@@ -273,7 +275,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         if (_llmState.value.status == ConnectionStatus.DETECTING) return
         validationJob = viewModelScope.launch {
             val requestedProvider = _llmState.value.provider
-            val key = apiKeyInput.ifBlank { apiStore.loadKeyForProvider(requestedProvider) }
+            val key = apiKeyInput.ifBlank { apiStore.resolveCredential(requestedProvider, baseUrl) }
             _llmState.value = _llmState.value.copy(
                 status = ConnectionStatus.DETECTING,
                 statusMessage = "Detecting API protocol, models and agent compatibility..."
@@ -532,13 +534,21 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val config = ApiConnectionConfig(
                     baseUrl = current.baseUrl,
-                    apiKey = apiStore.loadKeyForProvider(current.provider),
+                    apiKey = apiStore.resolveCredential(current.provider, current.baseUrl),
                     provider = current.provider,
                     selectedModel = current.selectedModel,
                     selectedAgentId = selectedAgent.id
                 )
                 val requestHistory = selectedContext.messages
-                val result = chatClient.send(config, requestHistory, selectedAgent)
+                val streamTime = System.currentTimeMillis()
+                val result = chatClient.send(config, requestHistory, selectedAgent) { accumulated ->
+                    viewModelScope.launch {
+                        if (chatGeneration != requestGeneration || !_llmState.value.isGenerating) return@launch
+                        streamingTimestamp = streamTime
+                        val partial = ChatMessage("assistant", accumulated, streamTime)
+                        _chatMessages.value = _chatMessages.value.filterNot { it.timestampMs == streamTime && it.role == "assistant" } + partial
+                    }
+                }
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 if (result.transcript != null) {
                     val index = _chatMessages.value.indexOfLast { it.role == "user" && it.attachment?.mimeType?.startsWith("audio/") == true }
@@ -550,6 +560,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     chatRepository.updateMessageContent(requestSessionId, userMessage.timestampMs, "user", result.transcript)
                 }
                 val assistantMessage = ChatMessage(role = "assistant", content = result.text)
+                streamingTimestamp?.let { t -> _chatMessages.value = _chatMessages.value.filterNot { it.role == "assistant" && it.timestampMs == t } }
+                streamingTimestamp = null
                 _chatMessages.value = _chatMessages.value + assistantMessage
 
                 chatRepository.saveMessage(
@@ -603,6 +615,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     if (requestGeneration == chatGeneration) _llmState.value = _llmState.value.copy(isGenerating = false)
                     throw error
                 }
+                streamingTimestamp?.let { t -> _chatMessages.value = _chatMessages.value.filterNot { it.role == "assistant" && it.timestampMs == t } }
+                streamingTimestamp = null
                 AppLogStore.error("CHAT", error.message ?: "The model request failed.")
                 appendAssistantError(error.message ?: "The model request failed.")
                 _llmState.value = _llmState.value.copy(isGenerating = false, status = ConnectionStatus.DEGRADED, statusMessage = error.message ?: "Inference failed")
@@ -619,6 +633,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
     fun cancelChat() {
         chatGeneration++
+        streamingTimestamp?.let { t -> _chatMessages.value = _chatMessages.value.filterNot { it.role == "assistant" && it.timestampMs == t } }
+        streamingTimestamp = null
         chatJob?.cancel()
         chatJob = null
         _llmState.value = _llmState.value.copy(isGenerating = false)

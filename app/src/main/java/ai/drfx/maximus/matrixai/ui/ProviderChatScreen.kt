@@ -159,9 +159,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         tts = engine
         onDispose { engine.stop(); engine.shutdown(); tts = null }
     }
-    LaunchedEffect(messages.lastOrNull()?.timestampMs, voiceReplies, speechReady) {
+    LaunchedEffect(messages.lastOrNull()?.timestampMs, voiceReplies, speechReady, state.isGenerating) {
         val last = messages.lastOrNull()
-        if (voiceReplies && speechReady && last?.role == "assistant" && !last.isError) {
+        if (!state.isGenerating && voiceReplies && speechReady && last?.role == "assistant" && !last.isError) {
             val language = if (last.content.any { it in '\u0600'..'\u06ff' }) Locale("fa", "IR") else Locale.ENGLISH
             val engine = tts
             if (engine == null || engine.isLanguageAvailable(language) < TextToSpeech.LANG_AVAILABLE) {
