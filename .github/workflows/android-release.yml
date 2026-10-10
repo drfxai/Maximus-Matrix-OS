@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: maximus-matrix-release
-  cancel-in-progress: false
+  group: maximus-matrix-${{ (github.ref == 'refs/heads/release/validated-v1' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && 'release' || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/release/validated-v1' && !(github.event_name == 'workflow_dispatch' && inputs.publish) }}
 
 jobs:
   validate:
