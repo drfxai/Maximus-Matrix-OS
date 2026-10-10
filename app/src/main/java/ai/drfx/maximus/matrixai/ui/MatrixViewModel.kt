@@ -541,7 +541,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
                 val requestHistory = selectedContext.messages
                 val streamTime = System.currentTimeMillis()
-                val result = chatClient.send(config, requestHistory, selectedAgent) { accumulated ->
+                val streamedText = StringBuilder()
+                val result = chatClient.send(config, requestHistory, selectedAgent) { delta ->
+                    val accumulated = streamedText.append(delta).toString()
                     viewModelScope.launch {
                         if (chatGeneration != requestGeneration || !_llmState.value.isGenerating) return@launch
                         streamingTimestamp = streamTime
