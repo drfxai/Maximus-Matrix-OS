@@ -99,7 +99,7 @@ fun WatchlistAlertsSection(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                "AI Watchlist Live Alert Hub",
+                                "Watchlist Alert Hub",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -109,11 +109,11 @@ fun WatchlistAlertsSection(
                                 modifier = Modifier
                                     .size(7.dp)
                                     .clip(CircleShape)
-                                    .background(if (isScanning) Color(0xFFFF9100) else Color(0xFF00E676))
+                                    .background(if (isScanning) Color(0xFFFF9100) else Color(0xFF6B7280))
                             )
                         }
                         Text(
-                            "Autonomous scanning of Forex Factory catalysts for your assets",
+                            "Alerts unavailable: no verified market trigger configured",
                             fontSize = 10.5.sp,
                             color = Color(0xFF8B9CB5)
                         )
@@ -260,7 +260,7 @@ fun WatchlistAlertsSection(
                         ) {
                             Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFF6B7280), modifier = Modifier.size(24.dp))
                             Text("No major market-moving alerts detected yet", fontSize = 11.5.sp, color = Color(0xFF94A3B8))
-                            Text("Tap 'Scan AI' to evaluate latest Forex Factory catalysts", fontSize = 10.sp, color = Color(0xFF6B7280))
+                            Text("No verified data-driven alerts available", fontSize = 10.sp, color = Color(0xFF6B7280))
                         }
                     }
                 } else {

@@ -83,38 +83,7 @@ class MarketNotificationService(
                 _notificationsEnabled.value = obj.optBoolean("enabled", true)
             }
 
-            // Provide default initial alerts for user watchlist
-            if (_recentAlerts.value.isEmpty()) {
-                _recentAlerts.value = listOf(
-                    MarketAlertNotification(
-                        assetSymbol = "XAUUSD",
-                        headline = "Fed Powell Hawkish Stance Triggers Gold Liquidity Sweep",
-                        aiReasoning = "AI detected aggressive stop runs below $2,320 due to sticky PCE figures. Non-yielding assets facing immediate yield pressure.",
-                        urgency = AlertUrgency.HIGH,
-                        sentiment = MarketSentiment.BEARISH,
-                        triggerSource = "Forex Factory AI",
-                        estimatedVolatilityPips = "± 45 Pips"
-                    ),
-                    MarketAlertNotification(
-                        assetSymbol = "EURUSD",
-                        headline = "ECB Lagarde Signals Impending Rate Cut Divergence",
-                        aiReasoning = "Policy divergence widening against US Federal Reserve. High probability of downside continuation towards 1.0750 liquidity pool.",
-                        urgency = AlertUrgency.ELEVATED,
-                        sentiment = MarketSentiment.BEARISH,
-                        triggerSource = "Forex Factory AI",
-                        estimatedVolatilityPips = "± 30 Pips"
-                    ),
-                    MarketAlertNotification(
-                        assetSymbol = "BTC",
-                        headline = "Bitcoin Absorbs Macro Headwinds Above $66,000",
-                        aiReasoning = "Institutional spot buyers defending 200-period EMA despite rising 10-year Treasury yields.",
-                        urgency = AlertUrgency.INFORMATIONAL,
-                        sentiment = MarketSentiment.NEUTRAL,
-                        triggerSource = "Forex Factory AI",
-                        estimatedVolatilityPips = "± $1,200"
-                    )
-                )
-            }
+
         } catch (e: Exception) {
             AppLogStore.warn("NOTIF", "Failed to load watchlist: ${e.message}")
         }
@@ -154,6 +123,7 @@ class MarketNotificationService(
     }
 
     fun addAlert(alert: MarketAlertNotification) {
+        if (!alert.triggerSource.startsWith("https://") || _recentAlerts.value.any { it.id == alert.id }) return
         val list = _recentAlerts.value.toMutableList()
         list.add(0, alert)
         _recentAlerts.value = list.take(20)
