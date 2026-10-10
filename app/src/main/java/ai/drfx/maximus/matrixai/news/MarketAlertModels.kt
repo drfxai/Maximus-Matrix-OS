@@ -17,8 +17,8 @@ data class MarketAlertNotification(
     val aiReasoning: String,
     val urgency: AlertUrgency,
     val sentiment: MarketSentiment,
-    val triggerSource: String = "Forex Factory AI",
-    val estimatedVolatilityPips: String = "High",
+    val triggerSource: String = "Unavailable",
+    val estimatedVolatilityPips: String = "Not measured",
     val isRead: Boolean = false
 )
 

@@ -20,6 +20,17 @@ class MatrixPolicyEngineTest {
     }
 
     @Test
+    fun externalAndMutationActionsRequireConfirmationEvenWhenRiskIsLow() {
+        listOf("open_url", "web_search", "compose_sms", "share_text", "create_note", "copy_clipboard")
+            .forEach { assertEquals(PolicyDecision.REQUIRE_CONFIRMATION, policy.evaluate(AgentAction(it))) }
+    }
+
+    @Test
+    fun unknownToolCannotBypassAllowlist() {
+        assertEquals(PolicyDecision.DENY, policy.evaluate(AgentAction("unregistered_tool")))
+    }
+
+    @Test
     fun criticalActionIsDenied() {
         assertEquals(
             PolicyDecision.DENY,

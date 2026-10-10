@@ -26,4 +26,14 @@ class MatrixPlannerTest {
         val step = plan.first { it.action.tool == "set_alarm" }
         assertEquals("MAXIMUS AI", step.action.arguments["label"])
     }
+    @Test fun unsupportedObjectiveCannotBeReportedAsDeviceStatusSuccess() {
+        val plan = MatrixPlanner().plan(Mission(objective = "execute a market order"))
+        assertTrue(plan.any { it.action.tool == "unsupported_objective" })
+        assertEquals(PolicyDecision.DENY, MatrixPolicyEngine().evaluate(plan.last().action))
+    }
+
+    @Test fun explicitStatusRetainsExecutableReadOnlyPlan() {
+        val plan = MatrixPlanner().plan(Mission(objective = "status"))
+        assertEquals(listOf("device_info"), plan.map { it.action.tool })
+    }
 }

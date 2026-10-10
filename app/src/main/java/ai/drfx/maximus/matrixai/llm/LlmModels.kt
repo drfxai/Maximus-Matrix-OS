@@ -5,10 +5,10 @@ enum class LlmProvider(
     val defaultBaseUrl: String,
     val defaultModel: String
 ) {
-    GEMINI("Google Gemini", "https://generativelanguage.googleapis.com", "gemini-3.8-flash"),
+    GEMINI("Google Gemini", "https://generativelanguage.googleapis.com", "gemini-2.5-flash"),
     NVIDIA("NVIDIA NIM", "https://integrate.api.nvidia.com/v1", "meta/llama-3.3-70b-instruct"),
-    ROUTER_9_SMART("9Router Smart", "https://api.9router.com/v1", "9router-smart-auto"),
-    ROUTER_9_COMBO("9Router Combo", "https://api.9router.com/v1", "9router-combo-synthesis"),
+    ROUTER_9_SMART("9Router", "", ""),
+    ROUTER_9_COMBO("9Router (custom combo)", "", ""),
     OPENAI("OpenAI", "https://api.openai.com/v1", "gpt-4o"),
     ANTHROPIC("Anthropic Claude", "https://api.anthropic.com/v1", "claude-3-5-sonnet-20241022"),
     OPENAI_COMPATIBLE("OpenAI Compatible", "https://api.openai.com/v1", "gpt-4o"),
@@ -21,7 +21,8 @@ data class ModelDescriptor(
     val id: String,
     val displayName: String = id,
     val capabilities: Set<ModelCapability> = emptySet(),
-    val contextWindowTokens: Int = 128_000
+    val contextWindowTokens: Int = 128_000,
+    val verified: Boolean = false
 )
 
 data class ApiConnectionConfig(
@@ -85,6 +86,9 @@ data class ChatAttachment(
 
 enum class ConnectionStatus {
     DISCONNECTED,
+    CONFIGURED,
+    VALIDATING,
+    DEGRADED,
     DETECTING,
     CONNECTED,
     ERROR

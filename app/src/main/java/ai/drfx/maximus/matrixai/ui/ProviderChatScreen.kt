@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -77,7 +78,22 @@ import java.util.Locale
 @Composable
 fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.llmState.collectAsState()
+    val pendingAction by viewModel.pendingAgentConfirmation.collectAsState()
+    pendingAction?.let { request ->
+        AlertDialog(onDismissRequest = { viewModel.approveAgentAction(request.id, false) },
+            title = { Text("Approve runtime action") },
+            text = { Text(request.action.tool + "\n" + request.action.arguments.entries.joinToString("\n") { "${it.key}: ${it.value}" }) },
+            confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text("Approve") } },
+            dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text("Reject") } })
+    }
     val messages by viewModel.chatMessages.collectAsState()
+    val sessions by viewModel.chatSessions.collectAsState()
+    val activeSessionId by viewModel.activeChatSessionId.collectAsState()
+    var sessionsOpen by remember { mutableStateOf(false) }
+    var renameOpen by remember { mutableStateOf(false) }
+    var deleteOpen by remember { mutableStateOf(false) }
+    var sessionTitle by remember { mutableStateOf("") }
+    val sendable = state.status in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED)
     val metrics = state.tokenMetrics
     val numberFormat = remember { NumberFormat.getNumberInstance(Locale.US) }
     val clipboardManager = LocalClipboardManager.current
@@ -91,6 +107,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var agentExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val voicePlayback = remember(context) { VoicePlaybackController(context) }
+    DisposableEffect(voicePlayback) { onDispose { voicePlayback.stop() } }
     var settingsOpen by remember { mutableStateOf(false) }
     var tokenDetailsOpen by remember { mutableStateOf(false) }
     var quickKeyDialogOpen by remember { mutableStateOf(false) }
@@ -99,6 +117,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
 
     var attachment by remember { mutableStateOf<ChatAttachment?>(null) }
     var attachmentError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.provider) { apiKey = ""; quickKeyInput = ""; attachment = null }
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
@@ -152,14 +171,34 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         tts = engine
         onDispose { engine.stop(); engine.shutdown(); tts = null }
     }
-    LaunchedEffect(messages.lastOrNull()?.timestampMs, voiceReplies, speechReady) {
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, recorder, voicePlayback, tts) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                recorder.cancel()
+                recording = false
+                voicePlayback.stop()
+                tts?.stop()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(messages.lastOrNull()?.timestampMs, voiceReplies, speechReady, state.isGenerating) {
         val last = messages.lastOrNull()
-        if (voiceReplies && speechReady && last?.role == "assistant" && !last.isError) {
-            tts?.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "reply-" + last.timestampMs)
+        if (!state.isGenerating && voiceReplies && speechReady && last?.role == "assistant" && !last.isError) {
+            val language = if (last.content.any { it in '\u0600'..'\u06ff' }) Locale("fa", "IR") else Locale.ENGLISH
+            val engine = tts
+            if (engine == null || engine.isLanguageAvailable(language) < TextToSpeech.LANG_AVAILABLE) {
+                attachmentError = "The installed speech engine has no voice for this response language."
+                return@LaunchedEffect
+            }
+            engine.language = language
+            engine.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "reply-" + last.timestampMs)
         }
     }
     fun send(text: String = prompt, fromVoice: Boolean = false) {
-        if (state.isGenerating || state.status != ConnectionStatus.CONNECTED ||
+        if (state.isGenerating || !sendable ||
             (text.isBlank() && attachment == null)) return
         if (viewModel.sendChat(text, attachment, fromVoice)) {
             prompt = ""
@@ -184,7 +223,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         if (result.resultCode == Activity.RESULT_OK) {
             val transcript = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!transcript.isNullOrBlank()) {
-                if (state.status == ConnectionStatus.CONNECTED) send(transcript, fromVoice = true)
+                if (sendable) send(transcript, fromVoice = true)
                 else prompt = transcript
             }
             else attachmentError = "No speech was recognized."
@@ -195,6 +234,30 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         modifier = modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box {
+                TextButton(onClick = { sessionsOpen = true }) {
+                    Text(sessions.firstOrNull { it.id == activeSessionId }?.title ?: "Conversation")
+                }
+                DropdownMenu(expanded = sessionsOpen, onDismissRequest = { sessionsOpen = false }) {
+                    sessions.forEach { session ->
+                        DropdownMenuItem(text = { Text(session.title + " · " + session.provider) },
+                            onClick = { viewModel.switchChatSession(session.id); sessionsOpen = false })
+                    }
+                }
+            }
+            TextButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) { Text("New") }
+            TextButton(onClick = {
+                sessionTitle = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty()
+                renameOpen = true
+            }, enabled = sessions.any { it.id == activeSessionId }) { Text("Rename") }
+            TextButton(onClick = { deleteOpen = true }, enabled = sessions.any { it.id == activeSessionId }) { Text("Delete") }
+        }
+        if (messages.lastOrNull()?.isError == true && !state.isGenerating && sendable) {
+            TextButton(onClick = {
+                messages.lastOrNull { it.role == "user" }?.let { viewModel.sendChat(it.content, it.attachment, false) }
+            }) { Text("Retry last request") }
+        }
         // Compact unified header: Model info, Token telemetry badge, settings trigger, voice toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -214,14 +277,14 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Surface(
                         modifier = Modifier.size(8.dp),
                         shape = CircleShape,
-                        color = if (state.status == ConnectionStatus.CONNECTED) MaterialTheme.colorScheme.primary
+                        color = if (sendable) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.tertiary
                     ) {}
                     Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = if (state.status == ConnectionStatus.CONNECTED) state.selectedModel
+                                text = if (sendable) state.selectedModel
                                 else "Connect ${state.provider.displayName}",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
@@ -230,7 +293,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             )
                         }
                         Text(
-                            text = if (state.status == ConnectionStatus.CONNECTED)
+                            text = if (sendable)
                                 state.supportedAgents.firstOrNull { it.id == state.selectedAgentId }?.name.orEmpty()
                             else state.statusMessage,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -272,7 +335,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Left: ${numberFormat.format(metrics.remainingContextTokens)}",
+                            text = "Est. left: ${numberFormat.format(metrics.remainingContextTokens)}",
                             fontSize = 8.sp,
                             color = Color(0xFF00E676),
                             fontWeight = FontWeight.Bold
@@ -284,6 +347,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             Spacer(Modifier.width(4.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { tts?.stop(); voicePlayback.stop() }) { Icon(Icons.Default.Stop, "Stop audio") }
                 IconButton(
                     onClick = { voiceReplies = !voiceReplies; if (!voiceReplies) tts?.stop() },
                     modifier = Modifier.size(34.dp)
@@ -313,12 +377,14 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             hasSavedKey = state.hasSavedKey,
             onSelectProvider = { provider ->
                 viewModel.applyProviderPreset(provider)
-                baseUrl = provider.defaultBaseUrl
+                baseUrl = viewModel.llmState.value.baseUrl
             },
             onSelectModel = { modelId ->
                 viewModel.selectModel(modelId)
             },
             onConfigureKey = { provider ->
+                if (state.provider != provider) viewModel.applyProviderPreset(provider)
+                baseUrl = viewModel.llmState.value.baseUrl
                 quickKeyTargetProvider = provider
                 quickKeyInput = ""
                 quickKeyDialogOpen = true
@@ -359,7 +425,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            "Switch engines instantly above: Gemini 3.8 Flash (1M tokens), NVIDIA NIM (Llama 3.3 / DeepSeek R1), or 9Router (Smart & Combo).",
+                            "Select a provider and verify its models. Conversations remain isolated; /mission invokes approved runtime tools.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 24.dp),
@@ -391,11 +457,16 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 ) {
                     items(messages) { message ->
                         ChatBubble(message, onSpeak = {
-                            if (speechReady) tts?.speak(message.content, TextToSpeech.QUEUE_FLUSH,
-                                null, "replay-" + message.timestampMs)
+                            if (speechReady) {
+                                val language = if (message.content.any { it in '\u0600'..'\u06ff' }) Locale("fa", "IR") else Locale.ENGLISH
+                                if ((tts?.isLanguageAvailable(language) ?: TextToSpeech.LANG_NOT_SUPPORTED) >= TextToSpeech.LANG_AVAILABLE) {
+                                    tts?.language = language
+                                    tts?.speak(message.content, TextToSpeech.QUEUE_FLUSH, null, "replay-" + message.timestampMs)
+                                } else attachmentError = "No installed speech voice supports this response language."
+                            }
                         }, onPlayVoice = {
                             message.attachment?.let { voice ->
-                                runCatching { playVoiceMessage(context, voice) }
+                                runCatching { voicePlayback.play(voice) }
                                     .onFailure { attachmentError = "Voice playback is unavailable." }
                             }
                         })
@@ -408,7 +479,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
                                 Text(
-                                    "Agent is generating response with ${state.provider.displayName}…",
+                                    "Persona is generating response with ${state.provider.displayName}…",
                                     color = MaterialTheme.colorScheme.primary,
                                     fontSize = 11.sp
                                 )
@@ -419,6 +490,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }
         }
 
+        if (state.isGenerating) {
+            TextButton(onClick = { viewModel.cancelChat() }) { Text("Stop generation") }
+        }
         if (attachment != null) {
             AssistChip(
                 onClick = { attachment = null },
@@ -472,7 +546,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Chat input" },
                     maxLines = 3,
                     enabled = !recording,
-                    placeholder = { Text("Message the selected agent…", fontSize = 13.sp) },
+                    placeholder = { Text("Message the selected persona…", fontSize = 13.sp) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { send() }),
                     shape = RoundedCornerShape(12.dp)
@@ -531,7 +605,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Button(
                         onClick = { send() },
                         enabled = !recording && !state.isGenerating && (prompt.isNotBlank() || attachment != null) &&
-                            state.status == ConnectionStatus.CONNECTED && state.selectedAgentId.isNotBlank() &&
+                            sendable && state.selectedAgentId.isNotBlank() &&
                             (attachment?.mimeType?.startsWith("audio/") != true ||
                                 state.provider == LlmProvider.GEMINI || state.provider == LlmProvider.OPENAI),
                         modifier = Modifier.size(36.dp),
@@ -545,6 +619,18 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         }
     }
 
+    if (renameOpen) {
+        AlertDialog(onDismissRequest = { renameOpen = false }, title = { Text("Rename conversation") },
+            text = { OutlinedTextField(value = sessionTitle, onValueChange = { sessionTitle = it }, singleLine = true) },
+            confirmButton = { TextButton(onClick = { viewModel.renameChatSession(activeSessionId, sessionTitle); renameOpen = false }) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { renameOpen = false }) { Text("Cancel") } })
+    }
+    if (deleteOpen) {
+        AlertDialog(onDismissRequest = { deleteOpen = false }, title = { Text("Delete conversation?") },
+            text = { Text("This removes its locally saved messages.") },
+            confirmButton = { TextButton(onClick = { viewModel.deleteChatSession(activeSessionId); deleteOpen = false }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { deleteOpen = false }) { Text("Cancel") } })
+    }
     // Quick In-Chat API Key Entry Dialog
     if (quickKeyDialogOpen) {
         AlertDialog(
@@ -560,16 +646,19 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = when (quickKeyTargetProvider) {
-                            LlmProvider.GEMINI -> "Enter your Google AI Studio API key (starts with AIza). Access Gemini 3.8 Flash with up to 1,048,576 tokens."
+                            LlmProvider.GEMINI -> "Enter your Google AI Studio API key, then discover available models and test inference."
                             LlmProvider.NVIDIA -> "Enter your NVIDIA NIM API key (starts with nvapi-). Direct access to Llama 3.3 70B and DeepSeek R1."
-                            LlmProvider.ROUTER_9_SMART -> "Enter your 9Router API key for autonomous task routing across frontier models."
-                            LlmProvider.ROUTER_9_COMBO -> "Enter your 9Router API key for multi-model synthesis and consensus."
+                            LlmProvider.ROUTER_9_SMART -> "Enter your deployment endpoint and key. Select a model returned by its catalog."
+                            LlmProvider.ROUTER_9_COMBO -> "Combo names must exist in your server catalog. Routing behavior is managed by that server."
                             else -> "Enter the API key for ${quickKeyTargetProvider.displayName}."
                         },
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 16.sp
                     )
+                    if (quickKeyTargetProvider.isNineRouter || quickKeyTargetProvider == LlmProvider.OPENAI_COMPATIBLE) {
+                        OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it }, label = { Text("Trusted HTTPS deployment endpoint") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
                     OutlinedTextField(
                         value = quickKeyInput,
                         onValueChange = { quickKeyInput = it },
@@ -598,7 +687,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     onClick = {
                         val key = quickKeyInput.trim()
                         if (key.isNotBlank()) {
-                            viewModel.detectApi(quickKeyTargetProvider.defaultBaseUrl, key)
+                            viewModel.detectApi(baseUrl.ifBlank { quickKeyTargetProvider.defaultBaseUrl }, key)
                             quickKeyDialogOpen = false
                         }
                     },
@@ -689,7 +778,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         }
                         if (metrics.remainingBudgetTokens != null) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Monthly Budget Remaining", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Local Lifetime Budget Remaining (not provider quota)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text("${numberFormat.format(metrics.remainingBudgetTokens)} / ${numberFormat.format(metrics.monthlyTokenBudget)}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E676))
                             }
                         }
@@ -736,23 +825,23 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             viewModel.applyProviderPreset(LlmProvider.GEMINI)
                             baseUrl = LlmProvider.GEMINI.defaultBaseUrl
                         },
-                        label = { Text("Gemini 3.8 Flash", fontSize = 11.sp) }
+                        label = { Text("Google Gemini", fontSize = 11.sp) }
                     )
                     FilterChip(
                         selected = state.provider == LlmProvider.ROUTER_9_SMART,
                         onClick = {
                             viewModel.applyProviderPreset(LlmProvider.ROUTER_9_SMART)
-                            baseUrl = LlmProvider.ROUTER_9_SMART.defaultBaseUrl
+                            baseUrl = viewModel.llmState.value.baseUrl
                         },
-                        label = { Text("9Router Smart", fontSize = 11.sp) }
+                        label = { Text("9Router", fontSize = 11.sp) }
                     )
                     FilterChip(
                         selected = state.provider == LlmProvider.ROUTER_9_COMBO,
                         onClick = {
                             viewModel.applyProviderPreset(LlmProvider.ROUTER_9_COMBO)
-                            baseUrl = LlmProvider.ROUTER_9_COMBO.defaultBaseUrl
+                            baseUrl = viewModel.llmState.value.baseUrl
                         },
-                        label = { Text("9Router Combo", fontSize = 11.sp) }
+                        label = { Text("9Router (server combo)", fontSize = 11.sp) }
                     )
                     FilterChip(
                         selected = state.provider == LlmProvider.NVIDIA,
@@ -762,6 +851,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         },
                         label = { Text("NVIDIA NIM", fontSize = 11.sp) }
                     )
+                    listOf(LlmProvider.ANTHROPIC, LlmProvider.OPENAI_COMPATIBLE).forEach { provider ->
+                        FilterChip(selected = state.provider == provider,
+                            onClick = { viewModel.applyProviderPreset(provider); baseUrl = viewModel.llmState.value.baseUrl },
+                            label = { Text(provider.displayName, fontSize = 11.sp) })
+                    }
                     FilterChip(
                         selected = state.provider == LlmProvider.OPENAI,
                         onClick = {
@@ -844,7 +938,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Model & Agent Selection", fontWeight = FontWeight.SemiBold)
+                                    Text("Model & Persona Selection", fontWeight = FontWeight.SemiBold)
                                     Box(Modifier.fillMaxWidth()) {
                                         OutlinedButton(
                                             onClick = { modelExpanded = true },
@@ -894,7 +988,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                         ) {
                                             state.supportedAgents.forEach { agent ->
                                                 DropdownMenuItem(
-                                                    text = { Text(agent.name) },
+                                                    text = { Text(agent.name + " · persona") },
                                                     onClick = {
                                                         viewModel.selectAgent(agent.id)
                                                         agentExpanded = false
@@ -984,10 +1078,10 @@ private fun ChatProviderSwitcherBar(
                     onDropdownClick = { modelPickerOpen = true }
                 )
 
-                // 3. 9Router Smart
+                // 3. 9Router
                 MicroProviderChip(
-                    name = "9Router Smart",
-                    modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_SMART) "Auto" else null,
+                    name = "9Router",
+                    modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_SMART) currentModel.take(10) else null,
                     icon = Icons.Default.Hub,
                     brandColor = Color(0xFF00E5FF),
                     selected = currentProvider == LlmProvider.ROUTER_9_SMART,
@@ -995,10 +1089,10 @@ private fun ChatProviderSwitcherBar(
                     onDropdownClick = { modelPickerOpen = true }
                 )
 
-                // 4. 9Router Combo
+                // 4. 9Router (server combo)
                 MicroProviderChip(
-                    name = "9Router Combo",
-                    modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_COMBO) "Multi" else null,
+                    name = "9Router (server combo)",
+                    modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_COMBO) currentModel.take(10) else null,
                     icon = Icons.Default.AltRoute,
                     brandColor = Color(0xFF7C4DFF),
                     selected = currentProvider == LlmProvider.ROUTER_9_COMBO,
@@ -1223,17 +1317,32 @@ private fun ChatBubble(message: ChatMessage, onSpeak: () -> Unit, onPlayVoice: (
     }
 }
 
-private fun playVoiceMessage(context: Context, attachment: ChatAttachment) {
-    val tempFile = File.createTempFile("matrix_voice_play_", ".m4a", context.cacheDir)
-    FileOutputStream(tempFile).use { it.write(Base64.decode(attachment.data, Base64.DEFAULT)) }
-    val player = MediaPlayer()
-    player.setDataSource(tempFile.absolutePath)
-    player.prepare()
-    player.setOnCompletionListener {
-        player.release()
-        tempFile.delete()
+/** One playback owner per screen; stop, completion, error and disposal all remove cache bytes. */
+private class VoicePlaybackController(private val context: Context) {
+    private var player: MediaPlayer? = null
+    private var file: File? = null
+    fun stop() {
+        player?.let { active -> runCatching { active.stop() }; active.release() }
+        player = null
+        file?.delete()
+        file = null
     }
-    player.start()
+    fun play(attachment: ChatAttachment) {
+        stop()
+        require(attachment.data.isNotBlank() && attachment.data.length <= 4 * 1024 * 1024) { "Voice payload is unavailable or exceeds playback limit." }
+        val temp = File.createTempFile("matrix_voice_play_", ".m4a", context.cacheDir)
+        file = temp
+        val active = MediaPlayer()
+        player = active
+        try {
+            FileOutputStream(temp).use { it.write(Base64.decode(attachment.data, Base64.DEFAULT)) }
+            active.setDataSource(temp.absolutePath)
+            active.setOnPreparedListener { if (player === it) it.start() }
+            active.setOnCompletionListener { if (player === it) stop() }
+            active.setOnErrorListener { failed, _, _ -> if (player === failed) stop(); true }
+            active.prepareAsync()
+        } catch (error: Exception) { stop(); throw error }
+    }
 }
 
 private fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
@@ -1246,8 +1355,30 @@ private fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
             name = cursor.getString(nameIndex) ?: "attachment"
         }
     }
-    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+    require(isText || mimeType in setOf("image/png", "image/jpeg", "image/webp", "application/pdf")) {
+        "Unsupported file type. Select PNG, JPEG, WebP, PDF or UTF-8 text."
+    }
+    val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
+        val output = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        while (true) {
+            val count = stream.read(buffer)
+            if (count < 0) break
+            require(output.size() + count <= 5 * 1024 * 1024) { "Attachment exceeds the 5 MB limit." }
+            output.write(buffer, 0, count)
+        }
+        output.toByteArray()
+    }
         ?: throw IllegalStateException("Could not read attachment file.")
+    require(bytes.isNotEmpty()) { "The selected file is empty." }
+    if (mimeType.startsWith("image/")) {
+        val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+        require(options.outWidth > 0 && options.outHeight > 0 &&
+            options.outWidth.toLong() * options.outHeight <= 40_000_000) { "Image is invalid or exceeds 40 megapixels." }
+    }
+    if (mimeType == "application/pdf") require(bytes.take(5).toByteArray().toString(Charsets.US_ASCII) == "%PDF-") { "Invalid PDF document." }
+    if (isText) require(!bytes.contains(0)) { "Binary content cannot be attached as text." }
     val data = if (isText) String(bytes, Charsets.UTF_8) else Base64.encodeToString(bytes, Base64.NO_WRAP)
     return ChatAttachment(name = name, mimeType = mimeType, data = data, isText = isText)
 }

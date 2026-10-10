@@ -6,6 +6,13 @@ import org.junit.Test
 
 class AgentRegistryTest {
     @Test
+    fun chatDescriptorsExplicitlyIdentifyPersonas() {
+        AgentRegistry.agents.forEach {
+            assertTrue(it.executionKind.contains("no executable tools"))
+        }
+    }
+
+    @Test
     fun chatOnlyModelDoesNotExposeToolAgents() {
         val supported = AgentRegistry.supportedAgents(setOf(ModelCapability.CHAT)).map { it.id }
         assertTrue("general" in supported)

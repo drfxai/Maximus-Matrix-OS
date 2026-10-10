@@ -50,7 +50,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
         item {
             Text("AI Engine & Token Telemetry", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                "Direct support for Gemini 3.8 Flash, NVIDIA NIM, and 9Router with real-time consumed and remaining token metrics.",
+                "Provider-specific connections with authenticated model discovery and explicitly estimated context metrics.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 lineHeight = 17.sp
@@ -66,7 +66,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Text("Provider Quick Presets", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 Text(
-                    "Switch engines with preset endpoints, context capacity, and optimized agent routing.",
+                    "Select an isolated provider configuration; model availability requires authenticated discovery.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
@@ -77,19 +77,19 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     ProviderPresetChip(
-                        name = "Gemini 3.8 Flash",
+                        name = "Google Gemini",
                         selected = state.provider == LlmProvider.GEMINI,
                         accentColor = Color(0xFF4285F4),
                         onClick = { viewModel.applyProviderPreset(LlmProvider.GEMINI) }
                     )
                     ProviderPresetChip(
-                        name = "9Router Smart",
+                        name = "9Router",
                         selected = state.provider == LlmProvider.ROUTER_9_SMART,
                         accentColor = Color(0xFF00E5FF),
                         onClick = { viewModel.applyProviderPreset(LlmProvider.ROUTER_9_SMART) }
                     )
                     ProviderPresetChip(
-                        name = "9Router Combo",
+                        name = "9Router (server combo)",
                         selected = state.provider == LlmProvider.ROUTER_9_COMBO,
                         accentColor = Color(0xFF7C4DFF),
                         onClick = { viewModel.applyProviderPreset(LlmProvider.ROUTER_9_COMBO) }
@@ -127,14 +127,14 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DataUsage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Token Telemetry & Capacity", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("Token Usage & Estimated Capacity", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                     ) {
                         Text(
-                            text = "${numberFormat.format(metrics.contextCapacity)} context",
+                            text = "${numberFormat.format(metrics.contextCapacity)} estimated limit",
                             color = MaterialTheme.colorScheme.primary,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -150,7 +150,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            "Context Memory Used",
+                            "Estimated Active Context Used",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -178,6 +178,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
+                Text("Turn usage may be estimated when the provider omits usage. Context is a local estimate; provider quota is unavailable.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 // Key Metric Grid: Consumed vs Remaining
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -191,7 +192,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         modifier = Modifier.weight(1f)
                     )
                     StatBox(
-                        title = "REMAINING (CONTEXT)",
+                        title = "EST. CONTEXT LEFT",
                         value = numberFormat.format(metrics.remainingContextTokens),
                         subtext = "Max: ${numberFormat.format(metrics.contextCapacity)}",
                         valueColor = Color(0xFF00E676),
@@ -221,7 +222,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
 
                 if (metrics.remainingBudgetTokens != null) {
                     MetricLine(
-                        "Monthly Token Budget Remaining",
+                        "Local Lifetime Budget Remaining (not provider quota)",
                         "${numberFormat.format(metrics.remainingBudgetTokens)} / ${numberFormat.format(metrics.monthlyTokenBudget)}",
                         if (metrics.remainingBudgetTokens < (metrics.monthlyTokenBudget * 0.15)) MaterialTheme.colorScheme.error
                         else Color(0xFF00E676)
@@ -258,8 +259,8 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 )
                 MetricLine("Engine Provider", state.provider.displayName, MaterialTheme.colorScheme.onSurface)
                 MetricLine("Active Model", state.selectedModel.ifBlank { "None" }, MaterialTheme.colorScheme.onSurface)
-                MetricLine("Model Context Limit", "${numberFormat.format(metrics.contextCapacity)} tokens", MaterialTheme.colorScheme.primary)
-                MetricLine("Compatible Agents", state.supportedAgents.size.toString(), MaterialTheme.colorScheme.onSurface)
+                MetricLine("Estimated Model Context Limit", "${numberFormat.format(metrics.contextCapacity)} tokens", MaterialTheme.colorScheme.primary)
+                MetricLine("Conversational Personas", state.supportedAgents.size.toString(), MaterialTheme.colorScheme.onSurface)
                 MetricLine("Base Endpoint", state.baseUrl.ifBlank { "Default Provider URL" }, MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -270,10 +271,10 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Speed, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Quotas & Budgets", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text("Local Budget Preferences", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 Text(
-                    "Configure local quota alerts for tokens and financial spend tracking.",
+                    "Configure local usage tracking. Provider account quotas are not enforced here.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
@@ -281,7 +282,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     value = tokenBudgetInput,
                     onValueChange = { value -> tokenBudgetInput = value.filter { it.isDigit() }.take(12) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Monthly Token Quota (e.g., 1000000)") },
+                    label = { Text("Local lifetime token budget (e.g., 1000000)") },
                     placeholder = { Text("Leave blank for unlimited") },
                     singleLine = true
                 )
@@ -296,7 +297,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     value = budgetUsd,
                     onValueChange = { value -> budgetUsd = value.filter { it.isDigit() || it == '.' }.take(10) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Monthly USD budget limit") },
+                    label = { Text("USD planning preference (not enforced)") },
                     singleLine = true
                 )
                 Button(

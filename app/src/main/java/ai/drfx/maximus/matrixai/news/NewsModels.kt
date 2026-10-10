@@ -46,6 +46,8 @@ data class HeroNewsStory(
     val aiAnalysis: String,
     val whyItMatters: String,
     val affectedAssets: List<String> = emptyList(),
+    val sourceUrl: String = "",
+    val sourceName: String = "",
     val isBookmarked: Boolean = false
 )
 
@@ -57,7 +59,10 @@ data class NewsArticle(
     val headline: String,
     val summary: String,
     val sentiment: MarketSentiment,
-    val sourceName: String = "Forex Factory",
+    val sourceName: String = "Unavailable",
+    val sourceUrl: String = "",
+    val publishedAtMs: Long? = null,
+    val retrievedAtMs: Long? = null,
     val fullContent: String = "",
     val aiTakeaway: String = ""
 )
@@ -69,6 +74,6 @@ data class NewsIntelligenceUiState(
     val heroStory: HeroNewsStory? = null,
     val articles: List<NewsArticle> = emptyList(),
     val isRefreshing: Boolean = false,
-    val lastUpdatedText: String = "Just now",
+    val lastUpdatedText: String = "Not synchronized",
     val selectedArticleForDetail: NewsArticle? = null
 )
