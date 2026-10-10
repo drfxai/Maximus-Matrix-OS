@@ -44,10 +44,10 @@ class KeyboardLayoutTest {
                 screenshot("mission-keyboard-$cycle.png")
                 assertComposerAboveIme("Mission composer")
                 assertTrue("Home header moved off screen", device.hasObject(By.text("MAXIMUS AI")))
-                assertFalse("Navigation should hide while typing", device.hasObject(By.text("Chat")))
+                assertFalse("Navigation should hide while typing", device.hasObject(By.desc("Neural Brain")))
                 device.pressBack()
                 awaitCondition("Keyboard did not close") { !isImeVisible() }
-                awaitCondition("Navigation did not return") { device.hasObject(By.text("Chat")) }
+                awaitCondition("Navigation did not return") { device.hasObject(By.desc("Neural Brain")) }
                 awaitCondition("Mission composer did not return to the bottom") {
                     val restored = objectWithDescription("Mission composer").visibleBounds
                     kotlin.math.abs(restored.bottom - closed.bottom) <= 8
@@ -61,8 +61,10 @@ class KeyboardLayoutTest {
     @Test fun chatComposerStaysAboveKeyboard() {
         device.executeShellCommand("settings put secure show_ime_with_hard_keyboard 1")
         withLaunchedActivity {
-            phase("chat tab lookup")
-            checkNotNull(device.wait(Until.findObject(By.text("Chat")), 10_000)).click()
+            phase("More navigation lookup")
+            checkNotNull(device.wait(Until.findObject(By.desc("More")), 10_000)).click()
+            phase("chat workspace selection")
+            checkNotNull(device.wait(Until.findObject(By.text("Maximus AI Chat")), 10_000)).click()
             phase("chat input click")
             objectWithDescription("Chat input").click()
             awaitCondition("Chat keyboard did not open") { isImeVisible() }
@@ -72,7 +74,7 @@ class KeyboardLayoutTest {
             assertComposerAboveIme("Chat composer")
             device.pressBack()
             awaitCondition("Chat keyboard did not close") { !isImeVisible() }
-            awaitCondition("Navigation did not return") { device.hasObject(By.text("Matrix")) }
+            awaitCondition("Navigation did not return") { device.hasObject(By.desc("Neural Brain")) }
             assertTrue("Chat text was lost", device.hasObject(By.text("Chat keyboard test")))
         }
     }
