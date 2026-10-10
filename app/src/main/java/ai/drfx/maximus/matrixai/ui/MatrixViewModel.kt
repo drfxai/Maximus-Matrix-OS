@@ -272,10 +272,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun detectApi(baseUrl: String, apiKeyInput: String) {
-        if (_llmState.value.status == ConnectionStatus.DETECTING) return
+        if (_llmState.value.status in setOf(ConnectionStatus.DETECTING, ConnectionStatus.VALIDATING)) return
+        cancelChat()
+        val requestedState = _llmState.value
         validationJob = viewModelScope.launch {
-            val requestedProvider = _llmState.value.provider
-            val key = apiKeyInput.ifBlank { apiStore.resolveCredential(requestedProvider, baseUrl) }
+            val requestedProvider = requestedState.provider
+            var catalogVerified = false
             _llmState.value = _llmState.value.copy(
                 status = ConnectionStatus.DETECTING,
                 statusMessage = "Detecting API protocol, models and agent compatibility..."
@@ -283,6 +285,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             AppLogStore.info("API", "API discovery started")
             appendLlmEvent(MatrixEventType.MODEL_DISCOVERY, "model:discovery", "provider:api", "API discovery started")
             try {
+                val key = apiKeyInput.ifBlank { apiStore.resolveCredential(requestedProvider, baseUrl) }
                 val result = discovery.discover(baseUrl, key, requestedProvider)
                 require(result.provider == requestedProvider || requestedProvider == LlmProvider.UNKNOWN) { "Endpoint protocol differs from selected provider. Select the matching provider and enter its credentials." }
                 val remembered = apiStore.loadModel()
@@ -332,6 +335,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     statusMessage = result.message + " Catalog verified; inference not yet tested.",
                     tokenMetrics = newMetrics
                 )
+                catalogVerified = true
+                if (requestedState.provider != result.provider || requestedState.selectedModel != selectedModel || requestedState.baseUrl != result.baseUrl) createChatSession()
                 _llmState.value = _llmState.value.copy(status = ConnectionStatus.VALIDATING, statusMessage = "Testing authenticated inference…")
                 chatClient.send(
                     ApiConnectionConfig(result.baseUrl, key, result.provider, selectedModel, selectedAgent),
@@ -340,6 +345,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 ).also { probe ->
                     usageStore.record(result.provider, selectedModel, probe.usage)
                     _usage.value = usageStore.summary()
+                    _llmState.value = _llmState.value.copy(tokenMetrics = _llmState.value.tokenMetrics.copy(consumedLifetimeTokens = _usage.value.totalTokens))
                 }
                 _llmState.value = _llmState.value.copy(status = ConnectionStatus.CONNECTED, statusMessage = "Authenticated inference verified for $selectedModel.")
                 AppLogStore.info("API", "API discovery successful: " + result.provider.displayName + " (" + result.models.size + " models)")
@@ -351,11 +357,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
-                // If network fails, keep curated models for the provider so app remains operational
+                // A verified catalog does not make failed inference healthy.
                 _llmState.value = _llmState.value.copy(
-                    status = ConnectionStatus.ERROR,
-                    models = emptyList(),
-                    selectedModel = "",
+                    status = if (catalogVerified) ConnectionStatus.DEGRADED else ConnectionStatus.ERROR,
+                    models = if (catalogVerified) _llmState.value.models else emptyList(),
+                    selectedModel = if (catalogVerified) _llmState.value.selectedModel else "",
                     statusMessage = error.message ?: "API detection failed."
                 )
                 AppLogStore.error("API", error.message ?: "API detection failed")
