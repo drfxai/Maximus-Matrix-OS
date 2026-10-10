@@ -15,6 +15,7 @@ class ApiDiscoveryEngine {
             ?: if (hinted == LlmProvider.UNKNOWN) LlmProvider.OPENAI_COMPATIBLE else hinted
         require(apiKey.isNotBlank()) { "Credentials are required to verify the catalog." }
         EndpointPolicy.validate(base, provider)
+        CredentialPolicy.validate(provider, apiKey)
         cache.get(provider, base, apiKey)?.let { cached ->
             return@execute ApiDiscoveryResult(provider, base, cached, "Cached authenticated catalog (maximum age 5 minutes). Inference has not been tested.")
         }

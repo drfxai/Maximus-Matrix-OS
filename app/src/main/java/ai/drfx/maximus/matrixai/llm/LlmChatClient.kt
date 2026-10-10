@@ -17,6 +17,7 @@ class LlmChatClient {
         onDelta: ((String) -> Unit)? = null
     ): ChatCompletionResult = CancellableHttp.execute {
         EndpointPolicy.validate(config.baseUrl, config.provider)
+        CredentialPolicy.validate(config.provider, config.apiKey)
         require(config.selectedModel.isNotBlank()) { "Select a discovered model before inference." }
         require(history.sumOf { it.content.length.toLong() + (it.attachment?.data?.length ?: 0) } <= AttachmentPolicy.MAX_BYTES * 4L / 3) { "Conversation payload exceeds the safe request limit. Start a new session or remove old attachments." }
         history.forEach { it.attachment?.let { attachment -> AttachmentPolicy.validate(config.provider, attachment) } }
