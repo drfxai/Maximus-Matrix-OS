@@ -15,6 +15,9 @@ class LlmChatClient {
         history: List<ChatMessage>,
         agent: AgentDescriptor
     ): ChatCompletionResult = withContext(Dispatchers.IO) {
+        EndpointPolicy.validate(config.baseUrl, config.provider)
+        require(config.selectedModel.isNotBlank()) { "Select a discovered model before inference." }
+        history.forEach { it.attachment?.let { attachment -> AttachmentPolicy.validate(config.provider, attachment) } }
         val last = history.lastOrNull()
         val audio = last?.attachment?.takeIf { it.mimeType.startsWith("audio/") }
         if (config.provider == LlmProvider.OPENAI && audio != null) {
@@ -37,6 +40,7 @@ class LlmChatClient {
         val boundary = "MaximusVoice" + UUID.randomUUID().toString().replace("-", "")
         val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/audio/transcriptions"
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+            instanceFollowRedirects = false
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 90_000
@@ -47,7 +51,7 @@ class LlmChatClient {
         try {
             connection.outputStream.use { output ->
                 fun write(text: String) = output.write(text.toByteArray(Charsets.UTF_8))
-                write("--$boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-transcribe\r\n")
+                write("--$boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n")
                 write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"voice.m4a\"\r\n")
                 write("Content-Type: audio/m4a\r\n\r\n")
                 output.write(Base64.decode(attachment.data, Base64.DEFAULT))
@@ -56,7 +60,7 @@ class LlmChatClient {
             val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
             val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
             if (connection.responseCode !in 200..299) {
-                throw IllegalStateException("Audio transcription failed (HTTP " + connection.responseCode + ").")
+                throw ProviderRequestException.fromHttp(connection.responseCode)
             }
             return JSONObject(response).optString("text").takeIf { it.isNotBlank() }
                 ?: throw IllegalStateException("Audio transcription returned no text.")
@@ -70,19 +74,8 @@ class LlmChatClient {
         history: List<ChatMessage>,
         agent: AgentDescriptor
     ): ChatCompletionResult {
-        return try {
-            openAiCompatible(config, history, agent)
-        } catch (chatError: Throwable) {
-            if (history.takeLast(30).any { it.attachment != null && !it.attachment.isText }) throw chatError
-            try {
-                openAiResponses(config, history, agent)
-            } catch (responsesError: Throwable) {
-                throw IllegalStateException(
-                    "OpenAI chat failed: " + (chatError.message ?: "unknown") +
-                        " | Responses API failed: " + (responsesError.message ?: "unknown")
-                )
-            }
-        }
+        // Explicit retries belong to the UI. Automatic secondary requests can duplicate costs/actions.
+        return openAiCompatible(config, history, agent)
     }
 
     private fun router9(
@@ -90,39 +83,9 @@ class LlmChatClient {
         history: List<ChatMessage>,
         agent: AgentDescriptor
     ): ChatCompletionResult {
-        val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/chat/completions"
-        val messages = JSONArray()
-            .put(JSONObject().put("role", "system").put("content", agent.systemPrompt))
-        history.takeLast(30).forEach { message ->
-            val attachment = message.attachment
-            val content: Any = if (attachment != null && attachment.mimeType.startsWith("image/") && !attachment.isText) {
-                JSONArray()
-                    .put(JSONObject().put("type", "text").put("text", message.content))
-                    .put(JSONObject().put("type", "image_url").put("image_url",
-                        JSONObject().put("url", "data:${attachment.mimeType};base64,${attachment.data}")))
-            } else textWithFile(message)
-            messages.put(JSONObject().put("role", message.role).put("content", content))
-        }
-        val mode = if (config.provider == LlmProvider.ROUTER_9_COMBO) "combo" else "smart"
-        val body = JSONObject()
-            .put("model", config.selectedModel)
-            .put("messages", messages)
-            .put("temperature", 0.4)
-            .put("stream", false)
-        val headers = mutableMapOf<String, String>()
-        if (config.apiKey.isNotBlank()) {
-            headers["Authorization"] = "Bearer " + config.apiKey
-        }
-        headers["X-Router-Mode"] = mode
-        headers["X-Client-Platform"] = "Android-MaximusMatrix"
-        val json = JSONObject(post(endpoint, body.toString(), headers))
-        val text = json.optJSONArray("choices")
-            ?.optJSONObject(0)
-            ?.optJSONObject("message")
-            ?.optString("content")
-            ?.takeIf { it.isNotBlank() }
-            ?: throw IllegalStateException("9Router returned no assistant message.")
-        return ChatCompletionResult(text, parseOpenAiUsage(json) ?: estimateUsage(history, text))
+        // 9Router deployments expose OpenAI-compatible models, including user-created combos.
+        // No undocumented mode header or invented model alias is sent.
+        return openAiCompatible(config, history, agent)
     }
 
     private fun openAiCompatible(
@@ -266,9 +229,8 @@ class LlmChatClient {
         agent: AgentDescriptor
     ): ChatCompletionResult {
         val root = ApiDiscoveryEngine.geminiRoot(config.baseUrl)
-        val cleanModel = config.selectedModel.removePrefix("models/").ifBlank { "gemini-3.8-flash" }
-        val endpoint = root + "/models/" + cleanModel + ":generateContent?key=" +
-            java.net.URLEncoder.encode(config.apiKey, "UTF-8")
+        val cleanModel = config.selectedModel.removePrefix("models/")
+        val endpoint = root + "/models/" + java.net.URLEncoder.encode(cleanModel, "UTF-8") + ":generateContent"
         val contents = JSONArray()
         history.filter { it.role != "system" }.takeLast(30).forEach { message ->
             val attachment = message.attachment
@@ -290,7 +252,7 @@ class LlmChatClient {
         val body = JSONObject()
             .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", agent.systemPrompt))))
             .put("contents", contents)
-        val json = JSONObject(post(endpoint, body.toString(), emptyMap()))
+        val json = JSONObject(post(endpoint, body.toString(), mapOf("x-goog-api-key" to config.apiKey)))
         val candidates = json.optJSONArray("candidates")
         val parts = candidates?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
         val texts = buildList {
@@ -350,6 +312,7 @@ class LlmChatClient {
 
     private fun post(url: String, body: String, headers: Map<String, String>): String {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            instanceFollowRedirects = false
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 90_000
@@ -370,8 +333,10 @@ class LlmChatClient {
                     ?.ifBlank { root.optJSONObject("error")?.optString("type") }
                     ?.ifBlank { root.optString("message") }
             }.getOrNull()
-            throw IllegalStateException(message?.takeIf { it.isNotBlank() } ?: "HTTP " + code)
+            connection.disconnect()
+            throw ProviderRequestException.fromHttp(code)
         }
+        connection.disconnect()
         return text
     }
 }

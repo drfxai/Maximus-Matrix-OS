@@ -14,6 +14,19 @@ class SecureApiConfigStore(context: Context) {
     private val preferences = context.getSharedPreferences("maximus_secure_api", Context.MODE_PRIVATE)
     private val alias = "maximus_ai_api_key"
 
+    init {
+        // Attribute legacy global credentials only to their recorded owner, never a new selection.
+        if (!preferences.getBoolean("provider_isolation_v2", false)) {
+            val owner = loadProvider()
+            val legacy = preferences.getString("api_key", null)
+            val editor = preferences.edit().remove("api_key").putBoolean("provider_isolation_v2", true)
+            if (!legacy.isNullOrBlank() && !preferences.contains("api_key_" + owner.name)) {
+                editor.putString("api_key_" + owner.name, legacy)
+            }
+            editor.commit()
+        }
+    }
+
     fun save(
         baseUrl: String,
         apiKey: String,
@@ -24,7 +37,13 @@ class SecureApiConfigStore(context: Context) {
         monthlyBudgetUsd: Double = loadMonthlyBudgetUsd(),
         monthlyTokenBudget: Long = loadMonthlyTokenBudget()
     ) {
+        EndpointPolicy.validate(baseUrl, provider)
+        val previousEndpoint = preferences.getString("endpoint_" + provider.name, null)
+        require(previousEndpoint == null || previousEndpoint == baseUrl || apiKey.isNotBlank()) {
+            "Endpoint changed. Re-enter credentials to authorize this provider endpoint."
+        }
         val editor = preferences.edit()
+            .putString("endpoint_" + provider.name, baseUrl)
             .putString("base_url", baseUrl)
             .putString("provider", provider.name)
             .putString("model", model)
@@ -32,7 +51,7 @@ class SecureApiConfigStore(context: Context) {
             .putString("subscription_label", subscriptionLabel)
             .putLong("monthly_budget_bits", java.lang.Double.doubleToRawLongBits(monthlyBudgetUsd))
             .putLong("monthly_token_budget", monthlyTokenBudget)
-        if (apiKey.isNotBlank()) editor.putString("api_key", encrypt(apiKey))
+        if (apiKey.isNotBlank()) editor.putString("api_key_" + provider.name, encrypt(apiKey))
         editor.apply()
     }
 
@@ -48,13 +67,12 @@ class SecureApiConfigStore(context: Context) {
         LlmProvider.valueOf(preferences.getString("provider", LlmProvider.GEMINI.name).orEmpty())
     }.getOrDefault(LlmProvider.GEMINI)
 
-    fun hasApiKey(): Boolean = !preferences.getString("api_key", null).isNullOrBlank()
+    fun hasApiKey(): Boolean = hasKeyForProvider(loadProvider())
 
     fun saveKeyForProvider(provider: LlmProvider, key: String) {
         if (key.isNotBlank()) {
             preferences.edit()
                 .putString("api_key_" + provider.name, encrypt(key))
-                .putString("api_key", encrypt(key))
                 .apply()
         }
     }
@@ -65,19 +83,16 @@ class SecureApiConfigStore(context: Context) {
             val decrypted = runCatching { decrypt(specific) }.getOrDefault("")
             if (decrypted.isNotBlank()) return decrypted
         }
-        return loadApiKey()
+        return ""
     }
 
     fun hasKeyForProvider(provider: LlmProvider): Boolean {
         val specific = preferences.getString("api_key_" + provider.name, null)
         if (!specific.isNullOrBlank()) return true
-        return hasApiKey()
+        return false
     }
 
-    fun loadApiKey(): String {
-        val encrypted = preferences.getString("api_key", null) ?: return ""
-        return runCatching { decrypt(encrypted) }.getOrDefault("")
-    }
+    fun loadApiKey(): String = loadKeyForProvider(loadProvider())
 
     fun clear() {
         preferences.edit().clear().apply()
