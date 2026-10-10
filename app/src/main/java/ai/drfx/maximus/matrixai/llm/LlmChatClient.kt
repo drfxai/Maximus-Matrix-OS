@@ -60,7 +60,7 @@ class LlmChatClient {
                 write("\r\n--$boundary--\r\n")
             }
             val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
-            val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            val response = BoundedApiResponse.read(stream)
             if (connection.responseCode !in 200..299) {
                 throw ProviderRequestException.fromHttp(connection.responseCode)
             }
@@ -375,8 +375,7 @@ class LlmChatClient {
         }
         connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
         val code = connection.responseCode
-        val text = (if (code in 200..299) connection.inputStream else connection.errorStream)
-            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+        val text = BoundedApiResponse.read(if (code in 200..299) connection.inputStream else connection.errorStream)
         if (code !in 200..299) {
             val message = runCatching {
                 val root = JSONObject(text)

@@ -119,8 +119,7 @@ class ApiDiscoveryEngine {
 
     private fun read(connection: HttpURLConnection): String {
         val code = connection.responseCode
-        val text = (if (code in 200..299) connection.inputStream else connection.errorStream)
-            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+        val text = BoundedApiResponse.read(if (code in 200..299) connection.inputStream else connection.errorStream)
         connection.disconnect()
         if (code !in 200..299) {
             throw ProviderRequestException.fromHttp(code)
