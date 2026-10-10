@@ -7,16 +7,22 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class ApiDiscoveryEngine {
-    suspend fun discover(rawBaseUrl: String, apiKey: String, selectedProvider: LlmProvider? = null): ApiDiscoveryResult = withContext(Dispatchers.IO) {
+    private val cache = VerifiedCatalogCache()
+    suspend fun discover(rawBaseUrl: String, apiKey: String, selectedProvider: LlmProvider? = null): ApiDiscoveryResult = CancellableHttp.execute {
         val base = if (selectedProvider == null) resolveBaseUrl(rawBaseUrl, apiKey) else normalizeBaseUrl(rawBaseUrl)
         val hinted = providerFromUrl(base, apiKey)
         val provider = selectedProvider?.takeIf { it != LlmProvider.UNKNOWN }
             ?: if (hinted == LlmProvider.UNKNOWN) LlmProvider.OPENAI_COMPATIBLE else hinted
         require(apiKey.isNotBlank()) { "Credentials are required to verify the catalog." }
         EndpointPolicy.validate(base, provider)
+        cache.get(provider, base, apiKey)?.let { cached ->
+            return@execute ApiDiscoveryResult(provider, base, cached, "Cached authenticated catalog (maximum age 5 minutes). Inference has not been tested.")
+        }
         val models = fetchModels(base, apiKey, provider)
         require(models.isNotEmpty()) { "No chat models were returned by the endpoint." }
-        ApiDiscoveryResult(provider, base, models.map { it.copy(verified = true, capabilities = ModelCapabilityResolver.resolve(provider, it.id)) },
+        val verified = models.map { it.copy(verified = true, capabilities = ModelCapabilityResolver.resolve(provider, it.id)) }
+        cache.put(provider, base, apiKey, verified)
+        ApiDiscoveryResult(provider, base, verified,
             "Authenticated catalog verified (${models.size} models). Inference has not been tested.")
     }
 
@@ -102,7 +108,7 @@ class ApiDiscoveryEngine {
     }
 
     private fun open(url: String, method: String): HttpURLConnection =
-        (URL(url).openConnection() as HttpURLConnection).apply {
+        CancellableHttp.register(URL(url).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = false
             requestMethod = method
             connectTimeout = 10_000

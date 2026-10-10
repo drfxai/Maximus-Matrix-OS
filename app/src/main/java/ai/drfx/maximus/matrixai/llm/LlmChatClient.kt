@@ -14,7 +14,7 @@ class LlmChatClient {
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
         agent: AgentDescriptor
-    ): ChatCompletionResult = withContext(Dispatchers.IO) {
+    ): ChatCompletionResult = CancellableHttp.execute {
         EndpointPolicy.validate(config.baseUrl, config.provider)
         require(config.selectedModel.isNotBlank()) { "Select a discovered model before inference." }
         require(history.sumOf { it.content.length.toLong() + (it.attachment?.data?.length ?: 0) } <= AttachmentPolicy.MAX_BYTES * 4L / 3) { "Conversation payload exceeds the safe request limit. Start a new session or remove old attachments." }
@@ -24,7 +24,7 @@ class LlmChatClient {
         if (config.provider == LlmProvider.OPENAI && audio != null) {
             val transcript = transcribeOpenAi(config, audio)
             val textHistory = history.dropLast(1) + requireNotNull(last).copy(content = transcript, attachment = null)
-            return@withContext openAiWithFallback(config, textHistory, agent).copy(transcript = transcript)
+            return@execute openAiWithFallback(config, textHistory, agent).copy(transcript = transcript)
         }
         when (config.provider) {
             LlmProvider.GEMINI -> gemini(config, history, agent)
@@ -40,7 +40,7 @@ class LlmChatClient {
     private fun transcribeOpenAi(config: ApiConnectionConfig, attachment: ChatAttachment): String {
         val boundary = "MaximusVoice" + UUID.randomUUID().toString().replace("-", "")
         val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/audio/transcriptions"
-        val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+        val connection = CancellableHttp.register(URL(endpoint).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = false
             requestMethod = "POST"
             connectTimeout = 15_000
@@ -312,7 +312,7 @@ class LlmChatClient {
     }
 
     private fun post(url: String, body: String, headers: Map<String, String>): String {
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+        val connection = CancellableHttp.register(URL(url).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = false
             requestMethod = "POST"
             connectTimeout = 15_000

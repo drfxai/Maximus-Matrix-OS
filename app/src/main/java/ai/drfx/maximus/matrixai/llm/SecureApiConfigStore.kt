@@ -20,6 +20,8 @@ class SecureApiConfigStore(context: Context) {
             val owner = loadProvider()
             val legacy = preferences.getString("api_key", null)
             val editor = preferences.edit().remove("api_key").putBoolean("provider_isolation_v2", true)
+            preferences.getString("base_url", null)?.takeIf { it.isNotBlank() }?.let { editor.putString("endpoint_" + owner.name, ApiDiscoveryEngine.normalizeBaseUrl(it)) }
+            preferences.getString("model", null)?.let { editor.putString("model_" + owner.name, it) }
             if (!legacy.isNullOrBlank() && !preferences.contains("api_key_" + owner.name)) {
                 editor.putString("api_key_" + owner.name, legacy)
             }
@@ -37,13 +39,15 @@ class SecureApiConfigStore(context: Context) {
         monthlyBudgetUsd: Double = loadMonthlyBudgetUsd(),
         monthlyTokenBudget: Long = loadMonthlyTokenBudget()
     ) {
-        EndpointPolicy.validate(baseUrl, provider)
+        if (baseUrl.isNotBlank()) EndpointPolicy.validate(baseUrl, provider)
+        else require(apiKey.isBlank()) { "Set a trusted HTTPS endpoint before saving credentials." }
         val previousEndpoint = preferences.getString("endpoint_" + provider.name, null)
-        require(previousEndpoint == null || previousEndpoint == baseUrl || apiKey.isNotBlank()) {
+        require(baseUrl.isBlank() || previousEndpoint == null || previousEndpoint == ApiDiscoveryEngine.normalizeBaseUrl(baseUrl) || apiKey.isNotBlank()) {
             "Endpoint changed. Re-enter credentials to authorize this provider endpoint."
         }
         val editor = preferences.edit()
-            .putString("endpoint_" + provider.name, baseUrl)
+            .putString("endpoint_" + provider.name, baseUrl.takeIf { it.isNotBlank() }?.let { ApiDiscoveryEngine.normalizeBaseUrl(it) } ?: previousEndpoint)
+            .putString("model_" + provider.name, model)
             .putString("base_url", baseUrl)
             .putString("provider", provider.name)
             .putString("model", model)
@@ -53,6 +57,17 @@ class SecureApiConfigStore(context: Context) {
             .putLong("monthly_token_budget", monthlyTokenBudget)
         if (apiKey.isNotBlank()) editor.putString("api_key_" + provider.name, encrypt(apiKey))
         editor.apply()
+    }
+
+    fun loadBaseUrlForProvider(provider: LlmProvider): String = preferences.getString("endpoint_" + provider.name, null) ?: provider.defaultBaseUrl
+    fun loadModelForProvider(provider: LlmProvider): String = preferences.getString("model_" + provider.name, null) ?: provider.defaultModel
+
+    /** Re-entering a key is required to authorize any custom endpoint change. */
+    fun resolveCredential(provider: LlmProvider, endpoint: String): String {
+        if (endpoint.isBlank()) return ""
+        EndpointPolicy.validate(endpoint, provider)
+        val trusted = preferences.getString("endpoint_" + provider.name, null) ?: return ""
+        return if (ApiDiscoveryEngine.normalizeBaseUrl(endpoint) == ApiDiscoveryEngine.normalizeBaseUrl(trusted)) loadKeyForProvider(provider) else ""
     }
 
     fun loadBaseUrl(): String = preferences.getString("base_url", "").orEmpty()
