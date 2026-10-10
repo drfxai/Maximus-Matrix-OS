@@ -511,6 +511,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         _llmState.value = current.copy(isGenerating = true, statusMessage = if (selectedContext.omittedMessages > 0) "Older context omitted to fit the estimated limit; no automatic summary." else current.statusMessage)
 
         chatJob = viewModelScope.launch {
+            try {
             chatRepository.saveMessage(
                 ChatMessageEntity(
                     sessionId = requestSessionId,
@@ -531,7 +532,6 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
         AppLogStore.info("CHAT", "Request started provider=" + current.provider.name + " model=" + current.selectedModel + " agent=" + selectedAgent.id)
 
-            try {
                 val config = ApiConnectionConfig(
                     baseUrl = current.baseUrl,
                     apiKey = apiStore.resolveCredential(current.provider, current.baseUrl),
@@ -561,6 +561,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     chatRepository.updateMessageContent(requestSessionId, userMessage.timestampMs, "user", result.transcript)
                 }
+                if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 val assistantMessage = ChatMessage(role = "assistant", content = result.text)
                 streamingTimestamp?.let { t -> _chatMessages.value = _chatMessages.value.filterNot { it.role == "assistant" && it.timestampMs == t } }
                 streamingTimestamp = null
@@ -575,6 +576,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     )
                 )
 
+                if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 usageStore.record(current.provider, current.selectedModel, result.usage)
                 val summary = usageStore.summary()
                 _usage.value = summary
@@ -619,6 +621,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 streamingTimestamp?.let { t -> _chatMessages.value = _chatMessages.value.filterNot { it.role == "assistant" && it.timestampMs == t } }
                 streamingTimestamp = null
+                if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 AppLogStore.error("CHAT", error.message ?: "The model request failed.")
                 appendAssistantError(error.message ?: "The model request failed.")
                 _llmState.value = _llmState.value.copy(isGenerating = false, status = ConnectionStatus.DEGRADED, statusMessage = error.message ?: "Inference failed")
@@ -659,6 +662,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             _chatMessages.value = entities.map { e -> ChatMessage(e.role,
                 e.content + if (e.attachmentName != null) "\n[Attachment unavailable after restart: ${e.attachmentName}; reattach to resend.]" else "",
                 e.timestampMs, e.isError, fromVoice = e.fromVoice) }
+            val state = _llmState.value
+            val estimate = ChatContextPolicy.bounded(_chatMessages.value, state.tokenMetrics.contextCapacity).estimatedTokens
+            _llmState.value = state.copy(tokenMetrics = state.tokenMetrics.copy(consumedSessionTokens = 0, consumedTurnTotalTokens = 0, consumedTurnInputTokens = 0, consumedTurnOutputTokens = 0, remainingContextTokens = (state.tokenMetrics.contextCapacity - estimate).coerceAtLeast(0), contextUsagePercent = estimate.toFloat() / state.tokenMetrics.contextCapacity.coerceAtLeast(1)))
             historyReady = true
         }
     }
@@ -701,6 +707,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
     fun clearChat() {
         cancelChat()
+        restoreJob?.cancel()
+        historyReady = true
         val sessionId = _activeChatSessionId.value
         _chatMessages.value = emptyList()
         val current = _llmState.value
@@ -794,10 +802,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             isError = true
         )
         _chatMessages.value = _chatMessages.value + errorMsg
+        val sessionId = _activeChatSessionId.value
         viewModelScope.launch {
             chatRepository.saveMessage(
                 ChatMessageEntity(
-                    sessionId = _activeChatSessionId.value,
+                    sessionId = sessionId,
                     role = "assistant",
                     content = message,
                     isError = true,

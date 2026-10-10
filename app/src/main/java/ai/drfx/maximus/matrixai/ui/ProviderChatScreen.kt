@@ -795,7 +795,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         selected = state.provider == LlmProvider.ROUTER_9_SMART,
                         onClick = {
                             viewModel.applyProviderPreset(LlmProvider.ROUTER_9_SMART)
-                            baseUrl = LlmProvider.ROUTER_9_SMART.defaultBaseUrl
+                            baseUrl = viewModel.llmState.value.baseUrl
                         },
                         label = { Text("9Router Smart", fontSize = 11.sp) }
                     )
@@ -803,7 +803,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         selected = state.provider == LlmProvider.ROUTER_9_COMBO,
                         onClick = {
                             viewModel.applyProviderPreset(LlmProvider.ROUTER_9_COMBO)
-                            baseUrl = LlmProvider.ROUTER_9_COMBO.defaultBaseUrl
+                            baseUrl = viewModel.llmState.value.baseUrl
                         },
                         label = { Text("9Router Combo", fontSize = 11.sp) }
                     )
@@ -815,6 +815,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         },
                         label = { Text("NVIDIA NIM", fontSize = 11.sp) }
                     )
+                    listOf(LlmProvider.ANTHROPIC, LlmProvider.OPENAI_COMPATIBLE).forEach { provider ->
+                        FilterChip(selected = state.provider == provider,
+                            onClick = { viewModel.applyProviderPreset(provider); baseUrl = viewModel.llmState.value.baseUrl },
+                            label = { Text(provider.displayName, fontSize = 11.sp) })
+                    }
                     FilterChip(
                         selected = state.provider == LlmProvider.OPENAI,
                         onClick = {
