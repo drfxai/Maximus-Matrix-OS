@@ -1,7 +1,7 @@
 package ai.drfx.maximus.matrixai.agent
 
 import android.content.Context
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 
 class MaximusMatrixAgent(
     context: Context,
@@ -17,7 +17,6 @@ class MaximusMatrixAgent(
         emit(mission, MatrixEventType.MISSION_ACCEPTED, "agent:maximus", "mission:${mission.id}", mission.objective)
         return try {
             emit(mission, MatrixEventType.MEMORY_RECALLED, "memory:core", "agent:maximus", "Mission context prepared")
-            delay(80)
             val steps = planner.plan(mission)
             emit(mission, MatrixEventType.PLAN_CREATED, "planner:core", "agent:maximus", "Plan contains ${steps.size} steps")
             for (step in steps) {
@@ -38,10 +37,12 @@ class MaximusMatrixAgent(
                 }
                 emit(mission, MatrixEventType.VALIDATION_PASSED, "validation:lab", "artifact:registry", "Outcome validated")
             }
-            emit(mission, MatrixEventType.ARTIFACT_CREATED, "artifact:registry", "mission:${mission.id}", "Mission evidence bundle committed")
+            emit(mission, MatrixEventType.VALIDATION_PASSED, "artifact:registry", "mission:${mission.id}", "Mission event evidence emitted (not persisted)")
             emit(mission, MatrixEventType.MISSION_COMPLETED, "agent:maximus", "mission:${mission.id}", "Mission completed successfully")
             MissionResult(mission.id, true, "Mission completed successfully.")
-        } catch (error: Throwable) {
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
             fail(mission, error.message ?: "Unhandled agent failure")
         }
     }

@@ -23,6 +23,8 @@ internal class VoiceMessageRecorder(private val context: Context) {
             mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             mediaRecorder.setAudioEncodingBitRate(64_000)
             mediaRecorder.setAudioSamplingRate(16_000)
+            mediaRecorder.setMaxDuration(60_000)
+            mediaRecorder.setMaxFileSize(3L * 1024 * 1024)
             mediaRecorder.setOutputFile(file.absolutePath)
             mediaRecorder.prepare()
             mediaRecorder.start()
@@ -44,13 +46,14 @@ internal class VoiceMessageRecorder(private val context: Context) {
         return try {
             active.stop()
             active.release()
+            require(file.length() in 1..3L * 1024 * 1024) { "The voice message is empty or over 3 MB." }
             val bytes = file.readBytes()
             require(bytes.isNotEmpty() && bytes.size <= 3 * 1024 * 1024) {
                 "The voice message is empty or over 3 MB."
             }
             ChatAttachment(
                 name = "Voice message.m4a",
-                mimeType = "audio/m4a",
+                mimeType = "audio/mp4",
                 data = Base64.encodeToString(bytes, Base64.NO_WRAP),
                 isText = false,
                 durationMs = (SystemClock.elapsedRealtime() - startedAtMs).coerceAtLeast(0)

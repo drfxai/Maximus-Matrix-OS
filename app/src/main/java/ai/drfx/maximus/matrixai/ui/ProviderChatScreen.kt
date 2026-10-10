@@ -408,7 +408,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
                                 Text(
-                                    "Agent is generating response with ${state.provider.displayName}…",
+                                    "Persona is generating response with ${state.provider.displayName}…",
                                     color = MaterialTheme.colorScheme.primary,
                                     fontSize = 11.sp
                                 )
@@ -419,6 +419,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }
         }
 
+        if (state.isGenerating) {
+            TextButton(onClick = { viewModel.cancelChat() }) { Text("Stop generation") }
+        }
         if (attachment != null) {
             AssistChip(
                 onClick = { attachment = null },
@@ -472,7 +475,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Chat input" },
                     maxLines = 3,
                     enabled = !recording,
-                    placeholder = { Text("Message the selected agent…", fontSize = 13.sp) },
+                    placeholder = { Text("Message the selected persona…", fontSize = 13.sp) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { send() }),
                     shape = RoundedCornerShape(12.dp)
@@ -844,7 +847,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Model & Agent Selection", fontWeight = FontWeight.SemiBold)
+                                    Text("Model & Persona Selection", fontWeight = FontWeight.SemiBold)
                                     Box(Modifier.fillMaxWidth()) {
                                         OutlinedButton(
                                             onClick = { modelExpanded = true },
@@ -894,7 +897,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                         ) {
                                             state.supportedAgents.forEach { agent ->
                                                 DropdownMenuItem(
-                                                    text = { Text(agent.name) },
+                                                    text = { Text(agent.name + " · persona") },
                                                     onClick = {
                                                         viewModel.selectAgent(agent.id)
                                                         agentExpanded = false
@@ -1224,16 +1227,23 @@ private fun ChatBubble(message: ChatMessage, onSpeak: () -> Unit, onPlayVoice: (
 }
 
 private fun playVoiceMessage(context: Context, attachment: ChatAttachment) {
+    require(attachment.data.isNotBlank() && attachment.data.length <= 4 * 1024 * 1024) {
+        "Voice payload is unavailable or exceeds the playback limit."
+    }
     val tempFile = File.createTempFile("matrix_voice_play_", ".m4a", context.cacheDir)
-    FileOutputStream(tempFile).use { it.write(Base64.decode(attachment.data, Base64.DEFAULT)) }
     val player = MediaPlayer()
-    player.setDataSource(tempFile.absolutePath)
-    player.prepare()
-    player.setOnCompletionListener {
+    try {
+        FileOutputStream(tempFile).use { it.write(Base64.decode(attachment.data, Base64.DEFAULT)) }
+        player.setDataSource(tempFile.absolutePath)
+        player.setOnCompletionListener { player.release(); tempFile.delete() }
+        player.setOnErrorListener { _, _, _ -> player.release(); tempFile.delete(); true }
+        player.prepare()
+        player.start()
+    } catch (error: Exception) {
         player.release()
         tempFile.delete()
+        throw error
     }
-    player.start()
 }
 
 private fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
@@ -1246,8 +1256,30 @@ private fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
             name = cursor.getString(nameIndex) ?: "attachment"
         }
     }
-    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+    require(isText || mimeType in setOf("image/png", "image/jpeg", "image/webp", "application/pdf")) {
+        "Unsupported file type. Select PNG, JPEG, WebP, PDF or UTF-8 text."
+    }
+    val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
+        val output = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        while (true) {
+            val count = stream.read(buffer)
+            if (count < 0) break
+            require(output.size() + count <= 5 * 1024 * 1024) { "Attachment exceeds the 5 MB limit." }
+            output.write(buffer, 0, count)
+        }
+        output.toByteArray()
+    }
         ?: throw IllegalStateException("Could not read attachment file.")
+    require(bytes.isNotEmpty()) { "The selected file is empty." }
+    if (mimeType.startsWith("image/")) {
+        val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+        require(options.outWidth > 0 && options.outHeight > 0 &&
+            options.outWidth.toLong() * options.outHeight <= 40_000_000) { "Image is invalid or exceeds 40 megapixels." }
+    }
+    if (mimeType == "application/pdf") require(bytes.take(5).toByteArray().toString(Charsets.US_ASCII) == "%PDF-") { "Invalid PDF document." }
+    if (isText) require(!bytes.contains(0)) { "Binary content cannot be attached as text." }
     val data = if (isText) String(bytes, Charsets.UTF_8) else Base64.encodeToString(bytes, Base64.NO_WRAP)
     return ChatAttachment(name = name, mimeType = mimeType, data = data, isText = isText)
 }

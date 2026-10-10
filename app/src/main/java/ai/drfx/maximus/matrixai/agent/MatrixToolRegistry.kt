@@ -7,7 +7,13 @@ class MatrixToolRegistry(context: Context) {
     private val capabilities = AndroidCapabilities(context)
     private val notes = mutableListOf<String>()
 
-    suspend fun execute(action: AgentAction): ToolOutcome = when (action.tool) {
+    suspend fun execute(action: AgentAction, confirmed: Boolean = false): ToolOutcome {
+        val decision = MatrixPolicyEngine().evaluate(action)
+        if (decision == PolicyDecision.DENY) return ToolOutcome(false, "Action denied by policy.")
+        if (decision == PolicyDecision.REQUIRE_CONFIRMATION && !confirmed) {
+            return ToolOutcome(false, "Explicit user confirmation is required before execution.")
+        }
+        return when (action.tool) {
         "system_status", "device_info" -> capabilities.deviceInfo()
         "web_search" -> capabilities.webSearch(action.arguments["query"].orEmpty())
         "open_url" -> capabilities.openUrl(action.arguments["url"].orEmpty())
@@ -24,11 +30,7 @@ class MatrixToolRegistry(context: Context) {
         "share_text" -> capabilities.shareText(action.arguments["text"].orEmpty())
         "copy_clipboard" -> capabilities.copyToClipboard(action.arguments["text"].orEmpty())
         "open_app" -> capabilities.launchPackage(action.arguments["package"].orEmpty())
-        "knowledge_lookup" -> ToolOutcome(
-            true,
-            "Local knowledge request accepted for: ${action.arguments["query"].orEmpty()}",
-            mapOf("source" to "device-runtime", "mode" to "local")
-        )
+        "knowledge_lookup" -> ToolOutcome(false, "No indexed knowledge lookup is configured.")
         "create_note" -> {
             val text = action.arguments["text"].orEmpty().trim()
             if (text.isBlank()) ToolOutcome(false, "A note requires non-empty text.")
@@ -37,11 +39,8 @@ class MatrixToolRegistry(context: Context) {
                 ToolOutcome(true, "Note stored in mission memory.", mapOf("noteCount" to notes.size.toString()))
             }
         }
-        "validate_strategy" -> ToolOutcome(
-            true,
-            "Static validation request registered. TradingView runtime execution was not claimed.",
-            mapOf("validation" to "static", "authoritativeRuntime" to "false")
-        )
+        "validate_strategy" -> ToolOutcome(false, "No strategy validator is configured; no checks were executed.")
         else -> ToolOutcome(false, "Unknown tool: ${action.tool}")
+    }
     }
 }
