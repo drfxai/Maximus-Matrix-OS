@@ -98,7 +98,7 @@ class KeyboardLayoutTest {
     }
 
     private fun dumpFailureState() {
-        runCatching {
+        runCatching<Unit> {
             withResumedActivity { activity ->
                 val insets = ViewCompat.getRootWindowInsets(activity.window.decorView)
                 phase("Failure insets: imeVisible=" + insets?.isVisible(WindowInsetsCompat.Type.ime()) +
@@ -109,7 +109,12 @@ class KeyboardLayoutTest {
             hierarchy.toString("UTF-8").take(180_000).chunked(2800).forEachIndexed { index, chunk ->
                 phase("Failure hierarchy[$index]: $chunk")
             }
-            screenshot("failure-state.png")
+            val file = java.io.File(
+                instrumentation.targetContext.getExternalFilesDir(null),
+                "failure-state.png"
+            )
+            check(device.takeScreenshot(file)) { "Unable to save failure screenshot" }
+            phase("Failure screenshot saved: ${file.absolutePath}")
         }.onFailure { phase("Failure diagnostics unavailable: " + it.javaClass.simpleName) }
     }
 
