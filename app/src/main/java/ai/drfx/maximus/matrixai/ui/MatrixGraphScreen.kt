@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Paint
 import android.speech.RecognizerIntent
 import android.os.SystemClock
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
@@ -16,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -113,6 +115,19 @@ fun MatrixGraphScreen(
 ) {
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    // Honor Android's reduced-motion setting. A static scene avoids expensive
+    // frame-by-frame graph updates while animations are disabled system-wide.
+    val appContext = LocalContext.current
+    val motionEnabled = remember(appContext) {
+        runCatching {
+            Settings.Global.getFloat(
+                appContext.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f
+            ) > 0f
+        }.getOrDefault(true)
+    }
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val light = MaterialTheme.colorScheme.background.luminance() > .5f
     val bg = if (light) Color(0xFFF4F7FA) else Color(0xFF050608)
     val panelColor = if (light) Color(0xF5FFFFFF) else Color(0xF5101217)
@@ -188,7 +203,9 @@ fun MatrixGraphScreen(
         lastTouch = SystemClock.uptimeMillis()
     }
     val owner = LocalLifecycleOwner.current
-    LaunchedEffect(owner, autoRotate) {
+    LaunchedEffect(owner, autoRotate, motionEnabled, keyboardVisible) {
+        // Pause the costly orbit when users reduce motion or start entering text.
+        if (!motionEnabled || keyboardVisible) return@LaunchedEffect
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             var previous = 0L
             while (isActive) {
