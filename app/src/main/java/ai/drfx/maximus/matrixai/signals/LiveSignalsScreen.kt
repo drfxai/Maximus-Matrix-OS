@@ -856,7 +856,7 @@ private fun SignalDetailSheet(
 
             Spacer(Modifier.height(14.dp))
 
-            Text("Originating Agent", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text("Signal Source", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             Text(
                 signal.authorAgent,
                 color = MaterialTheme.colorScheme.primary,

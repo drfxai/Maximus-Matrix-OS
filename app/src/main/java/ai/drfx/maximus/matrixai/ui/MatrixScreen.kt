@@ -21,6 +21,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.unit.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,7 +38,7 @@ private enum class Destination(val label: String) {
     VISION("Vision"),
     NEWS("News"),
     CHAT("Chat"),
-    AGENTS("Agents"),
+    AGENTS("Personas"),
     DATA("Data"),
     CONTROL("Control")
 }
@@ -49,9 +52,9 @@ fun MatrixScreen(
 ) {
     var destination by remember { mutableStateOf(Destination.MATRIX) }
     var showMoreSheet by remember { mutableStateOf(false) }
-    val isImeVisible = WindowInsets.isImeVisible
+    val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
-    BackHandler(enabled = destination != Destination.MATRIX) {
+    BackHandler(enabled = destination != Destination.MATRIX && !isImeVisible) {
         destination = Destination.MATRIX
     }
 
@@ -72,7 +75,7 @@ fun MatrixScreen(
         bottomBar = {
             if (!isImeVisible) {
                 NavigationBar(
-                    modifier = Modifier.testTag("main_navigation_bar"),
+                    modifier = Modifier.testTag("main_navigation_bar").semantics { contentDescription = "Main navigation" },
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 2.dp
                 ) {
@@ -101,7 +104,7 @@ fun MatrixScreen(
                             }
                         },
                         label = { Text("Brain", fontWeight = if (isMatrixSelected) FontWeight.Bold else FontWeight.Normal) },
-                        modifier = Modifier.testTag("nav_item_matrix")
+                        modifier = Modifier.testTag("nav_item_matrix").semantics { contentDescription = "Neural Brain" }
                     )
 
                     val isSignalsSelected = destination == Destination.SIGNALS
@@ -191,7 +194,7 @@ fun MatrixScreen(
                     }
                     val moreLabel: String = when (destination) {
                         Destination.CHAT -> "Chat"
-                        Destination.AGENTS -> "Agents"
+                        Destination.AGENTS -> "Personas"
                         Destination.DATA -> "Data"
                         Destination.CONTROL -> "Control"
                         else -> "More"
@@ -213,7 +216,7 @@ fun MatrixScreen(
                             )
                         },
                         label = { Text(moreLabel, fontWeight = if (isSubDestination) FontWeight.Bold else FontWeight.Normal) },
-                        modifier = Modifier.testTag("nav_item_more")
+                        modifier = Modifier.testTag("nav_item_more").semantics { contentDescription = moreLabel }
                     )
                 }
             }
@@ -349,8 +352,8 @@ fun MatrixScreen(
                 )
 
                 WorkspaceItemRow(
-                    title = "Agent Factory",
-                    subtitle = "Autonomous quant agents, planners & validation lab",
+                    title = "Persona Catalog",
+                    subtitle = "Research personas, planning & validation lab",
                     icon = Icons.Default.Person,
                     accentColor = Color(0xFF38C79B),
                     isSelected = destination == Destination.AGENTS,

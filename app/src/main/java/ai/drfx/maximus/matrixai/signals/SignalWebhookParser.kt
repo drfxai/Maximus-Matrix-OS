@@ -188,7 +188,7 @@ object SignalWebhookParser {
             json.has("rationale") -> json.optString("rationale")
             json.has("comment") -> json.optString("comment")
             json.has("message") -> json.optString("message")
-            else -> "Executed via dedicated Webhook listener from $authorAgent with verified entry and target geometry."
+            else -> "Received via dedicated Webhook listener from $authorAgent with verified entry and target geometry."
         }
 
         // Win probability / Confidence

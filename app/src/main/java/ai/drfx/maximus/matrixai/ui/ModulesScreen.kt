@@ -24,8 +24,8 @@ private data class ModuleItem(
 @Composable
 fun ModulesScreen(modifier: Modifier = Modifier) {
     val modules = listOf(
-        ModuleItem("Maximus News Intelligence", "Forex Factory AI Agent", "Live market catalysts, macro analysis, Forex Factory calendar events & multi-asset sentiment.", "ACTIVE", Color(0xFFB388FF)),
-        ModuleItem("Maximus AI Chart Vision", "Gemini 3.8 Multimodal Radar", "Screenshot chart ingestion, dynamic trendline detection, pattern recognition & trade setups.", "ACTIVE", Color(0xFF00E676)),
+        ModuleItem("Maximus News Intelligence", "Market Sources", "News and calendar data are unavailable until a verified source is configured.", "SOURCE REQUIRED", Color(0xFFB388FF)),
+        ModuleItem("Maximus AI Chart Vision", "Gemini Vision", "Chart image analysis when a compatible Gemini connection is verified.", "CONNECTION REQUIRED", Color(0xFF00E676)),
         ModuleItem("Maximus Control Plane", "AI Ops Hub", "Provider routing, policy, tools, observability and usage control.", "ACTIVE", Color(0xFF4C9EFF)),
         ModuleItem("Maximus Mission Control", "AI Ops Hub Mission Control", "Mission planning, execution paths, approvals and runtime events.", "ACTIVE", Color(0xFF35B98E)),
         ModuleItem("Maximus Intelligence Foundry", "DrFXAi Intelligence Foundry", "Ingestion, sanitization, metadata, classification and lineage.", "FOUNDATION", Color(0xFF299AAF)),
@@ -33,7 +33,7 @@ fun ModulesScreen(modifier: Modifier = Modifier) {
         ModuleItem("Maximus Research Engine", "DrFXAi Research OS", "Research missions, experiments, evidence and failure memory.", "FOUNDATION", Color(0xFF7D5DD1)),
         ModuleItem("Maximus Trading Genome", "DrFXAi Trading Genome", "Indicator DNA, Strategy DNA and reusable trading primitives.", "FOUNDATION", Color(0xFFD09414)),
         ModuleItem("Maximus Quant Lab", "DrFXAi Quant Lab", "OOS, walk-forward, stress, sensitivity and backtest architecture.", "REQUIRES DATA", Color(0xFF299AAF)),
-        ModuleItem("Maximus Agent Factory", "DrFXAi Agent Factory", "Capability-gated agent registry, selection and lifecycle.", "ACTIVE", Color(0xFF35B98E))
+        ModuleItem("Maximus Persona Catalog", "DrFXAi Persona Catalog", "Conversational personas for research, planning and writing.", "ACTIVE", Color(0xFF35B98E))
     )
     LazyColumn(
         modifier = modifier.fillMaxSize(),

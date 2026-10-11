@@ -26,9 +26,9 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text("Agent Factory", style = MaterialTheme.typography.headlineSmall)
+            Text("Persona Catalog", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Agents are enabled only when the selected API model exposes the capabilities they require.",
+                "Personas are available when the selected model supports their required conversation features.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 lineHeight = 17.sp
@@ -89,7 +89,7 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
                     if (supported) {
                         Spacer(Modifier.height(9.dp))
                         OutlinedButton(onClick = { viewModel.selectAgent(agent.id) }) {
-                            Text(if (state.selectedAgentId == agent.id) "Selected" else "Use Agent")
+                            Text(if (state.selectedAgentId == agent.id) "Selected" else "Use Persona")
                         }
                     }
                 }
