@@ -54,6 +54,18 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # Run UI/IME tests in a fresh emulator rather than after credential/Room tests.
+    # Both suites must pass before any signed build can be published.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: credentials-and-history
+            test_classes: ai.drfx.maximus.matrixai.ProviderCredentialIsolationTest,ai.drfx.maximus.matrixai.database.ChatPersistenceTest
+          - suite: keyboard
+            test_classes: ai.drfx.maximus.matrixai.ui.KeyboardLayoutTest
+    env:
+      ANDROID_TEST_CLASSES: ${{ matrix.test_classes }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -84,7 +96,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: emulator-smoke-evidence
+          name: emulator-smoke-evidence-${{ matrix.suite }}
           path: |
             app/build/reports/androidTests/
             keyboard-check/
