@@ -13,16 +13,10 @@ object ModelCapabilityResolver {
                 capabilities += ModelCapability.VISION
                 capabilities += ModelCapability.LONG_CONTEXT
                 capabilities += ModelCapability.STRUCTURED_OUTPUT
-                // Gemini 3.8 Flash, 3.5 Flash, 3.1 Pro, etc. all feature advanced reasoning
                 capabilities += ModelCapability.REASONING
             }
             LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> {
-                // 9Router dynamically synthesizes and routes across top frontier models
-                capabilities += ModelCapability.TOOLS
-                capabilities += ModelCapability.VISION
-                capabilities += ModelCapability.LONG_CONTEXT
-                capabilities += ModelCapability.STRUCTURED_OUTPUT
-                capabilities += ModelCapability.REASONING
+                // Model IDs alone do not verify 9Router-specific multimodal capabilities.
             }
             LlmProvider.NVIDIA -> {
                 if (id.contains("llama") || id.contains("qwen") || id.contains("mistral") || id.contains("nemotron") || id.contains("gpt-oss")) {

@@ -25,12 +25,11 @@ class GeminiAnd9RouterSupportTest {
     }
 
     @Test
-    fun geminiDefaultCatalogContainsGemini38FlashFirst() {
+    fun geminiOfflineSuggestionsAreLabeledUnverified() {
         val catalog = ApiDiscoveryEngine.defaultCatalog(LlmProvider.GEMINI)
         assertTrue(catalog.isNotEmpty())
-        assertEquals("gemini-3.8-flash", catalog.first().id)
-        assertTrue(catalog.any { it.id == "gemini-3.5-flash" })
-        assertTrue(catalog.any { it.id == "gemini-3.1-pro-preview" })
+        assertEquals("gemini-2.5-flash", catalog.first().id)
+        assertTrue(catalog.all { it.displayName.startsWith("Suggestion, unverified:") })
     }
 
     @Test
@@ -38,15 +37,12 @@ class GeminiAnd9RouterSupportTest {
         val smartCatalog = ApiDiscoveryEngine.defaultCatalog(LlmProvider.ROUTER_9_SMART)
         val comboCatalog = ApiDiscoveryEngine.defaultCatalog(LlmProvider.ROUTER_9_COMBO)
 
-        assertTrue(smartCatalog.isNotEmpty())
-        assertTrue(comboCatalog.isNotEmpty())
-        assertEquals("9router-smart-auto", smartCatalog.first().id)
-        assertEquals("9router-combo-synthesis", comboCatalog.first().id)
+        assertTrue(smartCatalog.isEmpty())
+        assertTrue(comboCatalog.isEmpty())
 
         val smartCaps = ModelCapabilityResolver.resolve(LlmProvider.ROUTER_9_SMART, "9router-smart-auto")
         assertTrue(ModelCapability.CHAT in smartCaps)
-        assertTrue(ModelCapability.REASONING in smartCaps)
-        assertTrue(ModelCapability.TOOLS in smartCaps)
+        assertEquals(setOf(ModelCapability.CHAT), smartCaps)
 
         assertTrue(LlmProvider.ROUTER_9_SMART.isNineRouter)
         assertTrue(LlmProvider.ROUTER_9_COMBO.isNineRouter)
@@ -77,12 +73,12 @@ class GeminiAnd9RouterSupportTest {
         val nvidiaPreset = LlmProvider.NVIDIA
         val router9Preset = LlmProvider.ROUTER_9_SMART
 
-        assertEquals("gemini-3.8-flash", geminiPreset.defaultModel)
+        assertEquals("gemini-2.5-flash", geminiPreset.defaultModel)
         assertEquals("meta/llama-3.3-70b-instruct", nvidiaPreset.defaultModel)
-        assertEquals("9router-smart-auto", router9Preset.defaultModel)
+        assertEquals("", router9Preset.defaultModel)
 
         assertEquals(1_048_576, ModelLimitsResolver.contextWindow(geminiPreset, geminiPreset.defaultModel))
         assertEquals(131_072, ModelLimitsResolver.contextWindow(nvidiaPreset, nvidiaPreset.defaultModel))
-        assertEquals(1_048_576, ModelLimitsResolver.contextWindow(router9Preset, router9Preset.defaultModel))
+        assertTrue(ApiDiscoveryEngine.defaultCatalog(router9Preset).isEmpty())
     }
 }
