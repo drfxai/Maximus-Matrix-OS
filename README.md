@@ -6,7 +6,7 @@ MAXIMUS MATRIX OS is a graph-native intelligence platform and executive Android 
 
 - **Living Matrix Graph**: Interactive canvas graph visualization featuring multi-touch pinch zoom, drag-to-pan, node inspection, and live mission path telemetry.
 - **AI Control Hub & Multi-Provider LLM Chat**: Integration architecture for OpenAI, Anthropic, Gemini, NVIDIA NIM API Catalog, and custom endpoints with capability discovery and usage tracking.
-- **Deterministic Agent Runtime**: Matrix event stream, policy engine with risk gate validation, mission planner, and execution pipeline.
+- **Deterministic Mission Runtime**: Matrix event stream, policy engine with risk gate validation, mission planner, and execution pipeline.
 - **Android Capabilities & Tools**: Real system integration for alarms, camera, calendar, dialer, SMS composer, share, clipboard, and app launching.
 - **Data Center & Knowledge Connector**: Configurable gateway for documents, research sources, and enterprise datasets.
 - **Redacted Diagnostics & Telemetry**: Full runtime event logging and diagnostic tracing with sensitive data redaction.

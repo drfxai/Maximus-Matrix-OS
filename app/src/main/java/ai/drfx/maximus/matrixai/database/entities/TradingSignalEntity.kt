@@ -56,7 +56,7 @@ data class TradingSignalEntity(
     val strategyName: String,       // e.g. "Maximus FVG Matrix Scalper"
     val confluenceFactors: String,  // JSON or comma separated e.g. "FVG retest, RSI divergence, 200 EMA bounce"
     val aiRationale: String,        // Deep AI reasoning explanation
-    val authorAgent: String,        // e.g. "Maximus Quant Alpha Agent"
+    val authorAgent: String,        // Legacy field recording the signal source.
     val timestampMs: Long = System.currentTimeMillis(),
     val isBookmarked: Boolean = false,
     val isCustomUserSignal: Boolean = false

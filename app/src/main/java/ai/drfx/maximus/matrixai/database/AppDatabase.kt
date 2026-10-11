@@ -82,7 +82,7 @@ abstract class AppDatabase : RoomDatabase() {
                         radius = 16f,
                         colorHex = "#38C79B",
                         description = "Central operating graph for MAXIMUS AI and internal Matrix OS engines.",
-                        relations = "Mission Control · Agent Factory · Models · Knowledge · Research · Validation",
+                        relations = "Mission Control · Persona Catalog · Models · Knowledge · Research · Validation",
                         isHub = true
                     ),
                     MatrixNodeEntity(
@@ -94,18 +94,18 @@ abstract class AppDatabase : RoomDatabase() {
                         radius = 16f,
                         colorHex = "#6ABCC9",
                         description = "Multi-provider AI gateway connecting OpenAI, Anthropic, Gemini, and NVIDIA NIM.",
-                        relations = "Models · Compatible Agents · Usage",
+                        relations = "Models · Available Personas · Usage",
                         isHub = true
                     ),
                     MatrixNodeEntity(
                         id = "agents",
-                        label = "Agent Factory",
-                        groupName = "AGENT RUNTIME",
+                        label = "Persona Catalog",
+                        groupName = "PERSONAS",
                         x = 260f,
                         y = 150f,
                         radius = 16f,
                         colorHex = "#38C79B",
-                        description = "Registry of capability-gated MAXIMUS agents.",
+                        description = "Catalog of MAXIMUS conversational personas.",
                         relations = "Executive · Research · Trading · Pine · Code · Validation · Automation · Quant",
                         isHub = true
                     ),

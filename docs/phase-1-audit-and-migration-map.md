@@ -47,7 +47,7 @@ The supplied ZIP and the primary repository contain the same source layout.
 | DrFXAi Research OS | Research Engine |
 | DrFXAi Trading Genome | Trading Genome |
 | DrFXAi Quant Lab | Quant Lab |
-| DrFXAi Agent Factory | Agent Factory |
+| DrFXAi Persona Catalog | Persona Catalog |
 | Maximus Matrix AI | MAXIMUS AI product |
 
 Legacy names are retained only in this migration record. The public product hierarchy is

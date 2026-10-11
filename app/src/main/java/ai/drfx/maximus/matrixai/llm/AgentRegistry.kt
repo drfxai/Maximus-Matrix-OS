@@ -39,30 +39,30 @@ object AgentRegistry {
         ),
         AgentDescriptor(
             id = "research",
-            name = "Research Agent",
+            name = "Research Persona",
             description = "Long-context research, evidence synthesis and hypothesis analysis.",
-            systemPrompt = "You are the MAXIMUS Research Agent. Distinguish evidence from inference, preserve provenance and surface uncertainty.",
+            systemPrompt = "You are the MAXIMUS Research Persona. Distinguish evidence from inference, preserve provenance and surface uncertainty.",
             requiredCapabilities = setOf(ModelCapability.CHAT, ModelCapability.LONG_CONTEXT)
         ),
         AgentDescriptor(
             id = "trading",
-            name = "Trading Intelligence Agent",
+            name = "Trading Intelligence Persona",
             description = "Indicator, strategy, market-structure and risk research.",
-            systemPrompt = "You are the MAXIMUS Trading Intelligence Agent. Analyze trading logic rigorously, avoid fabricating market data or performance, and separate research from execution.",
+            systemPrompt = "You are the MAXIMUS Trading Intelligence Persona. Analyze trading logic rigorously, avoid fabricating market data or performance, and separate research from execution.",
             requiredCapabilities = setOf(ModelCapability.CHAT)
         ),
         AgentDescriptor(
             id = "pine",
-            name = "Pine Intelligence Agent",
+            name = "Pine Intelligence Persona",
             description = "Pine Script analysis, sanitization, classification and reusable primitive extraction.",
-            systemPrompt = "You are the MAXIMUS Pine Intelligence Agent. Preserve source provenance, never claim TradingView runtime execution unless it actually occurred, and flag repaint/lookahead risks.",
+            systemPrompt = "You are the MAXIMUS Pine Intelligence Persona. Preserve source provenance, never claim TradingView runtime execution unless it actually occurred, and flag repaint/lookahead risks.",
             requiredCapabilities = setOf(ModelCapability.CHAT, ModelCapability.LONG_CONTEXT)
         ),
         AgentDescriptor(
             id = "code",
-            name = "Code Agent",
+            name = "Code Persona",
             description = "Software architecture, debugging and code review.",
-            systemPrompt = "You are the MAXIMUS Code Agent. Produce production-oriented engineering work, verify assumptions and minimize unsafe changes.",
+            systemPrompt = "You are the MAXIMUS Code Persona. Produce production-oriented engineering work, verify assumptions and minimize unsafe changes.",
             requiredCapabilities = setOf(ModelCapability.CHAT)
         ),
         AgentDescriptor(
@@ -74,16 +74,16 @@ object AgentRegistry {
         ),
         AgentDescriptor(
             id = "vision",
-            name = "Vision Research Agent",
+            name = "Vision Research Persona",
             description = "Image, screenshot and visual chart analysis.",
-            systemPrompt = "You are the MAXIMUS Vision Research Agent. Analyze only visual evidence actually provided and state uncertainty clearly.",
+            systemPrompt = "You are the MAXIMUS Vision Research Persona. Analyze only visual evidence actually provided and state uncertainty clearly.",
             requiredCapabilities = setOf(ModelCapability.CHAT, ModelCapability.VISION)
         ),
         AgentDescriptor(
             id = "validation",
-            name = "Validation Agent",
+            name = "Validation Persona",
             description = "Structured checks, evidence validation and regression review.",
-            systemPrompt = "You are the MAXIMUS Validation Agent. Return structured, testable findings and never mark unverified claims as passed.",
+            systemPrompt = "You are the MAXIMUS Validation Persona. Return structured, testable findings and never mark unverified claims as passed.",
             requiredCapabilities = setOf(ModelCapability.CHAT, ModelCapability.STRUCTURED_OUTPUT)
         ),
         AgentDescriptor(
@@ -95,9 +95,9 @@ object AgentRegistry {
         ),
         AgentDescriptor(
             id = "quant",
-            name = "Quant Research Agent",
+            name = "Quant Research Persona",
             description = "Strategy evaluation, experimental design and quantitative reasoning.",
-            systemPrompt = "You are the MAXIMUS Quant Research Agent. Focus on robust experimental design, out-of-sample thinking, sensitivity analysis and reproducibility.",
+            systemPrompt = "You are the MAXIMUS Quant Research Persona. Focus on robust experimental design, out-of-sample thinking, sensitivity analysis and reproducibility.",
             requiredCapabilities = setOf(ModelCapability.CHAT, ModelCapability.REASONING)
         )
     )

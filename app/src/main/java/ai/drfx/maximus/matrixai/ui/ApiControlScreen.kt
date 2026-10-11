@@ -66,7 +66,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Text("Provider Quick Presets", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 Text(
-                    "Switch engines with preset endpoints, context capacity, and optimized agent routing.",
+                    "Switch engines with preset endpoints, context capacity, and model selection.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
@@ -259,7 +259,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 MetricLine("Engine Provider", state.provider.displayName, MaterialTheme.colorScheme.onSurface)
                 MetricLine("Active Model", state.selectedModel.ifBlank { "None" }, MaterialTheme.colorScheme.onSurface)
                 MetricLine("Model Context Limit", "${numberFormat.format(metrics.contextCapacity)} tokens", MaterialTheme.colorScheme.primary)
-                MetricLine("Compatible Agents", state.supportedAgents.size.toString(), MaterialTheme.colorScheme.onSurface)
+                MetricLine("Available Personas", state.supportedAgents.size.toString(), MaterialTheme.colorScheme.onSurface)
                 MetricLine("Base Endpoint", state.baseUrl.ifBlank { "Default Provider URL" }, MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

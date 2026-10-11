@@ -35,7 +35,7 @@ private enum class Destination(val label: String) {
     VISION("Vision"),
     NEWS("News"),
     CHAT("Chat"),
-    AGENTS("Agents"),
+    AGENTS("Personas"),
     DATA("Data"),
     CONTROL("Control")
 }
@@ -191,7 +191,7 @@ fun MatrixScreen(
                     }
                     val moreLabel: String = when (destination) {
                         Destination.CHAT -> "Chat"
-                        Destination.AGENTS -> "Agents"
+                        Destination.AGENTS -> "Personas"
                         Destination.DATA -> "Data"
                         Destination.CONTROL -> "Control"
                         else -> "More"
@@ -349,8 +349,8 @@ fun MatrixScreen(
                 )
 
                 WorkspaceItemRow(
-                    title = "Agent Factory",
-                    subtitle = "Autonomous quant agents, planners & validation lab",
+                    title = "Persona Catalog",
+                    subtitle = "Research personas, planning & validation lab",
                     icon = Icons.Default.Person,
                     accentColor = Color(0xFF38C79B),
                     isSelected = destination == Destination.AGENTS,

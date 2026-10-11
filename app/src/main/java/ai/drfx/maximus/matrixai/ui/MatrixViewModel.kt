@@ -277,7 +277,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             val key = apiKeyInput.ifBlank { apiStore.loadKeyForProvider(selectedProvider) }
             _llmState.value = _llmState.value.copy(
                 status = ConnectionStatus.DETECTING,
-                statusMessage = "Detecting API protocol, models and agent compatibility..."
+                statusMessage = "Detecting API protocol, models and persona compatibility..."
             )
             AppLogStore.info("API", "API discovery started for " + (if (key.startsWith("nvapi-")) "NVIDIA NIM" else baseUrl))
             appendLlmEvent(MatrixEventType.MODEL_DISCOVERY, "model:discovery", "provider:api", "API discovery started")
@@ -331,7 +331,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     tokenMetrics = newMetrics
                 )
                 val probeAgent = AgentRegistry.supportedAgents(capabilities).firstOrNull()
-                    ?: throw IllegalStateException("No conversational agent is available for an inference check.")
+                    ?: throw IllegalStateException("No conversational persona is available for an inference check.")
                 try {
                     chatClient.send(
                         ApiConnectionConfig(result.baseUrl, key, result.provider, selectedModel, probeAgent.id),
@@ -479,7 +479,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         }
         val selectedAgent = current.supportedAgents.firstOrNull { it.id == current.selectedAgentId }
         if (selectedAgent == null) {
-            appendAssistantError("Select an agent supported by the current model.")
+            appendAssistantError("Select a persona supported by the current model.")
             return false
         }
         if (current.isGenerating) return false

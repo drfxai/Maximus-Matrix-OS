@@ -1183,7 +1183,7 @@ fun ChartVisionScreen(
                     )
 
                     RelatedModuleCard(
-                        title = "Agents Hub",
+                        title = "Persona Catalog",
                         subtitle = "Autonomous traders",
                         icon = Icons.Default.SmartToy,
                         accentColor = Color(0xFF00E5FF),
