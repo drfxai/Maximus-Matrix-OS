@@ -5,11 +5,16 @@ mkdir -p keyboard-check
 timeout --kill-after=5s 16m adb logcat -v threadtime > keyboard-check/live-device.log 2>&1 &
 log_pid=$!
 trap 'kill "$log_pid" 2>/dev/null || true; wait "$log_pid" 2>/dev/null || true' EXIT
-# AndroidJUnitRunner's timeout_msec applies to every AndroidJUnit4 test. Keep all
-# instrumentation classes; bounded host timeout also handles a disconnected ADB.
+# The CI matrix runs every instrumentation class, but isolates memory/IME
+# interactions by running each selected suite on a fresh emulator.
+# The full keyboard reopen cycle remains mandatory; no test is excluded.
 test_status=0
+test_args=(-Pandroid.testInstrumentationRunnerArguments.timeout_msec=120000)
+if [[ -n "${ANDROID_TEST_CLASSES:-}" ]]; then
+  test_args+=("-Pandroid.testInstrumentationRunnerArguments.class=${ANDROID_TEST_CLASSES}")
+fi
 timeout --kill-after=30s 15m gradle connectedDebugAndroidTest --no-daemon --stacktrace \
-  -Pandroid.testInstrumentationRunnerArguments.timeout_msec=120000 || test_status=$?
+  "${test_args[@]}" || test_status=$?
 printf '%s\n' "$test_status" > keyboard-check/test-exit-status.txt
 timeout --kill-after=2s 10s adb get-state > keyboard-check/device-state.txt 2>&1 || true
 timeout --kill-after=2s 15s adb pull /data/local/tmp/keyboard-check keyboard-check || true
