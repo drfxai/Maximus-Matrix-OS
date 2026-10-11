@@ -34,9 +34,9 @@ def required(pattern, payload, label):
     assert match is not None, f'{label} missing from package state'
     return match.group(1)
 
-uid_pattern = r'^\\s*(?:userId|appId)=(\\d+)(?:\\s|$)'
+uid_pattern = r'^\s*(?:userId|appId)=(\d+)(?:\s|$)'
 assert required(uid_pattern, old, 'previous app UID') == required(uid_pattern, new, 'updated app UID'), 'Package UID changed'
-data_dir = r'^\\s*dataDir=([^\\s]+)'
+data_dir = r'^\s*dataDir=([^\s]+)'
 assert required(data_dir, old, 'previous data directory') == required(data_dir, new, 'updated data directory'), 'Package data directory changed'
 PY
 adb logcat -c
