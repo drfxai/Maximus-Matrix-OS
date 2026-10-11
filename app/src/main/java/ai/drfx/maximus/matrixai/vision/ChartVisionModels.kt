@@ -91,7 +91,8 @@ data class ChartVisionAnalysis(
             if (patterns.isNotEmpty()) {
                 appendLine("🔮 DETECTED CHART PATTERNS")
                 patterns.forEach { p ->
-                    appendLine("• ${p.name} [${p.patternType}]: ${p.confidencePercent}% Confidence (${p.status})")
+                    val confidence = if (p.confidencePercent > 0) " · ${p.confidencePercent}% confidence" else ""
+                    appendLine("• ${p.name} [${p.patternType}]: ${p.status}$confidence")
                     if (p.implication.isNotBlank()) appendLine("  → ${p.implication}")
                 }
                 appendLine()

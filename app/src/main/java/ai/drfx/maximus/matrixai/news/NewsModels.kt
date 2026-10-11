@@ -57,7 +57,7 @@ data class NewsArticle(
     val headline: String,
     val summary: String,
     val sentiment: MarketSentiment,
-    val sourceName: String = "Forex Factory",
+    val sourceName: String = "Source unavailable",
     val fullContent: String = "",
     val aiTakeaway: String = ""
 )

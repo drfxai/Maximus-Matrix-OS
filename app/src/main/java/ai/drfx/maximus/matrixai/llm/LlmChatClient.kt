@@ -36,8 +36,10 @@ class LlmChatClient {
     private fun transcribeOpenAi(config: ApiConnectionConfig, attachment: ChatAttachment): String {
         val boundary = "MaximusVoice" + UUID.randomUUID().toString().replace("-", "")
         val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/audio/transcriptions"
+        require(URL(endpoint).protocol == "https") { "Provider endpoints must use HTTPS." }
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
+            instanceFollowRedirects = false
             connectTimeout = 15_000
             readTimeout = 90_000
             doOutput = true
@@ -103,7 +105,6 @@ class LlmChatClient {
             } else textWithFile(message)
             messages.put(JSONObject().put("role", message.role).put("content", content))
         }
-        val mode = if (config.provider == LlmProvider.ROUTER_9_COMBO) "combo" else "smart"
         val body = JSONObject()
             .put("model", config.selectedModel)
             .put("messages", messages)
@@ -113,7 +114,6 @@ class LlmChatClient {
         if (config.apiKey.isNotBlank()) {
             headers["Authorization"] = "Bearer " + config.apiKey
         }
-        headers["X-Router-Mode"] = mode
         headers["X-Client-Platform"] = "Android-MaximusMatrix"
         val json = JSONObject(post(endpoint, body.toString(), headers))
         val text = json.optJSONArray("choices")
@@ -349,8 +349,10 @@ class LlmChatClient {
     }
 
     private fun post(url: String, body: String, headers: Map<String, String>): String {
+        require(URL(url).protocol == "https") { "Provider endpoints must use HTTPS." }
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
+            instanceFollowRedirects = false
             connectTimeout = 15_000
             readTimeout = 90_000
             doOutput = true

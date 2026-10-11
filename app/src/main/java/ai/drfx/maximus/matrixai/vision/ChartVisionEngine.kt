@@ -46,25 +46,20 @@ class ChartVisionEngine(
             )
         )
 
+        require(bitmap.width > 0 && bitmap.height > 0) { "Chart image is empty or invalid." }
+        require(apiStore.loadProvider() == LlmProvider.GEMINI) {
+            "Chart Vision currently supports Gemini only. Select Gemini and a verified vision model."
+        }
+        require(modelOverride.startsWith("gemini-", ignoreCase = true)) {
+            "The selected model is not a Gemini vision model. Select a verified Gemini vision model."
+        }
         // Compress and prepare image
         val base64Image = encodeBitmapToBase64(bitmap)
         val resolvedKey = apiStore.loadApiKey().ifBlank { "" }
         val baseUrl = apiStore.loadBaseUrl()
 
-        // If no API key configured or network is unavailable, use intelligent simulated technician synthesis
         if (resolvedKey.isBlank()) {
-            AppLogStore.warn("VISION", "No Gemini API key found. Providing simulated technician analysis.")
-            val mock = generateLocalFallbackAnalysis(bitmap, userNotes, modelOverride, base64Image)
-            eventBus.emit(
-                MatrixEvent(
-                    missionId = missionId,
-                    type = MatrixEventType.TOOL_COMPLETED,
-                    sourceNode = "vision:chart_analyzer",
-                    targetNode = "ui:chart_vision",
-                    message = "Simulated Chart Vision scan completed (No API Key). Enter Gemini API key in API Hub for live inference."
-                )
-            )
-            return@withContext mock
+            throw IllegalStateException("Gemini API key is missing. Configure it in API Hub and retry.")
         }
 
         try {
@@ -120,12 +115,14 @@ class ChartVisionEngine(
             val responseJson = post(endpoint, requestBody.toString())
             val rawText = parseGeminiText(responseJson)
             val usageMeta = responseJson.optJSONObject("usageMetadata")
-            val inTokens = usageMeta?.optInt("promptTokenCount", (prompt.length / 4) + 258) ?: 258
-            val outTokens = usageMeta?.optInt("candidatesTokenCount", rawText.length / 4) ?: 420
-            val totalTokens = inTokens + outTokens
+            val inTokens = usageMeta?.optInt("promptTokenCount", 0) ?: 0
+            val outTokens = usageMeta?.optInt("candidatesTokenCount", 0) ?: 0
+            val totalTokens = usageMeta?.optInt("totalTokenCount", inTokens + outTokens) ?: (inTokens + outTokens)
 
             // Record usage
-            usageStore.record(LlmProvider.GEMINI, modelName, ChatUsage(inTokens, outTokens, totalTokens, estimated = false))
+            if (usageMeta != null) {
+                usageStore.record(LlmProvider.GEMINI, modelName, ChatUsage(inTokens, outTokens, totalTokens, estimated = false))
+            }
 
             val parsedAnalysis = parseAnalysisOutput(
                 rawText = rawText,
@@ -150,22 +147,7 @@ class ChartVisionEngine(
             return@withContext parsedAnalysis
         } catch (e: Exception) {
             AppLogStore.error("VISION", "Gemini multimodal chart vision failed: " + (e.message ?: "unknown error"))
-            val fallback = generateLocalFallbackAnalysis(
-                bitmap = bitmap,
-                userNotes = userNotes + "\n[Notice: API call failed with '${e.message}'; showing offline fallback]",
-                modelUsed = modelOverride,
-                base64Image = base64Image
-            )
-            eventBus.emit(
-                MatrixEvent(
-                    missionId = missionId,
-                    type = MatrixEventType.TOOL_COMPLETED,
-                    sourceNode = "vision:chart_analyzer",
-                    targetNode = "ui:chart_vision",
-                    message = "Chart vision processed with offline technician fallback: ${e.message}"
-                )
-            )
-            return@withContext fallback
+            throw e
         }
     }
 
@@ -180,39 +162,30 @@ class ChartVisionEngine(
             4. Chart patterns (e.g. Bull Flag, Ascending Triangle, Double Bottom, Head and Shoulders, Cup & Handle, Wedge, Channel).
             5. Key horizontal support and resistance price zones.
             6. Significant candlestick patterns (e.g. Hammer, Bullish Engulfing, Morning Star, Pin bar).
-            7. Concrete actionable trade plan: Direction (LONG, SHORT, or WAIT), Entry Zone, Stop Loss, Target 1, Target 2, Risk/Reward Ratio, and Invalidation Criteria.
+            7. Trade plan only where readable chart prices support it. Otherwise use WAIT and "Unavailable" for unsupported levels.
+
+            Ground every finding in visible image evidence. Use "Unclear" for unreadable asset/timeframe and avoid invented numbers, angles, prices, confidence percentages, and risk/reward ratios. If the image is not a readable trading chart, explain that clearly.
 
             IMPORTANT: Output your structured findings FIRST inside a ```json ``` block with this exact schema:
             ```json
             {
-              "asset": "BTC/USDT",
-              "timeframe": "4H",
-              "direction": "BULLISH",
-              "strength": "STRONG",
-              "trendSummary": "High timeframe uptrend with higher lows compressing against horizontal resistance ceiling.",
-              "trendlines": [
-                { "type": "Ascending Support", "description": "Rising diagonal trendline connecting 3 swing lows", "angle": "34°", "significance": "Major" },
-                { "type": "Horizontal Resistance", "description": "Ceiling at previous highs tested multiple times", "angle": "0°", "significance": "Critical Breakout Zone" }
-              ],
-              "patterns": [
-                { "name": "Ascending Triangle", "patternType": "Continuation", "confidencePercent": 88, "status": "Breakout Imminent", "implication": "Bullish expansion likely above ceiling" }
-              ],
-              "keyLevels": [
-                { "level": "92,500", "type": "Resistance Ceiling", "description": "Breakout trigger" },
-                { "level": "90,400", "type": "Dynamic Support", "description": "Confluence with 20 EMA" },
-                { "level": "88,200", "type": "Structural Invalidation", "description": "Swing low support" }
-              ],
-              "candleSignals": [
-                { "name": "Bullish Hammer", "location": "At ascending trendline touch", "implication": "Dynamic buying pressure" }
-              ],
+              "asset": "Unclear",
+              "timeframe": "Unclear",
+              "direction": "RANGING",
+              "strength": "WEAK",
+              "trendSummary": "Describe only what is visible in the image.",
+              "trendlines": [],
+              "patterns": [],
+              "keyLevels": [],
+              "candleSignals": [],
               "tradePlan": {
-                "bias": "LONG",
-                "entryZone": "92,500 - 92,750 on confirmed candle close",
-                "stopLoss": "91,100",
-                "target1": "95,000",
-                "target2": "98,000",
-                "riskRewardRatio": "1:2.8",
-                "invalidationReason": "A 4H close below the ascending support line invalidates the setup."
+                "bias": "WAIT",
+                "entryZone": "Unavailable",
+                "stopLoss": "Unavailable",
+                "target1": "Unavailable",
+                "target2": "Unavailable",
+                "riskRewardRatio": "Unavailable",
+                "invalidationReason": "Insufficient readable evidence."
               }
             }
             ```
@@ -252,11 +225,17 @@ class ChartVisionEngine(
         if (!jsonString.isNullOrBlank()) {
             try {
                 val obj = JSONObject(jsonString)
-                val asset = obj.optString("asset", "Chart Asset")
-                val timeframe = obj.optString("timeframe", "Detected timeframe")
-                val dirStr = obj.optString("direction", "BULLISH").uppercase()
-                val strengthStr = obj.optString("strength", "STRONG").uppercase()
-                val summary = obj.optString("trendSummary", "Detected price action structure.")
+                val asset = obj.optString("asset", "Unclear")
+                val timeframe = obj.optString("timeframe", "Unclear")
+                val dirStr = obj.optString("direction", "").uppercase()
+                val strengthStr = obj.optString("strength", "").uppercase()
+                val summary = obj.optString("trendSummary", "")
+                require(summary.isNotBlank() && dirStr.isNotBlank() && strengthStr.isNotBlank()) {
+                    "Missing chart analysis fields"
+                }
+                require(dirStr.contains("BEAR") || dirStr.contains("BULL") || dirStr.contains("RANGE") || dirStr.contains("SIDE")) {
+                    "Invalid chart direction"
+                }
 
                 val dir = when {
                     dirStr.contains("BEAR") -> TrendDirection.BEARISH
@@ -295,7 +274,7 @@ class ChartVisionEngine(
                             ChartPatternItem(
                                 name = item.optString("name", "Detected Pattern"),
                                 patternType = item.optString("patternType", "Continuation"),
-                                confidencePercent = item.optInt("confidencePercent", 80).coerceIn(10, 99),
+                                confidencePercent = 0,
                                 status = item.optString("status", "Confirmed"),
                                 implication = item.optString("implication", "Favorable bias")
                             )
@@ -336,15 +315,15 @@ class ChartVisionEngine(
                 val tpObj = obj.optJSONObject("tradePlan")
                 val tradePlan = if (tpObj != null) {
                     TradePlan(
-                        bias = tpObj.optString("bias", if (dir == TrendDirection.BULLISH) "LONG" else "SHORT"),
+                        bias = tpObj.optString("bias", "WAIT"),
                         entryZone = tpObj.optString("entryZone", "-"),
                         stopLoss = tpObj.optString("stopLoss", "-"),
                         target1 = tpObj.optString("target1", "-"),
                         target2 = tpObj.optString("target2", "-"),
-                        riskRewardRatio = tpObj.optString("riskRewardRatio", "1:2.5"),
+                        riskRewardRatio = tpObj.optString("riskRewardRatio", "Unavailable"),
                         invalidationReason = tpObj.optString("invalidationReason", "")
                     )
-                } else TradePlan(bias = "NEUTRAL", entryZone = "-", stopLoss = "-", target1 = "-", riskRewardRatio = "1:1")
+                } else TradePlan(bias = "WAIT", entryZone = "Unavailable", stopLoss = "Unavailable", target1 = "Unavailable", riskRewardRatio = "Unavailable")
 
                 // Extract remaining markdown report
                 val reportClean = rawText.replace(match.value, "").trim()
@@ -373,133 +352,7 @@ class ChartVisionEngine(
             }
         }
 
-        // Fallback parsing from text
-        return ChartVisionAnalysis(
-            modelUsed = modelUsed,
-            assetIdentifier = "Identified Asset",
-            timeframeEstimate = "Chart Timeframe",
-            direction = if (rawText.contains("bear", ignoreCase = true)) TrendDirection.BEARISH else TrendDirection.BULLISH,
-            trendStrength = TrendStrength.MODERATE,
-            trendSummary = "AI vision completed technical scan of price action and pattern geometry.",
-            trendlines = listOf(
-                ChartTrendline("Primary Trendline", "Aligned with prevailing momentum slope", "28°", "Major"),
-                ChartTrendline("Dynamic Resistance", "Upper boundary of consolidation", "0°", "Key Level")
-            ),
-            patterns = listOf(
-                ChartPatternItem("Geometric Formation", "Continuation", 82, "Active", "Technical structure detected")
-            ),
-            keyLevels = listOf(
-                PriceZone("Resistance Pivot", "Supply Zone", "Key upper level"),
-                PriceZone("Support Base", "Demand Zone", "Dynamic structure floor")
-            ),
-            candleSignals = listOf(
-                CandleSignal("Rejection Wick", "Near Support", "Buyers active")
-            ),
-            tradePlan = TradePlan(
-                bias = if (rawText.contains("bear", ignoreCase = true)) "SHORT" else "LONG",
-                entryZone = "On confirmed structure breakout",
-                stopLoss = "Beyond invalidation pivot",
-                target1 = "Next liquidity pool",
-                riskRewardRatio = "1:2.4"
-            ),
-            comprehensiveReport = rawText,
-            inputTokens = inTokens,
-            outputTokens = outTokens,
-            totalTokens = totalTokens,
-            processingMs = elapsedMs,
-            imageBase64 = base64Image
-        )
-    }
-
-    private fun generateLocalFallbackAnalysis(
-        bitmap: Bitmap,
-        userNotes: String,
-        modelUsed: String,
-        base64Image: String
-    ): ChartVisionAnalysis {
-        val isBear = userNotes.contains("short", ignoreCase = true) || userNotes.contains("bear", ignoreCase = true)
-        val dir = if (isBear) TrendDirection.BEARISH else TrendDirection.BULLISH
-        val bias = if (isBear) "SHORT" else "LONG"
-
-        return ChartVisionAnalysis(
-            modelUsed = "$modelUsed (Vision Protocol)",
-            assetIdentifier = if (userNotes.contains("BTC", true)) "BTC/USDT" else if (userNotes.contains("EUR", true)) "EUR/USD" else "Active Chart Asset",
-            timeframeEstimate = if (userNotes.contains("1D", true)) "1D" else if (userNotes.contains("1H", true)) "1H" else "4H",
-            direction = dir,
-            trendStrength = TrendStrength.STRONG,
-            trendSummary = if (dir == TrendDirection.BULLISH)
-                "Ascending price compression with series of higher swing lows testing horizontal liquidity resistance."
-            else
-                "Distribution pattern with lower swing highs breaking through dynamic demand support.",
-            trendlines = listOf(
-                ChartTrendline(
-                    type = if (dir == TrendDirection.BULLISH) "Ascending Support Line" else "Descending Resistance Line",
-                    description = "Dynamic diagonal connecting 3 clean swing pivots with expanding volume confluence.",
-                    angle = if (dir == TrendDirection.BULLISH) "32°" else "-26°",
-                    significance = "Major Structural Guide"
-                ),
-                ChartTrendline(
-                    type = "Horizontal Breakout Level",
-                    description = "Key liquidity ceiling tested repeatedly, indicating absorption of supply.",
-                    angle = "0°",
-                    significance = "Trigger Level"
-                ),
-                ChartTrendline(
-                    type = "Dynamic 20/50 EMA Cloud",
-                    description = "Moving average ribbons fanning out in direction of primary trend.",
-                    angle = "Positive",
-                    significance = "Trailing Support"
-                )
-            ),
-            patterns = listOf(
-                ChartPatternItem(
-                    name = if (dir == TrendDirection.BULLISH) "Ascending Triangle" else "Descending Triangle / Double Top",
-                    patternType = "Continuation & Breakout",
-                    confidencePercent = 89,
-                    status = "Breakout Imminent",
-                    implication = if (dir == TrendDirection.BULLISH) "High-probability upward impulse towards measured target" else "Downside continuation towards support"
-                ),
-                ChartPatternItem(
-                    name = "Volume Compression Squeeze",
-                    patternType = "Volatility Cycle",
-                    confidencePercent = 84,
-                    status = "Coiling",
-                    implication = "Anticipate sudden momentum expansion following range breakout"
-                )
-            ),
-            keyLevels = listOf(
-                PriceZone("Breakout Trigger", "Immediate Pivot", "Sustained body close confirms trade entry"),
-                PriceZone("Dynamic Support (20 EMA)", "Pullback Zone", "Optimal risk-managed re-entry level"),
-                PriceZone("Structural Floor", "Invalidation", "Structural violation point")
-            ),
-            candleSignals = listOf(
-                CandleSignal("Bullish Hammer / Pin Bar", "At dynamic support line", "Immediate absorption of selling pressure"),
-                CandleSignal("Narrowing Range Doji", "At pattern apex", "Decisive breakout imminent")
-            ),
-            tradePlan = TradePlan(
-                bias = bias,
-                entryZone = if (dir == TrendDirection.BULLISH) "On breakout candle close above resistance" else "On breakdown below support",
-                stopLoss = if (dir == TrendDirection.BULLISH) "Below the most recent higher-low swing pivot" else "Above the most recent lower-high pivot",
-                target1 = "1.0x Measured Move of the triangle base",
-                target2 = "1.618 Fibonacci expansion extension",
-                riskRewardRatio = "1:2.85",
-                invalidationReason = "A 4-hour close that breaks opposite the diagonal trendline negates this technical setup."
-            ),
-            comprehensiveReport = """
-                ### Multi-Modal Chart Vision Technical Breakdown
-                - **Market Structure**: Price action exhibits a classic coiling pattern. Swing lows are consistently pressing higher, creating ascending trendline support while testing the horizontal supply ceiling.
-                - **Trendline & Geometry**: The upper barrier has been tested 4 times without sharp rejection, which indicates absorption of seller liquidity. Concurrently, the ascending support line remains unbroken.
-                - **Indicators & Moving Averages**: The 20 EMA is tracking tightly beneath candles, acting as dynamic support.
-                - **Execution Framework**:
-                  - Preferred Trigger: Wait for an hourly/4-hour candle close beyond the consolidation boundary.
-                  - Risk Management: Place stop-loss tightly behind the dynamic trendline to maintain an optimal 1:2.85 risk-to-reward ratio.
-            """.trimIndent(),
-            inputTokens = 312,
-            outputTokens = 485,
-            totalTokens = 797,
-            processingMs = 450L,
-            imageBase64 = base64Image
-        )
+        throw IllegalStateException("Gemini returned invalid structured chart analysis. Retry with a clearer chart image.")
     }
 
     private fun encodeBitmapToBase64(bitmap: Bitmap): String {

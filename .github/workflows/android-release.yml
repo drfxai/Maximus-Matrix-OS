@@ -10,6 +10,12 @@ on:
       - ".github/workflows/android-release.yml"
       - ".github/scripts/verify-keyboard.sh"
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Replace the existing v1.0.0 assets after validation"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -94,6 +100,9 @@ jobs:
       - name: Run unit tests
         run: gradle test --no-daemon --stacktrace
 
+      - name: Run Android lint
+        run: gradle lintRelease --no-daemon --stacktrace
+
       - name: Build signed release APKs
         run: gradle assembleRelease --no-daemon --stacktrace
 
@@ -115,9 +124,27 @@ jobs:
           for apk in "dist/$ARM64_APK" "dist/$UNIVERSAL_APK"; do
             "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk"
             "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" > "dist/$(basename "$apk").badging.txt"
+            grep -q "package: name='ai.drfx.maximus.matrixai' versionCode='10003'" "dist/$(basename "$apk").badging.txt"
             grep -q "versionName='1.0.0'" "dist/$(basename "$apk").badging.txt"
           done
+          arm_cert=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "dist/$ARM64_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          universal_cert=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "dist/$UNIVERSAL_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          test -n "$arm_cert" && test "$arm_cert" = "$universal_cert"
           (cd dist && sha256sum "$ARM64_APK" "$UNIVERSAL_APK" > SHA256SUMS)
+
+      - name: Verify upgrade signing identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download "$RELEASE_TAG" --pattern "$ARM64_APK" --dir "$RUNNER_TEMP/prior-release"
+          old_cert=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$RUNNER_TEMP/prior-release/$ARM64_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          new_cert=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "dist/$ARM64_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          test -n "$old_cert" && test "$old_cert" = "$new_cert" || { echo '::error::Release certificate differs from the published APK'; exit 1; }
+          old_badging=$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$RUNNER_TEMP/prior-release/$ARM64_APK")
+          old_code=$(printf '%s\n' "$old_badging" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -1)
+          test -n "$old_code" && test 10003 -gt "$old_code" || { echo '::error::versionCode must exceed the published APK'; exit 1; }
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
@@ -126,8 +153,8 @@ jobs:
           path: dist/
           if-no-files-found: error
 
-      - name: Publish V1.0.0 and clean old releases
-        if: github.ref == 'refs/heads/main'
+      - name: Update existing V1.0.0 release
+        if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -139,21 +166,14 @@ jobs:
           - Android APK for arm64-v8a
           - Android universal APK
           - Application ID: ai.drfx.maximus.matrixai
-          - Version name: 1.0.0; version code: 10002 (monotonic for upgrades)
+          - Version name: 1.0.0; version code: 10003 (monotonic for upgrades)
           - Source: refreshed from supplied Maximus Matrix OS project
           - SHA-256 checksums provided
           - Signing mode: $SIGNING_MODE
           NOTES
-          # A valid permanent signing key is mandatory; never publish previews here.
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release delete "$RELEASE_TAG" --cleanup-tag --yes
-          fi
-          gh release create "$RELEASE_TAG" \
-            "dist/$ARM64_APK" "dist/$UNIVERSAL_APK" "dist/SHA256SUMS" \
-            --target "$GITHUB_SHA" --title "$RELEASE_TITLE" \
-            --notes-file "$RUNNER_TEMP/release-notes.md"
-          # Only remove older published releases after V1.0.0 exists.
-          gh release list --limit 100 --json tagName --jq '.[].tagName' | while IFS= read -r tag; do
-            [[ -z "$tag" || "$tag" == "$RELEASE_TAG" ]] && continue
-            gh release delete "$tag" --cleanup-tag --yes
-          done
+          # Keep the existing release and tag throughout publication.
+          test "$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease --jq '(.isDraft or .isPrerelease)')" = false
+          gh release upload "$RELEASE_TAG" \
+            "dist/$ARM64_APK" "dist/$UNIVERSAL_APK" "dist/SHA256SUMS" --clobber
+          gh release edit "$RELEASE_TAG" --title "$RELEASE_TITLE" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" --latest

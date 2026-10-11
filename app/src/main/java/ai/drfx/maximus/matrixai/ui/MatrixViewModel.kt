@@ -85,16 +85,16 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _llmState = MutableStateFlow(
         LlmUiState(
-            status = if (apiStore.hasApiKey()) ConnectionStatus.CONNECTED else ConnectionStatus.DISCONNECTED,
+            status = if (apiStore.hasKeyForProvider(initialProvider)) ConnectionStatus.CONFIGURED else ConnectionStatus.DISCONNECTED,
             provider = initialProvider,
             baseUrl = initialBaseUrl,
             models = initialCatalog,
             selectedModel = initialModel,
             selectedAgentId = apiStore.loadAgentId(),
             supportedAgents = AgentRegistry.supportedAgents(initialCapabilities),
-            hasSavedKey = apiStore.hasApiKey(),
-            statusMessage = if (apiStore.hasApiKey()) {
-                "Connected to ${initialProvider.displayName}. Ready to assist."
+            hasSavedKey = apiStore.hasKeyForProvider(initialProvider),
+            statusMessage = if (apiStore.hasKeyForProvider(initialProvider)) {
+                "${initialProvider.displayName} credentials saved. Test the connection to verify inference."
             } else {
                 "Configure ${initialProvider.displayName} API to begin."
             },
@@ -196,7 +196,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         type = MatrixEventType.MISSION_COMPLETED,
                         sourceNode = "NewsIntelligence",
                         targetNode = "WatchlistAlerts",
-                        message = "AI scanned ${currentWatchlist.size} watchlist assets and generated ${newAlerts.size} real-time market-moving alerts.",
+                        message = "Watchlist scan complete. No verified market event source is configured; no alerts were generated.",
                         metadata = mapOf("symbols" to currentWatchlist.joinToString(","))
                     )
                 )
@@ -247,13 +247,15 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
 
         _llmState.value = current.copy(
+            status = if (apiStore.hasKeyForProvider(provider)) ConnectionStatus.CONFIGURED else ConnectionStatus.DISCONNECTED,
             provider = provider,
             baseUrl = provider.defaultBaseUrl,
             models = catalog,
             selectedModel = defaultModel,
             selectedAgentId = selectedAgent,
             supportedAgents = supportedAgents,
-            statusMessage = "Switched to ${provider.displayName}. Default model: $defaultModel",
+            hasSavedKey = apiStore.hasKeyForProvider(provider),
+            statusMessage = "Switched to ${provider.displayName}. Test the connection before chatting.",
             tokenMetrics = updatedMetrics
         )
         apiStore.save(
@@ -271,7 +273,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     fun detectApi(baseUrl: String, apiKeyInput: String) {
         if (_llmState.value.status == ConnectionStatus.DETECTING) return
         viewModelScope.launch {
-            val key = apiKeyInput.ifBlank { apiStore.loadApiKey() }
+            val selectedProvider = _llmState.value.provider
+            val key = apiKeyInput.ifBlank { apiStore.loadKeyForProvider(selectedProvider) }
             _llmState.value = _llmState.value.copy(
                 status = ConnectionStatus.DETECTING,
                 statusMessage = "Detecting API protocol, models and agent compatibility..."
@@ -279,7 +282,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             AppLogStore.info("API", "API discovery started for " + (if (key.startsWith("nvapi-")) "NVIDIA NIM" else baseUrl))
             appendLlmEvent(MatrixEventType.MODEL_DISCOVERY, "model:discovery", "provider:api", "API discovery started")
             try {
-                val result = discovery.discover(baseUrl, key)
+                val result = discovery.discover(selectedProvider, baseUrl, key)
                 val remembered = apiStore.loadModel()
                 val selectedModel = result.models.firstOrNull { it.id == remembered }?.id
                     ?: result.models.firstOrNull { ModelCapability.CHAT in it.capabilities }?.id
@@ -316,17 +319,36 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
 
                 _llmState.value = _llmState.value.copy(
-                    status = ConnectionStatus.CONNECTED,
+                    status = ConnectionStatus.CONFIGURED,
                     provider = result.provider,
                     baseUrl = result.baseUrl,
                     models = result.models,
                     selectedModel = selectedModel,
                     selectedAgentId = selectedAgent,
                     supportedAgents = supported,
-                    hasSavedKey = apiStore.hasApiKey(),
+                    hasSavedKey = apiStore.hasKeyForProvider(result.provider),
                     statusMessage = result.message,
                     tokenMetrics = newMetrics
                 )
+                val probeAgent = AgentRegistry.supportedAgents(capabilities).firstOrNull()
+                    ?: throw IllegalStateException("No conversational agent is available for an inference check.")
+                try {
+                    chatClient.send(
+                        ApiConnectionConfig(result.baseUrl, key, result.provider, selectedModel, probeAgent.id),
+                        listOf(ChatMessage(role = "user", content = "Reply with OK.")),
+                        probeAgent
+                    )
+                    _llmState.value = _llmState.value.copy(
+                        status = ConnectionStatus.CONNECTED,
+                        statusMessage = "${result.provider.displayName}: catalog and inference verified."
+                    )
+                } catch (probeError: Throwable) {
+                    _llmState.value = _llmState.value.copy(
+                        status = ConnectionStatus.DEGRADED,
+                        statusMessage = "Catalog verified; inference failed: ${probeError.message ?: "request failed"}"
+                    )
+                    return@launch
+                }
                 AppLogStore.info("API", "API discovery successful: " + result.provider.displayName + " (" + result.models.size + " models)")
                 appendLlmEvent(
                     MatrixEventType.MODEL_DISCOVERY,
@@ -335,14 +357,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     "API detected and model catalog loaded"
                 )
             } catch (error: Throwable) {
-                // If network fails, keep curated models for the provider so app remains operational
-                val fallbackProvider = _llmState.value.provider
-                val catalog = ApiDiscoveryEngine.defaultCatalog(fallbackProvider)
-                val defModel = fallbackProvider.defaultModel
                 _llmState.value = _llmState.value.copy(
                     status = ConnectionStatus.ERROR,
-                    models = catalog,
-                    selectedModel = defModel,
+                    models = emptyList(),
+                    selectedModel = "",
                     statusMessage = error.message ?: "API detection failed."
                 )
                 AppLogStore.error("API", error.message ?: "API detection failed")
@@ -353,6 +371,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
     fun selectModel(modelId: String) {
         val current = _llmState.value
+        if (current.models.none { it.id == modelId }) return
         val model = current.models.firstOrNull { it.id == modelId }
         val capabilities = model?.capabilities ?: ModelCapabilityResolver.resolve(current.provider, modelId)
         val agents = AgentRegistry.supportedAgents(capabilities)
@@ -370,6 +389,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
 
         _llmState.value = current.copy(
+            status = if (current.selectedModel == modelId) current.status else ConnectionStatus.CONFIGURED,
+            statusMessage = if (current.selectedModel == modelId) current.statusMessage else "Model changed. Test the connection to verify inference.",
             selectedModel = modelId,
             selectedAgentId = selectedAgent,
             supportedAgents = agents,
@@ -512,7 +533,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val config = ApiConnectionConfig(
                     baseUrl = current.baseUrl,
-                    apiKey = apiStore.loadApiKey(),
+                    apiKey = apiStore.loadKeyForProvider(current.provider),
                     provider = current.provider,
                     selectedModel = current.selectedModel,
                     selectedAgentId = selectedAgent.id

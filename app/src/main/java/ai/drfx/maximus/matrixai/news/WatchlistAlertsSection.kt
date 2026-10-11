@@ -50,7 +50,7 @@ fun WatchlistAlertsSection(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            Toast.makeText(context, "Real-time market notifications enabled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Market notifications enabled", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -99,7 +99,7 @@ fun WatchlistAlertsSection(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                "AI Watchlist Live Alert Hub",
+                                "Watchlist Alerts",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -109,11 +109,11 @@ fun WatchlistAlertsSection(
                                 modifier = Modifier
                                     .size(7.dp)
                                     .clip(CircleShape)
-                                    .background(if (isScanning) Color(0xFFFF9100) else Color(0xFF00E676))
+                                    .background(Color(0xFF6B7280))
                             )
                         }
                         Text(
-                            "Autonomous scanning of Forex Factory catalysts for your assets",
+                            "Alerts require a verified market event source",
                             fontSize = 10.5.sp,
                             color = Color(0xFF8B9CB5)
                         )
@@ -131,7 +131,7 @@ fun WatchlistAlertsSection(
                     // Scan Now Button
                     FilledTonalButton(
                         onClick = { viewModel.scanWatchlistAlertsNow() },
-                        enabled = !isScanning,
+                        enabled = false,
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = Color(0xFF1E1738),
@@ -151,7 +151,7 @@ fun WatchlistAlertsSection(
                         } else {
                             Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(13.dp))
                             Spacer(Modifier.width(3.dp))
-                            Text("Scan AI", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("Source unavailable", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -259,8 +259,8 @@ fun WatchlistAlertsSection(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFF6B7280), modifier = Modifier.size(24.dp))
-                            Text("No major market-moving alerts detected yet", fontSize = 11.5.sp, color = Color(0xFF94A3B8))
-                            Text("Tap 'Scan AI' to evaluate latest Forex Factory catalysts", fontSize = 10.sp, color = Color(0xFF6B7280))
+                            Text("No verified market alerts available", fontSize = 11.5.sp, color = Color(0xFF94A3B8))
+                            Text("No verified alert source is configured", fontSize = 10.sp, color = Color(0xFF6B7280))
                         }
                     }
                 } else {
@@ -461,7 +461,7 @@ fun WatchlistAlertSettingsDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("System Push Notifications", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text("Send real-time alerts to Android notification tray", fontSize = 10.sp, color = Color(0xFF94A3B8))
+                        Text("Send verified alerts to Android notification tray", fontSize = 10.sp, color = Color(0xFF94A3B8))
                     }
                     Switch(
                         checked = notifsEnabled,

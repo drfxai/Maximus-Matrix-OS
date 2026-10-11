@@ -24,6 +24,8 @@ class SecureApiConfigStore(context: Context) {
         monthlyBudgetUsd: Double = loadMonthlyBudgetUsd(),
         monthlyTokenBudget: Long = loadMonthlyTokenBudget()
     ) {
+        // Migrate the previous provider's legacy key before changing its identity.
+        loadApiKey()
         val editor = preferences.edit()
             .putString("base_url", baseUrl)
             .putString("provider", provider.name)
@@ -32,7 +34,8 @@ class SecureApiConfigStore(context: Context) {
             .putString("subscription_label", subscriptionLabel)
             .putLong("monthly_budget_bits", java.lang.Double.doubleToRawLongBits(monthlyBudgetUsd))
             .putLong("monthly_token_budget", monthlyTokenBudget)
-        if (apiKey.isNotBlank()) editor.putString("api_key", encrypt(apiKey))
+        if (apiKey.isNotBlank()) editor.putString("api_key_" + provider.name, encrypt(apiKey))
+        editor.remove("api_key")
         editor.apply()
     }
 
@@ -48,13 +51,13 @@ class SecureApiConfigStore(context: Context) {
         LlmProvider.valueOf(preferences.getString("provider", LlmProvider.GEMINI.name).orEmpty())
     }.getOrDefault(LlmProvider.GEMINI)
 
-    fun hasApiKey(): Boolean = !preferences.getString("api_key", null).isNullOrBlank()
+    fun hasApiKey(): Boolean = hasKeyForProvider(loadProvider())
 
     fun saveKeyForProvider(provider: LlmProvider, key: String) {
         if (key.isNotBlank()) {
             preferences.edit()
                 .putString("api_key_" + provider.name, encrypt(key))
-                .putString("api_key", encrypt(key))
+                .remove("api_key")
                 .apply()
         }
     }
@@ -65,18 +68,28 @@ class SecureApiConfigStore(context: Context) {
             val decrypted = runCatching { decrypt(specific) }.getOrDefault("")
             if (decrypted.isNotBlank()) return decrypted
         }
-        return loadApiKey()
+        // Legacy credentials belong only to the provider saved alongside them.
+        if (provider == loadProvider()) {
+            val legacy = preferences.getString("api_key", null)
+            if (!legacy.isNullOrBlank()) {
+                val decrypted = runCatching { decrypt(legacy) }.getOrDefault("")
+                if (decrypted.isNotBlank()) {
+                    saveKeyForProvider(provider, decrypted)
+                    return decrypted
+                }
+            }
+        }
+        return ""
     }
 
     fun hasKeyForProvider(provider: LlmProvider): Boolean {
         val specific = preferences.getString("api_key_" + provider.name, null)
         if (!specific.isNullOrBlank()) return true
-        return hasApiKey()
+        return provider == loadProvider() && !preferences.getString("api_key", null).isNullOrBlank()
     }
 
     fun loadApiKey(): String {
-        val encrypted = preferences.getString("api_key", null) ?: return ""
-        return runCatching { decrypt(encrypted) }.getOrDefault("")
+        return loadKeyForProvider(loadProvider())
     }
 
     fun clear() {

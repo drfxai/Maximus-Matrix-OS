@@ -50,7 +50,7 @@ fun NewsIntelligenceScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var showWatchlistSettingsDialog by remember { mutableStateOf(false) }
 
-    var heroStory by remember { mutableStateOf(agent.getDefaultHeroStory()) }
+    val heroStory = remember { agent.getDefaultHeroStory() }
     var articles by remember { mutableStateOf(agent.getDefaultArticles()) }
     val todayEvents = remember { agent.getDefaultTodayEvents() }
 
@@ -77,6 +77,8 @@ fun NewsIntelligenceScreen(
             matchesCategory && matchesSubTab && matchesSearch
         }
     }
+
+    val featuredStory = heroStory
 
     LazyColumn(
         modifier = modifier
@@ -274,7 +276,7 @@ fun NewsIntelligenceScreen(
             )
         }
 
-        // 4. Today's Events (Economic Calendar Card from Forex Factory)
+        // 4. Today's Events (Economic Calendar Card)
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
@@ -354,6 +356,8 @@ fun NewsIntelligenceScreen(
                         }
                     }
 
+                    if (todayEvents.isEmpty()) Text("Economic calendar unavailable: no verified feed is configured.", color = Color(0xFF94A3B8), fontSize = 11.sp)
+
                     // Timeline of Events
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -429,8 +433,8 @@ fun NewsIntelligenceScreen(
             }
         }
 
-        // 4. Featured Breaking News Hero Card (Fed Signals Higher for Longer)
-        item {
+        // Featured news requires a verified source.
+        if (featuredStory != null) item {
             Card(
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF090D18)),
@@ -501,7 +505,7 @@ fun NewsIntelligenceScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Text(heroStory.timeAgo, fontSize = 10.sp, color = Color(0xFF8B949E))
+                                Text(featuredStory.timeAgo, fontSize = 10.sp, color = Color(0xFF8B949E))
                                 IconButton(
                                     onClick = { isBookmarked = !isBookmarked },
                                     modifier = Modifier.size(24.dp)
@@ -518,7 +522,7 @@ fun NewsIntelligenceScreen(
 
                         // Headline
                         Text(
-                            text = heroStory.headline,
+                            text = featuredStory.headline,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White,
@@ -527,7 +531,7 @@ fun NewsIntelligenceScreen(
 
                         // Subheadline
                         Text(
-                            text = heroStory.subheadline,
+                            text = featuredStory.subheadline,
                             fontSize = 10.5.sp,
                             color = Color(0xFF94A3B8),
                             lineHeight = 14.sp
@@ -556,7 +560,7 @@ fun NewsIntelligenceScreen(
                                         Icon(Icons.Default.Description, contentDescription = null, tint = Color(0xFF60A5FA), modifier = Modifier.size(13.dp))
                                         Text("FACT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF60A5FA))
                                     }
-                                    heroStory.facts.forEach { fact ->
+                                    featuredStory.facts.forEach { fact ->
                                         Text(
                                             text = "• $fact",
                                             fontSize = 9.sp,
@@ -586,7 +590,7 @@ fun NewsIntelligenceScreen(
                                         Text("AI ANALYSIS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC084FC))
                                     }
                                     Text(
-                                        text = heroStory.aiAnalysis,
+                                        text = featuredStory.aiAnalysis,
                                         fontSize = 9.sp,
                                         color = Color(0xFFE2E8F0),
                                         lineHeight = 12.5.sp
@@ -600,7 +604,7 @@ fun NewsIntelligenceScreen(
         }
 
         // 5. "Why it matters" Expandable Card
-        item {
+        if (featuredStory != null) item {
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = Color(0xFF0C1322),
@@ -612,13 +616,13 @@ fun NewsIntelligenceScreen(
                         selectedArticleForDetail = NewsArticle(
                             assetSymbol = "FED / MACRO",
                             category = NewsCategory.MACRO,
-                            timeAgo = "2h ago",
+                            timeAgo = featuredStory.timeAgo,
                             headline = "Why Interest Rates Matter for Trading Assets",
-                            summary = heroStory.whyItMatters,
+                            summary = featuredStory.whyItMatters,
                             sentiment = MarketSentiment.BEARISH,
-                            sourceName = "Forex Factory Macro Intelligence",
-                            fullContent = heroStory.whyItMatters + "\n\nWhen rates stay higher for longer, borrowing capital becomes more expensive, compressing price-to-earnings multiples on equities and making yielding cash more attractive than gold or crypto.",
-                            aiTakeaway = "Traders should adjust stop losses on risk assets and monitor DXY strength."
+                            sourceName = "Market analysis",
+                            fullContent = featuredStory.whyItMatters,
+                            aiTakeaway = featuredStory.aiAnalysis
                         )
                     }
             ) {
@@ -651,7 +655,7 @@ fun NewsIntelligenceScreen(
                             color = Color.White
                         )
                         Text(
-                            text = heroStory.whyItMatters,
+                            text = featuredStory.whyItMatters,
                             fontSize = 10.5.sp,
                             color = Color(0xFF94A3B8),
                             lineHeight = 14.5.sp
@@ -710,6 +714,7 @@ fun NewsIntelligenceScreen(
         }
 
         // 7. Latest News Feed List Items
+        if (filteredArticles.isEmpty()) item { Text("News unavailable: no verified feed is configured.", color = Color(0xFF94A3B8), fontSize = 11.sp) }
         items(filteredArticles) { article ->
             Surface(
                 shape = RoundedCornerShape(14.dp),
@@ -841,12 +846,12 @@ fun NewsIntelligenceScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Color(0xFFB388FF))
-                    Text("Forex Factory Live Calendar", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Economic Calendar", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Key releases scheduled for this session:", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                    Text(if (todayEvents.isEmpty()) "No verified economic calendar feed is configured." else "Key releases scheduled for this session:", fontSize = 11.sp, color = Color(0xFF94A3B8))
                     todayEvents.forEach { ev ->
                         Surface(
                             shape = RoundedCornerShape(10.dp),

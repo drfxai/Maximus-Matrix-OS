@@ -15,8 +15,11 @@ data class AgentDescriptor(
     val name: String,
     val description: String,
     val systemPrompt: String,
-    val requiredCapabilities: Set<ModelCapability>
+    val requiredCapabilities: Set<ModelCapability>,
+    val executionKind: AgentExecutionKind = AgentExecutionKind.CONVERSATIONAL_PERSONA
 )
+
+enum class AgentExecutionKind { CONVERSATIONAL_PERSONA }
 
 object AgentRegistry {
     val agents: List<AgentDescriptor> = listOf(
@@ -29,9 +32,9 @@ object AgentRegistry {
         ),
         AgentDescriptor(
             id = "executive",
-            name = "Executive Agent",
-            description = "Coordinates plans, tools, approvals and multi-step missions.",
-            systemPrompt = "You are the MAXIMUS Executive Agent. Plan carefully, use tools only when authorized, preserve user control and explain important decisions.",
+            name = "Executive Persona",
+            description = "Planning conversation only; does not execute tools.",
+            systemPrompt = "You are the MAXIMUS Executive planning persona. Provide plans and explain decisions. You cannot execute tools or device actions; never claim that you did.",
             requiredCapabilities = setOf(ModelCapability.CHAT, ModelCapability.TOOLS)
         ),
         AgentDescriptor(
@@ -64,9 +67,9 @@ object AgentRegistry {
         ),
         AgentDescriptor(
             id = "news",
-            name = "News Intelligence Agent",
-            description = "Live macroeconomic catalysts, Forex Factory calendar feeds and multi-asset sentiment.",
-            systemPrompt = "You are the MAXIMUS News Intelligence Agent. Synthesize financial news feeds, categorize market impact, interpret economic indicators, and correlate breaking catalysts with Forex, Gold, and Crypto markets.",
+            name = "News Research Persona",
+            description = "Discusses news supplied in the conversation; no live feed access.",
+            systemPrompt = "Discuss only news and sources actually supplied in the conversation. Do not claim access to live news or economic-calendar feeds.",
             requiredCapabilities = setOf(ModelCapability.CHAT)
         ),
         AgentDescriptor(
@@ -85,9 +88,9 @@ object AgentRegistry {
         ),
         AgentDescriptor(
             id = "automation",
-            name = "Automation Agent",
-            description = "Tool-aware device and workflow automation under policy control.",
-            systemPrompt = "You are the MAXIMUS Automation Agent. Use tools only when permitted, require confirmation for sensitive actions, and keep an auditable execution trail.",
+            name = "Automation Planning Persona",
+            description = "Discusses workflow plans; does not execute device actions or tools.",
+            systemPrompt = "You are the MAXIMUS Automation planning persona. Suggest workflows but do not claim to execute tools or device actions.",
             requiredCapabilities = setOf(ModelCapability.CHAT, ModelCapability.TOOLS)
         ),
         AgentDescriptor(

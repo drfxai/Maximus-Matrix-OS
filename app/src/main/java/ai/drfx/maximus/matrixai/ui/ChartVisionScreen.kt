@@ -116,48 +116,7 @@ fun ChartVisionScreen(
 
     // Compute effective analysis once in composable scope
     val successAnalysis = (state as? ChartVisionUiState.Success)?.analysis
-    val analysis = successAnalysis ?: remember(selectedPreset) {
-        ChartVisionAnalysis(
-            assetIdentifier = selectedPreset.asset,
-            timeframeEstimate = selectedPreset.timeframe,
-            direction = TrendDirection.BEARISH,
-            trendStrength = TrendStrength.STRONG,
-            trendSummary = "Strong downward trend with significant selling pressure visible across all timeframe candles.",
-            tradePlan = TradePlan(
-                bias = "BEARISH",
-                entryZone = "1.0850 - 1.0870",
-                stopLoss = "1.0920",
-                target1 = "1.0750",
-                target2 = "1.0680",
-                riskRewardRatio = "2.8:1",
-                invalidationReason = "Sustained 4H candle close above resistance"
-            ),
-            patterns = listOf(
-                ChartPatternItem(
-                    name = "Head and Shoulders",
-                    patternType = "Reversal Pattern",
-                    confidencePercent = 78,
-                    status = "Active",
-                    implication = "Bearish confirmation below neckline"
-                ),
-                ChartPatternItem(
-                    name = "Descending Channel",
-                    patternType = "Continuation Pattern",
-                    confidencePercent = 85,
-                    status = "Validated",
-                    implication = "Consistent lower highs and lower lows"
-                )
-            ),
-            keyLevels = listOf(
-                PriceZone("1.0920", "Key Resistance", "Strong supply cluster with multiple wick rejections"),
-                PriceZone("1.0750", "Key Support", "Previous liquidity demand zone & potential bounce area")
-            ),
-            candleSignals = listOf(
-                CandleSignal("Bearish Engulfing", "At Resistance", "Confirmed breakdown signal"),
-                CandleSignal("Long Upper Wick", "Breakout Rejection", "Strong institutional selling")
-            )
-        )
-    }
+    val analysis = successAnalysis ?: ChartVisionAnalysis(modelUsed = "No analysis", trendSummary = "Analyze a chart to see evidence-based findings.")
 
     LazyColumn(
         modifier = modifier
@@ -601,6 +560,7 @@ fun ChartVisionScreen(
             }
         }
 
+        if (successAnalysis != null) {
         // ==========================================
         // 6. RICH VISION SECTIONS (Rendered from Analysis or Preset defaults)
         // ==========================================
@@ -656,7 +616,7 @@ fun ChartVisionScreen(
                                 Text("STRENGTH", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = textSecondary)
                                 Spacer(Modifier.height(2.dp))
                                 Text(
-                                    "${analysis.trendStrength.name} (82%)",
+                                    analysis.trendStrength.name,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF00E5FF)
@@ -819,7 +779,7 @@ fun ChartVisionScreen(
                                         border = BorderStroke(1.dp, primaryGreen.copy(alpha = 0.35f))
                                     ) {
                                         Text(
-                                            "${pattern.confidencePercent}% Confidence",
+                                            if (pattern.confidencePercent > 0) "${pattern.confidencePercent}% Confidence" else "AI identified pattern",
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = primaryGreen,
@@ -1196,6 +1156,7 @@ fun ChartVisionScreen(
             }
         }
 
+        }
         // ------------------------------------------
         // J. EXPLORE RELATED MODULES
         // ------------------------------------------
@@ -1237,7 +1198,7 @@ fun ChartVisionScreen(
     // ==========================================
     // EXPORT SUMMARY REPORT DIALOG
     // ==========================================
-    if (showExportDialog) {
+    if (showExportDialog && successAnalysis != null) {
         val reportText = remember(analysis) { analysis.toShareableReport() }
 
         AlertDialog(

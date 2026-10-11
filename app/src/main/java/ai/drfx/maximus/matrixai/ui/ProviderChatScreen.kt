@@ -408,7 +408,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
                                 Text(
-                                    "Agent is generating response with ${state.provider.displayName}…",
+                                    "Assistant is generating response with ${state.provider.displayName}…",
                                     color = MaterialTheme.colorScheme.primary,
                                     fontSize = 11.sp
                                 )
@@ -472,7 +472,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Chat input" },
                     maxLines = 3,
                     enabled = !recording,
-                    placeholder = { Text("Message the selected agent…", fontSize = 13.sp) },
+                    placeholder = { Text("Message the selected persona…", fontSize = 13.sp) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { send() }),
                     shape = RoundedCornerShape(12.dp)
@@ -844,7 +844,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Model & Agent Selection", fontWeight = FontWeight.SemiBold)
+                                    Text("Model & Persona Selection", fontWeight = FontWeight.SemiBold)
                                     Box(Modifier.fillMaxWidth()) {
                                         OutlinedButton(
                                             onClick = { modelExpanded = true },
@@ -884,7 +884,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                         ) {
                                             Text(
                                                 state.supportedAgents.firstOrNull { it.id == state.selectedAgentId }?.name
-                                                    ?: "Select agent",
+                                                    ?: "Select persona",
                                                 maxLines = 1
                                             )
                                         }
