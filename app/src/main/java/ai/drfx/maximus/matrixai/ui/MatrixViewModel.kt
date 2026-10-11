@@ -31,7 +31,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val dataClient = CompanyDataClient()
     private val dataStore = SecureDataCenterStore(application)
     private val chartVisionEngine = ChartVisionEngine(application, apiStore, usageStore)
-    val newsIntelligenceAgent = AiNewsIntelligenceAgent(application, apiStore)
+    val newsIntelligenceAgent = AiNewsIntelligenceAgent(application)
 
     private val _chartVisionState = MutableStateFlow<ChartVisionUiState>(ChartVisionUiState.Idle)
     val chartVisionState: StateFlow<ChartVisionUiState> = _chartVisionState.asStateFlow()
