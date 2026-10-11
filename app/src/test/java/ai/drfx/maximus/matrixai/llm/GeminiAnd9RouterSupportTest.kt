@@ -10,8 +10,8 @@ class GeminiAnd9RouterSupportTest {
         assertTrue(ApiDiscoveryEngine.defaultCatalog(LlmProvider.ROUTER_9_SMART).isEmpty())
         assertTrue(ApiDiscoveryEngine.defaultCatalog(LlmProvider.ROUTER_9_COMBO).isEmpty())
     }
-    @Test fun routerRequiresUserDeploymentAndModel() {
-        assertEquals("", LlmProvider.ROUTER_9_SMART.defaultBaseUrl)
+    @Test fun routerRequiresVerifiedModelAndKnownEndpoint() {
+        assertEquals("https://9router.com/v1", LlmProvider.ROUTER_9_SMART.defaultBaseUrl)
         assertEquals("", LlmProvider.ROUTER_9_SMART.defaultModel)
         assertFalse(ModelCapabilityResolver.resolve(LlmProvider.ROUTER_9_SMART, "custom-combo").contains(ModelCapability.VISION))
     }
