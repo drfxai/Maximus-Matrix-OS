@@ -170,7 +170,7 @@ class ApiDiscoveryEngine {
     companion object {
         const val NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
         const val GEMINI_BASE_URL = "https://generativelanguage.googleapis.com"
-        const val ROUTER_9_BASE_URL = "https://api.9router.com/v1"
+        const val ROUTER_9_BASE_URL = "https://9router.com/v1"
 
         fun resolveBaseUrl(rawBaseUrl: String, apiKey: String): String {
             val input = rawBaseUrl.trim()
