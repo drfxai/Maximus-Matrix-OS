@@ -9,7 +9,7 @@ def identity(badging):
 
 def validate(old, new, old_cert, new_cert):
     if new.get('name') != 'ai.drfx.maximus.matrixai' or old.get('name') != new.get('name'):
-        raise ValueError('Application ID changed')
+        raise ValueError(f"Application ID changed: published={old.get('name')!r}; replacement={new.get('name')!r}; expected='ai.drfx.maximus.matrixai'")
     if old.get('versionName') != '1.0.0' or new.get('versionName') != '1.0.0':
         raise ValueError('Public version must remain 1.0.0')
     if int(new['versionCode']) <= int(old['versionCode']):
