@@ -41,7 +41,8 @@ class KeyboardLayoutTest {
                 val expected = if (cycle == 0) "Keyboard test" else "Keyboard test again"
                 device.executeShellCommand(if (cycle == 0) "input text Keyboard%stest" else "input text %sagain")
                 awaitCondition("Mission test text was not entered") { device.hasObject(By.text(expected)) }
-                screenshot("mission-keyboard-$cycle.png")
+
+
                 assertComposerAboveIme("Mission composer")
                 assertTrue("Home header moved off screen", device.hasObject(By.text("MAXIMUS AI")))
                 assertFalse("Navigation should hide while typing", device.hasObject(By.desc("Neural Brain")))
@@ -54,7 +55,8 @@ class KeyboardLayoutTest {
                 }
                 assertTrue("Mission text was lost", device.hasObject(By.text(expected)))
             }
-            screenshot("mission-keyboard-closed.png")
+
+
         }
     }
 
@@ -70,7 +72,8 @@ class KeyboardLayoutTest {
             awaitCondition("Chat keyboard did not open") { isImeVisible() }
             device.executeShellCommand("input text Chat%skeyboard%stest")
             awaitCondition("Chat test text was not entered") { device.hasObject(By.text("Chat keyboard test")) }
-            screenshot("chat-keyboard-open.png")
+
+
             assertComposerAboveIme("Chat composer")
             device.pressBack()
             awaitCondition("Chat keyboard did not close") { !isImeVisible() }
@@ -171,12 +174,4 @@ class KeyboardLayoutTest {
         fail(message)
     }
 
-    private fun screenshot(name: String) {
-        // Shell-owned captures survive the test runner uninstalling the app.
-        phase("Screenshot: $name")
-        val path = "/data/local/tmp/keyboard-check/$name"
-        device.executeShellCommand("mkdir -p /data/local/tmp/keyboard-check")
-        device.executeShellCommand("screencap -p $path")
-        assertTrue("Could not capture $name", device.executeShellCommand("ls $path").trim() == path)
-    }
 }
