@@ -21,6 +21,6 @@ free -m > keyboard-check/host-memory.txt
 ps -eo pid,ppid,rss,comm > keyboard-check/host-processes.txt
 if [[ "$test_status" -ne 0 ]]; then
   # Emit bounded test-only hierarchy/inset diagnostics for remote investigation.
-  rg "KeyboardLayoutTest|FATAL EXCEPTION" keyboard-check/live-device.log | tail -n 90 || true
+  grep -E "KeyboardLayoutTest|FATAL EXCEPTION" keyboard-check/live-device.log | tail -n 90 || true
 fi
 exit "$test_status"
