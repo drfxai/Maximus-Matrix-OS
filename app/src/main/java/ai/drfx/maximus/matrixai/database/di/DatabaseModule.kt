@@ -31,7 +31,7 @@ class DatabaseModule private constructor(context: Context) {
     }
 
     val chatHistoryRepository: ChatHistoryRepository by lazy {
-        ChatHistoryRepository(chatDao)
+        ChatHistoryRepository(chatDao, ai.drfx.maximus.matrixai.database.ChatContentCipher())
     }
 
     val matrixEventRepository: MatrixEventRepository by lazy {

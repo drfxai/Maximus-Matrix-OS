@@ -38,6 +38,9 @@ class MatrixPlanner {
         if (normalized.contains("validate") || normalized.contains("strategy")) {
             steps += MissionStep(description = "Register strategy validation", action = AgentAction("validate_strategy", mapOf("objective" to objective), RiskLevel.MEDIUM))
         }
+        if (steps.size == 1 && normalized !in setOf("status", "device info", "inspect matrix runtime", "system status")) {
+            steps += MissionStep(description = "Unsupported objective", action = AgentAction("unsupported_objective"))
+        }
         return steps.distinctBy { it.action.tool + it.action.arguments.toString() }.take(8)
     }
 }

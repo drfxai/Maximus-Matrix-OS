@@ -2,16 +2,16 @@ package ai.drfx.maximus.matrixai.llm
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AgentRegistryTest {
     @Test
-    fun advertisedAgentsAreConversationalPersonas() {
+    fun chatDescriptorsExplicitlyIdentifyPersonas() {
         AgentRegistry.agents.forEach {
-            assertEquals(AgentExecutionKind.CONVERSATIONAL_PERSONA, it.executionKind)
+            assertTrue(it.executionKind.contains("no executable tools"))
         }
     }
+
     @Test
     fun chatOnlyModelDoesNotExposeToolAgents() {
         val supported = AgentRegistry.supportedAgents(setOf(ModelCapability.CHAT)).map { it.id }

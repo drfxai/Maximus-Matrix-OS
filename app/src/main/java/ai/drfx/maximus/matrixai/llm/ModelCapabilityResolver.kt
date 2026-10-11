@@ -9,14 +9,15 @@ object ModelCapabilityResolver {
 
         when (provider) {
             LlmProvider.GEMINI -> {
-                capabilities += ModelCapability.TOOLS
-                capabilities += ModelCapability.VISION
-                capabilities += ModelCapability.LONG_CONTEXT
-                capabilities += ModelCapability.STRUCTURED_OUTPUT
-                capabilities += ModelCapability.REASONING
+                if (id.startsWith("gemini-2.5-") || id.startsWith("gemini-2.0-")) {
+                    capabilities += ModelCapability.VISION
+                    capabilities += ModelCapability.LONG_CONTEXT
+                    capabilities += ModelCapability.STRUCTURED_OUTPUT
+                }
             }
             LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> {
-                // Model IDs alone do not verify 9Router-specific multimodal capabilities.
+                // A routing service does not establish any individual model capability.
+                if (id.contains("vision") || id.contains("-vl")) capabilities += ModelCapability.VISION
             }
             LlmProvider.NVIDIA -> {
                 if (id.contains("llama") || id.contains("qwen") || id.contains("mistral") || id.contains("nemotron") || id.contains("gpt-oss")) {

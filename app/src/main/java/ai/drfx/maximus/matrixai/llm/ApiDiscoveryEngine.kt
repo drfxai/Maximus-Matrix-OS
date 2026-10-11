@@ -7,36 +7,29 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class ApiDiscoveryEngine {
-    suspend fun discover(provider: LlmProvider, rawBaseUrl: String, apiKey: String): ApiDiscoveryResult =
-        withContext(Dispatchers.IO) {
-            require(provider != LlmProvider.UNKNOWN) { "Select a provider first." }
-            require(apiKey.isNotBlank()) { "Enter the selected provider's API key." }
-            val base = normalizeBaseUrl(rawBaseUrl.ifBlank { provider.defaultBaseUrl })
-            require(URL(base).protocol == "https") { "Provider endpoints must use HTTPS." }
-            if (provider != LlmProvider.OPENAI_COMPATIBLE && !provider.isNineRouter) {
-                require(URL(base).host.equals(URL(provider.defaultBaseUrl).host, ignoreCase = true)) {
-                    "${provider.displayName} credentials can only be sent to its configured provider host."
-                }
-            }
-            val models = fetchModels(base, apiKey, provider)
-            require(models.isNotEmpty()) { "The provider returned no usable chat models." }
-            ApiDiscoveryResult(provider, base, models.map { model ->
-                model.copy(
-                    capabilities = ModelCapabilityResolver.resolve(provider, model.id),
-                    contextWindowTokens = ModelLimitsResolver.contextWindow(provider, model.id)
-                )
-            }, "Authenticated catalog: ${models.size} model(s). Inference is not yet verified.")
+    private val cache = VerifiedCatalogCache()
+    suspend fun discover(rawBaseUrl: String, apiKey: String, selectedProvider: LlmProvider? = null): ApiDiscoveryResult = CancellableHttp.execute {
+        val base = if (selectedProvider == null) resolveBaseUrl(rawBaseUrl, apiKey) else normalizeBaseUrl(rawBaseUrl)
+        val hinted = providerFromUrl(base, apiKey)
+        val provider = selectedProvider?.takeIf { it != LlmProvider.UNKNOWN }
+            ?: if (hinted == LlmProvider.UNKNOWN) LlmProvider.OPENAI_COMPATIBLE else hinted
+        require(apiKey.isNotBlank()) { "Credentials are required to verify the catalog." }
+        EndpointPolicy.validate(base, provider)
+        CredentialPolicy.validate(provider, apiKey)
+        cache.get(provider, base, apiKey)?.let { cached ->
+            return@execute ApiDiscoveryResult(provider, base, cached, "Cached authenticated catalog (maximum age 5 minutes). Inference has not been tested.")
         }
-
-    suspend fun discover(rawBaseUrl: String, apiKey: String): ApiDiscoveryResult {
-        val provider = providerFromUrl(rawBaseUrl, apiKey)
-        require(provider != LlmProvider.UNKNOWN) { "Select a provider before testing credentials." }
-        return discover(provider, rawBaseUrl, apiKey)
+        val models = fetchModels(base, apiKey, provider)
+        require(models.isNotEmpty()) { "No chat models were returned by the endpoint." }
+        val verified = models.map { it.copy(verified = true, capabilities = ModelCapabilityResolver.resolve(provider, it.id)) }
+        cache.put(provider, base, apiKey, verified)
+        ApiDiscoveryResult(provider, base, verified,
+            "Authenticated catalog verified (${models.size} models). Inference has not been tested.")
     }
 
     private fun fetchModels(base: String, apiKey: String, provider: LlmProvider): List<ModelDescriptor> {
         val url = when (provider) {
-            LlmProvider.GEMINI -> geminiRoot(base) + "/models?key=" + encode(apiKey)
+            LlmProvider.GEMINI -> geminiRoot(base) + "/models"
             else -> apiRoot(base) + "/models"
         }
         val connection = open(url, "GET")
@@ -53,7 +46,7 @@ class ApiDiscoveryEngine {
                             val methods = model.optJSONArray("supportedGenerationMethods")
                             val supportsGenerate = methods?.let { arr ->
                                 (0 until arr.length()).any { arr.optString(it) == "generateContent" }
-                            } ?: true
+                            } ?: false
                             if (!supportsGenerate) continue
                             val rawName = model.optString("name")
                             if (rawName.isBlank()) continue
@@ -102,17 +95,23 @@ class ApiDiscoveryEngine {
                 connection.setRequestProperty("x-api-key", apiKey)
                 connection.setRequestProperty("anthropic-version", "2023-06-01")
             }
-            LlmProvider.GEMINI -> Unit
-            LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO ->
+            LlmProvider.GEMINI -> connection.setRequestProperty("x-goog-api-key", apiKey)
+            LlmProvider.ROUTER_9_SMART -> {
                 connection.setRequestProperty("Authorization", "Bearer " + apiKey)
+
+            }
+            LlmProvider.ROUTER_9_COMBO -> {
+                connection.setRequestProperty("Authorization", "Bearer " + apiKey)
+
+            }
             else -> connection.setRequestProperty("Authorization", "Bearer " + apiKey)
         }
     }
 
     private fun open(url: String, method: String): HttpURLConnection =
-        (URL(url).openConnection() as HttpURLConnection).apply {
-            requestMethod = method
+        CancellableHttp.register(URL(url).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = false
+            requestMethod = method
             connectTimeout = 10_000
             readTimeout = 20_000
             setRequestProperty("Accept", "application/json")
@@ -121,15 +120,10 @@ class ApiDiscoveryEngine {
 
     private fun read(connection: HttpURLConnection): String {
         val code = connection.responseCode
-        val text = (if (code in 200..299) connection.inputStream else connection.errorStream)
-            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+        val text = BoundedApiResponse.read(if (code in 200..299) connection.inputStream else connection.errorStream)
+        connection.disconnect()
         if (code !in 200..299) {
-            val message = runCatching {
-                val root = JSONObject(text)
-                root.optJSONObject("error")?.optString("message")
-                    ?.ifBlank { root.optString("message") }
-            }.getOrNull()
-            throw IllegalStateException(message?.takeIf { it.isNotBlank() } ?: "HTTP " + code)
+            throw ProviderRequestException.fromHttp(code)
         }
         return text
     }
@@ -137,40 +131,21 @@ class ApiDiscoveryEngine {
     private fun providerFromUrl(url: String, apiKey: String): LlmProvider {
         val host = runCatching { URL(url).host.lowercase() }.getOrDefault("")
         return when {
-            apiKey.startsWith("AIza", ignoreCase = true) || "googleapis.com" in host || "generativelanguage" in host -> LlmProvider.GEMINI
-            apiKey.startsWith("nvapi-") || "api.nvidia.com" in host || "nvidia.com" in host -> LlmProvider.NVIDIA
-            "9router" in host || url.contains("9router") || apiKey.startsWith("9r-") -> {
+            host == "generativelanguage.googleapis.com" -> LlmProvider.GEMINI
+            host == "integrate.api.nvidia.com" -> LlmProvider.NVIDIA
+            host.contains("9router") -> {
                 if (url.contains("combo") || apiKey.contains("combo")) LlmProvider.ROUTER_9_COMBO else LlmProvider.ROUTER_9_SMART
             }
-            "openai.com" in host -> LlmProvider.OPENAI
-            "anthropic.com" in host -> LlmProvider.ANTHROPIC
+            host == "api.openai.com" -> LlmProvider.OPENAI
+            host == "api.anthropic.com" -> LlmProvider.ANTHROPIC
             else -> LlmProvider.UNKNOWN
         }
     }
 
-    private fun normalizeDetectedProvider(candidate: LlmProvider, hinted: LlmProvider, base: String): LlmProvider {
-        if (candidate != LlmProvider.OPENAI_COMPATIBLE) return candidate
-        if (hinted == LlmProvider.OPENAI) return LlmProvider.OPENAI
-        if (hinted == LlmProvider.NVIDIA) return LlmProvider.NVIDIA
-        if (hinted == LlmProvider.ROUTER_9_SMART) return LlmProvider.ROUTER_9_SMART
-        if (hinted == LlmProvider.ROUTER_9_COMBO) return LlmProvider.ROUTER_9_COMBO
-        val host = runCatching { URL(base).host.lowercase() }.getOrDefault("")
-        return when {
-            "api.nvidia.com" in host || "nvidia.com" in host -> LlmProvider.NVIDIA
-            "9router" in host -> LlmProvider.ROUTER_9_SMART
-            "openai.com" in host -> LlmProvider.OPENAI
-            else -> LlmProvider.OPENAI_COMPATIBLE
-        }
-    }
-
-    private fun providerRequiresKey(provider: LlmProvider): Boolean =
-        provider == LlmProvider.NVIDIA || provider == LlmProvider.ANTHROPIC ||
-            provider == LlmProvider.GEMINI || provider.isNineRouter
-
     companion object {
         const val NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
         const val GEMINI_BASE_URL = "https://generativelanguage.googleapis.com"
-        const val ROUTER_9_BASE_URL = "https://9router.com/v1"
+        const val ROUTER_9_BASE_URL = ""
 
         fun resolveBaseUrl(rawBaseUrl: String, apiKey: String): String {
             val input = rawBaseUrl.trim()
@@ -211,36 +186,12 @@ class ApiDiscoveryEngine {
             }
         }
 
-        fun defaultCatalog(provider: LlmProvider): List<ModelDescriptor> {
-            return when (provider) {
-                LlmProvider.GEMINI -> listOf(
-                    ModelDescriptor("gemini-2.5-flash", "Gemini 2.5 Flash", ModelCapabilityResolver.resolve(LlmProvider.GEMINI, "gemini-2.5-flash"), 1_048_576),
-                    ModelDescriptor("gemini-2.5-flash-image", "Gemini 2.5 Flash Image", ModelCapabilityResolver.resolve(LlmProvider.GEMINI, "gemini-2.5-flash-image"), 1_048_576),
-                    ModelDescriptor("gemini-2.5-pro", "Gemini 2.5 Pro", ModelCapabilityResolver.resolve(LlmProvider.GEMINI, "gemini-2.5-pro"), 2_097_152)
-                )
-                LlmProvider.NVIDIA -> listOf(
-                    ModelDescriptor("meta/llama-3.3-70b-instruct", "Meta Llama 3.3 70B Instruct (NVIDIA NIM)", ModelCapabilityResolver.resolve(LlmProvider.NVIDIA, "meta/llama-3.3-70b-instruct"), 131_072),
-                    ModelDescriptor("deepseek-ai/deepseek-r1", "DeepSeek R1 Reasoning (NVIDIA NIM)", ModelCapabilityResolver.resolve(LlmProvider.NVIDIA, "deepseek-ai/deepseek-r1"), 131_072),
-                    ModelDescriptor("nvidia/nemotron-4-340b-instruct", "NVIDIA Nemotron-4 340B (NVIDIA NIM)", ModelCapabilityResolver.resolve(LlmProvider.NVIDIA, "nvidia/nemotron-4-340b-instruct"), 131_072),
-                    ModelDescriptor("mistralai/mistral-large-2-instruct", "Mistral Large 2 (NVIDIA NIM)", ModelCapabilityResolver.resolve(LlmProvider.NVIDIA, "mistralai/mistral-large-2-instruct"), 131_072),
-                    ModelDescriptor("qwen/qwen2.5-72b-instruct", "Qwen 2.5 72B Instruct (NVIDIA NIM)", ModelCapabilityResolver.resolve(LlmProvider.NVIDIA, "qwen/qwen2.5-72b-instruct"), 131_072),
-                    ModelDescriptor("nvidia/llama-3.1-nemotron-70b-instruct", "Llama 3.1 Nemotron 70B (NVIDIA NIM)", ModelCapabilityResolver.resolve(LlmProvider.NVIDIA, "nvidia/llama-3.1-nemotron-70b-instruct"), 131_072),
-                    ModelDescriptor("meta/llama-3.1-8b-instruct", "Meta Llama 3.1 8B Instruct (NVIDIA NIM)", ModelCapabilityResolver.resolve(LlmProvider.NVIDIA, "meta/llama-3.1-8b-instruct"), 131_072),
-                    ModelDescriptor("nvidia/neva-22b", "NVIDIA NeVA 22B Vision (NVIDIA NIM)", ModelCapabilityResolver.resolve(LlmProvider.NVIDIA, "nvidia/neva-22b"), 131_072)
-                )
-                LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> emptyList()
-                LlmProvider.OPENAI -> listOf(
-                    ModelDescriptor("gpt-4o", "GPT-4o (Omni)", ModelCapabilityResolver.resolve(LlmProvider.OPENAI, "gpt-4o"), 128_000),
-                    ModelDescriptor("gpt-4o-mini", "GPT-4o Mini", ModelCapabilityResolver.resolve(LlmProvider.OPENAI, "gpt-4o-mini"), 128_000),
-                    ModelDescriptor("o3-mini", "o3-mini Reasoning", ModelCapabilityResolver.resolve(LlmProvider.OPENAI, "o3-mini"), 128_000)
-                )
-                LlmProvider.ANTHROPIC -> listOf(
-                    ModelDescriptor("claude-3-5-sonnet-20241022", "Claude 3.5 Sonnet", ModelCapabilityResolver.resolve(LlmProvider.ANTHROPIC, "claude-3-5-sonnet-20241022"), 200_000),
-                    ModelDescriptor("claude-3-7-sonnet", "Claude 3.7 Sonnet Hybrid", ModelCapabilityResolver.resolve(LlmProvider.ANTHROPIC, "claude-3-7-sonnet"), 200_000),
-                    ModelDescriptor("claude-3-5-haiku-20241022", "Claude 3.5 Haiku", ModelCapabilityResolver.resolve(LlmProvider.ANTHROPIC, "claude-3-5-haiku-20241022"), 200_000)
-                )
-                LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> emptyList()
-            }.map { it.copy(displayName = "Suggestion, unverified: ${it.displayName}") }
+        /** Suggestions are deliberately not evidence of availability. */
+        fun defaultCatalog(provider: LlmProvider): List<ModelDescriptor> = when (provider) {
+            LlmProvider.GEMINI -> listOf(ModelDescriptor("gemini-2.5-flash", "Gemini 2.5 Flash (unverified suggestion)"))
+            LlmProvider.NVIDIA -> listOf(ModelDescriptor("meta/llama-3.3-70b-instruct", "Llama 3.3 (unverified suggestion)"))
+            LlmProvider.OPENAI -> listOf(ModelDescriptor("gpt-4o", "GPT-4o (unverified suggestion)"))
+            else -> emptyList()
         }
 
         private fun encode(value: String): String = java.net.URLEncoder.encode(value, "UTF-8")

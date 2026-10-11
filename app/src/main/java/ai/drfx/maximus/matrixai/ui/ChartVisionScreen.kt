@@ -95,13 +95,6 @@ fun ChartVisionScreen(
         }
     }
 
-    // Initialize with preset if empty
-    LaunchedEffect(Unit) {
-        if (activeBitmap == null) {
-            viewModel.selectPresetChart(SampleChartPreset.BTC_ASCENDING_TRIANGLE)
-        }
-    }
-
     // Modern dark styling palette from design mockup (3.png)
     val bgDark = Color(0xFF090D14)
     val cardBg = Color(0xFF111726)
@@ -116,7 +109,7 @@ fun ChartVisionScreen(
 
     // Compute effective analysis once in composable scope
     val successAnalysis = (state as? ChartVisionUiState.Success)?.analysis
-    val analysis = successAnalysis ?: ChartVisionAnalysis(modelUsed = "No analysis", trendSummary = "Analyze a chart to see evidence-based findings.")
+    val analysis = successAnalysis ?: ChartVisionAnalysis()
 
     LazyColumn(
         modifier = modifier
@@ -165,7 +158,12 @@ fun ChartVisionScreen(
                                     .background(primaryGreen)
                             )
                             Text(
-                                text = "Ready",
+                                text = when (state) {
+                                    is ChartVisionUiState.Success -> "Inference complete"
+                                    is ChartVisionUiState.Analyzing -> "Processing"
+                                    is ChartVisionUiState.Error -> "Error"
+                                    else -> "Awaiting image"
+                                },
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = primaryGreen
@@ -406,7 +404,7 @@ fun ChartVisionScreen(
                             ) {
                                 Icon(Icons.Default.BarChart, contentDescription = null, modifier = Modifier.size(15.dp))
                                 Spacer(Modifier.width(5.dp))
-                                Text("Sample Charts", fontSize = 11.5.sp, maxLines = 1)
+                                Text("DEMO / SAMPLE", fontSize = 11.5.sp, maxLines = 1)
                                 Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(15.dp))
                             }
 
@@ -560,12 +558,15 @@ fun ChartVisionScreen(
             }
         }
 
-        if (successAnalysis != null) {
         // ==========================================
         // 6. RICH VISION SECTIONS (Rendered from Analysis or Preset defaults)
         // ==========================================
 
         // ------------------------------------------
+        if (successAnalysis != null) {
+        item {
+            Text("${analysis.modelUsed} · ${analysis.processingMs} ms · ${if (analysis.usageEstimated) "Estimated" else "Provider reported"} tokens: ${analysis.totalTokens}", color = textSecondary, fontSize = 11.sp)
+        }
         // A. MARKET STRUCTURE & TREND
         // ------------------------------------------
         item {
@@ -616,7 +617,7 @@ fun ChartVisionScreen(
                                 Text("STRENGTH", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = textSecondary)
                                 Spacer(Modifier.height(2.dp))
                                 Text(
-                                    analysis.trendStrength.name,
+                                    "${analysis.trendStrength.name}",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF00E5FF)
@@ -628,7 +629,7 @@ fun ChartVisionScreen(
                     // Description text
                     Text(
                         text = analysis.trendSummary.ifBlank {
-                            "Strong downward trend with significant selling pressure visible across all timeframe candles."
+                            "Insufficient visible evidence."
                         },
                         fontSize = 12.5.sp,
                         color = textSecondary,
@@ -779,7 +780,7 @@ fun ChartVisionScreen(
                                         border = BorderStroke(1.dp, primaryGreen.copy(alpha = 0.35f))
                                     ) {
                                         Text(
-                                            if (pattern.confidencePercent > 0) "${pattern.confidencePercent}% Confidence" else "AI identified pattern",
+                                            "AI interpretation · uncalibrated",
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = primaryGreen,
@@ -878,64 +879,6 @@ fun ChartVisionScreen(
         }
 
         // ------------------------------------------
-        // E. MULTI-ASSET SCENARIOS & CORRELATIONS
-        // ------------------------------------------
-        item {
-            VisionCollapsibleCard(
-                title = "Multi-Asset Scenarios",
-                icon = Icons.Default.SwapCalls,
-                iconTint = Color(0xFF26A69A),
-                expanded = isMultiAssetExpanded,
-                onToggle = { isMultiAssetExpanded = !isMultiAssetExpanded },
-                cardBg = cardBg,
-                cardBorder = cardBorder,
-                textPrimary = textPrimary
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Bullish Scenario
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFF0E2018),
-                        border = BorderStroke(1.dp, primaryGreen.copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = primaryGreen, modifier = Modifier.size(16.dp))
-                            Column {
-                                Text("Bullish Breakout (> 1.0920)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = primaryGreen)
-                                Text("Target 1.1050 with accelerated institutional volume.", fontSize = 11.sp, color = textSecondary)
-                            }
-                        }
-                    }
-
-                    // Bearish Scenario
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFF241317),
-                        border = BorderStroke(1.dp, Color(0xFFFF5252).copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(Icons.Default.Cancel, contentDescription = null, tint = Color(0xFFFF5252), modifier = Modifier.size(16.dp))
-                            Column {
-                                Text("Bearish Continuation (< 1.0750)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF5252))
-                                Text("Liquidity pool flush towards 1.0680 major support.", fontSize = 11.sp, color = textSecondary)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ------------------------------------------
         // F. FULL TECHNICAL REPORT (Collapsible)
         // ------------------------------------------
         item {
@@ -958,7 +901,7 @@ fun ChartVisionScreen(
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = analysis.comprehensiveReport.ifBlank {
-                                "Multimodal scan performed using Gemini 3.8 Flash. Analyzed candlestick open-high-low-close geometry, volume anomalies, moving average divergences, and dynamic trendline angles. Calculated risk parameters with automated invalidation boundary."
+                                "No detailed report was returned."
                             },
                             fontSize = 11.5.sp,
                             color = Color(0xFFC0D0E6),
@@ -1069,6 +1012,7 @@ fun ChartVisionScreen(
         }
 
         // ------------------------------------------
+        }
         // H. TRADER NOTES / CONTEXT
         // ------------------------------------------
         item {
@@ -1156,7 +1100,6 @@ fun ChartVisionScreen(
             }
         }
 
-        }
         // ------------------------------------------
         // J. EXPLORE RELATED MODULES
         // ------------------------------------------
@@ -1183,7 +1126,7 @@ fun ChartVisionScreen(
                     )
 
                     RelatedModuleCard(
-                        title = "Persona Catalog",
+                        title = "Agents Hub",
                         subtitle = "Autonomous traders",
                         icon = Icons.Default.SmartToy,
                         accentColor = Color(0xFF00E5FF),
@@ -1198,7 +1141,7 @@ fun ChartVisionScreen(
     // ==========================================
     // EXPORT SUMMARY REPORT DIALOG
     // ==========================================
-    if (showExportDialog && successAnalysis != null) {
+    if (showExportDialog) {
         val reportText = remember(analysis) { analysis.toShareableReport() }
 
         AlertDialog(
@@ -1424,19 +1367,11 @@ private fun RelatedModuleCard(
 
 private fun loadBitmapFromUri(context: Context, uri: Uri): Bitmap? {
     return try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val source = ImageDecoder.createSource(context.contentResolver, uri)
-            ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
-                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                decoder.isMutableRequired = true
-            }
-        } else {
-            @Suppress("DEPRECATION")
-            context.contentResolver.openInputStream(uri)?.use { stream ->
-                BitmapFactory.decodeStream(stream)
-            }
-        }
-    } catch (e: Exception) {
-        null
-    }
+        val mime = context.contentResolver.getType(uri).orEmpty()
+        if (mime !in setOf("image/jpeg", "image/png", "image/webp")) return null
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+        if (options.outWidth <= 0 || options.outHeight <= 0 || options.outWidth.toLong() * options.outHeight > 16_000_000L) return null
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+    } catch (_: Exception) { null }
 }

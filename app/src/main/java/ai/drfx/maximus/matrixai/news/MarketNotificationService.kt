@@ -83,6 +83,7 @@ class MarketNotificationService(
                 _notificationsEnabled.value = obj.optBoolean("enabled", true)
             }
 
+
         } catch (e: Exception) {
             AppLogStore.warn("NOTIF", "Failed to load watchlist: ${e.message}")
         }
@@ -122,6 +123,7 @@ class MarketNotificationService(
     }
 
     fun addAlert(alert: MarketAlertNotification) {
+        if (!alert.triggerSource.startsWith("https://") || _recentAlerts.value.any { it.id == alert.id }) return
         val list = _recentAlerts.value.toMutableList()
         list.add(0, alert)
         _recentAlerts.value = list.take(20)

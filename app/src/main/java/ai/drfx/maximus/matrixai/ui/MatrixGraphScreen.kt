@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Paint
 import android.speech.RecognizerIntent
 import android.os.SystemClock
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
@@ -16,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -113,12 +115,39 @@ fun MatrixGraphScreen(
 ) {
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    // Honor Android's reduced-motion setting. A static scene avoids expensive
+    // frame-by-frame graph updates while animations are disabled system-wide.
+    val appContext = LocalContext.current
+    val motionEnabled = remember(appContext) {
+        runCatching {
+            Settings.Global.getFloat(
+                appContext.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f
+            ) > 0f
+        }.getOrDefault(true)
+    }
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val light = MaterialTheme.colorScheme.background.luminance() > .5f
     val bg = if (light) Color(0xFFF4F7FA) else Color(0xFF050608)
     val panelColor = if (light) Color(0xF5FFFFFF) else Color(0xF5101217)
     val ink = if (light) Color(0xFF182434) else Color(0xFFE5E9EF)
     val muted = if (light) Color(0xFF586778) else Color(0xFF8D939F)
     val border = if (light) Color(0xFFD7DFE8) else Color(0xFF262930)
+    val pendingApproval by viewModel.pendingAgentConfirmation.collectAsState()
+    pendingApproval?.let { request ->
+        AlertDialog(
+            onDismissRequest = { viewModel.approveAgentAction(request.id, false) },
+            title = { Text("Authorize device action?") },
+            text = { Column {
+                Text("Tool: " + request.action.tool)
+                request.action.arguments.forEach { (name, value) -> Text(name + ": " + value.take(500)) }
+                Text("Approval applies only to this action. External apps may require another confirmation.")
+            } },
+            confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text("Approve") } },
+            dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text("Reject") } }
+        )
+    }
     val events by viewModel.events.collectAsState()
     val status by viewModel.status.collectAsState()
     val llm by viewModel.llmState.collectAsState()
@@ -174,7 +203,9 @@ fun MatrixGraphScreen(
         lastTouch = SystemClock.uptimeMillis()
     }
     val owner = LocalLifecycleOwner.current
-    LaunchedEffect(owner, autoRotate) {
+    LaunchedEffect(owner, autoRotate, motionEnabled, keyboardVisible) {
+        // Pause the costly orbit when users reduce motion or start entering text.
+        if (!motionEnabled || keyboardVisible) return@LaunchedEffect
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             var previous = 0L
             while (isActive) {
@@ -200,7 +231,7 @@ fun MatrixGraphScreen(
             node.id == "news_hub" || node.id.startsWith("news_") -> "Open News Intelligence" to onNavigateToNews
             node.id == "alerts_hub" || node.id.startsWith("alert_") -> "View Market Alerts" to onNavigateToNews
             node.id == "chat_hub" || node.id.startsWith("chat_") -> "Open AI Chat" to onNavigateToChat
-            node.id == "agents" || node.group == "PERSONAS" -> "Open Persona Catalog" to onNavigateToAgents
+            node.id == "agents" || node.group == "AGENT RUNTIME" -> "Open Agents Hub" to onNavigateToAgents
             node.id == "company" || node.group == "DATA & KNOWLEDGE" -> "Open Data Center" to onNavigateToData
             node.id == "api" || node.group == "FINOPS & CONTROL" -> "Open Control Hub" to onNavigateToControl
             node.id == "models" || node.id == "provider" || node.id == "model" -> "Configure AI Gateway" to onNavigateToControl
@@ -215,7 +246,7 @@ fun MatrixGraphScreen(
             node.id == "news_hub" || node.id.startsWith("news_") -> Icons.Default.Article
             node.id == "alerts_hub" || node.id.startsWith("alert_") -> Icons.Default.NotificationsActive
             node.id == "chat_hub" || node.id.startsWith("chat_") -> Icons.AutoMirrored.Filled.Chat
-            node.id == "agents" || node.group == "PERSONAS" -> Icons.Default.Person
+            node.id == "agents" || node.group == "AGENT RUNTIME" -> Icons.Default.Person
             node.id == "company" || node.group == "DATA & KNOWLEDGE" -> Icons.Default.Storage
             node.id == "api" || node.group == "FINOPS & CONTROL" -> Icons.Default.Settings
             node.id == "genome" || node.id.startsWith("indicator_") || node.id.startsWith("strategy_") -> Icons.Default.Science
@@ -726,11 +757,11 @@ fun MatrixGraphScreen(
                             isChat = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Persona",
+                            titleLine1 = "Agent",
                             titleLine2 = "Factory",
                             icon = Icons.Default.Person,
                             accentColor = Color(0xFF38C79B),
-                            promptText = "Open the Persona Catalog to choose a conversational research style.",
+                            promptText = "Open Agent Factory to configure autonomous trading, vision, news, and research agents.",
                             isAgents = true
                         ),
                         QuickActionItem(
@@ -1591,8 +1622,8 @@ private fun buildTopology(
 
     // 1. MATRIX CORE (Midbrain Nucleus & Corpus Callosum Center)
     hub("maximus", "MAXIMUS", "MATRIX CORE", 0f, -8f, 5f, GraphAccent,
-        "Central operating graph for model connections, intelligence sources, and vision analysis.",
-        "Vision · News · Signals · Alerts · Chat · Personas · Gateway · Genome · Quant · Data · Mission",
+        "Central operating neural nucleus coordinating all AI systems, real-time intelligence feeds, vision analysis, and autonomous agents.",
+        "Vision · News · Signals · Alerts · Chat · Agents · Gateway · Genome · Quant · Data · Mission",
         "MIDBRAIN CORE", "Thalamic Nucleus & Corpus Callosum")
     child("maximus", "core_kernel", "Matrix Kernel", -22f, -14f, 15f, GraphAccent, "High-performance reactive event bus and telemetry stream", "Left Internal Capsule")
     child("maximus", "quantum_state", "Session State", 22f, -14f, 15f, GraphAccent, "Reactive state store maintaining cross-module continuity", "Right Internal Capsule")
@@ -1640,16 +1671,16 @@ private fun buildTopology(
     child("alerts_hub", "alert_urgency", "Urgency Classifier", -12f, 16f, 22f, GraphAlertsCrimson, "Triages alerts into Critical Breaking, High Impact, and Elevated volatility", "Cingulate Cortex Node")
     child("alerts_hub", "alert_ask_ai", "Ask AI Dispatch", -16f, -18f, 6f, GraphAlertsCrimson, "One-tap dispatch sending alert context directly to Maximus AI Chat", "Thalamocortical Loop")
 
-    // 6. RIGHT HEMISPHERE - EXECUTIVE FRONTAL CORTEX (Persona Catalog & Mission Control)
-    hub("agents", "Persona Catalog", "PERSONAS", 65f, -65f, 92f, GraphAccent,
-        "Catalog of conversational trading, vision, news, and research personas.",
+    // 6. RIGHT HEMISPHERE - EXECUTIVE FRONTAL CORTEX (Agent Factory & Mission Control)
+    hub("agents", "Agent Factory", "AGENT RUNTIME", 65f, -65f, 92f, GraphAccent,
+        "Registry of autonomous capability-gated trading, vision, news, and research agents.",
         "Executive · Vision · News · Trading · Pine · Quant · Mission · Maximus",
         "FRONTAL LOBE", "Dorsolateral Prefrontal Cortex")
-    child("agents", "executive", "Executive Persona", -16f, -22f, 15f, GraphAccent, "Planning and coordination conversation style", "Prefrontal Area 9")
-    child("agents", "vision_agent", "Vision Analyst", 20f, -16f, 18f, GraphAccent, "Discusses chart images when supported by the selected model", "Frontal Eye Field Area 8")
-    child("agents", "news_agent", "News Research", 30f, 10f, -4f, GraphAccent, "Discusses supplied news with source attribution", "Orbitofrontal Loop")
-    child("agents", "trading_agent", "Trading Persona", -22f, 8f, 26f, GraphAccent, "Discusses trading research and risk checklists", "Premotor Cortex Area 6")
-    child("agents", "pine_agent", "Pine Persona", 8f, 24f, 22f, GraphAccent, "Discusses TradingView Pine Script", "Frontal Operculum")
+    child("agents", "executive", "Executive Agent", -16f, -22f, 15f, GraphAccent, "Tool-aware mission coordinator orchestrating complex multi-step pipelines", "Prefrontal Area 9")
+    child("agents", "vision_agent", "Vision Analyst", 20f, -16f, 18f, GraphAccent, "Autonomous technical chart price-action and geometry analyst", "Frontal Eye Field Area 8")
+    child("agents", "news_agent", "News Sentinel", 30f, 10f, -4f, GraphAccent, "Real-time news reader synthesizing catalysts and sentiment", "Orbitofrontal Loop")
+    child("agents", "trading_agent", "Trading Agent", -22f, 8f, 26f, GraphAccent, "Generates risk-adjusted execution setups and trade entry checklists", "Premotor Cortex Area 6")
+    child("agents", "pine_agent", "Pine Agent", 8f, 24f, 22f, GraphAccent, "Translates natural language strategies into TradingView Pine Script v5", "Frontal Operculum")
 
     hub("mission", "Mission Control", "EXECUTION CONTROL", 32f, -95f, 78f, GraphPurple,
         "Mission planning, tool invocation, safety policy enforcement, and telemetry streaming.",
@@ -1657,7 +1688,7 @@ private fun buildTopology(
         "FRONTAL LOBE", "Frontal Polar Area 10")
     child("mission", "planner", "Mission Planner", -14f, -20f, 14f, GraphPurple, "Decomposes complex trading prompts into structured task execution steps", "Rostrolateral Prefrontal")
     child("mission", "policy_engine", "Safety Policy", 24f, -16f, -10f, GraphPurple, "Enforces account risk limits and guardrails before strategy generation", "Ventromedial Prefrontal")
-    child("mission", "event_stream", "Telemetry Stream", -16f, 15f, 18f, GraphPurple, "Runtime event and execution log", "Anterior Cingulate Axis")
+    child("mission", "event_stream", "Telemetry Stream", -16f, 15f, 18f, GraphPurple, "Real-time audit log of agent steps and execution milestones", "Anterior Cingulate Axis")
 
     // 7. LEFT HEMISPHERE - LANGUAGE & DIALOGUE (Conversational AI)
     hub("chat_hub", "Conversational AI", "CONVERSATIONAL AI", -115f, 10f, 30f, GraphChatViolet,
@@ -1666,7 +1697,7 @@ private fun buildTopology(
         "TEMPORAL LOBE", "Broca & Wernicke Centers")
     child("chat_hub", "chat_multimodal", "Multimodal Input", -18f, -24f, 12f, GraphChatViolet, "Hands-free voice recognition input and technical chart image attachments", "Superior Temporal Sulcus")
     child("chat_hub", "chat_context", "Session Memory", -16f, 22f, -12f, GraphChatViolet, "Preserves conversation history, trader preferences, and strategy assumptions", "Middle Temporal Gyrus")
-    child("chat_hub", "chat_dispatcher", "Persona Selection", 22f, 14f, 16f, GraphChatViolet, "Selects a conversational research style", "Arcuate Fasciculus")
+    child("chat_hub", "chat_dispatcher", "Agent Dispatcher", 22f, 14f, 16f, GraphChatViolet, "Routes inquiries dynamically to specialized trading, quant, or pine agents", "Arcuate Fasciculus")
 
     // 8. LEFT HEMISPHERE - FRONTAL LOGIC & RISK (Trading Genome)
     hub("genome", "Trading Genome", "TRADING GENOME", -65f, -70f, 88f, GraphGold,
