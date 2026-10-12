@@ -61,7 +61,7 @@ jobs:
       matrix:
         include:
           - suite: credentials-and-history
-            test_classes: ai.drfx.maximus.matrixai.ProviderCredentialIsolationTest,ai.drfx.maximus.matrixai.database.ChatPersistenceTest
+            test_classes: ai.drfx.maximus.matrixai.ProviderCredentialIsolationTest,ai.drfx.maximus.matrixai.database.ChatPersistenceTest,ai.drfx.maximus.matrixai.studio.StudioWorkspaceTest
           - suite: keyboard
             test_classes: ai.drfx.maximus.matrixai.ui.KeyboardLayoutTest
     env:

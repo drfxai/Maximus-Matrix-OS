@@ -38,6 +38,8 @@ cat > dist/release-notes.md <<NOTES
 - News and chart analysis show verified sources or explicit unavailable states.
 - News Intelligence includes manual and in-screen automatic refresh, an optional authorized calendar feed, daily and weekly views, and advance high-impact event reminders.
 - Image attachments on authenticated 9Router routes may be attempted when vision support is unknown; explicitly text-only routes are rejected. Provider vision support remains unverified until tested.
+- Project Studio supports locally persisted Android starter projects, safe ZIP and public GitHub import, source editing, explicit ZIP export and user-triggered AI project planning.
+- Project Studio does not run imported code or perform remote builds. Cloud workers, signing of imported projects and unattended deployments require separate infrastructure and authorization.
 - Permanent release signing certificate and Android upgrade identity verified against the previous release.
 - Unit tests, Android lint and emulator smoke checks passed before publication.
 - Validated source commit: $GITHUB_SHA.

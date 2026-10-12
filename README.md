@@ -4,6 +4,7 @@ MAXIMUS MATRIX OS is a graph-native intelligence platform and executive Android 
 
 ## Key Features & Capabilities
 
+- **Mobile Project Studio (v1.0.0 build 10006)**: Private Kotlin/Jetpack Compose starter projects, public GitHub and safe ZIP import, file editor, project brief, explicit ZIP export and deliberate AI planning through a connected model. User-project cloud builds are **not** connected. See [scope and phased plan](docs/project-studio-cloud-plan.md).
 - **Living Matrix Graph**: Interactive canvas graph visualization featuring multi-touch pinch zoom, drag-to-pan, node inspection, and live mission path telemetry.
 - **AI Control Hub & Multi-Provider LLM Chat**: Integration architecture for OpenAI, Anthropic, Gemini, NVIDIA NIM API Catalog, and custom endpoints with capability discovery and usage tracking.
 - **Deterministic Mission Runtime**: Matrix event stream, policy engine with risk gate validation, mission planner, and execution pipeline.
