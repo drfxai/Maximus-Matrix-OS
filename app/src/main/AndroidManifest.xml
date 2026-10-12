@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
@@ -18,6 +19,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.MaximusMatrix"
         android:supportsRtl="false">
+        <receiver android:name=".news.EconomicEventAlarmReceiver" android:exported="false" />
         <activity
             android:name="ai.drfx.maximus.matrixai.MainActivity"
             android:exported="true"

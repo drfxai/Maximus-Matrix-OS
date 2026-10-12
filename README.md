@@ -11,6 +11,7 @@ MAXIMUS MATRIX OS is a graph-native intelligence platform and executive Android 
 - **Data Center & Knowledge Connector**: Configurable gateway for documents, research sources, and enterprise datasets.
 - **Redacted Diagnostics & Telemetry**: Full runtime event logging and diagnostic tracing with sensitive data redaction.
 - **Adaptive Material 3 Design**: Supports dark, light, and system themes with edge-to-edge support.
+- **News Intelligence (v1.0.0)**: Verified publisher reports, an optional authorized HTTPS news and economic calendar feed, manual and 15-minute in-screen refresh, daily and weekly views, and advance reminders for high-impact events. See [feed setup](docs/news-feed-v1.md).
 
 ## Architecture
 

@@ -32,7 +32,8 @@ data class EconomicEvent(
     val impact: MarketImpact,
     val previous: String? = null,
     val forecast: String? = null,
-    val actual: String? = null
+    val actual: String? = null,
+    val startsAtMillis: Long? = null
 )
 
 data class HeroNewsStory(

@@ -5,18 +5,14 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 class UpgradeIdentityTests(unittest.TestCase):
+    def test_aapt_sdk_codename_does_not_override_package_name(self):
+        badging = "package: name='ai.drfx.maximus.matrixai' versionCode='10004' versionName='1.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'"
+        self.assertEqual(module.identity(badging), dict(name='ai.drfx.maximus.matrixai', versionCode='10004', versionName='1.0.0'))
+
     def setUp(self):
         self.old = dict(name='ai.drfx.maximus.matrixai', versionName='1.0.0', versionCode='10002')
         self.new = dict(self.old, versionCode='10003')
         self.cert = 'Signer #1 certificate SHA-256 digest: abc\n'
-    def test_aapt_codename_does_not_override_package_name(self):
-        badging = (
-            "package: name='ai.drfx.maximus.matrixai' versionCode='10002' "
-            "versionName='1.0.0' platformBuildVersionName='16' "
-            "compileSdkVersionCodename='16'\\n"
-        )
-        self.assertEqual(module.identity(badging), self.old)
-
     def test_matching_identity_allows_upgrade(self):
         module.validate(self.old, self.new, self.cert, self.cert)
     def test_nonincreasing_code_rejected(self):
