@@ -495,14 +495,18 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         if (current.isGenerating) return false
         if (attachment != null) {
             val audio = attachment.mimeType.startsWith("audio/")
-            val vision = current.models.firstOrNull { it.id == current.selectedModel }
-                ?.capabilities?.contains(ModelCapability.VISION) == true
+            val descriptor = current.models.firstOrNull { it.id == current.selectedModel }
+            val vision = descriptor?.capabilities?.contains(ModelCapability.VISION) == true
+            // An authenticated 9Router catalog proves the route exists, but not its image support.
+            // The user's explicit image send may try an unknown route, never a known text-only route.
+            val routerImageAttempt = attachment.mimeType.startsWith("image/") &&
+                ModelImagePolicy.canAttemptImage(current.provider, descriptor)
             if (audio && current.provider != LlmProvider.GEMINI && current.provider != LlmProvider.OPENAI) {
                 appendAssistantError("Raw voice notes need a Gemini or OpenAI connection. Use Dictate to send speech as text with this provider.")
                 return false
             }
-            if (!attachment.isText && !audio && !vision) {
-                appendAssistantError("The selected model does not advertise image or document vision. Choose a compatible model.")
+            if (!attachment.isText && !audio && !vision && !routerImageAttempt) {
+                appendAssistantError("Image input is unsupported or unverified for this model. Select a vision model; authenticated 9Router routes with unknown image support can be tried explicitly.")
                 return false
             }
             if (attachment.mimeType == "application/pdf" &&

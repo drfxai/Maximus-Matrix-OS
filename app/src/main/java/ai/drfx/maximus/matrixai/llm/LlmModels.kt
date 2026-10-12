@@ -17,12 +17,15 @@ enum class LlmProvider(
     val isNineRouter: Boolean get() = this == ROUTER_9_SMART || this == ROUTER_9_COMBO
 }
 
+enum class ImageInputSupport { SUPPORTED, UNSUPPORTED, UNKNOWN }
+
 data class ModelDescriptor(
     val id: String,
     val displayName: String = id,
     val capabilities: Set<ModelCapability> = emptySet(),
     val contextWindowTokens: Int = 128_000,
-    val verified: Boolean = false
+    val verified: Boolean = false,
+    val imageInputSupport: ImageInputSupport = ImageInputSupport.UNKNOWN
 )
 
 data class ApiConnectionConfig(
