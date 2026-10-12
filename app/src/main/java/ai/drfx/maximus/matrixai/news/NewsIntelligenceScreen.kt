@@ -30,7 +30,17 @@ import ai.drfx.maximus.matrixai.ui.MatrixViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +51,8 @@ fun NewsIntelligenceScreen(
 ) {
     val context = LocalContext.current
     val agent = remember { AiNewsIntelligenceAgent(context) }
+    val calendarFeed = remember { NewsFeedRepository(context) }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     var selectedCategory by remember { mutableStateOf<NewsCategory?>(null) }
     var selectedSubTab by remember { mutableStateOf("All") }
@@ -51,10 +63,25 @@ fun NewsIntelligenceScreen(
     var isBookmarked by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     var showWatchlistSettingsDialog by remember { mutableStateOf(false) }
+    var showFeedSettings by remember { mutableStateOf(false) }
+    var feedUrl by remember { mutableStateOf(calendarFeed.endpoint) }
+    var savedEndpoint by remember { mutableStateOf(calendarFeed.endpoint) }
+    var allEvents by remember { mutableStateOf<List<EconomicEvent>>(emptyList()) }
+    var calendarPeriod by remember { mutableStateOf("Today") }
+    var calendarStatus by remember { mutableStateOf("Connect an authorized calendar feed") }
+    var exactAlarmsAvailable by remember { mutableStateOf(true) }
 
     var heroStory by remember { mutableStateOf(agent.getDefaultHeroStory()) }
     var articles by remember { mutableStateOf(agent.getDefaultArticles()) }
-    val todayEvents = remember { agent.getDefaultTodayEvents() }
+    val zone = ZoneId.systemDefault()
+    val today = LocalDate.now(zone)
+    val todayEvents = allEvents.filter { it.startsAtMillis?.let { time -> Instant.ofEpochMilli(time).atZone(zone).toLocalDate() == today } ?: false }
+    val weekStart = today.with(java.time.DayOfWeek.MONDAY)
+    val weekEvents = allEvents.filter { it.startsAtMillis?.let { time ->
+        val date = Instant.ofEpochMilli(time).atZone(zone).toLocalDate()
+        !date.isBefore(weekStart) && date.isBefore(weekStart.plusDays(7))
+    } ?: false }
+    val visibleEvents = if (calendarPeriod == "Today") todayEvents else weekEvents
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
     var feedStatus by remember { mutableStateOf("Not synchronized") }
@@ -65,9 +92,30 @@ fun NewsIntelligenceScreen(
             heroStory = result.first
             articles = result.second
             feedStatus = agent.lastRefreshStatus
+            if (savedEndpoint.isNotBlank()) {
+                try {
+                    val snapshot = calendarFeed.fetch()
+                    allEvents = snapshot.events
+                    articles = (snapshot.articles + articles).distinctBy { it.id }
+                    exactAlarmsAvailable = EconomicEventAlarm.schedule(context, snapshot.events)
+                    calendarStatus = "Calendar updated " + SimpleDateFormat("HH:mm", Locale.US).format(Date(snapshot.fetchedAt))
+                } catch (error: Exception) {
+                    calendarStatus = error.message ?: "Calendar update failed"
+                }
+            }
         } finally { isRefreshing = false }
     }
-    LaunchedEffect(agent) { refreshNews() }
+    LaunchedEffect(savedEndpoint) {
+        while (true) {
+            refreshNews()
+            delay(15 * 60 * 1000L)
+        }
+    }
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     val currentDateStr = remember {
         val sdf = SimpleDateFormat("EEE, MMM d, yyyy", Locale.US)
@@ -240,9 +288,16 @@ fun NewsIntelligenceScreen(
         item {
             Column {
                 Text(feedStatus, color = Color(0xFF94A3B8), fontSize = 11.sp)
-                Text("Calendar unavailable: no verified calendar provider configured. Alerts unavailable: no verified market trigger configured.", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                Text(calendarStatus, color = Color(0xFF94A3B8), fontSize = 11.sp)
+                if (!exactAlarmsAvailable) {
+                    Text("Exact alarms are not enabled; reminders may arrive late.", color = Color(0xFFFFB74D), fontSize = 11.sp)
+                    TextButton(onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+                    }) { Text("Enable exact alarms") }
+                }
+                TextButton(onClick = { showFeedSettings = true }) { Text("Calendar feed settings") }
                 TextButton(onClick = { scope.launch { refreshNews() } }, enabled = !isRefreshing) {
-                    Text(if (isRefreshing) "Synchronizing…" else "Refresh publisher feeds")
+                    Text(if (isRefreshing) "Synchronizing…" else "Refresh news & calendar")
                 }
                 if (articles.isEmpty()) Text("No verified articles available. Retry when connected.", color = Color(0xFF94A3B8))
             }
@@ -299,7 +354,7 @@ fun NewsIntelligenceScreen(
             )
         }
 
-        // 4. Calendar: honest unavailable state until a source is configured
+        // 4. Economic calendar from an authorized configured provider
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
@@ -339,13 +394,13 @@ fun NewsIntelligenceScreen(
                             }
                             Column {
                                 Text(
-                                    "Today's Events",
+                                    "Economic Calendar",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
                                 Text(
-                                    "Key economic events that can move the markets",
+                                    "Authorized feed · local time · important releases and meetings",
                                     fontSize = 10.sp,
                                     color = Color(0xFF8B949E)
                                 )
@@ -379,12 +434,22 @@ fun NewsIntelligenceScreen(
                         }
                     }
 
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Today", "This week").forEach { period ->
+                            FilterChip(selected = calendarPeriod == period, onClick = { calendarPeriod = period }, label = { Text(period) })
+                        }
+                    }
+                    if (visibleEvents.isEmpty()) Text(
+                        if (savedEndpoint.isBlank()) "Connect an authorized economic calendar feed." else "No events for this period in the connected feed.",
+                        color = Color(0xFF94A3B8), fontSize = 11.sp
+                    )
+
                     // Timeline of Events
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        todayEvents.forEachIndexed { index, event ->
+                        visibleEvents.forEachIndexed { index, event ->
                             val dotColor = when (event.impact) {
                                 MarketImpact.HIGH -> Color(0xFFFF5252)
                                 MarketImpact.MEDIUM -> Color(0xFFFFB74D)
@@ -867,13 +932,13 @@ fun NewsIntelligenceScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Color(0xFFB388FF))
-                    Text("Economic calendar unavailable", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Economic calendar", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Key releases scheduled for this session:", fontSize = 11.sp, color = Color(0xFF94A3B8))
-                    todayEvents.forEach { ev ->
+                    Text(if (visibleEvents.isEmpty()) "No events for the selected period." else "$calendarPeriod · times shown in your device time zone", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                    visibleEvents.forEach { ev ->
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = Color(0xFF0F172A),
@@ -896,6 +961,33 @@ fun NewsIntelligenceScreen(
             },
             shape = RoundedCornerShape(16.dp),
             containerColor = Color(0xFF0A0F1D)
+        )
+    }
+
+    if (showFeedSettings) {
+        AlertDialog(
+            onDismissRequest = { showFeedSettings = false },
+            title = { Text("Calendar feed connection") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Connect an authorized HTTPS JSON feed. News and calendar refresh every 15 minutes while this screen is open.", fontSize = 12.sp)
+                    OutlinedTextField(value = feedUrl, onValueChange = { feedUrl = it }, label = { Text("Feed URL") }, singleLine = true)
+                    Text("Expected JSON: events [{title, date (ISO 8601 with offset), currency, impact, forecast, previous, actual}] and articles [{headline, summary, symbol, category, source, publishedAt}].", fontSize = 10.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    calendarFeed.endpoint = feedUrl
+                    savedEndpoint = calendarFeed.endpoint
+                    if (savedEndpoint.isBlank()) {
+                        EconomicEventAlarm.schedule(context, emptyList())
+                        allEvents = emptyList()
+                        calendarStatus = "Connect an authorized calendar feed"
+                    }
+                    showFeedSettings = false
+                }, enabled = feedUrl.isBlank() || feedUrl.startsWith("https://")) { Text("Save & update") }
+            },
+            dismissButton = { TextButton(onClick = { showFeedSettings = false }) { Text("Cancel") } }
         )
     }
 
