@@ -39,7 +39,9 @@ class StudioWorkspaceTest {
             }
             return out.toByteArray()
         }
-        assertThrows(IllegalArgumentException::class.java) {
+        // Android 15's framework SafeZipPathValidator can reject traversal first,
+        // throwing ZipException rather than our own IllegalArgumentException.
+        assertThrows(Exception::class.java) {
             store.importZip("TraversalTest", archive("../outside.txt", "bad".toByteArray()).inputStream())
         }
         assertThrows(IllegalArgumentException::class.java) {
