@@ -26,9 +26,18 @@ new = Path('upgrade-check/new-package.txt').read_text()
 expected = re.search(r"versionCode='(\d+)'", Path('dist/' + os.environ['UNIVERSAL_APK'] + '.badging').read_text()).group(1)
 assert re.search(r'versionCode=(\d+)', new).group(1) == expected
 assert re.search(r'versionName=([^\s]+)', new).group(1) == '1.0.0'
-for field in ('userId', 'dataDir'):
-    pattern = field + r'=([^\s]+)'
-    assert re.search(pattern, old).group(1) == re.search(pattern, new).group(1), field + ' changed'
+# Android package dumpsys exposes appId on newer platform versions and
+# userId on some older versions. Either is the package's numeric Linux UID;
+# require it in both snapshots and reject any change after an in-place install.
+def required(pattern, payload, label):
+    match = re.search(pattern, payload, re.M)
+    assert match is not None, f'{label} missing from package state'
+    return match.group(1)
+
+uid_pattern = r'^\s*(?:userId|appId)=(\d+)(?:\s|$)'
+assert required(uid_pattern, old, 'previous app UID') == required(uid_pattern, new, 'updated app UID'), 'Package UID changed'
+data_dir = r'^\s*dataDir=([^\s]+)'
+assert required(data_dir, old, 'previous data directory') == required(data_dir, new, 'updated data directory'), 'Package data directory changed'
 PY
 adb logcat -c
 adb shell am start -W -n "$PACKAGE/.MainActivity" | tee upgrade-check/new-launch.txt
