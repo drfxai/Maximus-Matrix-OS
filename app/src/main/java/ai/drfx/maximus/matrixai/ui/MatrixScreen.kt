@@ -37,6 +37,7 @@ private enum class Destination(val label: String) {
     SIGNALS("Signals"),
     VISION("Vision"),
     NEWS("News"),
+    STUDIO("Studio"),
     CHAT("Chat"),
     AGENTS("Personas"),
     DATA("Data"),
@@ -164,24 +165,23 @@ fun MatrixScreen(
                         modifier = Modifier.testTag("nav_item_vision")
                     )
 
-                    val isNewsSelected = destination == Destination.NEWS
-                    val newsScale by animateFloatAsState(
-                        targetValue = if (isNewsSelected) 1.15f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-                        label = "news_scale"
+                    val isStudioSelected = destination == Destination.STUDIO
+                    val studioScale by animateFloatAsState(
+                        targetValue = if (isStudioSelected) 1.15f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow),
+                        label = "studio_scale"
                     )
                     NavigationBarItem(
-                        selected = isNewsSelected,
-                        onClick = { destination = Destination.NEWS },
+                        selected = isStudioSelected,
+                        onClick = { destination = Destination.STUDIO },
                         icon = {
-                            Icon(
-                                Icons.Default.Article,
-                                contentDescription = "News Intelligence",
-                                modifier = Modifier.scale(newsScale)
-                            )
+                            Icon(Icons.Default.Code, contentDescription = "Project Studio",
+                                modifier = Modifier.scale(studioScale))
                         },
-                        label = { Text("News", fontWeight = if (isNewsSelected) FontWeight.Bold else FontWeight.Normal) },
-                        modifier = Modifier.testTag("nav_item_news")
+                        label = { Text("Studio", fontWeight =
+                            if (isStudioSelected) FontWeight.Bold else FontWeight.Normal) },
+                        modifier = Modifier.testTag("nav_item_studio")
                     )
 
                     // 5th Destination: Contextual "More / Sub-Workspace" item
@@ -270,6 +270,14 @@ fun MatrixScreen(
                         onNavigateToAgents = { destination = Destination.AGENTS },
                         modifier = Modifier.fillMaxSize()
                     )
+                    Destination.STUDIO -> ProjectStudioScreen(
+                        onPlanWithAi = { prompt ->
+                            val submitted = viewModel.sendChat(prompt)
+                            if (submitted) destination = Destination.CHAT
+                            submitted
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
                     Destination.NEWS -> NewsIntelligenceScreen(
                         viewModel = viewModel,
                         onNavigateToChat = { destination = Destination.CHAT },
@@ -319,14 +327,14 @@ fun MatrixScreen(
                 ) {
                     Column {
                         Text(
-                            "SCALPER PRO WORKSPACES",
+                            "MAXIMUS MATRIX WORKSPACES",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
                             letterSpacing = 1.2.sp
                         )
                         Text(
-                            "Select an AI trading tool or engine",
+                            "Choose the project, chat or research workspace",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -347,6 +355,18 @@ fun MatrixScreen(
                     isSelected = destination == Destination.CHAT,
                     onClick = {
                         destination = Destination.CHAT
+                        showMoreSheet = false
+                    }
+                )
+
+                WorkspaceItemRow(
+                    title = "News Intelligence",
+                    subtitle = "Verified economic calendar and news sources",
+                    icon = Icons.Default.Article,
+                    accentColor = Color(0xFFE4B34D),
+                    isSelected = destination == Destination.NEWS,
+                    onClick = {
+                        destination = Destination.NEWS
                         showMoreSheet = false
                     }
                 )
