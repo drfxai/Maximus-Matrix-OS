@@ -32,7 +32,9 @@ class ChartVisionEngine(
             val descriptor = catalog.models.firstOrNull { it.id.removePrefix("models/") == model.removePrefix("models/") }
                 ?: throw IllegalStateException("Selected model is unavailable in the authenticated catalog.")
             require(descriptor.verified) { "Model catalog entry has not been verified." }
-            require(ModelCapability.VISION in descriptor.capabilities) { "Vision support is not verified for this model. Select a supported vision model." }
+            require(ModelImagePolicy.canAttemptImage(provider, descriptor)) {
+                "Image input is not supported by this model or its authenticated route. Select a compatible vision model."
+            }
             val bytes = ByteArrayOutputStream().use { output ->
                 require(bitmap.compress(Bitmap.CompressFormat.JPEG, 85, output)) { "Unable to encode chart image." }
                 output.toByteArray()

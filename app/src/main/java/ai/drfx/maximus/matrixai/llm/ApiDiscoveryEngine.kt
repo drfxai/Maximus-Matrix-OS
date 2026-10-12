@@ -21,7 +21,15 @@ class ApiDiscoveryEngine {
         }
         val models = fetchModels(base, apiKey, provider)
         require(models.isNotEmpty()) { "No chat models were returned by the endpoint." }
-        val verified = models.map { it.copy(verified = true, capabilities = ModelCapabilityResolver.resolve(provider, it.id)) }
+        val verified = models.map { model ->
+            val inferred = ModelCapabilityResolver.resolve(provider, model.id)
+            val capabilities = when (model.imageInputSupport) {
+                ImageInputSupport.SUPPORTED -> inferred + ModelCapability.VISION
+                ImageInputSupport.UNSUPPORTED -> inferred - ModelCapability.VISION
+                ImageInputSupport.UNKNOWN -> inferred
+            }
+            model.copy(verified = true, capabilities = capabilities)
+        }
         cache.put(provider, base, apiKey, verified)
         ApiDiscoveryResult(provider, base, verified,
             "Authenticated catalog verified (${models.size} models). Inference has not been tested.")
@@ -64,7 +72,7 @@ class ApiDiscoveryEngine {
                         for (i in 0 until array.length()) {
                             val model = array.optJSONObject(i) ?: continue
                             val id = model.optString("id")
-                            if (id.isNotBlank()) add(ModelDescriptor(id, id))
+                            if (id.isNotBlank()) add(ModelDescriptor(id, id, imageInputSupport = ModelImagePolicy.fromCatalog(model)))
                         }
                     }
                 } else {
@@ -78,7 +86,7 @@ class ApiDiscoveryEngine {
                         for (i in 0 until array.length()) {
                             val model = array.optJSONObject(i) ?: continue
                             val id = model.optString("id")
-                            if (id.isNotBlank()) add(ModelDescriptor(id, id))
+                            if (id.isNotBlank()) add(ModelDescriptor(id, id, imageInputSupport = ModelImagePolicy.fromCatalog(model)))
                         }
                     }
                 } else {

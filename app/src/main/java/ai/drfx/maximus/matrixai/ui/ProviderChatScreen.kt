@@ -515,6 +515,16 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 modifier = Modifier.height(28.dp)
             )
         }
+        if (attachment?.mimeType?.startsWith("image/") == true &&
+            ModelImagePolicy.requiresUnverifiedRouterAttempt(
+                state.provider, state.models.firstOrNull { it.id == state.selectedModel }
+            )) {
+            Text(
+                "9Router image support is not verified for this route. Sending will attempt one image request; the server may reject it. No automatic fallback.",
+                color = MaterialTheme.colorScheme.tertiary,
+                fontSize = 10.sp
+            )
+        }
         if (attachment?.mimeType?.startsWith("audio/") == true &&
             state.provider != LlmProvider.GEMINI && state.provider != LlmProvider.OPENAI) {
             Text("Recorded audio requires Gemini or OpenAI. Use Dictate with this provider.",
