@@ -37,6 +37,7 @@ cat > dist/release-notes.md <<NOTES
 - Provider credentials and conversation contexts are isolated.
 - News and chart analysis show verified sources or explicit unavailable states.
 - News Intelligence includes manual and in-screen automatic refresh, an optional authorized calendar feed, daily and weekly views, and advance high-impact event reminders.
+- Image attachments on authenticated 9Router routes may be attempted when vision support is unknown; explicitly text-only routes are rejected. Provider vision support remains unverified until tested.
 - Permanent release signing certificate and Android upgrade identity verified against the previous release.
 - Unit tests, Android lint and emulator smoke checks passed before publication.
 - Validated source commit: $GITHUB_SHA.
