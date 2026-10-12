@@ -5,7 +5,9 @@ import sys
 
 def identity(badging):
     line = badging.splitlines()[0]
-    return dict(re.findall(r"(name|versionCode|versionName)='([^']+)'", line))
+    # aapt also prints compileSdkVersionCodename; matching "name" inside that
+    # field would overwrite the package name and reject a valid upgrade.
+    return dict(re.findall(r"(?:^|\s)(name|versionCode|versionName)='([^']+)'", line))
 
 def validate(old, new, old_cert, new_cert):
     if new.get('name') != 'ai.drfx.maximus.matrixai' or old.get('name') != new.get('name'):
