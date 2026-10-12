@@ -5,6 +5,10 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 class UpgradeIdentityTests(unittest.TestCase):
+    def test_aapt_sdk_codename_does_not_override_package_name(self):
+        badging = "package: name='ai.drfx.maximus.matrixai' versionCode='10004' versionName='1.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'"
+        self.assertEqual(module.identity(badging), dict(name='ai.drfx.maximus.matrixai', versionCode='10004', versionName='1.0.0'))
+
     def setUp(self):
         self.old = dict(name='ai.drfx.maximus.matrixai', versionName='1.0.0', versionCode='10002')
         self.new = dict(self.old, versionCode='10003')
