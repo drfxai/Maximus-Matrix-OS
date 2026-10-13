@@ -1,6 +1,15 @@
 # Changelog
 
-## v1.0.0 (build 10008)
+## v1.0.0 (build 10009)
+
+- Added assistant-message Copy, Download and persistent local reactions with animated generation state and accessible action buttons.
+- Converted raw model-generated tool proposals into clearly labeled not-executed cards, without falsely claiming that files or tools ran. Exported suggested file contents remain user-controlled.
+- Expanded official publisher News feeds (Fed, ECB and BIS), added RSS and Atom parsing with verified publisher-host media, and image-aware cards with neutral fallback and explicit retry/error state; preserve verified-source-only policy and offline cache.
+- Introduced sampled multi-format image import, normalization to bounded JPEG, and platform-decoder support for animated GIF first frames, HEIF/HEIC when supported, PNG/JPEG/WebP/BMP. SVG/TIFF still require a supported converter; large inputs have explicit limits.
+- Added parser/security and emulator image-processing regression tests. No fictitious news, execution results or unsupported vision-model claims.
+- Public version remains 1.0.0; internal versionCode 10009.
+
+### Previous build 10008
 
 - Introduced authenticated Remote Runtime discovery with HTTPS-only, redirect-rejecting Android client and endpoint-bound bearer tokens encrypted by Android Keystore.
 - Added a Windows/Linux Python gateway that binds to loopback, requires a strong token and returns a versioned capability declaration.

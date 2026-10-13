@@ -22,7 +22,7 @@ class AiNewsIntelligenceAgent(
                 timeAgo = "Cached · " + value.getString("published"), headline = value.getString("headline"),
                 summary = value.getString("summary"), sentiment = MarketSentiment.NEUTRAL,
                 sourceName = value.getString("publisher"), sourceUrl = value.getString("url"),
-                publishedAtMs = value.optLong("publication", 0).takeIf { it > 0 }, retrievedAtMs = value.getLong("retrieved"))
+                publishedAtMs = value.optLong("publication", 0).takeIf { it > 0 }, retrievedAtMs = value.getLong("retrieved"), imageUrl = value.optString("image"))
         }.filter { article -> VerifiedNewsFeed.SOURCES.any { java.net.URI(article.sourceUrl).scheme == "https" && java.net.URI(article.sourceUrl).host == it.publisherHost } }
     }.getOrDefault(emptyList())
     fun getDefaultHeroStory() = HeroNewsStory(
@@ -39,7 +39,8 @@ class AiNewsIntelligenceAgent(
             result.articles.forEach { article -> array.put(org.json.JSONObject()
                 .put("id", article.id).put("published", article.timeAgo).put("headline", article.headline)
                 .put("summary", article.summary).put("publisher", article.sourceName).put("url", article.sourceUrl)
-                .put("publication", article.publishedAtMs ?: 0).put("retrieved", article.retrievedAtMs)) }
+                .put("publication", article.publishedAtMs ?: 0).put("retrieved", article.retrievedAtMs)
+                .put("image", article.imageUrl)) }
             cache.edit().putString("articles", array.toString()).apply()
         }
         lastRefreshStatus = if (articles.isEmpty()) "Unavailable: news sources could not supply verified articles" else

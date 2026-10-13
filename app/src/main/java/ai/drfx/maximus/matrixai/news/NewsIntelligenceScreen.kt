@@ -532,11 +532,11 @@ fun NewsIntelligenceScreen(
                     // Left Hero Graphic
                     Box(
                         modifier = Modifier
-                            .width(135.dp)
-                            .height(340.dp)
+                            .width(122.dp)
+                            .height(290.dp)
                             .clip(RoundedCornerShape(topStart = 18.dp, bottomStart = 18.dp))
                     ) {
-                        NewsGraphics.FedPowellHeroGraphic(Modifier.fillMaxSize())
+                        PublisherNewsPhoto(articles.firstOrNull { it.id == heroStory.id }, Modifier.fillMaxSize())
                     }
 
                     // Right Content Column
@@ -800,6 +800,25 @@ fun NewsIntelligenceScreen(
             }
         }
 
+        if (filteredArticles.isEmpty()) {
+            item {
+                Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF131D30),
+                    border = BorderStroke(1.dp, Color(0xFF283955))) {
+                    Column(Modifier.fillMaxWidth().padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Default.CloudOff, null, tint = Color(0xFF94A3B8))
+                        Text("No verified news available", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(feedStatus + "\nCheck internet connectivity, clear filters or retry. " +
+                            "No fabricated articles will be displayed.",
+                            color = Color(0xFF94A3B8), fontSize = 12.sp)
+                        OutlinedButton(onClick = { scope.launch { refreshNews() } }, enabled = !isRefreshing) {
+                            Text("Retry official feeds")
+                        }
+                    }
+                }
+            }
+        }
+
         // 7. Latest News Feed List Items
         items(filteredArticles) { article ->
             Surface(
@@ -815,19 +834,7 @@ fun NewsIntelligenceScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Image / Canvas Thumbnail
-                    Box(
-                        modifier = Modifier
-                            .size(width = 62.dp, height = 52.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                    ) {
-                        when (article.category) {
-                            NewsCategory.GOLD -> NewsGraphics.GoldBarsGraphic(Modifier.fillMaxSize())
-                            NewsCategory.FOREX -> NewsGraphics.EuFlagGraphic(Modifier.fillMaxSize())
-                            NewsCategory.CRYPTO -> NewsGraphics.BtcCoinGraphic(Modifier.fillMaxSize())
-                            else -> NewsGraphics.FedPowellHeroGraphic(Modifier.fillMaxSize())
-                        }
-                    }
+                    PublisherNewsPhoto(article, Modifier.size(width = 100.dp, height = 88.dp))
 
                     // Content
                     Column(
@@ -869,14 +876,14 @@ fun NewsIntelligenceScreen(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            maxLines = 1
+                            maxLines = 2
                         )
 
                         Text(
                             text = article.summary,
                             fontSize = 10.sp,
                             color = Color(0xFF94A3B8),
-                            maxLines = 1
+                            maxLines = 2
                         )
                     }
 

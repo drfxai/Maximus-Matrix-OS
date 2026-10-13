@@ -41,6 +41,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.drfx.maximus.matrixai.vision.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +54,7 @@ fun ChartVisionScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val imageScope = rememberCoroutineScope()
     val state by viewModel.chartVisionState.collectAsState()
     val activeBitmap by viewModel.activeChartBitmap.collectAsState()
     val llmState by viewModel.llmState.collectAsState()
@@ -80,18 +84,17 @@ fun ChartVisionScreen(
         }
     }
 
-    // Photo picker launcher (Zero-permission Android Photo Picker)
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            val bmp = loadBitmapFromUri(context, uri)
-            if (bmp != null) {
-                viewModel.setActiveChartBitmap(bmp)
-                Toast.makeText(context, "Screenshot loaded (${bmp.width}x${bmp.height})", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Unable to read chart image", Toast.LENGTH_SHORT).show()
-            }
+    // Android document picker supports image file providers beyond the photo gallery.
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) imageScope.launch {
+            runCatching { withContext(Dispatchers.IO) { ImageInputPipeline.decode(context, uri) } }
+                .onSuccess { bmp ->
+                    viewModel.setActiveChartBitmap(bmp)
+                    Toast.makeText(context, "Image ready: ${bmp.width} × ${bmp.height}", Toast.LENGTH_SHORT).show()
+                }
+                .onFailure { error ->
+                    Toast.makeText(context, error.message ?: "Unsupported image codec.", Toast.LENGTH_LONG).show()
+                }
         }
     }
 
@@ -342,7 +345,7 @@ fun ChartVisionScreen(
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = "PNG, JPG up to 10MB • Clear candlesticks recommended",
+                                text = "JPEG, PNG, WebP, GIF, HEIF, BMP • large images sampled safely",
                                 fontSize = 12.sp,
                                 color = textSecondary
                             )
@@ -357,9 +360,7 @@ fun ChartVisionScreen(
                         // Choose File
                         FilledTonalButton(
                             onClick = {
-                                photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
+                                filePicker.launch(arrayOf("image/*", "application/octet-stream"))
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
@@ -1365,13 +1366,3 @@ private fun RelatedModuleCard(
     }
 }
 
-private fun loadBitmapFromUri(context: Context, uri: Uri): Bitmap? {
-    return try {
-        val mime = context.contentResolver.getType(uri).orEmpty()
-        if (mime !in setOf("image/jpeg", "image/png", "image/webp")) return null
-        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
-        if (options.outWidth <= 0 || options.outHeight <= 0 || options.outWidth.toLong() * options.outHeight > 16_000_000L) return null
-        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
-    } catch (_: Exception) { null }
-}

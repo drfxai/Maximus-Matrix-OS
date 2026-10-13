@@ -29,7 +29,8 @@ class VerifiedNewsFeed(private val fetch: (String) -> ByteArray = ::download) {
         const val MAX_BYTES = 2 * 1024 * 1024
         val SOURCES = listOf(
             NewsFeedSource("Federal Reserve", "https://www.federalreserve.gov/feeds/press_monetary.xml", "www.federalreserve.gov"),
-            NewsFeedSource("European Central Bank", "https://www.ecb.europa.eu/rss/press.html", "www.ecb.europa.eu")
+            NewsFeedSource("European Central Bank", "https://www.ecb.europa.eu/rss/press.html", "www.ecb.europa.eu"),
+            NewsFeedSource("Bank for International Settlements", "https://www.bis.org/doclist/all_pressrels.rss", "www.bis.org")
         )
 
         fun parse(bytes: ByteArray, source: NewsFeedSource, now: Long): List<NewsArticle> {
@@ -45,32 +46,58 @@ class VerifiedNewsFeed(private val fetch: (String) -> ByteArray = ::download) {
             val doc = factory.newDocumentBuilder().apply {
                 setEntityResolver { _, _ -> org.xml.sax.InputSource(java.io.StringReader("")) }
             }.parse(ByteArrayInputStream(bytes))
-            val items = doc.getElementsByTagName("item")
+            val rss = doc.getElementsByTagName("item")
+            val atom = doc.getElementsByTagName("entry")
+            val items = if (rss.length > 0) rss else atom
             val results = mutableListOf<NewsArticle>()
             for (i in 0 until minOf(items.length, 200)) {
                 val item = items.item(i) as? Element ?: continue
-                fun value(tag: String): String = item.getElementsByTagName(tag).item(0)?.textContent?.trim().orEmpty()
+                fun value(tag: String): String =
+                    item.getElementsByTagName(tag).item(0)?.textContent?.trim().orEmpty()
                 val title = clean(value("title")).take(500)
-                val link = value("link")
+                val link = value("link").ifBlank {
+                    val nodes = item.getElementsByTagName("link")
+                    (0 until nodes.length).mapNotNull { index ->
+                        (nodes.item(index) as? Element)?.getAttribute("href")?.takeIf { it.isNotBlank() }
+                    }.firstOrNull().orEmpty()
+                }
                 val uri = runCatching { URI(link) }.getOrNull() ?: continue
-                if (uri.scheme != "https" || uri.userInfo != null || uri.host != source.publisherHost || title.isBlank()) continue
-                val published = parseDate(value("pubDate"))
+                if (!uri.scheme.equals("https", true) || uri.rawUserInfo != null ||
+                    uri.host != source.publisherHost || title.isBlank()) continue
+                val published = parseDate(value("pubDate").ifBlank {
+                    value("published").ifBlank { value("updated") }
+                })
                 if (published != null && published > now + 300_000) continue
+
+                val mediaTags = listOf("media:content", "media:thumbnail", "enclosure")
+                val imageCandidates = mediaTags.flatMap { tag ->
+                    val nodes = item.getElementsByTagName(tag)
+                    (0 until nodes.length).mapNotNull { idx ->
+                        (nodes.item(idx) as? Element)?.getAttribute("url")?.takeIf { it.isNotBlank() }
+                    }
+                }
+                val imageUrl = imageCandidates.firstOrNull {
+                    NewsImagePolicy.isAllowed(it, source.publisherHost)
+                }.orEmpty()
                 results.add(NewsArticle(
                     id = java.util.UUID.nameUUIDFromBytes(link.toByteArray()).toString(),
                     assetSymbol = "MACRO", category = NewsCategory.CENTRAL_BANKS,
                     timeAgo = published?.let { java.util.Date(it).toString() } ?: "Publication time unavailable",
-                    headline = title, summary = clean(value("description")).take(2000),
+                    headline = title,
+                    summary = clean(value("description").ifBlank { value("summary") }).take(2000),
                     sentiment = MarketSentiment.NEUTRAL, sourceName = source.name,
                     sourceUrl = link, publishedAtMs = published, retrievedAtMs = now,
-                    aiTakeaway = "AI analysis unavailable. Open the original publisher report or request an evidence-grounded analysis."
+                    aiTakeaway = "AI analysis unavailable. Open the original publisher report or request an evidence-grounded analysis.",
+                    imageUrl = imageUrl
                 ))
             }
             return results.distinctBy { it.sourceUrl }
         }
 
         private fun clean(text: String): String = text.replace(Regex("<[^>]*>"), " ").replace(Regex("\\s+"), " ").trim()
-        private fun parseDate(text: String): Long? = listOf("EEE, dd MMM yyyy HH:mm:ss Z", "EEE, d MMM yyyy HH:mm:ss z", "yyyy-MM-dd'T'HH:mm:ssXXX").firstNotNullOfOrNull { format ->
+        private fun parseDate(text: String): Long? =
+            runCatching { java.time.Instant.parse(text).toEpochMilli() }.getOrNull()
+                ?: listOf("EEE, dd MMM yyyy HH:mm:ss Z", "EEE, d MMM yyyy HH:mm:ss z", "yyyy-MM-dd'T'HH:mm:ssXXX").firstNotNullOfOrNull { format ->
             runCatching { SimpleDateFormat(format, Locale.US).apply { isLenient = false }.parse(text)?.time }.getOrNull()
         }
         private fun download(endpoint: String): ByteArray {

@@ -103,7 +103,12 @@ class NewsFeedRepository(context: Context) {
             summary = item.optString("summary"),
             sentiment = MarketSentiment.NEUTRAL,
             sourceName = item.optString("source").ifBlank { "Connected feed" },
-            fullContent = item.optString("summary")
+            fullContent = item.optString("summary"),
+            sourceUrl = item.optString("url").takeIf { candidate -> runCatching { URI(candidate).scheme == "https" }.getOrDefault(false) }.orEmpty(),
+            imageUrl = item.optString("imageUrl").takeIf { image ->
+                val sourceHost = runCatching { URI(item.optString("url")).host }.getOrNull().orEmpty()
+                sourceHost in VerifiedNewsFeed.SOURCES.map { it.publisherHost } && NewsImagePolicy.isAllowed(image, sourceHost)
+            }.orEmpty()
         )
     }
 }
