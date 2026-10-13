@@ -12,7 +12,8 @@ internal class SmartComboFreeCatalog(
     data class Offer(
         val route: SmartComboPlanner.Route,
         val endpoint: String,
-        val quotaScope: String
+        val quotaScope: String,
+        val checkedAtEpochMs: Long = System.currentTimeMillis()
     )
 
     suspend fun refresh(): List<Offer> {
