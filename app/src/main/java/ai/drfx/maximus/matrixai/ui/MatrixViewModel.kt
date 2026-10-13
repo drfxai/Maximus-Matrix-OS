@@ -593,14 +593,6 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
             )
 
-        appendLlmEvent(
-            MatrixEventType.MODEL_STARTED,
-            "agent:" + selectedAgent.id,
-            "model:" + current.selectedModel,
-            selectedAgent.name + " request started"
-        )
-        AppLogStore.info("CHAT", "Request started provider=" + current.provider.name + " model=" + current.selectedModel + " agent=" + selectedAgent.id)
-
                 val requestHistory = selectedContext.messages
                 if (current.smartComboEnabled) {
                     autoPrepared = freeExecutor.prepare(
@@ -628,6 +620,14 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         "Automatic request has already been dispatched."
                     }
                 }
+                appendLlmEvent(
+                    MatrixEventType.MODEL_STARTED,
+                    "agent:" + selectedAgent.id,
+                    "model:" + config.selectedModel,
+                    selectedAgent.name + " request started through " + config.provider.displayName
+                )
+                AppLogStore.info("CHAT", "Request started provider=" + config.provider.name +
+                    " model=" + config.selectedModel + " agent=" + selectedAgent.id)
                 val streamTime = System.currentTimeMillis()
                 val streamedText = StringBuilder()
                 var lastStreamUiAtMs = Long.MIN_VALUE
@@ -717,10 +717,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     isGenerating = false,
                     tokenMetrics = updatedMetrics
                 )
-                AppLogStore.info("CHAT", "Response completed model=" + current.selectedModel + " inputTokens=" + result.usage.inputTokens + " outputTokens=" + result.usage.outputTokens + " remainingCtx=" + remainingCtx)
+                AppLogStore.info("CHAT", "Response completed model=" + config.selectedModel + " inputTokens=" + result.usage.inputTokens + " outputTokens=" + result.usage.outputTokens + " remainingCtx=" + remainingCtx)
                 appendLlmEvent(
                     MatrixEventType.MODEL_COMPLETED,
-                    "model:" + current.selectedModel,
+                    "model:" + config.selectedModel,
                     "agent:" + selectedAgent.id,
                     "Model response completed"
                 )
