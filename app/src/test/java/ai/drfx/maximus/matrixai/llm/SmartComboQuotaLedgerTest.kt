@@ -103,6 +103,25 @@ class SmartComboQuotaLedgerTest {
         assertFalse(ledger.reserve(plan("r2", amount = 2000, micros = 5000)).accepted)
     }
 
+    @Test fun zeroPaidCreditDoesNotBlockVerifiedFreeModel() {
+        val ledger = SmartComboQuotaLedger(now = { clock })
+        ledger.observe("shared-account", listOf(
+            quota(kind = SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS, remaining = 0, limit = 100_000)
+        ))
+        assertTrue(ledger.reserve(plan("free-route", micros = 0)).accepted)
+    }
+
+    @Test fun unknownProviderQuotaHasBoundedConcurrency() {
+        val ledger = SmartComboQuotaLedger(now = { clock }, maxUnknownInFlightPerScope = 2)
+        assertTrue(ledger.reserve(plan("one")).accepted)
+        assertTrue(ledger.reserve(plan("two")).accepted)
+        val blocked = ledger.reserve(plan("three"))
+        assertFalse(blocked.accepted)
+        assertTrue(blocked.needsQuotaRefresh)
+        assertTrue(ledger.releaseUndispatched("one"))
+        assertTrue(ledger.reserve(plan("four")).accepted)
+    }
+
     @Test fun reservationsAreAtomicWithinOneProcess() {
         val ledger = SmartComboQuotaLedger(now = { clock })
         ledger.observe("shared-account", listOf(
