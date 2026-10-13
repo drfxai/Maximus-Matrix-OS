@@ -17,9 +17,7 @@ internal class OpenAiStreamParser(private val onDelta: (String) -> Unit) {
         if (data.isBlank()) return true
         val json = JSONObject(data)
         require(!json.has("error")) { "Provider reported an error during generation. Partial text was not saved as a completed answer." }
-        json.optJSONObject("usage")?.let { raw ->
-            usage = ChatUsage(raw.optInt("prompt_tokens"), raw.optInt("completion_tokens"), raw.optInt("total_tokens"))
-        }
+        ProviderUsageEvidence.parseOpenAi(json.optJSONObject("usage"))?.let { usage = it }
         val finish = json.optJSONArray("choices")?.optJSONObject(0)?.optString("finish_reason").orEmpty()
         require(finish != "content_filter") { "Provider content filter stopped generation." }
         if (finish in setOf("stop", "length")) completed = true
