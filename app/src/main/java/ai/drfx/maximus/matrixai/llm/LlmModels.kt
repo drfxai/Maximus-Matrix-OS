@@ -67,7 +67,11 @@ data class TokenMetrics(
     val contextUsagePercent: Float = 0f,
     /** UI-only approximate output tokens during SSE, never a billed/provider count. */
     val streamingOutputTokensEstimate: Int = 0,
-    val streamingEstimateActive: Boolean = false
+    val streamingEstimateActive: Boolean = false,
+    val verifiedRateRequestsRemaining: Long? = null,
+    val verifiedRateTokensRemaining: Long? = null,
+    val verifiedRequestRateKind: String = "Unknown",
+    val rateEvidenceAtEpochMs: Long? = null
 )
 
 data class ChatCompletionResult(
