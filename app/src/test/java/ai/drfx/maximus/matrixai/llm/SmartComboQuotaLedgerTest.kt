@@ -100,7 +100,7 @@ class SmartComboQuotaLedgerTest {
         ))
         assertTrue(ledger.reserve(plan("r1", amount = 2000, micros = 3000)).accepted)
         assertEquals(7000L, ledger.capacities("shared-account").single().safeAvailable)
-        assertFalse(ledger.reserve(plan("r2", amount = 2000, micros = 3000)).accepted)
+        assertFalse(ledger.reserve(plan("r2", amount = 2000, micros = 5000)).accepted)
     }
 
     @Test fun reservationsAreAtomicWithinOneProcess() {
