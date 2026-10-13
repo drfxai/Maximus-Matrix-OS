@@ -33,6 +33,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val chatClient = LlmChatClient()
     private val apiStore = SecureApiConfigStore(application)
     private val usageStore = ApiUsageStore(application)
+    private val freeCatalog = SmartComboFreeCatalog(discovery, apiStore)
+    private val freeExecutor = SmartComboFreeExecutor()
+    private var freeOffers: List<SmartComboFreeCatalog.Offer> = emptyList()
     private val dataClient = CompanyDataClient()
     private val dataStore = SecureDataCenterStore(application)
     private val chartVisionEngine = ChartVisionEngine(application, apiStore, usageStore)
@@ -106,6 +109,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             subscriptionLabel = apiStore.loadSubscriptionLabel(),
             monthlyBudgetUsd = apiStore.loadMonthlyBudgetUsd(),
             monthlyTokenBudget = initialTokenBudget,
+            smartComboEnabled = apiStore.smartComboEnabled(),
             tokenMetrics = TokenMetrics(
                 consumedLifetimeTokens = initialSummary.totalTokens,
                 contextCapacity = initialCapacity,
@@ -138,6 +142,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     init {
         viewModelScope.launch { chatRepository.sessions.collect { sessions -> _chatSessions.value = sessions.map { if (it.id == "default_session") it.copy(title = "Legacy history (read only)", provider = "UNKNOWN") else it } } }
         restoreChatSession(_activeChatSessionId.value)
+        if (apiStore.smartComboEnabled()) refreshSmartCombo()
 
 
         // Load persisted Matrix events from Room
@@ -174,6 +179,41 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         // Initialize Market Notification Service state
         viewModelScope.launch {
             notificationService.loadSavedState()
+        }
+    }
+
+    /** Explicit opt-in. Only provider-declared, authenticated zero-price text models qualify. */
+    fun setSmartComboEnabled(enabled: Boolean) {
+        if (_llmState.value.isGenerating) return
+        apiStore.setSmartComboEnabled(enabled)
+        if (!enabled) freeOffers = emptyList()
+        _llmState.value = _llmState.value.copy(
+            smartComboEnabled = enabled,
+            smartComboOffers = if (enabled) freeOffers.size else 0,
+            smartComboMessage = if (enabled) "Checking free model catalogues…" else "Free-only routing is off."
+        )
+        if (enabled) refreshSmartCombo()
+    }
+
+    fun refreshSmartCombo() {
+        if (!_llmState.value.smartComboEnabled || _llmState.value.smartComboRefreshing) return
+        viewModelScope.launch {
+            _llmState.value = _llmState.value.copy(smartComboRefreshing = true, smartComboMessage = "Verifying free model offers…")
+            try {
+                freeOffers = freeCatalog.refresh()
+                _llmState.value = _llmState.value.copy(
+                    smartComboOffers = freeOffers.size,
+                    smartComboMessage = if (freeOffers.isEmpty())
+                        "No verified free text model with published context and pricing. Manual model mode remains available."
+                    else "Ready: " + freeOffers.size + " verified zero-price text routes. Provider quota is not known."
+                )
+            } catch (_: Exception) {
+                freeOffers = emptyList()
+                _llmState.value = _llmState.value.copy(smartComboOffers = 0,
+                    smartComboMessage = "Free catalogue unavailable. No automatic paid fallback.")
+            } finally {
+                _llmState.value = _llmState.value.copy(smartComboRefreshing = false)
+            }
         }
     }
 
@@ -493,6 +533,16 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             return false
         }
         if (current.isGenerating) return false
+        if (current.smartComboEnabled) {
+            if (attachment != null) {
+                appendAssistantError("Free-only Smart Combo currently supports text. Disable it before choosing a verified multimodal route.")
+                return false
+            }
+            if (freeOffers.isEmpty()) {
+                appendAssistantError("No verified free route is ready. Refresh Smart Combo or disable it to use the selected provider.")
+                return false
+            }
+        }
         if (attachment != null) {
             val audio = attachment.mimeType.startsWith("audio/")
             val descriptor = current.models.firstOrNull { it.id == current.selectedModel }
@@ -529,6 +579,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         _llmState.value = current.copy(isGenerating = true, tokenMetrics = current.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0), statusMessage = if (selectedContext.omittedMessages > 0) "Older context omitted to fit the estimated limit; no automatic summary." else current.statusMessage)
 
         chatJob = viewModelScope.launch {
+            var autoPrepared: SmartComboFreeExecutor.Prepared? = null
             try {
             chatRepository.saveMessage(
                 ChatMessageEntity(
@@ -550,14 +601,33 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
         AppLogStore.info("CHAT", "Request started provider=" + current.provider.name + " model=" + current.selectedModel + " agent=" + selectedAgent.id)
 
-                val config = ApiConnectionConfig(
+                val requestHistory = selectedContext.messages
+                if (current.smartComboEnabled) {
+                    autoPrepared = freeExecutor.prepare(
+                        requestId = UUID.randomUUID().toString(),
+                        estimatedInput = selectedContext.estimatedTokens,
+                        reservedOutput = 2048,
+                        requiredCapabilities = selectedAgent.requiredCapabilities,
+                        offers = freeOffers,
+                        resolveCredential = { provider, endpoint -> apiStore.resolveCredential(provider, endpoint) },
+                        agentId = selectedAgent.id
+                    )
+                    require(autoPrepared != null) {
+                        "No compatible, verified free route passed the capability and quota admission checks."
+                    }
+                }
+                val config = autoPrepared?.config ?: ApiConnectionConfig(
                     baseUrl = current.baseUrl,
                     apiKey = apiStore.resolveCredential(current.provider, current.baseUrl),
                     provider = current.provider,
                     selectedModel = current.selectedModel,
                     selectedAgentId = selectedAgent.id
                 )
-                val requestHistory = selectedContext.messages
+                if (autoPrepared != null) {
+                    check(freeExecutor.dispatched(requireNotNull(autoPrepared))) {
+                        "Automatic request has already been dispatched."
+                    }
+                }
                 val streamTime = System.currentTimeMillis()
                 val streamedText = StringBuilder()
                 var lastStreamUiAtMs = Long.MIN_VALUE
@@ -586,6 +656,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                 }
+                autoPrepared?.let { freeExecutor.completed(it, result.usage) }
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 if (result.transcript != null) {
                     val index = _chatMessages.value.indexOfLast { it.role == "user" && it.attachment?.mimeType?.startsWith("audio/") == true }
@@ -612,11 +683,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
 
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
-                usageStore.record(current.provider, current.selectedModel, result.usage)
+                usageStore.record(config.provider, config.selectedModel, result.usage)
                 val summary = usageStore.summary()
                 _usage.value = summary
 
-                val capacity = ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
+                val capacity = autoPrepared?.offer?.route?.contextWindowTokens
+                    ?: ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
                 val activeContextTokens = ChatContextPolicy.bounded(_chatMessages.value, capacity).estimatedTokens
                 val remainingCtx = (capacity - activeContextTokens).coerceAtLeast(0)
                 val budget = current.monthlyTokenBudget
@@ -640,7 +712,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
                 _llmState.value = _llmState.value.copy(
                     status = ConnectionStatus.CONNECTED,
-                    statusMessage = "Inference succeeded for ${current.selectedModel}.",
+                    statusMessage = "Inference succeeded: " + config.provider.displayName + " / " + config.selectedModel +
+                        if (autoPrepared != null) " (verified free-text offer; account quota unknown)." else ".",
                     isGenerating = false,
                     tokenMetrics = updatedMetrics
                 )
@@ -652,6 +725,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     "Model response completed"
                 )
             } catch (error: Throwable) {
+                autoPrepared?.let { freeExecutor.uncertain(it) }
                 if (error is CancellationException) {
                     if (requestGeneration == chatGeneration) _llmState.value = _llmState.value.copy(isGenerating = false, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                     throw error
