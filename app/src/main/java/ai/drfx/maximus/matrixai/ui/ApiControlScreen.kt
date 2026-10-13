@@ -219,11 +219,26 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     )
                 }
 
-                MetricLine(
-                    "Provider account / rate-limit balance",
-                    "Unknown until verified by provider",
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (metrics.rateEvidenceAtEpochMs != null) {
+                    MetricLine(
+                        "Verified rate requests left (${metrics.verifiedRequestRateKind})",
+                        metrics.verifiedRateRequestsRemaining?.let(numberFormat::format) ?: "Unknown",
+                        MaterialTheme.colorScheme.primary
+                    )
+                    MetricLine(
+                        "Verified rate tokens left (TPM)",
+                        metrics.verifiedRateTokensRemaining?.let(numberFormat::format) ?: "Unknown",
+                        MaterialTheme.colorScheme.primary
+                    )
+                    Text("HTTP provider snapshot (not account credit). Refreshes on the next response; may expire or change on other devices.",
+                        fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    MetricLine(
+                        "Provider rate balance / account credit",
+                        "Unknown (no authoritative response headers)",
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 // Key Metric Grid: Consumed vs Remaining
                 Row(
                     modifier = Modifier.fillMaxWidth(),
