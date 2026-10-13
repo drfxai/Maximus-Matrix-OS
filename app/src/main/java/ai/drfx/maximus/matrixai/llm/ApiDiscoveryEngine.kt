@@ -72,7 +72,11 @@ class ApiDiscoveryEngine {
                         for (i in 0 until array.length()) {
                             val model = array.optJSONObject(i) ?: continue
                             val id = model.optString("id")
-                            if (id.isNotBlank()) add(ModelDescriptor(\n                                id, id, imageInputSupport = ModelImagePolicy.fromCatalog(model),\n                                catalogFreeTextPrice = ModelCatalogPriceEvidence.verifiedFreeTextPricing(model),\n                                catalogContextTokens = ModelCatalogPriceEvidence.verifiedContext(model)\n                            ))
+                            if (id.isNotBlank()) add(ModelDescriptor(
+                                id, id, imageInputSupport = ModelImagePolicy.fromCatalog(model),
+                                catalogFreeTextPrice = ModelCatalogPriceEvidence.verifiedFreeTextPricing(model),
+                                catalogContextTokens = ModelCatalogPriceEvidence.verifiedContext(model)
+                            ))
                         }
                     }
                 } else {
@@ -86,7 +90,11 @@ class ApiDiscoveryEngine {
                         for (i in 0 until array.length()) {
                             val model = array.optJSONObject(i) ?: continue
                             val id = model.optString("id")
-                            if (id.isNotBlank()) add(ModelDescriptor(\n                                id, id, imageInputSupport = ModelImagePolicy.fromCatalog(model),\n                                catalogFreeTextPrice = ModelCatalogPriceEvidence.verifiedFreeTextPricing(model),\n                                catalogContextTokens = ModelCatalogPriceEvidence.verifiedContext(model)\n                            ))
+                            if (id.isNotBlank()) add(ModelDescriptor(
+                                id, id, imageInputSupport = ModelImagePolicy.fromCatalog(model),
+                                catalogFreeTextPrice = ModelCatalogPriceEvidence.verifiedFreeTextPricing(model),
+                                catalogContextTokens = ModelCatalogPriceEvidence.verifiedContext(model)
+                            ))
                         }
                     }
                 } else {
