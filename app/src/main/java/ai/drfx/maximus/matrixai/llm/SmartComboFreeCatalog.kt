@@ -46,7 +46,7 @@ internal class SmartComboFreeCatalog(
                             modelId = model.id,
                             verified = true,
                             healthy = true,
-                            capabilities = model.capabilities,
+                            capabilities = setOf(ModelCapability.CHAT), // Additional capabilities need provider-specific confirmation.
                             contextWindowTokens = context,
                             price = price,
                             p95TimeToFirstTokenMs = null,
