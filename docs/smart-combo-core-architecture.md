@@ -1,7 +1,32 @@
 # Maximus Smart Combo — P0 core architecture
 
-**Status:** design contract + pure Kotlin selection-policy foundation. Not connected to inference,
-provider billing, persistent job execution, or a running cloud worker. Android public version remains `1.0.0`.
+**Status:** deterministic selection, process-local quota admission/reconciliation, and UI-coalesced
+estimated streaming tokens. The ledger/admission controller remain **isolated from actual inference**
+until verified provider quota scopes, authenticated pricing/capability feeds, backend reservations,
+and hard output caps are integrated. No automatic inter-model handoff or true account-balance
+telemetry is claimed. Android public version remains `1.0.0`.
+
+## Implemented in the current draft branch
+
+- `SmartComboQuotaLedger`: synchronized local request-ID deduplication, verified quota evidence,
+  headroom checks, shared-scope admission, active reservation accounting, timeout-uncertain
+  retention, and idempotent final-usage reconciliation. A verified account snapshot minus local
+  usage is shown as `LOCALLY_ADJUSTED`, never falsely labeled the provider's actual balance.
+- `SmartComboAdmissionController`: combines planner ordering with reservation; rejects unknown
+  quota scope identities, avoids a standby sharing the primary's quota scope, forbids silent
+  paid fallback, and rejects duplicate request IDs instead of silently re-running requests.
+- `MatrixViewModel`: SSE text updates are coalesced to approximately four per second,
+  reducing StateFlow/Compose churn. Output counts while streaming are clearly approximate and
+  are cleared on completion, cancellation, and failure.
+- `ApiControlScreen`: distinctly labels streaming estimates and unknown provider balances.
+- JVM tests cover quota exhaustion, parallel local requests, stale/out-of-order observations,
+  retry/double-dispatch prevention, interrupted requests, money vs token units, and fallback.
+
+**Safety boundary:** this is **not** a distributed transactional ledger. The local ledger does
+not persist across process death and is deliberately not used to authorize remote automatic
+execution. Multi-user/account enforcement must occur in a trusted backend with durable,
+serializable reservations and credential isolation. Exact live quota balances require official
+provider APIs; streaming counts are estimates until reconciled.
 
 ## Objective and non-negotiable invariants
 
