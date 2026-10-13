@@ -14,6 +14,7 @@ class LlmChatClient {
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
         agent: AgentDescriptor,
+        onQuota: ((List<SmartComboPlanner.QuotaWindow>) -> Unit)? = null,
         onDelta: ((String) -> Unit)? = null
     ): ChatCompletionResult = CancellableHttp.execute {
         EndpointPolicy.validate(config.baseUrl, config.provider)
@@ -30,11 +31,11 @@ class LlmChatClient {
         }
         when (config.provider) {
             LlmProvider.GEMINI -> gemini(config, history, agent)
-            LlmProvider.NVIDIA -> openAiCompatible(config, history, agent, onDelta)
-            LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> openAiCompatible(config, history, agent, onDelta)
+            LlmProvider.NVIDIA -> openAiCompatible(config, history, agent, onQuota, onDelta)
+            LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> openAiCompatible(config, history, agent, onQuota, onDelta)
             LlmProvider.ANTHROPIC -> anthropic(config, history, agent)
-            LlmProvider.OPENAI -> openAiCompatible(config, history, agent, onDelta)
-            LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> openAiCompatible(config, history, agent, onDelta)
+            LlmProvider.OPENAI -> openAiCompatible(config, history, agent, onQuota, onDelta)
+            LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> openAiCompatible(config, history, agent, onQuota, onDelta)
         }
     }
 
@@ -95,6 +96,7 @@ class LlmChatClient {
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
         agent: AgentDescriptor,
+        onQuota: ((List<SmartComboPlanner.QuotaWindow>) -> Unit)? = null,
         onDelta: ((String) -> Unit)? = null
     ): ChatCompletionResult {
         val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/chat/completions"
@@ -124,7 +126,7 @@ class LlmChatClient {
         if (onDelta != null) {
             body.put("stream", true)
             if (config.provider == LlmProvider.OPENAI) body.put("stream_options", JSONObject().put("include_usage", true))
-            return streamOpenAi(endpoint, body.toString(), headers, history, onDelta)
+            return streamOpenAi(config, endpoint, body.toString(), headers, history, onQuota, onDelta)
         }
         val json = JSONObject(post(endpoint, body.toString(), headers))
         val text = json.optJSONArray("choices")
@@ -320,8 +322,11 @@ class LlmChatClient {
     }
 
     private fun streamOpenAi(
+        config: ApiConnectionConfig,
         endpoint: String, body: String, headers: Map<String, String>,
-        history: List<ChatMessage>, onDelta: (String) -> Unit
+        history: List<ChatMessage>,
+        onQuota: ((List<SmartComboPlanner.QuotaWindow>) -> Unit)?,
+        onDelta: (String) -> Unit
     ): ChatCompletionResult {
         val connection = CancellableHttp.register(URL(endpoint).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = false
@@ -336,6 +341,8 @@ class LlmChatClient {
         try {
             connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             if (connection.responseCode !in 200..299) throw ProviderRequestException.fromHttp(connection.responseCode)
+            onQuota?.invoke(SmartComboRateLimitHeaders.parse(config.provider, config.baseUrl,
+                header = { headerName -> connection.getHeaderField(headerName) }))
             require(connection.contentType?.startsWith("text/event-stream", true) == true) { "Provider did not return a supported event stream." }
             val parser = OpenAiStreamParser(onDelta)
             connection.inputStream.bufferedReader().use { reader ->
