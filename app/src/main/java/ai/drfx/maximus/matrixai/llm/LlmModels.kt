@@ -118,5 +118,9 @@ data class LlmUiState(
     val subscriptionLabel: String = "",
     val monthlyBudgetUsd: Double = 0.0,
     val monthlyTokenBudget: Long = 0L,
-    val tokenMetrics: TokenMetrics = TokenMetrics()
+    val tokenMetrics: TokenMetrics = TokenMetrics(),
+    val smartComboEnabled: Boolean = false,
+    val smartComboRefreshing: Boolean = false,
+    val smartComboOffers: Int = 0,
+    val smartComboMessage: String = "Free-only routing is off."
 )
