@@ -60,14 +60,18 @@ internal class SmartComboFreeExecutor(
     fun completed(prepared: Prepared, usage: ChatUsage) {
         if (!usage.estimated) {
             ledger.reconcile(prepared.requestId, SmartComboQuotaLedger.Usage(
-                usage.inputTokens.toLong(), usage.outputTokens.toLong(), usage.totalTokens.toLong()
+                usage.inputTokens.toLong(), usage.outputTokens.toLong(),\n                maxOf(usage.totalTokens.toLong(), usage.inputTokens.toLong() + usage.outputTokens.toLong())
             ))
         } else {
             ledger.markUncertain(prepared.requestId)
         }
     }
 
-    fun uncertain(prepared: Prepared) {
-        ledger.markUncertain(prepared.requestId)
+    /** Release only if dispatch never happened; otherwise preserve uncertain usage. */
+    fun failed(prepared: Prepared) {
+        if (!ledger.releaseUndispatched(prepared.requestId)) {
+            ledger.markUncertain(prepared.requestId)
+        }
     }
+
 }
