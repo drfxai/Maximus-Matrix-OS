@@ -55,6 +55,12 @@ internal class SmartComboFreeExecutor(
         )
     }
 
+    fun observeProviderQuota(
+        prepared: Prepared, windows: List<SmartComboPlanner.QuotaWindow>
+    ) {
+        if (windows.isNotEmpty()) ledger.observe(prepared.offer.quotaScope, windows)
+    }
+
     fun dispatched(prepared: Prepared): Boolean = ledger.dispatch(prepared.requestId)
 
     /** Provider-confirmed usage only. Estimated usage keeps the request uncertain. */
