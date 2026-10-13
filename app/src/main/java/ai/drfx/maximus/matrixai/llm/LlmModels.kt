@@ -25,7 +25,11 @@ data class ModelDescriptor(
     val capabilities: Set<ModelCapability> = emptySet(),
     val contextWindowTokens: Int = 128_000,
     val verified: Boolean = false,
-    val imageInputSupport: ImageInputSupport = ImageInputSupport.UNKNOWN
+    val imageInputSupport: ImageInputSupport = ImageInputSupport.UNKNOWN,
+    /** Explicit provider-catalog pricing, never a claim about remaining credit or tier quota. */
+    val catalogFreeTextPrice: SmartComboPlanner.Price? = null,
+    /** Context length is null if the upstream catalog does not declare it. */
+    val catalogContextTokens: Int? = null
 )
 
 data class ApiConnectionConfig(
