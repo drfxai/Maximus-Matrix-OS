@@ -67,7 +67,8 @@ internal class SmartComboFreeExecutor(
     fun completed(prepared: Prepared, usage: ChatUsage) {
         if (!usage.estimated) {
             ledger.reconcile(prepared.requestId, SmartComboQuotaLedger.Usage(
-                usage.inputTokens.toLong(), usage.outputTokens.toLong(),\n                maxOf(usage.totalTokens.toLong(), usage.inputTokens.toLong() + usage.outputTokens.toLong())
+                usage.inputTokens.toLong(), usage.outputTokens.toLong(),
+                maxOf(usage.totalTokens.toLong(), usage.inputTokens.toLong() + usage.outputTokens.toLong())
             ))
         } else {
             ledger.completedWithoutUsage(prepared.requestId)
