@@ -108,7 +108,7 @@ object SmartComboPlanner {
             eligible = sorted,
             rejectedReasons = rejected,
             requiresLiveQuotaConfirmation = sorted.firstOrNull()?.quota
-                ?.any { it.remaining == null || it.confidence == Confidence.UNKNOWN || it.confidence == Confidence.ESTIMATED }
+                ?.let { windows -> windows.isEmpty() || windows.any { !isFreshConfirmed(it, task.nowEpochMs) } }
                 ?: false
         )
     }
@@ -131,8 +131,7 @@ object SmartComboPlanner {
         for (window in route.quota) {
             // Unknown quota stays unknown; never report it as an exact positive balance.
             val balance = window.remaining ?: continue
-            if (window.confidence == Confidence.UNKNOWN || window.confidence == Confidence.ESTIMATED) continue
-            if (window.resetAtEpochMs != null && task.nowEpochMs >= window.resetAtEpochMs) continue
+            if (!isFreshConfirmed(window, task.nowEpochMs)) continue
             val needed = when (window.kind) {
                 LimitKind.REQUESTS_PER_MINUTE, LimitKind.REQUESTS_PER_DAY -> 1L
                 LimitKind.INPUT_TOKENS_PER_MINUTE -> task.estimatedInputTokens.toLong()
@@ -143,9 +142,22 @@ object SmartComboPlanner {
             // Reserve at least the current task's demand plus a 15% headroom of the limit
             // where published; do not allocate the provider's quota here.
             val guard = max(needed, window.limit?.let { (it.toDouble() * 0.15).toLong() } ?: 0L)
-            if (balance < needed + guard) return "Quota nearing exhaustion: ${window.kind}"
+            if (balance < needed || balance - needed < guard) return "Quota nearing exhaustion: ${window.kind}"
         }
         return null
+    }
+
+    private fun isFreshConfirmed(window: QuotaWindow, nowEpochMs: Long): Boolean {
+        if (window.remaining == null) return false
+        if (window.confidence != Confidence.PROVIDER_VERIFIED &&
+            window.confidence != Confidence.LEDGER_RECONCILED) return false
+        val observed = window.observedAtEpochMs ?: return false
+        if (observed > nowEpochMs || (window.resetAtEpochMs != null && nowEpochMs >= window.resetAtEpochMs)) return false
+        val maxAgeMs = when (window.kind) {
+            LimitKind.REQUESTS_PER_MINUTE, LimitKind.INPUT_TOKENS_PER_MINUTE, LimitKind.TOTAL_TOKENS_PER_MINUTE -> 60_000L
+            else -> 300_000L
+        }
+        return nowEpochMs - observed <= maxAgeMs
     }
 
     private fun score(route: Route, task: Task): Double {
