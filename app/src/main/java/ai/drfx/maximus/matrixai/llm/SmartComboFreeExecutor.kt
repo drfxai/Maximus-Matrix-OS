@@ -70,7 +70,7 @@ internal class SmartComboFreeExecutor(
                 usage.inputTokens.toLong(), usage.outputTokens.toLong(),\n                maxOf(usage.totalTokens.toLong(), usage.inputTokens.toLong() + usage.outputTokens.toLong())
             ))
         } else {
-            ledger.markUncertain(prepared.requestId)
+            ledger.completedWithoutUsage(prepared.requestId)
         }
     }
 
