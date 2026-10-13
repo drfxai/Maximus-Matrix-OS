@@ -224,3 +224,10 @@ secret configuration.
 - Project Studio now supports local, atomic SHA-256 file-manifest checkpoints and explicit resume-planning prompts. A prompt is not remote execution and does not include source file contents.
 - Provider-verified account quota snapshots and cross-device atomic reservations are **not yet available**. Free-only routes may exhaust upstream RPM/RPD quotas; in that case the app reports failure and requires a new authorized request.
 - Remote Runtime is discovery-only; unsafe host execution, remote user builds, and unattended deployments remain off until hardened compute isolation and credential governance are provided.
+
+
+### Rate-limit header evidence (build 10009)
+
+Known verified response header semantics are restricted to official OpenAI API origins (requests/minute, tokens/minute) and Groq origins (requests/day, tokens/minute). Unsigned lookalike headers from 9Router or arbitrary third-party gateways are not labeled authoritative. No provider balance is invented, and a header snapshot may be invalidated after its freshness window.
+
+A successfully completed stream without final token usage is explicitly `FINISHED_UNVERIFIED`, not provider reconciled: it retains conservative reservation accounting for known quota windows but no longer occupies the unknown-quota in-flight slot forever. Interrupted requests remain `UNCERTAIN` and cannot be silently replayed.
