@@ -43,6 +43,8 @@ jobs:
           gradle-version: "9.3.1"
       - run: python3 .github/scripts/test-release-identity.py
       - run: python3 .github/scripts/test-release-publication.py
+      - name: Test remote Worker discovery gateway
+        run: python3 -m unittest discover -s remote-worker/tests -t remote-worker -v
       - run: bash -n .github/scripts/*.sh
       - run: gradle testDebugUnitTest lintRelease assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
@@ -61,7 +63,7 @@ jobs:
       matrix:
         include:
           - suite: credentials-and-history
-            test_classes: ai.drfx.maximus.matrixai.ProviderCredentialIsolationTest,ai.drfx.maximus.matrixai.database.ChatPersistenceTest,ai.drfx.maximus.matrixai.studio.StudioWorkspaceTest,ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceTest
+            test_classes: ai.drfx.maximus.matrixai.ProviderCredentialIsolationTest,ai.drfx.maximus.matrixai.database.ChatPersistenceTest,ai.drfx.maximus.matrixai.studio.StudioWorkspaceTest,ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceTest,ai.drfx.maximus.matrixai.studio.remote.RemoteWorkerProfileStoreTest
           - suite: keyboard
             test_classes: ai.drfx.maximus.matrixai.ui.KeyboardLayoutTest
     env:

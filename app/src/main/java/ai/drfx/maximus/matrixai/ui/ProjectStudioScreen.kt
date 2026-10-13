@@ -287,15 +287,7 @@ fun ProjectStudioScreen(
                 if (files.size > 80) Text(stringResource(R.string.studio_show_files), fontSize = 11.sp)
             }
         }
-        item {
-            StudioPanel {
-                Text(stringResource(R.string.studio_cloud_title), fontWeight = FontWeight.SemiBold, color = studioCyan)
-                Text(stringResource(R.string.studio_cloud_notice), fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(4.dp))
-                Text(stringResource(R.string.studio_not_connected), fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary)
-            }
-        }
+        item { RemoteWorkerPanel() }
         item {
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             Text(message, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

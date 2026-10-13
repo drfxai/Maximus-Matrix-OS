@@ -77,4 +77,17 @@
     <string name="studio_connect_model">اربط نموذج API في المحادثة أولًا. لم يُرسل شيء.</string>
     <string name="studio_file_saved">تم الحفظ: %1$s</string>
     <string name="studio_action_failed">فشلت العملية: %1$s</string>
+    <string name="runtime_title">بيئة التنفيذ البعيدة</string>
+    <string name="runtime_description">اتصل بخادم Windows/Linux موثوق عبر HTTPS موثّق.</string>
+    <string name="runtime_url">عنوان خادم HTTPS</string>
+    <string name="runtime_token">رمز وصول الخادم</string>
+    <string name="runtime_token_hint">اتركه فارغًا لاستخدام الرمز المحفوظ لهذا العنوان</string>
+    <string name="runtime_connect">اختبار وحفظ</string>
+    <string name="runtime_forget">نسيان</string>
+    <string name="runtime_connected">تم التحقق من الاتصال والمصادقة.</string>
+    <string name="runtime_disconnected">لا يوجد خادم متصل.</string>
+    <string name="runtime_saved_unverified">تم حفظ الخادم. اختبر الاتصال للتحقق من حالته.</string>
+    <string name="runtime_discovery_only">الاتصال متاح لاكتشاف الإمكانات فقط. التنفيذ معطّل.</string>
+    <string name="runtime_no_execution">رفع المشاريع وبناء Gradle وتنفيذ الأوامر غير مفعّل بعد.</string>
+    <string name="runtime_failed">فشل الاتصال بالخادم.</string>
 </resources>

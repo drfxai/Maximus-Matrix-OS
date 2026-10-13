@@ -14,7 +14,11 @@ The Android app Release is built on GitHub Actions using a pinned Android build 
 - Clearly label the work pipeline as planning-only; no simulated build status, tests or signed APK claims.
 - Android instrumentation tests for starter persistence, edits, ZIP round trip, zip-slip and decompression limits, in addition to the pre-existing emulator test suites.
 
-## Phase B — Separate trusted cloud worker (not built)
+## Phase B0 — Authenticated Worker discovery (implemented)
+
+A Python standard-library discovery gateway runs on Windows/Linux loopback. Android can test HTTPS connectivity, authenticate with an independently encrypted Worker token, and read real capability declarations. This does not enable source upload or execution. See remote-worker/README.md.
+
+## Phase B — Separate trusted cloud worker execution (not built)
 
 - Independently deployed Linux build workers with Docker/VM isolation; do not place user code in the Release signing workflow.
 - Authenticated session and scoped project capability tokens. Private, isolated storage, CPU, memory, timeout, rate and network restrictions, dependency cache policies.

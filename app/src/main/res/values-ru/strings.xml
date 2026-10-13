@@ -77,4 +77,17 @@
     <string name="studio_connect_model">Сначала подключите модель API в чате. Ничего не отправлено.</string>
     <string name="studio_file_saved">Сохранено: %1$s</string>
     <string name="studio_action_failed">Операция не выполнена: %1$s</string>
+    <string name="runtime_title">Удалённая среда</string>
+    <string name="runtime_description">Подключите доверенный сервер Windows/Linux по защищённому HTTPS.</string>
+    <string name="runtime_url">HTTPS-адрес сервера</string>
+    <string name="runtime_token">Токен доступа к серверу</string>
+    <string name="runtime_token_hint">Оставьте пустым, чтобы использовать сохранённый токен</string>
+    <string name="runtime_connect">Проверить и сохранить</string>
+    <string name="runtime_forget">Удалить</string>
+    <string name="runtime_connected">Подключение и авторизация подтверждены.</string>
+    <string name="runtime_disconnected">Нет подключённого сервера.</string>
+    <string name="runtime_saved_unverified">Сервер сохранён. Проверьте подключение.</string>
+    <string name="runtime_discovery_only">Доступен только просмотр возможностей. Выполнение отключено.</string>
+    <string name="runtime_no_execution">Загрузка проектов, Gradle и выполнение команд пока недоступны.</string>
+    <string name="runtime_failed">Не удалось подключиться к серверу.</string>
 </resources>
