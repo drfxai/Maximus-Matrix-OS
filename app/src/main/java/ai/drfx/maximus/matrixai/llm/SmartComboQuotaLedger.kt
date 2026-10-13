@@ -9,9 +9,13 @@ import kotlin.math.max
  */
 internal class SmartComboQuotaLedger(
     private val now: () -> Long = { System.currentTimeMillis() },
-    private val headroom: Double = 0.15
+    private val headroom: Double = 0.15,
+    private val maxUnknownInFlightPerScope: Int = 2
 ) {
-    init { require(headroom.isFinite() && headroom in 0.0..0.5) }
+    init {
+        require(headroom.isFinite() && headroom in 0.0..0.5)
+        require(maxUnknownInFlightPerScope > 0)
+    }
 
     enum class State { RESERVED, DISPATCHED, UNCERTAIN, RECONCILED, RELEASED }
     enum class Source { PROVIDER_SNAPSHOT, LOCALLY_ADJUSTED, UNKNOWN }
@@ -82,9 +86,19 @@ internal class SmartComboQuotaLedger(
             if (available == null) { refresh = true; continue }
             val quota = snapshots[plan.scope]?.get(capacity.kind)?.value ?: continue
             val needed = demand(plan, capacity.kind)
+            // A genuinely free request requires no paid credit; do not confuse zero credit with zero free quota.
+            if (capacity.kind == SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS && needed == 0L) continue
             val buffer = max(needed, quota.limit?.let { ceil(it.toDouble() * headroom).toLong() } ?: 0L)
             if (available < needed || available - needed < buffer) {
                 return Admission(false, "Insufficient " + capacity.kind + " headroom", refresh)
+            }
+        }
+        if (refresh) {
+            val unknownInFlight = entries.values.count { entry ->
+                entry.plan.scope == plan.scope && entry.state in setOf(State.RESERVED, State.DISPATCHED, State.UNCERTAIN)
+            }
+            if (unknownInFlight >= maxUnknownInFlightPerScope) {
+                return Admission(false, "Unknown quota concurrency limit", true)
             }
         }
         entries[plan.requestId] = Entry(plan, at, State.RESERVED)
