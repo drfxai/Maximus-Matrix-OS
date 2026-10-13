@@ -595,7 +595,13 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             appendAssistantError("This request exceeds the estimated model context limit. Reduce its size.")
             return false
         }
-        _llmState.value = current.copy(isGenerating = true, tokenMetrics = current.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0), statusMessage = if (selectedContext.omittedMessages > 0) "Older context omitted to fit the estimated limit; no automatic summary." else current.statusMessage)
+        _llmState.value = current.copy(isGenerating = true, tokenMetrics = current.tokenMetrics.copy(
+            streamingEstimateActive = false,
+            streamingOutputTokensEstimate = 0,
+            verifiedRateRequestsRemaining = null,
+            verifiedRateTokensRemaining = null,
+            rateEvidenceAtEpochMs = null
+        ), statusMessage = if (selectedContext.omittedMessages > 0) "Older context omitted to fit the estimated limit; no automatic summary." else current.statusMessage)
 
         chatJob = viewModelScope.launch {
             var autoPrepared: SmartComboFreeExecutor.Prepared? = null
@@ -650,7 +656,29 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val streamTime = System.currentTimeMillis()
                 val streamedText = StringBuilder()
                 var lastStreamUiAtMs = Long.MIN_VALUE
-                val result = chatClient.send(config, requestHistory, selectedAgent) { delta ->
+                val result = chatClient.send(config, requestHistory, selectedAgent, onQuota = { windows ->
+                    if (windows.isNotEmpty()) {
+                        autoPrepared?.let { freeExecutor.observeProviderQuota(it, windows) }
+                        viewModelScope.launch {
+                            if (chatGeneration != requestGeneration) return@launch
+                            val requests = windows.firstOrNull {
+                                it.kind == SmartComboPlanner.LimitKind.REQUESTS_PER_DAY ||
+                                    it.kind == SmartComboPlanner.LimitKind.REQUESTS_PER_MINUTE
+                            }
+                            val tokens = windows.firstOrNull {
+                                it.kind == SmartComboPlanner.LimitKind.TOTAL_TOKENS_PER_MINUTE
+                            }
+                            val visible = _llmState.value
+                            _llmState.value = visible.copy(tokenMetrics = visible.tokenMetrics.copy(
+                                verifiedRateRequestsRemaining = requests?.remaining,
+                                verifiedRateTokensRemaining = tokens?.remaining,
+                                verifiedRequestRateKind = if (requests?.kind ==
+                                    SmartComboPlanner.LimitKind.REQUESTS_PER_DAY) "RPD" else "RPM",
+                                rateEvidenceAtEpochMs = System.currentTimeMillis()
+                            ))
+                        }
+                    }
+                }) { delta ->
                     // Coalesce dense SSE tokens to <=4 UI updates per second.
                     streamedText.append(delta)
                     val elapsed = android.os.SystemClock.elapsedRealtime()
