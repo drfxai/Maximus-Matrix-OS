@@ -57,6 +57,7 @@ class SmartComboPlannerTest {
             kind = SmartComboPlanner.LimitKind.TOTAL_TOKENS_PER_DAY,
             remaining = 3_000,
             limit = 30_000,
+            observedAtEpochMs = task().nowEpochMs,
             confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
         )
         val choice = SmartComboPlanner.choose(task(), listOf(route("low", quota = listOf(capacity)), route("ready")))
