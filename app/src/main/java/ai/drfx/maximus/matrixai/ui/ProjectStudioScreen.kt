@@ -24,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ai.drfx.maximus.matrixai.R
+import androidx.compose.ui.res.stringResource
 import ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore
 import ai.drfx.maximus.matrixai.studio.StudioProject
 import ai.drfx.maximus.matrixai.studio.StudioFile
@@ -62,7 +64,7 @@ fun ProjectStudioScreen(
     var editingFile by remember { mutableStateOf<String?>(null) }
     var editor by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf("Workspace operations are local until you explicitly request AI planning or export.") }
+    var message by remember { mutableStateOf(context.getString(R.string.studio_initial_status)) }
 
     fun refresh(selected: String? = activeId) {
         projects = store.projects()
@@ -76,9 +78,9 @@ fun ProjectStudioScreen(
             try {
                 val project = withContext(Dispatchers.IO) { action() }
                 refresh(project.id)
-                message = "Project " + project.name + " is ready. No cloud build has been run."
+                message = context.getString(R.string.studio_project_ready, project.name)
             } catch (t: Exception) {
-                message = "Operation failed: " + (t.message ?: t.javaClass.simpleName)
+                message = context.getString(R.string.studio_action_failed, t.message ?: t.javaClass.simpleName)
             } finally { busy = false }
         }
     }
@@ -110,7 +112,7 @@ fun ProjectStudioScreen(
                         context.contentResolver.openOutputStream(uri)?.use { store.exportZip(id, it) }
                             ?: error("Cannot write selected document.")
                     }
-                    message = "Project ZIP exported. Review its files and secrets before sharing."
+                    message = context.getString(R.string.studio_exported)
                 } catch (t: Exception) {
                     message = "Export failed: " + (t.message ?: "Unknown error")
                 } finally { busy = false }
@@ -126,8 +128,8 @@ fun ProjectStudioScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text("MAXIMUS MATRIX OS", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = studioCyan)
-                Text("Project Studio  ·  استودیوی پروژه", style = MaterialTheme.typography.titleMedium)
-                Text("Build your workspace on Android; use connected AI for planning.",
+                Text(stringResource(R.string.studio_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.studio_subtitle),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -137,16 +139,16 @@ fun ProjectStudioScreen(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.FolderOpen, null, tint = studioCyan)
                     Column(Modifier.weight(1f)) {
-                        Text("پروژه فعال", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                        Text(active?.name ?: "No project", fontWeight = FontWeight.Bold,
+                        Text(stringResource(R.string.studio_active_project), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        Text(active?.name ?: stringResource(R.string.studio_no_project), fontWeight = FontWeight.Bold,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(if (active == null) "Create or import a project" else
-                            active.fileCount.toString() + " files · App-private storage", fontSize = 11.sp,
+                        Text(if (active == null) stringResource(R.string.studio_create_import) else
+                            stringResource(R.string.studio_files_count, active.fileCount), fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Box {
                         TextButton(onClick = { showSelector = true }, enabled = projects.isNotEmpty()) {
-                            Text("Select"); Icon(Icons.Default.ArrowDropDown, null)
+                            Text(stringResource(R.string.studio_select)); Icon(Icons.Default.ArrowDropDown, null)
                         }
                         DropdownMenu(expanded = showSelector, onDismissRequest = { showSelector = false }) {
                             projects.forEach { project ->
@@ -161,27 +163,27 @@ fun ProjectStudioScreen(
         }
         item {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StudioAction("New", Icons.Default.Add, studioCyan, enabled = !busy) { projectName = ""; showCreate = true }
-                StudioAction("GitHub", Icons.Default.CloudDownload, studioPurple, enabled = !busy) {
+                StudioAction(stringResource(R.string.studio_new), Icons.Default.Add, studioCyan, enabled = !busy) { projectName = ""; showCreate = true }
+                StudioAction(stringResource(R.string.studio_github), Icons.Default.CloudDownload, studioPurple, enabled = !busy) {
                     githubUrl = ""; showGithub = true
                 }
-                StudioAction("ZIP", Icons.Default.FolderZip, studioGreen, enabled = !busy) {
+                StudioAction(stringResource(R.string.studio_zip), Icons.Default.FolderZip, studioGreen, enabled = !busy) {
                     zipPicker.launch(arrayOf("application/zip", "application/octet-stream"))
                 }
-                StudioAction("Export", Icons.Default.UploadFile, studioCyan, enabled = !busy && active != null) {
+                StudioAction(stringResource(R.string.studio_export), Icons.Default.UploadFile, studioCyan, enabled = !busy && active != null) {
                     zipWriter.launch((active?.name ?: "project") + ".zip")
                 }
             }
         }
         item {
             StudioPanel {
-                Text("AI Project Brief", fontWeight = FontWeight.SemiBold, color = studioPurple)
+                Text(stringResource(R.string.studio_ai_brief), fontWeight = FontWeight.SemiBold, color = studioPurple)
                 Spacer(Modifier.height(7.dp))
                 OutlinedTextField(
                     value = brief,
                     onValueChange = { brief = it.take(12000) },
-                    label = { Text("Describe the application or next task") },
-                    placeholder = { Text("Build a Kotlin / Jetpack Compose Android app...") },
+                    label = { Text(stringResource(R.string.studio_describe)) },
+                    placeholder = { Text(stringResource(R.string.studio_example)) },
                     minLines = 3, maxLines = 7,
                     enabled = active != null && !busy,
                     modifier = Modifier.fillMaxWidth().testTag("studio_project_brief")
@@ -194,12 +196,12 @@ fun ProjectStudioScreen(
                             try {
                                 withContext(Dispatchers.IO) { store.saveBrief(id, brief) }
                                 refresh(id)
-                                message = "Project brief saved locally."
+                                message = context.getString(R.string.studio_brief_saved)
                             } catch (e: Exception) { message = e.message ?: "Save failed." }
                         }
                     }, enabled = active != null && !busy) {
                         Icon(Icons.Default.Save, null, Modifier.size(16.dp))
-                        Spacer(Modifier.width(5.dp)); Text("Save")
+                        Spacer(Modifier.width(5.dp)); Text(stringResource(R.string.studio_save))
                     }
                     Button(onClick = {
                         val id = activeId ?: return@Button
@@ -212,27 +214,27 @@ fun ProjectStudioScreen(
                                 }
                                 refresh(id)
                                 val sent = onPlanWithAi(plan)
-                                message = if (sent) "AI planning request sent to the selected model." else
-                                    "Connect a supported API/model in Chat first. No request was sent."
+                                message = context.getString(if (sent) R.string.studio_plan_sent else R.string.studio_connect_model)
                             } catch (e: Exception) { message = e.message ?: "Could not request AI planning." }
                         }
                     }, enabled = active != null && !busy) {
                         Icon(Icons.Default.AutoAwesome, null, Modifier.size(16.dp))
-                        Spacer(Modifier.width(5.dp)); Text("Plan with AI")
+                        Spacer(Modifier.width(5.dp)); Text(stringResource(R.string.studio_plan_with_ai))
                     }
                 }
                 Spacer(Modifier.height(7.dp))
-                Text("Only project name, description and file paths are sent when you tap Plan with AI. " +
-                    "Project source code is not automatically uploaded.", fontSize = 11.sp,
+                Text(stringResource(R.string.studio_ai_consent), fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         item {
             StudioPanel {
-                Text("Project pipeline", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.studio_pipeline), fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(9.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    listOf("Plan", "Files", "Tests", "Build", "Review").forEachIndexed { index, label ->
+                    listOf(stringResource(R.string.studio_step_plan), stringResource(R.string.studio_step_files),
+                        stringResource(R.string.studio_step_tests), stringResource(R.string.studio_step_build),
+                        stringResource(R.string.studio_step_review)).forEachIndexed { index, label ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Surface(shape = RoundedCornerShape(50),
                                 color = if (index == 0 && active != null) studioGreen else MaterialTheme.colorScheme.surfaceVariant) {
@@ -246,8 +248,7 @@ fun ProjectStudioScreen(
                     }
                 }
                 Spacer(Modifier.height(9.dp))
-                Text("Workspace created/imported does not mean Android compilation or tests passed. " +
-                    "Cloud Worker and signed release integration are not configured.", fontSize = 11.sp,
+                Text(stringResource(R.string.studio_pipeline_notice), fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -256,11 +257,11 @@ fun ProjectStudioScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Folder, null, tint = studioCyan)
                     Spacer(Modifier.width(8.dp))
-                    Text("Files / فایل‌های پروژه", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.studio_files_title), fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     Text(files.size.toString(), color = studioGreen)
                 }
                 Spacer(Modifier.height(5.dp))
-                if (files.isEmpty()) Text("No files to display", fontSize = 12.sp)
+                if (files.isEmpty()) Text(stringResource(R.string.studio_no_files), fontSize = 12.sp)
                 else files.take(80).forEach { file ->
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f))
                     Row(
@@ -283,18 +284,16 @@ fun ProjectStudioScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                if (files.size > 80) Text("Showing first 80 files. Export ZIP to inspect all.", fontSize = 11.sp)
+                if (files.size > 80) Text(stringResource(R.string.studio_show_files), fontSize = 11.sp)
             }
         }
         item {
             StudioPanel {
-                Text("Cloud Execution", fontWeight = FontWeight.SemiBold, color = studioCyan)
-                Text("The Maximus Android APK is built and signed in GitHub Actions. Imported user projects " +
-                    "are never sent to that privileged signing workflow. A separate authenticated, isolated " +
-                    "build worker is required for safe user-project builds.", fontSize = 12.sp,
+                Text(stringResource(R.string.studio_cloud_title), fontWeight = FontWeight.SemiBold, color = studioCyan)
+                Text(stringResource(R.string.studio_cloud_notice), fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(4.dp))
-                Text("Status: NOT CONNECTED", fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary)
+                Text(stringResource(R.string.studio_not_connected), fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary)
             }
         }
         item {
@@ -305,29 +304,28 @@ fun ProjectStudioScreen(
 
     if (showCreate) {
         AlertDialog(onDismissRequest = { showCreate = false },
-            title = { Text("Create Android project") },
+            title = { Text(stringResource(R.string.studio_create_title)) },
             text = { OutlinedTextField(value = projectName, onValueChange = { projectName = it.take(49) },
-                label = { Text("Project name (English letters)") }, singleLine = true) },
+                label = { Text(stringResource(R.string.studio_project_name)) }, singleLine = true) },
             confirmButton = {
                 TextButton(onClick = { showCreate = false; operate { store.newProject(projectName) } }) {
-                    Text("Create")
+                    Text(stringResource(R.string.studio_create))
                 }
             },
-            dismissButton = { TextButton(onClick = { showCreate = false }) { Text("Cancel") } })
+            dismissButton = { TextButton(onClick = { showCreate = false }) { Text(stringResource(R.string.studio_cancel)) } })
     }
 
     if (showGithub) {
-        AlertDialog(onDismissRequest = { showGithub = false }, title = { Text("Import public GitHub repository") },
+        AlertDialog(onDismissRequest = { showGithub = false }, title = { Text(stringResource(R.string.studio_import_title)) },
             text = { Column {
                 OutlinedTextField(value = githubUrl, onValueChange = { githubUrl = it.take(250) },
                     label = { Text("https://github.com/owner/repo") }, singleLine = true)
-                Text("Public repositories only. Size limit 20 MB compressed, 32 MB extracted. " +
-                    "Imported code will not execute automatically.", fontSize = 11.sp)
+                Text(stringResource(R.string.studio_import_hint), fontSize = 11.sp)
             } },
             confirmButton = { TextButton(onClick = {
                 showGithub = false; operate { store.importPublicGitHub(githubUrl) }
-            }) { Text("Import") } },
-            dismissButton = { TextButton(onClick = { showGithub = false }) { Text("Cancel") } })
+            }) { Text(stringResource(R.string.studio_import)) } },
+            dismissButton = { TextButton(onClick = { showGithub = false }) { Text(stringResource(R.string.studio_cancel)) } })
     }
 
     if (editingFile != null) {
@@ -349,11 +347,11 @@ fun ProjectStudioScreen(
                     try {
                         withContext(Dispatchers.IO) { store.saveFile(id, path, editor) }
                         refresh(id)
-                        message = "Saved: " + path
+                        message = context.getString(R.string.studio_file_saved, path)
                     } catch (e: Exception) { message = e.message ?: "Edit failed." }
                 }
-            }) { Text("Save file") } },
-            dismissButton = { TextButton(onClick = { editingFile = null }) { Text("Cancel") } })
+            }) { Text(stringResource(R.string.studio_save_file)) } },
+            dismissButton = { TextButton(onClick = { editingFile = null }) { Text(stringResource(R.string.studio_cancel)) } })
     }
 }
 

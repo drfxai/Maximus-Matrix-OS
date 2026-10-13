@@ -1,6 +1,16 @@
 # Changelog
 
-## v1.0.0 (build 10006)
+## v1.0.0 (build 10007)
+
+- Added persistent in-app language selection for English, Russian, Turkish, Arabic and Persian; English is the default.
+- Added right-to-left layout direction for Arabic and Persian without changing global device language.
+- Localized the language settings, primary navigation, More workspaces, Control Hub tabs and the Project Studio interface using Android resource qualifiers.
+- Added direct Language tab in the Control Hub. Existing chats, projects, stored keys and theme settings are preserved when selecting a new language.
+- Added Android instrumentation tests for locale resources, directionality and preference persistence.
+- Other legacy screens may retain English text until their strings are migrated. No automatic machine translation is claimed.
+- Public release name remains V1.0.0; only internal Android build code increased.
+
+### Previous build 10006
 
 - Introduced a touch-friendly Project Studio with per-project app-private workspaces, starter Android/Compose templates, source browser, text editor and project briefs.
 - Added user-initiated public GitHub/ZIP project imports, bounded ZIP validation, ZIP export and deliberate AI project planning through the existing provider/9Router.
