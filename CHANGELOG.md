@@ -1,6 +1,14 @@
 # Changelog
 
-## v1.0.0 (build 10007)
+## v1.0.0 (build 10008)
+
+- Introduced authenticated Remote Runtime discovery with HTTPS-only, redirect-rejecting Android client and endpoint-bound bearer tokens encrypted by Android Keystore.
+- Added a Windows/Linux Python gateway that binds to loopback, requires a strong token and returns a versioned capability declaration.
+- Replaced Project Studio's Cloud Execution placeholder with a Worker connection panel, encrypted save/forget controls and a discovery-only status.
+- Added tests for unsafe endpoints, unauthorized access, command blocking and Android credential storage; remote builds remain disabled.
+- Public version remains V1.0.0; internal Android versionCode advanced to 10008.
+
+### Previous build 10007
 
 - Added persistent in-app language selection for English, Russian, Turkish, Arabic and Persian; English is the default.
 - Added right-to-left layout direction for Arabic and Persian without changing global device language.

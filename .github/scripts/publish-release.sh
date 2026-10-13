@@ -41,6 +41,7 @@ cat > dist/release-notes.md <<NOTES
 - Project Studio supports locally persisted Android starter projects, safe ZIP and public GitHub import, source editing, explicit ZIP export and user-triggered AI project planning.
 - Project Studio does not run imported code or perform remote builds. Cloud workers, signing of imported projects and unattended deployments require separate infrastructure and authorization.
 - Added selectable English, Russian, Turkish, Arabic and Persian interface languages, persisted on-device. Navigation, settings and Project Studio are localized; Arabic/Persian use RTL. Some legacy screens still use English labels.
+- Remote Runtime discovery can authenticate to a separately deployed Windows/Linux Worker over HTTPS. Credentials are encrypted locally; user code execution and remote builds remain disabled.
 - Permanent release signing certificate and Android upgrade identity verified against the previous release.
 - Unit tests, Android lint and emulator smoke checks passed before publication.
 - Validated source commit: $GITHUB_SHA.

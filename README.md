@@ -4,6 +4,7 @@ MAXIMUS MATRIX OS is a graph-native intelligence platform and executive Android 
 
 ## Key Features & Capabilities
 
+- **Remote Runtime discovery (v1.0.0 build 10008)**: Authenticated HTTPS connection from Project Studio to a Python loopback gateway on Windows/Linux. Worker tokens are encrypted using Android Keystore. Discovery only: project upload, code execution, Gradle and remote builds are not available. See [Gateway setup](remote-worker/README.md).
 - **Multilingual UI (v1.0.0 build 10007)**: Choose English (default), Russian, Turkish, Arabic or Persian in Control Hub → Language. Main navigation, settings and Project Studio use localized resources, with RTL layouts for Arabic/Persian; legacy hardcoded screen copy may remain English. See [language notes](docs/app-languages.md).
 - **Mobile Project Studio (v1.0.0 build 10006)**: Private Kotlin/Jetpack Compose starter projects, public GitHub and safe ZIP import, file editor, project brief, explicit ZIP export and deliberate AI planning through a connected model. User-project cloud builds are **not** connected. See [scope and phased plan](docs/project-studio-cloud-plan.md).
 - **Living Matrix Graph**: Interactive canvas graph visualization featuring multi-touch pinch zoom, drag-to-pan, node inspection, and live mission path telemetry.
