@@ -62,11 +62,11 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("SMART COMBO · VERIFIED FREE", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("Automatically selects only free text routes proven by your providers' authenticated catalogues.",
+                        Text("When enabled, conversation text may be sent to any configured provider advertising a verified free model.",
                             fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(checked = state.smartComboEnabled, onCheckedChange = viewModel::setSmartComboEnabled,
-                        enabled = !state.isGenerating && !state.smartComboRefreshing)
+                        enabled = !state.isGenerating)
                 }
                 Text(state.smartComboMessage, fontSize = 12.sp,
                     color = if (state.smartComboEnabled && state.smartComboOffers > 0) MaterialTheme.colorScheme.primary
