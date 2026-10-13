@@ -127,6 +127,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val _dataCenter = MutableStateFlow(DataCenterUiState(baseUrl = dataStore.baseUrl()))
     val dataCenter: StateFlow<DataCenterUiState> = _dataCenter.asStateFlow()
 
+    private var freeRefreshLoop: Job? = null
     private var chatJob: Job? = null
     private var chatGeneration = 0L
     private var validationJob: Job? = null
@@ -142,7 +143,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     init {
         viewModelScope.launch { chatRepository.sessions.collect { sessions -> _chatSessions.value = sessions.map { if (it.id == "default_session") it.copy(title = "Legacy history (read only)", provider = "UNKNOWN") else it } } }
         restoreChatSession(_activeChatSessionId.value)
-        if (apiStore.smartComboEnabled()) refreshSmartCombo()
+        if (apiStore.smartComboEnabled()) scheduleSmartComboRefresh()
 
 
         // Load persisted Matrix events from Room
@@ -182,17 +183,31 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private fun scheduleSmartComboRefresh() {
+        if (freeRefreshLoop?.isActive == true) return
+        freeRefreshLoop = viewModelScope.launch {
+            while (_llmState.value.smartComboEnabled) {
+                refreshSmartCombo()
+                kotlinx.coroutines.delay(4 * 60_000L)
+            }
+        }
+    }
+
     /** Explicit opt-in. Only provider-declared, authenticated zero-price text models qualify. */
     fun setSmartComboEnabled(enabled: Boolean) {
         if (_llmState.value.isGenerating) return
         apiStore.setSmartComboEnabled(enabled)
-        if (!enabled) freeOffers = emptyList()
+        if (!enabled) {
+            freeRefreshLoop?.cancel()
+            freeRefreshLoop = null
+            freeOffers = emptyList()
+        }
         _llmState.value = _llmState.value.copy(
             smartComboEnabled = enabled,
             smartComboOffers = if (enabled) freeOffers.size else 0,
             smartComboMessage = if (enabled) "Checking free model catalogues…" else "Free-only routing is off."
         )
-        if (enabled) refreshSmartCombo()
+        if (enabled) scheduleSmartComboRefresh()
     }
 
     fun refreshSmartCombo() {
@@ -200,7 +215,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _llmState.value = _llmState.value.copy(smartComboRefreshing = true, smartComboMessage = "Verifying free model offers…")
             try {
-                freeOffers = freeCatalog.refresh()
+                val refreshed = freeCatalog.refresh()
+                if (!_llmState.value.smartComboEnabled) return@launch
+                freeOffers = refreshed
                 _llmState.value = _llmState.value.copy(
                     smartComboOffers = freeOffers.size,
                     smartComboMessage = if (freeOffers.isEmpty())
