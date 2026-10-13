@@ -31,6 +31,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import ai.drfx.maximus.matrixai.news.NewsIntelligenceScreen
 import ai.drfx.maximus.matrixai.signals.LiveSignalsScreen
 import ai.drfx.maximus.matrixai.ui.theme.AppThemeMode
+import ai.drfx.maximus.matrixai.ui.theme.AppLanguage
+import ai.drfx.maximus.matrixai.R
+import androidx.compose.ui.res.stringResource
 
 private enum class Destination(val label: String) {
     MATRIX("Matrix"),
@@ -49,6 +52,8 @@ private enum class Destination(val label: String) {
 fun MatrixScreen(
     themeMode: AppThemeMode,
     onThemeModeChange: (AppThemeMode) -> Unit,
+    selectedLanguage: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit,
     viewModel: MatrixViewModel = viewModel()
 ) {
     var destination by remember { mutableStateOf(Destination.MATRIX) }
@@ -104,7 +109,7 @@ fun MatrixScreen(
                                 )
                             }
                         },
-                        label = { Text("Brain", fontWeight = if (isMatrixSelected) FontWeight.Bold else FontWeight.Normal) },
+                        label = { Text(stringResource(R.string.nav_brain), fontWeight = if (isMatrixSelected) FontWeight.Bold else FontWeight.Normal) },
                         modifier = Modifier.testTag("nav_item_matrix").semantics { contentDescription = "Neural Brain" }
                     )
 
@@ -133,7 +138,7 @@ fun MatrixScreen(
                                 )
                             }
                         },
-                        label = { Text("Signals", fontWeight = if (isSignalsSelected) FontWeight.Bold else FontWeight.Normal) },
+                        label = { Text(stringResource(R.string.nav_signals), fontWeight = if (isSignalsSelected) FontWeight.Bold else FontWeight.Normal) },
                         modifier = Modifier.testTag("nav_item_signals")
                     )
 
@@ -161,7 +166,7 @@ fun MatrixScreen(
                                 )
                             }
                         },
-                        label = { Text("Vision", fontWeight = if (isVisionSelected) FontWeight.Bold else FontWeight.Normal) },
+                        label = { Text(stringResource(R.string.nav_vision), fontWeight = if (isVisionSelected) FontWeight.Bold else FontWeight.Normal) },
                         modifier = Modifier.testTag("nav_item_vision")
                     )
 
@@ -179,7 +184,7 @@ fun MatrixScreen(
                             Icon(Icons.Default.Code, contentDescription = "Project Studio",
                                 modifier = Modifier.scale(studioScale))
                         },
-                        label = { Text("Studio", fontWeight =
+                        label = { Text(stringResource(R.string.nav_studio), fontWeight =
                             if (isStudioSelected) FontWeight.Bold else FontWeight.Normal) },
                         modifier = Modifier.testTag("nav_item_studio")
                     )
@@ -193,11 +198,11 @@ fun MatrixScreen(
                         else -> Icons.Default.Widgets
                     }
                     val moreLabel: String = when (destination) {
-                        Destination.CHAT -> "Chat"
-                        Destination.AGENTS -> "Personas"
-                        Destination.DATA -> "Data"
-                        Destination.CONTROL -> "Control"
-                        else -> "More"
+                        Destination.CHAT -> stringResource(R.string.nav_chat)
+                        Destination.AGENTS -> stringResource(R.string.nav_personas)
+                        Destination.DATA -> stringResource(R.string.nav_data)
+                        Destination.CONTROL -> stringResource(R.string.nav_control)
+                        else -> stringResource(R.string.nav_more)
                     }
                     val moreScale by animateFloatAsState(
                         targetValue = if (isSubDestination) 1.15f else 1f,
@@ -299,6 +304,8 @@ fun MatrixScreen(
                         viewModel = viewModel,
                         themeMode = themeMode,
                         onThemeModeChange = onThemeModeChange,
+                        selectedLanguage = selectedLanguage,
+                        onLanguageChange = onLanguageChange,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -327,14 +334,14 @@ fun MatrixScreen(
                 ) {
                     Column {
                         Text(
-                            "MAXIMUS MATRIX WORKSPACES",
+                            stringResource(R.string.workspaces_title),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
                             letterSpacing = 1.2.sp
                         )
                         Text(
-                            "Choose the project, chat or research workspace",
+                            stringResource(R.string.workspaces_subtitle),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -348,8 +355,8 @@ fun MatrixScreen(
 
                 // Workspace Cards
                 WorkspaceItemRow(
-                    title = "Maximus AI Chat",
-                    subtitle = "Conversational multi-model trader & risk copilot",
+                    title = stringResource(R.string.workspaces_chat_title),
+                    subtitle = stringResource(R.string.workspaces_chat_desc),
                     icon = Icons.AutoMirrored.Filled.Chat,
                     accentColor = Color(0xFFB388FF),
                     isSelected = destination == Destination.CHAT,
@@ -360,8 +367,8 @@ fun MatrixScreen(
                 )
 
                 WorkspaceItemRow(
-                    title = "News Intelligence",
-                    subtitle = "Verified economic calendar and news sources",
+                    title = stringResource(R.string.workspaces_news_title),
+                    subtitle = stringResource(R.string.workspaces_news_desc),
                     icon = Icons.Default.Article,
                     accentColor = Color(0xFFE4B34D),
                     isSelected = destination == Destination.NEWS,
@@ -372,8 +379,8 @@ fun MatrixScreen(
                 )
 
                 WorkspaceItemRow(
-                    title = "Persona Catalog",
-                    subtitle = "Research personas, planning & validation lab",
+                    title = stringResource(R.string.workspaces_persona_title),
+                    subtitle = stringResource(R.string.workspaces_persona_desc),
                     icon = Icons.Default.Person,
                     accentColor = Color(0xFF38C79B),
                     isSelected = destination == Destination.AGENTS,
@@ -384,8 +391,8 @@ fun MatrixScreen(
                 )
 
                 WorkspaceItemRow(
-                    title = "Data Center",
-                    subtitle = "Company filings, documents & Matrix knowledge memory",
+                    title = stringResource(R.string.workspaces_data_title),
+                    subtitle = stringResource(R.string.workspaces_data_desc),
                     icon = Icons.Default.Storage,
                     accentColor = Color(0xFFAAC56A),
                     isSelected = destination == Destination.DATA,
@@ -396,8 +403,8 @@ fun MatrixScreen(
                 )
 
                 WorkspaceItemRow(
-                    title = "Control Hub & FinOps",
-                    subtitle = "Multi-provider AI gateway, tokens & appearance settings",
+                    title = stringResource(R.string.workspaces_control_title),
+                    subtitle = stringResource(R.string.workspaces_control_desc),
                     icon = Icons.Default.Settings,
                     accentColor = Color(0xFFD664A2),
                     isSelected = destination == Destination.CONTROL,

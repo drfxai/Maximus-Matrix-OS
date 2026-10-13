@@ -18,7 +18,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.MaximusMatrix"
-        android:supportsRtl="false">
+        android:supportsRtl="true">
         <receiver android:name=".news.EconomicEventAlarmReceiver" android:exported="false" />
         <activity
             android:name="ai.drfx.maximus.matrixai.MainActivity"
