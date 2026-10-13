@@ -36,7 +36,8 @@ internal class SmartComboFreeExecutor(
             maxRequestCostUsd = null,
             nowEpochMs = nowMs
         )
-        val filtered = offers.filter { it.route.price?.isFree == true }
+        val filtered = offers.filter { it.route.price?.isFree == true &&
+            nowMs >= it.checkedAtEpochMs && nowMs - it.checkedAtEpochMs <= 10 * 60_000L }
         val admission = SmartComboAdmissionController(ledger).prepare(
             requestId, task, filtered.map { it.route },
             filtered.associate { it.route.id to it.quotaScope }
