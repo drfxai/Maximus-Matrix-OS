@@ -550,7 +550,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }
             // Close the message Surface before placing the floating action above it.
             }
-            AnimatedVisibility(
+            this.AnimatedVisibility(
                 visible = showJumpToLatest,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 15.dp, bottom = 15.dp),
                 enter = fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.85f),
