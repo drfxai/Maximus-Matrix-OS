@@ -14,7 +14,13 @@ import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -66,6 +72,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -150,10 +157,22 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var attachmentError by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(state.provider) { apiKey = ""; quickKeyInput = ""; attachment = null }
     val listState = rememberLazyListState()
+    var followLatest by remember(activeSessionId) { mutableStateOf(true) }
+    val showJumpToLatest = messages.isNotEmpty() && listState.canScrollForward
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    // Auto-follow fresh messages only while the reader stays at the bottom.
+    // A real user drag away from the latest message suspends auto-follow.
+    LaunchedEffect(listState, activeSessionId) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Stop || interaction is DragInteraction.Cancel) {
+                followLatest = !listState.canScrollForward
+            }
+        }
+    }
+    LaunchedEffect(messages.size, state.isGenerating, activeSessionId) {
+        if (followLatest && messages.isNotEmpty()) {
+            val last = messages.lastIndex + if (state.isGenerating) 1 else 0
+            listState.animateScrollToItem(last)
         }
     }
     var recording by remember { mutableStateOf(false) }
@@ -232,6 +251,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         if (state.isGenerating || !sendable ||
             (text.isBlank() && attachment == null)) return
         if (viewModel.sendChat(text, attachment, fromVoice)) {
+            followLatest = true
             prompt = ""
             attachment = null
             attachmentError = null
@@ -422,13 +442,14 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }
         )
 
-        // Conversation messages area
-        Surface(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            shape = RoundedCornerShape(16.dp)
-        ) {
+        // Conversation messages area with a floating jump-to-latest action.
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(16.dp)
+            ) {
             if (messages.isEmpty()) {
                 Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
                     Column(
@@ -523,6 +544,36 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         item {
                             GeneratingPulse(state.provider.displayName)
                         }
+                    }
+                }
+            }
+            AnimatedVisibility(
+                visible = showJumpToLatest,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 15.dp, bottom = 15.dp),
+                enter = fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.85f),
+                exit = fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.85f)
+            ) {
+                Surface(
+                    onClick = {
+                        followLatest = true
+                        scope.launch {
+                            val last = (listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)
+                            listState.animateScrollToItem(last)
+                        }
+                    },
+                    modifier = Modifier.size(48.dp).testTag("chat_jump_to_latest"),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tonalElevation = 5.dp,
+                    shadowElevation = 8.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Go to latest message",
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
                 }
             }

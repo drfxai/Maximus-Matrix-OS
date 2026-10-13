@@ -2,7 +2,7 @@
 
 ## v1.0.0 (build 10009)
 
-- Added assistant-message Copy, Download and persistent local reactions with animated generation state and accessible action buttons.
+- Added assistant-message Copy, Download and persistent local reactions with animated generation state and accessible action buttons; added a floating, animated jump-to-latest control that appears only when older messages are being viewed, preserving scroll position during new messages.
 - Converted raw model-generated tool proposals into clearly labeled not-executed cards, without falsely claiming that files or tools ran. Exported suggested file contents remain user-controlled.
 - Expanded official publisher News feeds (Fed, ECB and BIS), added RSS and Atom parsing with verified publisher-host media, and image-aware cards with neutral fallback and explicit retry/error state; preserve verified-source-only policy and offline cache.
 - Introduced sampled multi-format image import, normalization to bounded JPEG, and platform-decoder support for animated GIF first frames, HEIF/HEIC when supported, PNG/JPEG/WebP/BMP. SVG/TIFF still require a supported converter; large inputs have explicit limits.

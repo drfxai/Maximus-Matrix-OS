@@ -2,6 +2,7 @@
 
 ## Chat presentation
 
+- Chat includes a floating circular **jump to latest message** button with fade/scale animation, shown only when the conversation can scroll forward. Tapping it smoothly scrolls to the newest message, and user drags away from the bottom suspend automatic follow until they return or send a new message.
 - Assistant messages have Copy, direct user-selected Download via Android Storage Access Framework, text-to-speech and optional local feedback (helpful, not helpful, love); feedback stays in app-private preferences and does not silently reach cloud APIs.
 - Exported HTML proposals use HTML file names; ordinary text uses Markdown. Android controls the final destination. Nothing is exported without a user action.
 - Generated text containing tool markup is shown as a **proposed operation, not executed or verified**. No file is created on-device merely because the model printed create_file XML. Original content remains available for Copy/Download.
