@@ -725,7 +725,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     "Model response completed"
                 )
             } catch (error: Throwable) {
-                autoPrepared?.let { freeExecutor.uncertain(it) }
+                autoPrepared?.let { freeExecutor.failed(it) }
                 if (error is CancellationException) {
                     if (requestGeneration == chatGeneration) _llmState.value = _llmState.value.copy(isGenerating = false, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                     throw error
