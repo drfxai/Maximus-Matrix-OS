@@ -550,12 +550,17 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }
             // Close the message Surface before placing the floating action above it.
             }
-            this.AnimatedVisibility(
-                visible = showJumpToLatest,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 15.dp, bottom = 15.dp),
-                enter = fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.85f),
-                exit = fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.85f)
-            ) {
+            val jumpAlpha by animateFloatAsState(
+                targetValue = if (showJumpToLatest) 1f else 0f,
+                animationSpec = tween(durationMillis = 190),
+                label = "latest_button_alpha"
+            )
+            val jumpScale by animateFloatAsState(
+                targetValue = if (showJumpToLatest) 1f else 0.85f,
+                animationSpec = tween(durationMillis = 190),
+                label = "latest_button_scale"
+            )
+            if (showJumpToLatest || jumpAlpha > 0.01f) {
                 Surface(
                     onClick = {
                         followLatest = true
@@ -564,12 +569,18 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             listState.animateScrollToItem(last)
                         }
                     },
-                    modifier = Modifier.size(48.dp).testTag("chat_jump_to_latest"),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 15.dp, bottom = 15.dp)
+                        .size(48.dp)
+                        .graphicsLayer(alpha = jumpAlpha, scaleX = jumpScale, scaleY = jumpScale)
+                        .testTag("chat_jump_to_latest"),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     tonalElevation = 5.dp,
-                    shadowElevation = 8.dp
+                    shadowElevation = 8.dp,
+                    enabled = showJumpToLatest
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
