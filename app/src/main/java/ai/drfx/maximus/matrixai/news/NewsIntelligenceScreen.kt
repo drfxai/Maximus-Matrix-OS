@@ -129,7 +129,7 @@ fun NewsIntelligenceScreen(
                 "Forex" -> article.category == NewsCategory.FOREX
                 "Gold" -> article.category == NewsCategory.GOLD
                 "Crypto" -> article.category == NewsCategory.CRYPTO
-                "Macro" -> article.category == NewsCategory.MACRO
+                "Macro" -> article.category in setOf(NewsCategory.MACRO, NewsCategory.CENTRAL_BANKS, NewsCategory.HIGH_IMPACT)
                 else -> true
             }
             val matchesSearch = searchQuery.isBlank() ||

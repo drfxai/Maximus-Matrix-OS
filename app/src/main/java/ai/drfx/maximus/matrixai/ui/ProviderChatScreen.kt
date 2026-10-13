@@ -493,7 +493,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             feedbackStore = reactionStore,
                             copied = copiedKey == reactionStore.key(activeSessionId, message.timestampMs, message.content),
                             onCopy = {
-                                clipboardManager.setText(AnnotatedString(message.content))
+                                val exported = runCatching { ChatPresentation.export(message.content) }.getOrNull()
+                                clipboardManager.setText(
+                                    AnnotatedString(exported?.bytes?.toString(Charsets.UTF_8) ?: message.content)
+                                )
                                 copiedKey = reactionStore.key(activeSessionId, message.timestampMs, message.content)
                             },
                             onDownload = {

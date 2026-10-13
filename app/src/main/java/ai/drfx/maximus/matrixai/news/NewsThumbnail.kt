@@ -3,6 +3,16 @@ package ai.drfx.maximus.matrixai.news
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.CurrencyExchange
+import androidx.compose.material.icons.filled.CurrencyBitcoin
+import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -34,14 +44,31 @@ fun PublisherNewsPhoto(article: NewsArticle?, modifier: Modifier = Modifier) {
             article?.takeIf { it.imageUrl.isNotBlank() }?.let { loadPublisherImage(it) }
         }
     }.value
-    Box(modifier.clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center) {
+    val accent = when (article?.category) {
+        NewsCategory.CRYPTO -> Color(0xFFF5A623)
+        NewsCategory.GOLD -> Color(0xFFFFD56B)
+        NewsCategory.FOREX -> Color(0xFF6BA9FF)
+        else -> Color(0xFF4ED7C5)
+    }
+    Box(modifier.clip(RoundedCornerShape(10.dp))
+        .background(Brush.linearGradient(listOf(accent.copy(alpha = 0.25f),
+            MaterialTheme.colorScheme.surfaceVariant))), contentAlignment = Alignment.Center) {
         if (image != null) {
             Image(bitmap = image.asImageBitmap(), contentDescription = "Publisher image for: " + article?.headline,
                 contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
-            Icon(Icons.Default.Article, contentDescription = "No publisher image available",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(30.dp))
+            val placeholder = when (article?.category) {
+                NewsCategory.CRYPTO -> Icons.Default.CurrencyBitcoin
+                NewsCategory.FOREX -> Icons.Default.CurrencyExchange
+                NewsCategory.CENTRAL_BANKS -> Icons.Default.AccountBalance
+                else -> Icons.Default.ShowChart
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Icon(placeholder, contentDescription = "Category illustration — no publisher photo",
+                    tint = accent, modifier = Modifier.size(28.dp))
+                Text("Illustration", fontSize = 9.sp, color = accent, textAlign = TextAlign.Center)
+            }
         }
     }
 }
