@@ -526,7 +526,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             appendAssistantError("This request exceeds the estimated model context limit. Reduce its size.")
             return false
         }
-        _llmState.value = current.copy(isGenerating = true, statusMessage = if (selectedContext.omittedMessages > 0) "Older context omitted to fit the estimated limit; no automatic summary." else current.statusMessage)
+        _llmState.value = current.copy(isGenerating = true, tokenMetrics = current.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0), statusMessage = if (selectedContext.omittedMessages > 0) "Older context omitted to fit the estimated limit; no automatic summary." else current.statusMessage)
 
         chatJob = viewModelScope.launch {
             try {
@@ -560,13 +560,30 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val requestHistory = selectedContext.messages
                 val streamTime = System.currentTimeMillis()
                 val streamedText = StringBuilder()
+                var lastStreamUiAtMs = Long.MIN_VALUE
                 val result = chatClient.send(config, requestHistory, selectedAgent) { delta ->
-                    val accumulated = streamedText.append(delta).toString()
-                    viewModelScope.launch {
-                        if (chatGeneration != requestGeneration || !_llmState.value.isGenerating) return@launch
-                        streamingTimestamp = streamTime
-                        val partial = ChatMessage("assistant", accumulated, streamTime)
-                        _chatMessages.value = _chatMessages.value.filterNot { it.timestampMs == streamTime && it.role == "assistant" } + partial
+                    // Coalesce dense SSE tokens to <=4 UI updates per second.
+                    streamedText.append(delta)
+                    val elapsed = android.os.SystemClock.elapsedRealtime()
+                    if (lastStreamUiAtMs == Long.MIN_VALUE || elapsed - lastStreamUiAtMs >= 250L) {
+                        lastStreamUiAtMs = elapsed
+                        val accumulated = streamedText.toString()
+                        val approxTokens = accumulated.length / 4 + if (accumulated.length % 4 == 0) 0 else 1
+                        viewModelScope.launch {
+                            if (chatGeneration != requestGeneration || !_llmState.value.isGenerating) return@launch
+                            streamingTimestamp = streamTime
+                            val partial = ChatMessage("assistant", accumulated, streamTime)
+                            _chatMessages.value = _chatMessages.value.filterNot {
+                                it.timestampMs == streamTime && it.role == "assistant"
+                            } + partial
+                            val visible = _llmState.value
+                            _llmState.value = visible.copy(
+                                tokenMetrics = visible.tokenMetrics.copy(
+                                    streamingOutputTokensEstimate = approxTokens,
+                                    streamingEstimateActive = true
+                                )
+                            )
+                        }
                     }
                 }
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
@@ -616,7 +633,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     remainingContextTokens = remainingCtx,
                     monthlyTokenBudget = budget,
                     remainingBudgetTokens = remainingBudget,
-                    contextUsagePercent = percent
+                    contextUsagePercent = percent,
+                    streamingEstimateActive = false,
+                    streamingOutputTokensEstimate = 0
                 )
 
                 _llmState.value = _llmState.value.copy(
@@ -634,7 +653,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
             } catch (error: Throwable) {
                 if (error is CancellationException) {
-                    if (requestGeneration == chatGeneration) _llmState.value = _llmState.value.copy(isGenerating = false)
+                    if (requestGeneration == chatGeneration) _llmState.value = _llmState.value.copy(isGenerating = false, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                     throw error
                 }
                 streamingTimestamp?.let { t -> _chatMessages.value = _chatMessages.value.filterNot { it.role == "assistant" && it.timestampMs == t } }
@@ -642,7 +661,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 AppLogStore.error("CHAT", error.message ?: "The model request failed.")
                 appendAssistantError(error.message ?: "The model request failed.")
-                _llmState.value = _llmState.value.copy(isGenerating = false, status = ConnectionStatus.DEGRADED, statusMessage = error.message ?: "Inference failed")
+                _llmState.value = _llmState.value.copy(isGenerating = false, status = ConnectionStatus.DEGRADED, statusMessage = error.message ?: "Inference failed", tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                 appendLlmEvent(
                     MatrixEventType.MODEL_FAILED,
                     "model:" + current.selectedModel,
@@ -660,7 +679,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         streamingTimestamp = null
         chatJob?.cancel()
         chatJob = null
-        _llmState.value = _llmState.value.copy(isGenerating = false)
+        _llmState.value = _llmState.value.copy(isGenerating = false, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
     }
 
     private fun restoreChatSession(id: String) {

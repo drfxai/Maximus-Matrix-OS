@@ -60,7 +60,10 @@ data class TokenMetrics(
     val remainingContextTokens: Int = 1_048_576,
     val monthlyTokenBudget: Long = 0L,
     val remainingBudgetTokens: Long? = null,
-    val contextUsagePercent: Float = 0f
+    val contextUsagePercent: Float = 0f,
+    /** UI-only approximate output tokens during SSE, never a billed/provider count. */
+    val streamingOutputTokensEstimate: Int = 0,
+    val streamingEstimateActive: Boolean = false
 )
 
 data class ChatCompletionResult(

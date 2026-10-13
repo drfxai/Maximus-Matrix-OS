@@ -179,6 +179,24 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 Text("Turn usage may be estimated when the provider omits usage. Context is a local estimate; provider quota is unavailable.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (metrics.streamingEstimateActive) {
+                    MetricLine(
+                        "LIVE OUTPUT · ESTIMATE ONLY",
+                        "~${numberFormat.format(metrics.streamingOutputTokensEstimate)} tokens",
+                        MaterialTheme.colorScheme.tertiary
+                    )
+                    Text(
+                        "Streaming estimate is not billed usage. Provider totals reconcile after completion.",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                MetricLine(
+                    "Provider account / rate-limit balance",
+                    "Unknown until verified by provider",
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 // Key Metric Grid: Consumed vs Remaining
                 Row(
                     modifier = Modifier.fillMaxWidth(),
