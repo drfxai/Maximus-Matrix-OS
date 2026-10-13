@@ -57,6 +57,33 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
             )
         }
 
+        item {
+            ControlCard {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("SMART COMBO · VERIFIED FREE", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("Automatically selects only free text routes proven by your providers' authenticated catalogues.",
+                            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = state.smartComboEnabled, onCheckedChange = viewModel::setSmartComboEnabled,
+                        enabled = !state.isGenerating && !state.smartComboRefreshing)
+                }
+                Text(state.smartComboMessage, fontSize = 12.sp,
+                    color = if (state.smartComboEnabled && state.smartComboOffers > 0) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Verified offers: ${state.smartComboOffers}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    OutlinedButton(
+                        onClick = viewModel::refreshSmartCombo,
+                        enabled = state.smartComboEnabled && !state.smartComboRefreshing && !state.isGenerating
+                    ) { Text("Refresh", fontSize = 12.sp) }
+                }
+                if (state.smartComboRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text("Text only. Provider account remaining quota may be unknown. Paid and unknown-price models are never selected automatically. No automatic replay after a dispatched request.",
+                    fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
         // Quick Provider Presets Carousel
         item {
             ControlCard {
