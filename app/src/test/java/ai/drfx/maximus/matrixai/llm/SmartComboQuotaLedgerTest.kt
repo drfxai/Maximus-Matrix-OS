@@ -122,6 +122,24 @@ class SmartComboQuotaLedgerTest {
         assertTrue(ledger.reserve(plan("four")).accepted)
     }
 
+    @Test fun completedWithoutProviderUsageDoesNotExhaustUnknownConcurrency() {
+        val ledger = SmartComboQuotaLedger(now = { clock }, maxUnknownInFlightPerScope = 1)
+        assertTrue(ledger.reserve(plan("first")).accepted)
+        assertTrue(ledger.dispatch("first"))
+        assertTrue(ledger.completedWithoutUsage("first"))
+        assertEquals(SmartComboQuotaLedger.State.FINISHED_UNVERIFIED, ledger.entry("first")?.state)
+        assertTrue(ledger.reserve(plan("second")).accepted)
+    }
+
+    @Test fun interruptedRequestIsStillHeldForReconciliation() {
+        val ledger = SmartComboQuotaLedger(now = { clock }, maxUnknownInFlightPerScope = 1)
+        assertTrue(ledger.reserve(plan("first")).accepted)
+        assertTrue(ledger.dispatch("first"))
+        assertTrue(ledger.markUncertain("first"))
+        assertFalse(ledger.reserve(plan("second")).accepted)
+        assertFalse(ledger.completedWithoutUsage("first"))
+    }
+
     @Test fun reservationsAreAtomicWithinOneProcess() {
         val ledger = SmartComboQuotaLedger(now = { clock })
         ledger.observe("shared-account", listOf(

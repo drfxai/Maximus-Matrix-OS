@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.0 (build 10009)
+
+- Added an opt-in Smart Combo free-text routing mode. Authenticated model discovery must explicitly report zero prompt/completion fees and a published context window before a route can be selected.
+- Linked deterministic Smart Combo selection and local quota admission to live chat inference. Only one request is dispatched; ambiguous post-dispatch failures are never automatically replayed.
+- Model discovery and capability gates remain conservative; model and account quota limits are shown as unknown unless the upstream provider reports them. Documented OpenAI/Groq rate headers can supply dated RPM/RPD/TPM evidence. Successful streams without final token totals remain estimated, never relabeled as exact. Paid/unknown-price routes are excluded from automatic mode.
+- Added Project Studio's app-private content-hashed checkpoints and user-authorized resume planning. Source contents are not silently uploaded, and checkpoints do not grant execution permissions.
+- Automated cloud execution, true account-balance telemetry, and cross-device transactional quotas are not yet configured; Remote Runtime remains discovery-only.
+- Public version remains V1.0.0; versionCode advances to 10009 to support in-place upgrades.
+
 ## v1.0.0 (build 10008)
 
 - Introduced authenticated Remote Runtime discovery with HTTPS-only, redirect-rejecting Android client and endpoint-bound bearer tokens encrypted by Android Keystore.

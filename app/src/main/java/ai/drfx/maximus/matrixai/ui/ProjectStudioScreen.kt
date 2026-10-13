@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import ai.drfx.maximus.matrixai.R
 import androidx.compose.ui.res.stringResource
 import ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore
+import ai.drfx.maximus.matrixai.studio.ProjectContinuityStore
 import ai.drfx.maximus.matrixai.studio.StudioProject
 import ai.drfx.maximus.matrixai.studio.StudioFile
 import kotlinx.coroutines.Dispatchers
@@ -50,12 +51,14 @@ fun ProjectStudioScreen(
 ) {
     val context = LocalContext.current
     val store = remember(context) { ProjectWorkspaceStore(context.applicationContext) }
+    val continuity = remember(context) { ProjectContinuityStore(context.applicationContext, store) }
     val scope = rememberCoroutineScope()
     var projects by remember { mutableStateOf(store.projects()) }
     var activeId by remember { mutableStateOf(projects.firstOrNull()?.id) }
     val active = projects.firstOrNull { it.id == activeId }
     var files by remember { mutableStateOf(emptyList<StudioFile>()) }
     var brief by remember(activeId) { mutableStateOf(active?.brief.orEmpty()) }
+    var nextTask by remember(activeId) { mutableStateOf("Review outstanding tasks, verify source files, and continue safely.") }
     var projectName by remember { mutableStateOf("") }
     var githubUrl by remember { mutableStateOf("") }
     var showCreate by remember { mutableStateOf(false) }
@@ -225,6 +228,58 @@ fun ProjectStudioScreen(
                 Spacer(Modifier.height(7.dp))
                 Text(stringResource(R.string.studio_ai_consent), fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item {
+            StudioPanel {
+                Text("PROJECT CONTINUITY · LOCAL CHECKPOINT", fontWeight = FontWeight.Bold, color = studioCyan)
+                Text("Save hashes and task state privately; no project files or keys are uploaded. Handoff requires verified files and explicit user approval.",
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = nextTask, onValueChange = { nextTask = it.take(2000) },
+                    label = { Text("Next task for another model") },
+                    minLines = 2, maxLines = 4, enabled = active != null && !busy,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        val id = activeId ?: return@OutlinedButton
+                        if (busy) return@OutlinedButton
+                        busy = true
+                        scope.launch {
+                            try {
+                                val snap = withContext(Dispatchers.IO) {
+                                    store.saveBrief(id, brief)
+                                    continuity.save(id, nextTask)
+                                }
+                                message = "Checkpoint verified: " + snap.checkpointId.take(8) + "…"
+                            } catch (e: Exception) {
+                                message = e.message ?: "Checkpoint failed."
+                            } finally { busy = false }
+                        }
+                    }, enabled = active != null && !busy && nextTask.isNotBlank()) {
+                        Icon(Icons.Default.Save, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(5.dp)); Text("Checkpoint")
+                    }
+                    Button(onClick = {
+                        val id = activeId ?: return@Button
+                        if (busy) return@Button
+                        busy = true
+                        scope.launch {
+                            try {
+                                val prompt = withContext(Dispatchers.IO) { continuity.resumePrompt(id) }
+                                val sent = onPlanWithAi(prompt)
+                                message = if (sent) "Verified checkpoint sent for planning (source contents not attached)."
+                                else "Connect a suitable model to continue."
+                            } catch (e: Exception) {
+                                message = e.message ?: "Resume unavailable."
+                            } finally { busy = false }
+                        }
+                    }, enabled = active != null && !busy) {
+                        Icon(Icons.Default.PlayArrow, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(5.dp)); Text("Resume plan")
+                    }
+                }
             }
         }
         item {

@@ -158,6 +158,22 @@ class ProjectWorkspaceStore(context: Context) {
         return contents(dir).map { StudioFile(it.relativeTo(dir).invariantSeparatorsPath, it.length()) }
     }
 
+    /** Hash files without exposing private source bytes in cross-model checkpoint metadata. */
+    fun sha256ForFile(id: String, path: String): String {
+        val file = child(projectDirectory(id), safePath(path))
+        require(file.isFile && file.length() <= 4L * 1024 * 1024) { "Checkpoint file unavailable or too large." }
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val bytes = ByteArray(8192)
+            while (true) {
+                val count = input.read(bytes)
+                if (count < 0) break
+                digest.update(bytes, 0, count)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
     fun readFile(id: String, path: String): String {
         val file = child(projectDirectory(id), safePath(path))
         require(file.isFile && file.length() <= 512 * 1024 && editable(file.name)) { "Only small text files are editable." }

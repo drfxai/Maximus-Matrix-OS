@@ -33,6 +33,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val chatClient = LlmChatClient()
     private val apiStore = SecureApiConfigStore(application)
     private val usageStore = ApiUsageStore(application)
+    private val freeCatalog = SmartComboFreeCatalog(discovery, apiStore)
+    private val freeExecutor = SmartComboFreeExecutor()
+    private var freeOffers: List<SmartComboFreeCatalog.Offer> = emptyList()
     private val dataClient = CompanyDataClient()
     private val dataStore = SecureDataCenterStore(application)
     private val chartVisionEngine = ChartVisionEngine(application, apiStore, usageStore)
@@ -106,6 +109,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             subscriptionLabel = apiStore.loadSubscriptionLabel(),
             monthlyBudgetUsd = apiStore.loadMonthlyBudgetUsd(),
             monthlyTokenBudget = initialTokenBudget,
+            smartComboEnabled = apiStore.smartComboEnabled(),
             tokenMetrics = TokenMetrics(
                 consumedLifetimeTokens = initialSummary.totalTokens,
                 contextCapacity = initialCapacity,
@@ -123,6 +127,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val _dataCenter = MutableStateFlow(DataCenterUiState(baseUrl = dataStore.baseUrl()))
     val dataCenter: StateFlow<DataCenterUiState> = _dataCenter.asStateFlow()
 
+    private var freeRefreshLoop: Job? = null
     private var chatJob: Job? = null
     private var chatGeneration = 0L
     private var validationJob: Job? = null
@@ -138,6 +143,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     init {
         viewModelScope.launch { chatRepository.sessions.collect { sessions -> _chatSessions.value = sessions.map { if (it.id == "default_session") it.copy(title = "Legacy history (read only)", provider = "UNKNOWN") else it } } }
         restoreChatSession(_activeChatSessionId.value)
+        if (apiStore.smartComboEnabled()) scheduleSmartComboRefresh()
 
 
         // Load persisted Matrix events from Room
@@ -174,6 +180,59 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         // Initialize Market Notification Service state
         viewModelScope.launch {
             notificationService.loadSavedState()
+        }
+    }
+
+    private fun scheduleSmartComboRefresh() {
+        if (freeRefreshLoop?.isActive == true) return
+        freeRefreshLoop = viewModelScope.launch {
+            while (_llmState.value.smartComboEnabled) {
+                refreshSmartCombo()
+                kotlinx.coroutines.delay(4 * 60_000L)
+            }
+        }
+    }
+
+    /** Explicit opt-in. Only provider-declared, authenticated zero-price text models qualify. */
+    fun setSmartComboEnabled(enabled: Boolean) {
+        if (_llmState.value.isGenerating) return
+        apiStore.setSmartComboEnabled(enabled)
+        if (!enabled) {
+            freeRefreshLoop?.cancel()
+            freeRefreshLoop = null
+            freeOffers = emptyList()
+        }
+        _llmState.value = _llmState.value.copy(
+            smartComboEnabled = enabled,
+            smartComboOffers = if (enabled) freeOffers.size else 0,
+            smartComboMessage = if (enabled) "Checking free model catalogues…" else "Free-only routing is off."
+        )
+        if (enabled) scheduleSmartComboRefresh()
+    }
+
+    fun refreshSmartCombo() {
+        if (!_llmState.value.smartComboEnabled || _llmState.value.smartComboRefreshing) return
+        viewModelScope.launch {
+            _llmState.value = _llmState.value.copy(smartComboRefreshing = true, smartComboMessage = "Verifying free model offers…")
+            try {
+                val refreshed = freeCatalog.refresh()
+                if (!_llmState.value.smartComboEnabled) return@launch
+                freeOffers = refreshed
+                _llmState.value = _llmState.value.copy(
+                    smartComboOffers = freeOffers.size,
+                    smartComboMessage = if (freeOffers.isEmpty())
+                        "No verified free text model with published context and pricing. Manual model mode remains available."
+                    else "Ready: " + freeOffers.size + " verified zero-price text routes. Provider quota is not known."
+                )
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                if (!_llmState.value.smartComboEnabled) return@launch
+                freeOffers = emptyList()
+                _llmState.value = _llmState.value.copy(smartComboOffers = 0,
+                    smartComboMessage = "Free catalogue unavailable. No automatic paid fallback.")
+            } finally {
+                _llmState.value = _llmState.value.copy(smartComboRefreshing = false)
+            }
         }
     }
 
@@ -493,6 +552,16 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             return false
         }
         if (current.isGenerating) return false
+        if (current.smartComboEnabled) {
+            if (attachment != null) {
+                appendAssistantError("Free-only Smart Combo currently supports text. Disable it before choosing a verified multimodal route.")
+                return false
+            }
+            if (freeOffers.isEmpty()) {
+                appendAssistantError("No verified free route is ready. Refresh Smart Combo or disable it to use the selected provider.")
+                return false
+            }
+        }
         if (attachment != null) {
             val audio = attachment.mimeType.startsWith("audio/")
             val descriptor = current.models.firstOrNull { it.id == current.selectedModel }
@@ -526,9 +595,16 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             appendAssistantError("This request exceeds the estimated model context limit. Reduce its size.")
             return false
         }
-        _llmState.value = current.copy(isGenerating = true, tokenMetrics = current.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0), statusMessage = if (selectedContext.omittedMessages > 0) "Older context omitted to fit the estimated limit; no automatic summary." else current.statusMessage)
+        _llmState.value = current.copy(isGenerating = true, tokenMetrics = current.tokenMetrics.copy(
+            streamingEstimateActive = false,
+            streamingOutputTokensEstimate = 0,
+            verifiedRateRequestsRemaining = null,
+            verifiedRateTokensRemaining = null,
+            rateEvidenceAtEpochMs = null
+        ), statusMessage = if (selectedContext.omittedMessages > 0) "Older context omitted to fit the estimated limit; no automatic summary." else current.statusMessage)
 
         chatJob = viewModelScope.launch {
+            var autoPrepared: SmartComboFreeExecutor.Prepared? = null
             try {
             chatRepository.saveMessage(
                 ChatMessageEntity(
@@ -542,26 +618,67 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
             )
 
-        appendLlmEvent(
-            MatrixEventType.MODEL_STARTED,
-            "agent:" + selectedAgent.id,
-            "model:" + current.selectedModel,
-            selectedAgent.name + " request started"
-        )
-        AppLogStore.info("CHAT", "Request started provider=" + current.provider.name + " model=" + current.selectedModel + " agent=" + selectedAgent.id)
-
-                val config = ApiConnectionConfig(
+                val requestHistory = selectedContext.messages
+                if (current.smartComboEnabled) {
+                    autoPrepared = freeExecutor.prepare(
+                        requestId = UUID.randomUUID().toString(),
+                        estimatedInput = selectedContext.estimatedTokens,
+                        reservedOutput = 2048,
+                        requiredCapabilities = selectedAgent.requiredCapabilities,
+                        offers = freeOffers,
+                        resolveCredential = { provider, endpoint -> apiStore.resolveCredential(provider, endpoint) },
+                        agentId = selectedAgent.id
+                    )
+                    require(autoPrepared != null) {
+                        "No compatible, verified free route passed the capability and quota admission checks."
+                    }
+                }
+                val config = autoPrepared?.config ?: ApiConnectionConfig(
                     baseUrl = current.baseUrl,
                     apiKey = apiStore.resolveCredential(current.provider, current.baseUrl),
                     provider = current.provider,
                     selectedModel = current.selectedModel,
                     selectedAgentId = selectedAgent.id
                 )
-                val requestHistory = selectedContext.messages
+                if (autoPrepared != null) {
+                    check(freeExecutor.dispatched(requireNotNull(autoPrepared))) {
+                        "Automatic request has already been dispatched."
+                    }
+                }
+                appendLlmEvent(
+                    MatrixEventType.MODEL_STARTED,
+                    "agent:" + selectedAgent.id,
+                    "model:" + config.selectedModel,
+                    selectedAgent.name + " request started through " + config.provider.displayName
+                )
+                AppLogStore.info("CHAT", "Request started provider=" + config.provider.name +
+                    " model=" + config.selectedModel + " agent=" + selectedAgent.id)
                 val streamTime = System.currentTimeMillis()
                 val streamedText = StringBuilder()
                 var lastStreamUiAtMs = Long.MIN_VALUE
-                val result = chatClient.send(config, requestHistory, selectedAgent) { delta ->
+                val result = chatClient.send(config, requestHistory, selectedAgent, onQuota = { windows ->
+                    if (windows.isNotEmpty()) {
+                        autoPrepared?.let { freeExecutor.observeProviderQuota(it, windows) }
+                        viewModelScope.launch {
+                            if (chatGeneration != requestGeneration) return@launch
+                            val requests = windows.firstOrNull {
+                                it.kind == SmartComboPlanner.LimitKind.REQUESTS_PER_DAY ||
+                                    it.kind == SmartComboPlanner.LimitKind.REQUESTS_PER_MINUTE
+                            }
+                            val tokens = windows.firstOrNull {
+                                it.kind == SmartComboPlanner.LimitKind.TOTAL_TOKENS_PER_MINUTE
+                            }
+                            val visible = _llmState.value
+                            _llmState.value = visible.copy(tokenMetrics = visible.tokenMetrics.copy(
+                                verifiedRateRequestsRemaining = requests?.remaining,
+                                verifiedRateTokensRemaining = tokens?.remaining,
+                                verifiedRequestRateKind = if (requests?.kind ==
+                                    SmartComboPlanner.LimitKind.REQUESTS_PER_DAY) "RPD" else "RPM",
+                                rateEvidenceAtEpochMs = System.currentTimeMillis()
+                            ))
+                        }
+                    }
+                }) { delta ->
                     // Coalesce dense SSE tokens to <=4 UI updates per second.
                     streamedText.append(delta)
                     val elapsed = android.os.SystemClock.elapsedRealtime()
@@ -586,6 +703,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                 }
+                autoPrepared?.let { freeExecutor.completed(it, result.usage) }
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 if (result.transcript != null) {
                     val index = _chatMessages.value.indexOfLast { it.role == "user" && it.attachment?.mimeType?.startsWith("audio/") == true }
@@ -612,11 +730,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
 
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
-                usageStore.record(current.provider, current.selectedModel, result.usage)
+                usageStore.record(config.provider, config.selectedModel, result.usage)
                 val summary = usageStore.summary()
                 _usage.value = summary
 
-                val capacity = ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
+                val capacity = autoPrepared?.offer?.route?.contextWindowTokens
+                    ?: ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
                 val activeContextTokens = ChatContextPolicy.bounded(_chatMessages.value, capacity).estimatedTokens
                 val remainingCtx = (capacity - activeContextTokens).coerceAtLeast(0)
                 val budget = current.monthlyTokenBudget
@@ -640,18 +759,20 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
                 _llmState.value = _llmState.value.copy(
                     status = ConnectionStatus.CONNECTED,
-                    statusMessage = "Inference succeeded for ${current.selectedModel}.",
+                    statusMessage = "Inference succeeded: " + config.provider.displayName + " / " + config.selectedModel +
+                        if (autoPrepared != null) " (verified free-text offer; account quota unknown)." else ".",
                     isGenerating = false,
                     tokenMetrics = updatedMetrics
                 )
-                AppLogStore.info("CHAT", "Response completed model=" + current.selectedModel + " inputTokens=" + result.usage.inputTokens + " outputTokens=" + result.usage.outputTokens + " remainingCtx=" + remainingCtx)
+                AppLogStore.info("CHAT", "Response completed model=" + config.selectedModel + " inputTokens=" + result.usage.inputTokens + " outputTokens=" + result.usage.outputTokens + " remainingCtx=" + remainingCtx)
                 appendLlmEvent(
                     MatrixEventType.MODEL_COMPLETED,
-                    "model:" + current.selectedModel,
+                    "model:" + config.selectedModel,
                     "agent:" + selectedAgent.id,
                     "Model response completed"
                 )
             } catch (error: Throwable) {
+                autoPrepared?.let { freeExecutor.failed(it) }
                 if (error is CancellationException) {
                     if (requestGeneration == chatGeneration) _llmState.value = _llmState.value.copy(isGenerating = false, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                     throw error
@@ -664,7 +785,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 _llmState.value = _llmState.value.copy(isGenerating = false, status = ConnectionStatus.DEGRADED, statusMessage = error.message ?: "Inference failed", tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                 appendLlmEvent(
                     MatrixEventType.MODEL_FAILED,
-                    "model:" + current.selectedModel,
+                    "model:" + (autoPrepared?.config?.selectedModel ?: current.selectedModel),
                     "agent:" + selectedAgent.id,
                     error.message ?: "Model request failed"
                 )

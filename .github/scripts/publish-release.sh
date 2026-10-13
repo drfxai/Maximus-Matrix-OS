@@ -42,6 +42,9 @@ cat > dist/release-notes.md <<NOTES
 - Project Studio does not run imported code or perform remote builds. Cloud workers, signing of imported projects and unattended deployments require separate infrastructure and authorization.
 - Added selectable English, Russian, Turkish, Arabic and Persian interface languages, persisted on-device. Navigation, settings and Project Studio are localized; Arabic/Persian use RTL. Some legacy screens still use English labels.
 - Remote Runtime discovery can authenticate to a separately deployed Windows/Linux Worker over HTTPS. Credentials are encrypted locally; user code execution and remote builds remain disabled.
+- Smart Combo adds user-opt-in, verified zero-price text routing across already configured provider accounts. Unknown pricing is never assumed free; no paid fallback occurs. Catalog verification does not establish account quota.
+- Official OpenAI/Groq rate-limit headers are displayed as dated RPM/RPD/TPM snapshots when available, separately from unverified account credit. Streams lacking final provider token usage remain visibly estimated.
+- Project Studio includes versioned private SHA-256 checkpoints, detects modified source files, and permits explicit model continuation planning. No untrusted code execution or automatic tool replay is enabled.
 - Permanent release signing certificate and Android upgrade identity verified against the previous release.
 - Unit tests, Android lint and emulator smoke checks passed before publication.
 - Validated source commit: $GITHUB_SHA.
