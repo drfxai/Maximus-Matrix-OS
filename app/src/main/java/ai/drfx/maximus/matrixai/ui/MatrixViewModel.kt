@@ -224,7 +224,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         "No verified free text model with published context and pricing. Manual model mode remains available."
                     else "Ready: " + freeOffers.size + " verified zero-price text routes. Provider quota is not known."
                 )
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                if (!_llmState.value.smartComboEnabled) return@launch
                 freeOffers = emptyList()
                 _llmState.value = _llmState.value.copy(smartComboOffers = 0,
                     smartComboMessage = "Free catalogue unavailable. No automatic paid fallback.")
@@ -755,7 +757,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 _llmState.value = _llmState.value.copy(isGenerating = false, status = ConnectionStatus.DEGRADED, statusMessage = error.message ?: "Inference failed", tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                 appendLlmEvent(
                     MatrixEventType.MODEL_FAILED,
-                    "model:" + current.selectedModel,
+                    "model:" + (autoPrepared?.config?.selectedModel ?: current.selectedModel),
                     "agent:" + selectedAgent.id,
                     error.message ?: "Model request failed"
                 )
