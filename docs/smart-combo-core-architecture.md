@@ -214,3 +214,13 @@ StateFlow animation must not cause a recompose per incoming streamed character.
 
 This design does not change app version, app release, signing, providers or production
 secret configuration.
+
+
+## Build 10009 — verified free-text activation (opt-in)
+
+- Authenticated model catalog pricing and published context length establish eligibility; only exact zero-price text routes qualify.
+- The app can discover configured provider accounts and activate free-only model selection after explicit consent in Control Hub. Unknown paid tariffs and unsupported modalities are never dispatched automatically.
+- The existing process-local quota admission controller mediates request IDs. After dispatch, failed or interrupted requests are marked uncertain and never silently replayed on another service.
+- Project Studio now supports local, atomic SHA-256 file-manifest checkpoints and explicit resume-planning prompts. A prompt is not remote execution and does not include source file contents.
+- Provider-verified account quota snapshots and cross-device atomic reservations are **not yet available**. Free-only routes may exhaust upstream RPM/RPD quotas; in that case the app reports failure and requires a new authorized request.
+- Remote Runtime is discovery-only; unsafe host execution, remote user builds, and unattended deployments remain off until hardened compute isolation and credential governance are provided.
