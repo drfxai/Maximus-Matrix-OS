@@ -162,7 +162,8 @@ object SmartComboPlanner {
 
     private fun score(route: Route, task: Task): Double {
         val latencyPenalty = if (task.interactive) ((route.p95TimeToFirstTokenMs ?: 5000L).coerceAtMost(20000L) / 80.0) else 0.0
-        val unknownQuotaPenalty = route.quota.count { it.remaining == null || it.confidence == Confidence.UNKNOWN }.toDouble() * 4.0
+        val unknownQuotaPenalty = if (route.quota.isEmpty()) 8.0 else
+            route.quota.count { it.remaining == null || it.confidence == Confidence.UNKNOWN || it.confidence == Confidence.ESTIMATED }.toDouble() * 4.0
         return route.quality.toDouble() * 3 - latencyPenalty - unknownQuotaPenalty
     }
 }
