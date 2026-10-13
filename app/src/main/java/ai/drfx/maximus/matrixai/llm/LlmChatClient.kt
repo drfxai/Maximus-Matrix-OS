@@ -288,25 +288,11 @@ class LlmChatClient {
         )
     }
 
-    private fun parseOpenAiUsage(json: JSONObject): ChatUsage? {
-        val usage = json.optJSONObject("usage") ?: return null
-        return ChatUsage(
-            inputTokens = usage.optInt("prompt_tokens", 0),
-            outputTokens = usage.optInt("completion_tokens", 0),
-            totalTokens = usage.optInt("total_tokens", 0),
-            estimated = false
-        )
-    }
+    private fun parseOpenAiUsage(json: JSONObject): ChatUsage? =
+        ProviderUsageEvidence.parseOpenAi(json.optJSONObject("usage"))
 
-    private fun parseResponsesUsage(json: JSONObject): ChatUsage? {
-        val usage = json.optJSONObject("usage") ?: return null
-        return ChatUsage(
-            inputTokens = usage.optInt("input_tokens", 0),
-            outputTokens = usage.optInt("output_tokens", 0),
-            totalTokens = usage.optInt("total_tokens", 0),
-            estimated = false
-        )
-    }
+    private fun parseResponsesUsage(json: JSONObject): ChatUsage? =
+        ProviderUsageEvidence.parseResponses(json.optJSONObject("usage"))
 
     private fun estimateUsage(history: List<ChatMessage>, response: String): ChatUsage {
         val input = history.sumOf { (it.content.length / 4).coerceAtLeast(1) }
