@@ -9,6 +9,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import ai.drfx.maximus.matrixai.R
+import ai.drfx.maximus.matrixai.voice.SpeechLanguage
+import ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore
+import ai.drfx.maximus.matrixai.ui.theme.AppLanguage
+import ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceStore
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import ai.drfx.maximus.matrixai.voice.ElevenAudioPlayer
@@ -36,7 +42,7 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
     var quota by remember { mutableStateOf<ElevenQuota?>(null) }
     var voices by remember { mutableStateOf<List<ElevenVoice>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("Connect your own account to verify its allowance and voice catalog.") }
+    var status by remember(context) { mutableStateOf(context.getString(R.string.eleven_status_connect)) }
     var voicePickerOpen by remember { mutableStateOf(false) }
     var modelPickerOpen by remember { mutableStateOf(false) }
     var activeJob by remember { mutableStateOf<Job?>(null) }
@@ -51,7 +57,7 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
         activeJob = scope.launch {
             try { block() }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (e: Exception) { status = e.message ?: "Voice service unavailable." }
+            catch (e: Exception) { status = context.getString(R.string.eleven_status_error) }
             finally { busy = false }
         }
     }
@@ -60,15 +66,16 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("ElevenLabs Voice Studio", style = MaterialTheme.typography.headlineSmall)
-        Text("Natural multilingual text-to-speech for chat responses. This is separate from the LLM Smart Combo router.",
+        Text(stringResource(R.string.eleven_title), style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.eleven_intro),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         OutlinedTextField(
             value = apiKeyEntry, onValueChange = { apiKeyEntry = it.take(512) },
             modifier = Modifier.fillMaxWidth().testTag("elevenlabs_api_key"),
-            label = { Text("Your ElevenLabs API key") },
-            placeholder = { Text(if (hasKey) "Saved securely — enter to replace" else "Paste your own API key") },
+            label = { Text(stringResource(R.string.eleven_key)) },
+            placeholder = { Text(stringResource(if (hasKey) R.string.eleven_saved_key
+                else R.string.eleven_paste_key)) },
             visualTransformation = PasswordVisualTransformation(),
             enabled = !busy, singleLine = true
         )
@@ -85,10 +92,10 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
                         }
                         hasKey = true
                         quota = account
-                        status = "Account verified. Reported plan: " + account.tier
+                        status = context.getString(R.string.eleven_status_verified, account.tier)
                     }
                 }
-            ) { Text("Verify & Save") }
+            ) { Text(stringResource(R.string.eleven_verify)) }
             OutlinedButton(
                 enabled = !busy && hasKey,
                 onClick = {
@@ -101,33 +108,34 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
                     quota = null
                     voices = emptyList()
                     voiceId = ""
-                    status = "ElevenLabs key and selections removed."
+                    status = context.getString(R.string.eleven_status_removed)
                 }
-            ) { Text("Remove key") }
+            ) { Text(stringResource(R.string.eleven_remove)) }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Use ElevenLabs for manually played chat replies", style = MaterialTheme.typography.titleSmall)
-                Text("Off by default. Automatic voice replies stay on Android device TTS.",
+                Text(stringResource(R.string.eleven_use_manual), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.eleven_auto_local),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(checked = active, enabled = hasKey && voiceId.isNotBlank() && !busy,
                 onCheckedChange = {
                     store.selectEleven(it)
                     active = it
-                    status = if (it) "ElevenLabs enabled for explicit Speak actions." else "Local speech selected."
+                    status = context.getString(if (it) R.string.eleven_status_enabled
+                        else R.string.eleven_status_local)
                 })
         }
 
         quota?.let { q ->
-            Text("Reported allowance: ${q.remaining} remaining / ${q.limit} · used ${q.used} · ${q.tier}",
+            Text(stringResource(R.string.eleven_allowance, q.remaining, q.limit, q.used, q.tier),
                 style = MaterialTheme.typography.titleSmall)
             if (q.limit > 0) LinearProgressIndicator(
                 progress = { (q.used.toFloat() / q.limit.toFloat()).coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth()
             )
-            Text("Provider snapshot, not LLM tokens. Different voices/models can consume multiple credits per character; final charges depend on your account.",
+            Text(stringResource(R.string.eleven_allowance_note),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
@@ -135,12 +143,12 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
             execute {
                 voices = client.voices(store.key())
                 if (voices.isEmpty()) {
-                    status = "No voices returned for this account."
+                    status = context.getString(R.string.eleven_status_no_voices)
                 } else {
-                    status = "${voices.size} voices loaded. Select one for speech."
+                    status = context.getString(R.string.eleven_status_voice_count, voices.size)
                 }
             }
-        }) { Text("Load available voices") }
+        }) { Text(stringResource(R.string.eleven_load_voices)) }
 
         Box {
             OutlinedButton(
@@ -148,7 +156,9 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(voices.firstOrNull { it.id == voiceId }?.name
-                    ?: if (voiceId.isNotBlank()) "Saved voice: ${voiceId.take(10)}…" else "Select voice")
+                    ?: if (voiceId.isNotBlank())
+                        stringResource(R.string.eleven_saved_voice, voiceId.take(10))
+                    else stringResource(R.string.eleven_select_voice))
             }
             DropdownMenu(expanded = voicePickerOpen, onDismissRequest = { voicePickerOpen = false }) {
                 voices.forEach { voice ->
@@ -163,7 +173,7 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
 
         Box {
             OutlinedButton(onClick = { modelPickerOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("Speech model: " + model)
+                Text(stringResource(R.string.eleven_model, model))
             }
             DropdownMenu(expanded = modelPickerOpen, onDismissRequest = { modelPickerOpen = false }) {
                 listOf(ElevenLabsClient.DEFAULT_MODEL, ElevenLabsClient.LOW_LATENCY_MODEL, ElevenLabsClient.PERSIAN_MODEL).forEach { id ->
@@ -174,29 +184,41 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
             }
         }
 
-        Text("Persian speech: choose eleven_v3. Flash v2.5 prioritizes speed; Multilingual v2 prioritizes voice quality. Model choice affects account charges.",
+        Text(stringResource(R.string.eleven_persian_advice),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Button(enabled = !busy && hasKey && voiceId.isNotBlank(), onClick = {
             execute {
-                val sample = "Hello from Maximus Matrix OS."
+                val speech = SpeechLanguagePreferenceStore(context).selected()
+                val interfaceLanguage = when (speech) {
+                    SpeechLanguage.PERSIAN -> AppLanguage.PERSIAN
+                    SpeechLanguage.ARABIC -> AppLanguage.ARABIC
+                    SpeechLanguage.TURKISH -> AppLanguage.TURKISH
+                    SpeechLanguage.RUSSIAN -> AppLanguage.RUSSIAN
+                    SpeechLanguage.ENGLISH -> AppLanguage.ENGLISH
+                }
+                val sample = LanguagePreferenceStore.localizedContext(
+                    context, interfaceLanguage
+                ).getString(R.string.eleven_sample_text)
                 val bytes = client.synthesize(store.key(), voiceId, model, sample)
                 player.play(bytes)
-                status = "Playing voice sample. Credits may have been used."
+                status = context.getString(R.string.eleven_status_sample)
                 quota = runCatching { client.quota(store.key()) }.getOrNull()
             }
         }, modifier = Modifier.fillMaxWidth().testTag("elevenlabs_test_voice")) {
-            Text("Generate & play sample (uses account allowance)")
+            Text(stringResource(R.string.eleven_generate_sample))
         }
         OutlinedButton(onClick = {
             activeJob?.cancel()
             player.stop()
-            status = "Voice playback stopped."
-        }, modifier = Modifier.fillMaxWidth()) { Text("Stop audio") }
+            status = context.getString(R.string.eleven_status_stopped)
+        }, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.speech_stop_audio))
+        }
 
         if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         Text(status, style = MaterialTheme.typography.bodySmall)
-        Text("Only explicit sample or Speak actions send text to ElevenLabs. No automatic paid fallback. Never paste a shared production provider key into a public APK.",
+        Text(stringResource(R.string.eleven_privacy),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
