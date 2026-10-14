@@ -1,0 +1,23 @@
+name: Hindsight Memory Contract - Live (Manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-memory-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HINDSIGHT_TEST_ENDPOINT: ${{ secrets.HINDSIGHT_TEST_ENDPOINT }}
+      HINDSIGHT_TEST_TOKEN: ${{ secrets.HINDSIGHT_TEST_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail closed when owner-managed test configuration is absent
+        run: |
+          test -n "$HINDSIGHT_TEST_ENDPOINT" || { echo "::error::Hindsight endpoint missing"; exit 1; }
+          test -n "$HINDSIGHT_TEST_TOKEN" || { echo "::error::Hindsight token missing"; exit 1; }
+      - name: Authenticated Retain / Recall and bank isolation
+        run: python3 remote-worker/hindsight-smoke.py --run-live

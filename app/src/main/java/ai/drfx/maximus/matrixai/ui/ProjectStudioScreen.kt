@@ -351,7 +351,7 @@ fun ProjectStudioScreen(
                 if (files.size > 80) Text(stringResource(R.string.studio_show_files), fontSize = 11.sp)
             }
         }
-        item { RemoteWorkerPanel() }
+        item { RemoteWorkerPanel(projectId = activeId) }
         item {
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             Text(message, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

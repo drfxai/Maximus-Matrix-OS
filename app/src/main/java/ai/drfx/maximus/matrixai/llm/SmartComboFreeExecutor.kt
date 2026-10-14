@@ -26,7 +26,10 @@ internal class SmartComboFreeExecutor(
         agentId: String,
         nowMs: Long = System.currentTimeMillis()
     ): Prepared? {
-        val map = offers.associateBy { it.route.id }
+        // Ambiguous route IDs could bind a credential to a different endpoint.
+        // Treat all duplicates as untrusted instead of allowing last-write wins.
+        val ambiguousIds = offers.groupingBy { it.route.id }.eachCount()
+            .filterValues { it > 1 }.keys
         val task = SmartComboPlanner.Task(
             requiredCapabilities = requiredCapabilities,
             estimatedInputTokens = estimatedInput,
@@ -36,19 +39,29 @@ internal class SmartComboFreeExecutor(
             maxRequestCostUsd = null,
             nowEpochMs = nowMs
         )
-        val filtered = offers.filter { it.route.price?.isFree == true &&
-            nowMs >= it.checkedAtEpochMs && nowMs - it.checkedAtEpochMs <= 10 * 60_000L }
+        // Never reserve a route that cannot actually authenticate. A failed lookup may
+        // otherwise consume the request ID and prevent a safe, pre-dispatch alternate.
+        // A local credential lookup does not send a model request or spend provider quota.
+        val usableCredentials = linkedMapOf<String, String>()
+        val filtered = offers.filter { offer ->
+            if (offer.route.id in ambiguousIds || offer.route.price?.isFree != true ||
+                nowMs < offer.checkedAtEpochMs ||
+                nowMs - offer.checkedAtEpochMs > 10 * 60_000L) return@filter false
+            val credential = runCatching {
+                resolveCredential(offer.route.provider, offer.endpoint)
+            }.getOrDefault("")
+            if (credential.isBlank()) return@filter false
+            usableCredentials[offer.route.id] = credential
+            true
+        }
+        val map = filtered.associateBy { it.route.id }
         val admission = SmartComboAdmissionController(ledger).prepare(
             requestId, task, filtered.map { it.route },
             filtered.associate { it.route.id to it.quotaScope }
         )
         val route = admission.route ?: return null
         val offer = map[route.id] ?: return null
-        val key = runCatching { resolveCredential(route.provider, offer.endpoint) }.getOrDefault("")
-        if (key.isBlank()) {
-            ledger.releaseUndispatched(requestId)
-            return null
-        }
+        val key = usableCredentials[route.id] ?: return null
         return Prepared(
             ApiConnectionConfig(offer.endpoint, key, route.provider, route.modelId, agentId),
             offer, requestId, admission.standby?.id

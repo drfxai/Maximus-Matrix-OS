@@ -12,7 +12,7 @@ android {
         applicationId = "ai.drfx.maximus.matrixai"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10012
+        versionCode = 10013
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
