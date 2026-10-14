@@ -136,4 +136,6 @@
     <string name="phone_apk_builds">APK builds</string>
     <string name="phone_build_log">View Gradle log</string>
     <string name="phone_hide_log">Hide build log</string>
+    <string name="speech_install_tts">Install speech language</string>
+    <string name="speech_tts_setup_unavailable">Speech voice setup is unavailable. Install a speech synthesizer or Persian voice in Android settings.</string>
 </resources>
