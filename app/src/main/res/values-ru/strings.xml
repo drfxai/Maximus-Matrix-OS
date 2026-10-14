@@ -320,4 +320,5 @@
     <string name="brain_graph_guide">Перетаскивайте · Изменяйте масштаб двумя пальцами</string>
     <string name="brain_graph_auto">АВТОПОВОРОТ</string>
     <string name="brain_wait">Ожидание ответа модели…</string>
+    <string name="brain_you">Вы</string>
 </resources>
