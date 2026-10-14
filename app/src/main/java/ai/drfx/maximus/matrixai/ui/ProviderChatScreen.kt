@@ -81,6 +81,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.drfx.maximus.matrixai.llm.*
+import ai.drfx.maximus.matrixai.voice.ElevenLabsClient
+import ai.drfx.maximus.matrixai.voice.ElevenAudioPlayer
+import ai.drfx.maximus.matrixai.voice.ElevenVoiceSettings
 import ai.drfx.maximus.matrixai.vision.ImageInputPipeline
 import androidx.compose.foundation.background
 import kotlinx.coroutines.Dispatchers
@@ -147,6 +150,12 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var agentExpanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val voicePlayback = remember(context) { VoicePlaybackController(context) }
+    val elevenSettings = remember(context) { ElevenVoiceSettings(context.applicationContext) }
+    val elevenClient = remember { ElevenLabsClient() }
+    val elevenPlayback = remember(context) { ElevenAudioPlayer(context.applicationContext) }
+    var elevenJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var elevenBusy by remember { mutableStateOf(false) }
+    DisposableEffect(elevenPlayback) { onDispose { elevenJob?.cancel(); elevenPlayback.stop() } }
     DisposableEffect(voicePlayback) { onDispose { voicePlayback.stop() } }
     var settingsOpen by remember { mutableStateOf(false) }
     var tokenDetailsOpen by remember { mutableStateOf(false) }
@@ -229,6 +238,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 recorder.cancel()
                 recording = false
                 voicePlayback.stop()
+                elevenJob?.cancel()
+                elevenPlayback.stop()
                 tts?.stop()
             }
         }
@@ -399,7 +410,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             Spacer(Modifier.width(4.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { tts?.stop(); voicePlayback.stop() }) { Icon(Icons.Default.Stop, "Stop audio") }
+                IconButton(onClick = { tts?.stop(); voicePlayback.stop(); elevenJob?.cancel(); elevenPlayback.stop() }) { Icon(Icons.Default.Stop, "Stop audio") }
                 IconButton(
                     onClick = { voiceReplies = !voiceReplies; if (!voiceReplies) tts?.stop() },
                     modifier = Modifier.size(34.dp)
@@ -527,7 +538,35 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                     .onFailure { attachmentError = it.message ?: "Export unavailable." }
                             },
                             onSpeak = {
-                            if (speechReady) {
+                            if (elevenSettings.elevenSelected()) {
+                                if (!elevenBusy) {
+                                    val voiceId = elevenSettings.selectedVoice()
+                                    val modelId = elevenSettings.selectedModel()
+                                    val key = elevenSettings.key()
+                                    if (!ElevenLabsClient.validVoiceId(voiceId) || key.isBlank()) {
+                                        attachmentError = "Set an ElevenLabs voice and API key in Control Hub > ElevenLabs Voice."
+                                    } else if (message.content.length > ElevenLabsClient.MAX_SPOKEN_CHARACTERS) {
+                                        attachmentError = "ElevenLabs speech limit is ${ElevenLabsClient.MAX_SPOKEN_CHARACTERS} characters. Speak a shorter response."
+                                    } else {
+                                        elevenBusy = true
+                                        tts?.stop()
+                                        elevenPlayback.stop()
+                                        elevenJob = scope.launch {
+                                            try {
+                                                // Only a deliberate Speak tap uploads the selected response text.
+                                                val mp3 = elevenClient.synthesize(key, voiceId, modelId, message.content)
+                                                elevenPlayback.play(mp3)
+                                            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                                throw cancelled
+                                            } catch (error: Exception) {
+                                                attachmentError = error.message ?: "ElevenLabs speech failed."
+                                            } finally {
+                                                elevenBusy = false
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if (speechReady) {
                                 val language = if (message.content.any { it in '\u0600'..'\u06ff' }) Locale("fa", "IR") else Locale.ENGLISH
                                 if ((tts?.isLanguageAvailable(language) ?: TextToSpeech.LANG_NOT_SUPPORTED) >= TextToSpeech.LANG_AVAILABLE) {
                                     tts?.language = language
