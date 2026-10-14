@@ -25,7 +25,11 @@ data class ModelDescriptor(
     val capabilities: Set<ModelCapability> = emptySet(),
     val contextWindowTokens: Int = 128_000,
     val verified: Boolean = false,
-    val imageInputSupport: ImageInputSupport = ImageInputSupport.UNKNOWN
+    val imageInputSupport: ImageInputSupport = ImageInputSupport.UNKNOWN,
+    /** Explicit provider-catalog pricing, never a claim about remaining credit or tier quota. */
+    val catalogFreeTextPrice: SmartComboPlanner.Price? = null,
+    /** Context length is null if the upstream catalog does not declare it. */
+    val catalogContextTokens: Int? = null
 )
 
 data class ApiConnectionConfig(
@@ -63,7 +67,11 @@ data class TokenMetrics(
     val contextUsagePercent: Float = 0f,
     /** UI-only approximate output tokens during SSE, never a billed/provider count. */
     val streamingOutputTokensEstimate: Int = 0,
-    val streamingEstimateActive: Boolean = false
+    val streamingEstimateActive: Boolean = false,
+    val verifiedRateRequestsRemaining: Long? = null,
+    val verifiedRateTokensRemaining: Long? = null,
+    val verifiedRequestRateKind: String = "Unknown",
+    val rateEvidenceAtEpochMs: Long? = null
 )
 
 data class ChatCompletionResult(
@@ -114,5 +122,9 @@ data class LlmUiState(
     val subscriptionLabel: String = "",
     val monthlyBudgetUsd: Double = 0.0,
     val monthlyTokenBudget: Long = 0L,
-    val tokenMetrics: TokenMetrics = TokenMetrics()
+    val tokenMetrics: TokenMetrics = TokenMetrics(),
+    val smartComboEnabled: Boolean = false,
+    val smartComboRefreshing: Boolean = false,
+    val smartComboOffers: Int = 0,
+    val smartComboMessage: String = "Free-only routing is off."
 )

@@ -57,6 +57,33 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
             )
         }
 
+        item {
+            ControlCard {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("SMART COMBO · VERIFIED FREE", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("When enabled, conversation text may be sent to any configured provider advertising a verified free model.",
+                            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = state.smartComboEnabled, onCheckedChange = viewModel::setSmartComboEnabled,
+                        enabled = !state.isGenerating)
+                }
+                Text(state.smartComboMessage, fontSize = 12.sp,
+                    color = if (state.smartComboEnabled && state.smartComboOffers > 0) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Verified offers: ${state.smartComboOffers}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    OutlinedButton(
+                        onClick = viewModel::refreshSmartCombo,
+                        enabled = state.smartComboEnabled && !state.smartComboRefreshing && !state.isGenerating
+                    ) { Text("Refresh", fontSize = 12.sp) }
+                }
+                if (state.smartComboRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text("Text only. Provider account remaining quota may be unknown. Paid and unknown-price models are never selected automatically. No automatic replay after a dispatched request.",
+                    fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
         // Quick Provider Presets Carousel
         item {
             ControlCard {
@@ -192,11 +219,26 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     )
                 }
 
-                MetricLine(
-                    "Provider account / rate-limit balance",
-                    "Unknown until verified by provider",
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (metrics.rateEvidenceAtEpochMs != null) {
+                    MetricLine(
+                        "Verified rate requests left (${metrics.verifiedRequestRateKind})",
+                        metrics.verifiedRateRequestsRemaining?.let(numberFormat::format) ?: "Unknown",
+                        MaterialTheme.colorScheme.primary
+                    )
+                    MetricLine(
+                        "Verified rate tokens left (TPM)",
+                        metrics.verifiedRateTokensRemaining?.let(numberFormat::format) ?: "Unknown",
+                        MaterialTheme.colorScheme.primary
+                    )
+                    Text("HTTP provider snapshot (not account credit). Refreshes on the next response; may expire or change on other devices.",
+                        fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    MetricLine(
+                        "Provider rate balance / account credit",
+                        "Unknown (no authoritative response headers)",
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 // Key Metric Grid: Consumed vs Remaining
                 Row(
                     modifier = Modifier.fillMaxWidth(),

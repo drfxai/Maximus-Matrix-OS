@@ -17,7 +17,7 @@ internal class SmartComboQuotaLedger(
         require(maxUnknownInFlightPerScope > 0)
     }
 
-    enum class State { RESERVED, DISPATCHED, UNCERTAIN, RECONCILED, RELEASED }
+    enum class State { RESERVED, DISPATCHED, UNCERTAIN, RECONCILED, FINISHED_UNVERIFIED, RELEASED }
     enum class Source { PROVIDER_SNAPSHOT, LOCALLY_ADJUSTED, UNKNOWN }
 
     /** Scope is a nonsecret identifier for a shared provider quota bucket. */
@@ -124,6 +124,18 @@ internal class SmartComboQuotaLedger(
         val current = entries[requestId] ?: return false
         if (current.state != State.DISPATCHED && current.state != State.UNCERTAIN) return false
         entries[requestId] = current.copy(state = State.UNCERTAIN)
+        return true
+    }
+
+    /**
+     * Completed text stream without provider usage: keep conservative token reservation in
+     * known windows, but do not permanently count this as an in-flight request. Provider
+     * totals remain unknown; do not label local heuristic counts as verified.
+     */
+    @Synchronized fun completedWithoutUsage(requestId: String): Boolean {
+        val current = entries[requestId] ?: return false
+        if (current.state != State.DISPATCHED) return false
+        entries[requestId] = current.copy(state = State.FINISHED_UNVERIFIED)
         return true
     }
 

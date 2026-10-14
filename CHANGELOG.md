@@ -1,15 +1,24 @@
 # Changelog
 
+## v1.0.0 (build 10010)
+
+- Added a floating animated jump-to-latest message control, visible when the reader scrolls away from newest chat messages; automatic following pauses during history browsing.
+- Added Copy and user-initiated Download for assistant text and suggested files, private local reactions, and a generating pulse. Raw model tool markup is labeled as an **unexecuted proposal**, never falsely shown as a successful operation.
+- Enhanced verified publisher News with an additional BIS RSS source, Atom parsing, publisher-supplied HTTPS images with safe origin/size rules, category illustrations when no photo exists, and retry when no verified articles are available.
+- Added size-bounded image sampling and normalization for Vision uploads (JPEG/PNG/WebP/GIF first frame/BMP and HEIC/HEIF on compatible Android decoders). Unavailable TIFF/SVG decoders and provider vision support are **not** misrepresented.
+- Added regression coverage for tool drafts, feed parsing, authentic media and Android image processing. Preserve all build 10009 Smart Combo and checkpoint work.
+- Public versionName remains 1.0.0; versionCode increments to 10010.
+
 ## v1.0.0 (build 10009)
 
-- Added assistant-message Copy, Download and persistent local reactions with animated generation state and accessible action buttons; added a floating, animated jump-to-latest control that appears only when older messages are being viewed, preserving scroll position during new messages.
-- Converted raw model-generated tool proposals into clearly labeled not-executed cards, without falsely claiming that files or tools ran. Exported suggested file contents remain user-controlled.
-- Expanded official publisher News feeds (Fed, ECB and BIS), added RSS and Atom parsing with verified publisher-host media, and image-aware cards with neutral fallback and explicit retry/error state; preserve verified-source-only policy and offline cache.
-- Introduced sampled multi-format image import, normalization to bounded JPEG, and platform-decoder support for animated GIF first frames, HEIF/HEIC when supported, PNG/JPEG/WebP/BMP. SVG/TIFF still require a supported converter; large inputs have explicit limits.
-- Added parser/security and emulator image-processing regression tests. No fictitious news, execution results or unsupported vision-model claims.
-- Public version remains 1.0.0; internal versionCode 10009.
+- Added an opt-in Smart Combo free-text routing mode. Authenticated model discovery must explicitly report zero prompt/completion fees and a published context window before a route can be selected.
+- Linked deterministic Smart Combo selection and local quota admission to live chat inference. Only one request is dispatched; ambiguous post-dispatch failures are never automatically replayed.
+- Model discovery and capability gates remain conservative; model and account quota limits are shown as unknown unless the upstream provider reports them. Documented OpenAI/Groq rate headers can supply dated RPM/RPD/TPM evidence. Successful streams without final token totals remain estimated, never relabeled as exact. Paid/unknown-price routes are excluded from automatic mode.
+- Added Project Studio's app-private content-hashed checkpoints and user-authorized resume planning. Source contents are not silently uploaded, and checkpoints do not grant execution permissions.
+- Automated cloud execution, true account-balance telemetry, and cross-device transactional quotas are not yet configured; Remote Runtime remains discovery-only.
+- Public version remains V1.0.0; versionCode advances to 10009 to support in-place upgrades.
 
-### Previous build 10008
+## v1.0.0 (build 10008)
 
 - Introduced authenticated Remote Runtime discovery with HTTPS-only, redirect-rejecting Android client and endpoint-bound bearer tokens encrypted by Android Keystore.
 - Added a Windows/Linux Python gateway that binds to loopback, requires a strong token and returns a versioned capability declaration.

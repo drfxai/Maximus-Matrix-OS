@@ -1,4 +1,4 @@
-# Maximus Matrix OS — Chat, News and Vision delivery (build 10009)
+# Maximus Matrix OS — Chat, News and Vision delivery (build 10010)
 
 ## Chat presentation
 
@@ -25,7 +25,7 @@
 
 - Unit tests: tool proposal must not claim execution; HTML download payload extraction; ordinary text handling; safe file names; publisher-host image validation and RSS/Atom entries.
 - Android emulator: large PNG normalized to bounded JPEG, plus existing conversations, credentials, keyboard and Studio tests.
-- Run unit tests/lint/debug assembly and both instrumented emulator suites; preserve public V1.0.0 and release signing identity. Increment internal versionCode to 10009. No release until CI and signed upgrade checks pass.
+- Run unit tests/lint/debug assembly and both instrumented emulator suites; preserve public V1.0.0 and release signing identity. Increment internal versionCode to 10010. No release until CI and signed upgrade checks pass.
 
 ## Next tasks
 

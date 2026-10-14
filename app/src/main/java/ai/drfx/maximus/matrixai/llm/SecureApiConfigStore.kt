@@ -60,6 +60,11 @@ class SecureApiConfigStore(context: Context) {
         editor.apply()
     }
 
+    fun smartComboEnabled(): Boolean = preferences.getBoolean("smart_combo_free_enabled", false)
+    fun setSmartComboEnabled(enabled: Boolean) {
+        check(preferences.edit().putBoolean("smart_combo_free_enabled", enabled).commit())
+    }
+
     fun loadBaseUrlForProvider(provider: LlmProvider): String = preferences.getString("endpoint_" + provider.name, null) ?: provider.defaultBaseUrl
     fun loadModelForProvider(provider: LlmProvider): String = preferences.getString("model_" + provider.name, null) ?: provider.defaultModel
 
