@@ -128,7 +128,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                             style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     }
                 }
-                Text("A private development workspace hosted on your Android device.",
+                Text(stringResource(R.string.phone_workspace_desc),
                     color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Lock, null, tint = harnessAqua, modifier = Modifier.size(15.dp))
@@ -325,11 +325,11 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.phone_private), style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold)
-                        Text("One-time session key · never saved", style = MaterialTheme.typography.bodySmall,
+                        Text(stringResource(R.string.phone_one_time), style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                Text("Starting the server does not share any source files. Approve one project separately.",
+                Text(stringResource(R.string.phone_no_share),
                     style = MaterialTheme.typography.bodySmall)
                 AnimatedVisibility(visible = running) {
                     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -343,12 +343,12 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                         }, modifier = Modifier.fillMaxWidth().testTag("phone_harness_copy_token")) {
                             Icon(Icons.Default.ContentCopy, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Copy temporary local token")
+                            Text(stringResource(R.string.phone_copy_token))
                         }
                         HorizontalDivider()
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("Approved project", fontWeight = FontWeight.SemiBold,
+                                Text(stringResource(R.string.phone_shared_project), fontWeight = FontWeight.SemiBold,
                                     style = MaterialTheme.typography.bodyMedium)
                                 Text(
                                     if (shared == null) "None — source remains private"
@@ -362,19 +362,19 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                                     onClick = { confirmShare = true },
                                     enabled = projectId != null,
                                     modifier = Modifier.testTag("phone_harness_approve_share")
-                                ) { Text("Approve") }
+                                ) { Text(stringResource(R.string.phone_approve)) }
                             } else {
                                 OutlinedButton(onClick = {
                                     PhoneHostSession.setSharedProject(null)
                                     shared = null
                                     status = "Source sharing revoked."
-                                }) { Text("Revoke") }
+                                }) { Text(stringResource(R.string.phone_revoke)) }
                             }
                         }
                     }
                 }
                 if (!running) {
-                    Text("Start the server to enable local pairing or per-project export.",
+                    Text(stringResource(R.string.phone_offline_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -438,7 +438,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
 
     if (confirmBuild) AlertDialog(
         onDismissRequest = { confirmBuild = false },
-        title = { Text("Build this trusted project locally?") },
+        title = { Text(stringResource(R.string.phone_build_confirm)) },
         text = { Text("Gradle scripts can execute arbitrary code with this Android app's " +
             "privileges. Do not build unknown or downloaded third-party projects here. " +
             "The toolchain runs offline; building may use battery, RAM and storage.") },
@@ -463,7 +463,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
     if (confirmShare) AlertDialog(
         onDismissRequest = { confirmShare = false },
         icon = { Icon(Icons.Default.FolderZip, null) },
-        title = { Text("Share selected project locally?") },
+        title = { Text(stringResource(R.string.phone_share_confirm)) },
         text = { Text("A trusted same-phone client with the temporary key can read this project's manifest " +
             "and download its source ZIP. Remove any confidential files first. Other workspaces remain private.") },
         confirmButton = {
@@ -476,13 +476,13 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                 } catch (e: Exception) {
                     status = e.message ?: "Project authorization failed."
                 }
-            }) { Text("Approve one project") }
+            }) { Text(stringResource(R.string.phone_share_approve)) }
         },
         dismissButton = { TextButton(onClick = { confirmShare = false }) { Text("Cancel") } }
     )
     if (confirmStop) AlertDialog(
         onDismissRequest = { confirmStop = false },
-        title = { Text("Stop private phone server?") },
+        title = { Text(stringResource(R.string.phone_stop_confirm)) },
         text = { Text("This closes the local listener, revokes active source sharing and rotates the " +
             "temporary key on the next start.") },
         confirmButton = {
@@ -496,7 +496,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                 } catch (e: Exception) {
                     status = e.message ?: "Could not stop server."
                 }
-            }) { Text("Stop and revoke") }
+            }) { Text(stringResource(R.string.phone_stop_revoke)) }
         },
         dismissButton = { TextButton(onClick = { confirmStop = false }) { Text(stringResource(R.string.phone_keep_running)) } }
     )
