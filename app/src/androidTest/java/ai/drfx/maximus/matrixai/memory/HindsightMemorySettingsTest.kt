@@ -47,6 +47,11 @@ class HindsightMemorySettingsTest {
                 .contains("unsafe-secret"))
             assertEquals("123e4567-e89b-12d3-a456-426614174000",
                 HindsightMemorySettings(context).activeProject())
+            settings.disconnect()
+            assertFalse(settings.hasKey())
+            assertFalse(settings.autoShare())
+            assertTrue(settings.recentProgress("123e4567-e89b-12d3-a456-426614174000")
+                .contains("Fix parser regression"))
             settings.clear()
             assertFalse(settings.hasKey())
             assertFalse(settings.enabled())
