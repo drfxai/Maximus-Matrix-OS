@@ -455,6 +455,60 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }
         }
 
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            modifier = Modifier.fillMaxWidth().testTag("speech_language_controls")
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(Modifier.weight(1f)) {
+                    TextButton(onClick = { voiceLanguageMenuOpen = true },
+                        modifier = Modifier.testTag("voice_language_picker")) {
+                        Icon(Icons.Default.KeyboardVoice, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.speech_language_label) + ": " +
+                            selectedSpeechLanguage.label, fontSize = 11.sp, maxLines = 1)
+                        Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(16.dp))
+                    }
+                    DropdownMenu(
+                        expanded = voiceLanguageMenuOpen,
+                        onDismissRequest = { voiceLanguageMenuOpen = false }
+                    ) {
+                        SpeechLanguage.entries.forEach { language ->
+                            DropdownMenuItem(
+                                text = { Text(language.label + " · " + language.tag) },
+                                onClick = {
+                                    speechPreference.set(language)
+                                    selectedSpeechLanguage = language
+                                    voiceLanguageMenuOpen = false
+                                    tts?.stop()
+                                }
+                            )
+                        }
+                    }
+                }
+                Text(stringResource(R.string.speech_conversation_label), fontSize = 10.sp)
+                Switch(
+                    checked = voiceConversation,
+                    onCheckedChange = {
+                        voiceConversation = it
+                        if (it) voiceReplies = true
+                    },
+                    modifier = Modifier.height(36.dp).testTag("voice_conversation_toggle")
+                )
+            }
+        }
+        if (voiceConversation) {
+            Text(
+                stringResource(R.string.speech_conversation_hint),
+                fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
         // Dedicated In-Chat LLM Provider Switcher Bar
         ChatProviderSwitcherBar(
             currentProvider = state.provider,
