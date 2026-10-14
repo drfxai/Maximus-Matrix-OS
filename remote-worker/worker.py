@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import argparse
 import base64
-import hashlib
+import binascii
 import hmac
+import zipfile
 import ipaddress
 import json
 import os
@@ -139,7 +140,7 @@ def make_handler(token: str, worker_id: str, coordinator=None):
                     payload["project_id"], payload["request_id"],
                     payload["source_sha256"], archive, payload.get("approved") is True
                 )
-            except (ValueError, KeyError, TypeError) as exc:
+            except (ValueError, KeyError, TypeError, binascii.Error, zipfile.BadZipFile):
                 self._reply(400, {"error": "INVALID_PROJECT_REQUEST"})
                 return
             except RuntimeError:
