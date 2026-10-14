@@ -154,6 +154,14 @@ internal class PhoneRuntimeInstaller(context: Context) {
         verified.delete()
         val partial = File(downloads, bundle.name + ".part")
         if (partial.length() > bundle.size) partial.delete()
+        if (partial.isFile && partial.length() == bundle.size) {
+            if (sha256(partial) == bundle.hash) {
+                check(partial.renameTo(verified)) { "Cannot commit completed runtime download." }
+                update(bundle.size)
+                return verified
+            }
+            partial.delete()
+        }
         var offset = partial.length()
         var url = URL("https://github.com/techjarves/Mobile-Harness/releases/download/" +
             "runtime-2026.09.4/" + bundle.name)
