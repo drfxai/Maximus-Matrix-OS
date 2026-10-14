@@ -21,6 +21,7 @@ import ai.drfx.maximus.matrixai.data.SecureDataCenterStore
 import ai.drfx.maximus.matrixai.database.entities.ChatMessageEntity
 import ai.drfx.maximus.matrixai.database.entities.MatrixNodeEntity
 import ai.drfx.maximus.matrixai.llm.*
+import ai.drfx.maximus.matrixai.memory.SharedProjectMemory
 import ai.drfx.maximus.matrixai.logging.AppLogStore
 import ai.drfx.maximus.matrixai.news.*
 import ai.drfx.maximus.matrixai.vision.*
@@ -35,6 +36,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val usageStore = ApiUsageStore(application)
     private val freeCatalog = SmartComboFreeCatalog(discovery, apiStore)
     private val freeExecutor = SmartComboFreeExecutor()
+    private val sharedProjectMemory = SharedProjectMemory(application)
     private var freeOffers: List<SmartComboFreeCatalog.Offer> = emptyList()
     private val dataClient = CompanyDataClient()
     private val dataStore = SecureDataCenterStore(application)
@@ -144,6 +146,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch { chatRepository.sessions.collect { sessions -> _chatSessions.value = sessions.map { if (it.id == "default_session") it.copy(title = "Legacy history (read only)", provider = "UNKNOWN") else it } } }
         restoreChatSession(_activeChatSessionId.value)
         if (apiStore.smartComboEnabled()) scheduleSmartComboRefresh()
+        refreshProjectMemoriesInBackground()
 
 
         // Load persisted Matrix events from Room
@@ -437,7 +440,16 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private fun refreshProjectMemoriesInBackground() {
+        if (!sharedProjectMemory.enabled() || sharedProjectMemory.activeProject().isBlank()) return
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try { sharedProjectMemory.refresh() } catch (_: Exception) { /* Local continuity is the fallback. */ }
+        }
+    }
+
     fun selectModel(modelId: String) {
+        // New-model recall starts before the next user input, without blocking UI.
+        refreshProjectMemoriesInBackground()
         if (_llmState.value.selectedModel != modelId) { cancelChat(); createChatSession(modelId) }
         val current = _llmState.value
         val model = current.models.firstOrNull { it.id == modelId }
@@ -656,7 +668,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val streamTime = System.currentTimeMillis()
                 val streamedText = StringBuilder()
                 var lastStreamUiAtMs = Long.MIN_VALUE
-                val result = chatClient.send(config, requestHistory, selectedAgent, onQuota = { windows ->
+                val memoryEvidence = sharedProjectMemory.cachedContext()
+                val equippedAgent = if (memoryEvidence.isBlank()) selectedAgent else selectedAgent.copy(
+                    systemPrompt = selectedAgent.systemPrompt + "\n\n" + memoryEvidence
+                )
+                val result = chatClient.send(config, requestHistory, equippedAgent, onQuota = { windows ->
                     if (windows.isNotEmpty()) {
                         autoPrepared?.let { freeExecutor.observeProviderQuota(it, windows) }
                         viewModelScope.launch {
@@ -731,6 +747,15 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 usageStore.record(config.provider, config.selectedModel, result.usage)
+                if (sharedProjectMemory.enabled()) {
+                    val modelName = config.selectedModel
+                    val userTask = prompt
+                    val output = result.text
+                    viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try { sharedProjectMemory.storeModelProgress(modelName, userTask, output) }
+                        catch (_: Exception) { /* No generated content or credentials are logged. */ }
+                    }
+                }
                 val summary = usageStore.summary()
                 _usage.value = summary
 
