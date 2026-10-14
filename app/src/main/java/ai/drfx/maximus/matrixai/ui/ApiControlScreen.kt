@@ -79,6 +79,19 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     ) { Text("Refresh", fontSize = 12.sp) }
                 }
                 if (state.smartComboRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (state.smartComboEnabled && state.smartComboProviderChecks.isNotEmpty()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Text("PROVIDER CHECK RESULTS", fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    state.smartComboProviderChecks.forEach { check ->
+                        Text("• " + check, fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("A saved API key or free trial balance does not prove every model is free. " +
+                        "Unknown pricing never triggers an automatic request.",
+                        fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 if (state.smartComboRouteLabels.isNotEmpty()) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text("AVAILABLE VERIFIED CATALOG ROUTES", fontSize = 11.sp,

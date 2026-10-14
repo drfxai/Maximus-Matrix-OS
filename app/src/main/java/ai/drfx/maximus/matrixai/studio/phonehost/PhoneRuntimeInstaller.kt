@@ -48,13 +48,41 @@ internal class PhoneRuntimeInstaller(context: Context) {
     private val app = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val stopped = AtomicBoolean(false)
+    @Volatile private var stopReason = "Installation stopped. Downloaded chunks are retained for retry."
+    private val progressStore = app.getSharedPreferences("phone_runtime_setup_status", Context.MODE_PRIVATE)
     private val base = File(app.filesDir, "phone-runtime")
     private val downloads = File(base, "downloads")
     private val target = File(base, "rootfs")
     private val staging = File(base, "rootfs.installing")
     private val old = File(base, "rootfs.previous")
-    private val stateValue = MutableStateFlow(PhoneToolchainProgress())
+    private val stateValue = MutableStateFlow(restoreLastOutcome())
     val state: StateFlow<PhoneToolchainProgress> get() = stateValue
+
+    /** Persist terminal diagnostics only; never persist URLs with credentials or file contents. */
+    private fun restoreLastOutcome(): PhoneToolchainProgress {
+        val savedPhase = progressStore.getString("phase", null)
+        val phase = savedPhase?.takeIf { it in setOf("cancelled", "interrupted", "failed", "installed") }
+            ?: return PhoneToolchainProgress()
+        return PhoneToolchainProgress(
+            phase = phase,
+            message = progressStore.getString("message", null)
+                ?.take(400) ?: "Previous setup ended. Verify or resume installation."
+        )
+    }
+
+    private fun finish(phase: String, message: String, transferred: Long = 0L, total: Long = 0L) {
+        val safe = message.take(400)
+        stateValue.value = PhoneToolchainProgress(phase, safe,
+            if (phase == "installed") 1f else 0f, transferred, total)
+        progressStore.edit().putString("phase", phase).putString("message", safe).apply()
+    }
+
+    fun storedDownloadBytes(): Long = bundles.sumOf { bundle ->
+        listOf(File(downloads, bundle.name + ".verified"),
+            File(downloads, bundle.name + ".part"))
+            .firstOrNull { it.isFile && it.length() in 1L..bundle.size }
+            ?.length() ?: 0L
+    }
 
     fun installed(): Boolean =
         File(target, ".maximus-verified-android-bundles").isFile &&
@@ -65,6 +93,8 @@ internal class PhoneRuntimeInstaller(context: Context) {
     @Synchronized fun install() {
         if (stateValue.value.busy) return
         stopped.set(false)
+        stopReason = "Installation stopped. Tap Resume to keep using downloaded archive chunks."
+        progressStore.edit().remove("phase").remove("message").apply()
         stateValue.value = PhoneToolchainProgress("checking", "Checking device and storage…")
         scope.launch {
             try {
@@ -116,20 +146,33 @@ internal class PhoneRuntimeInstaller(context: Context) {
                 }
                 old.deleteRecursively()
                 archives.forEach { it.delete() }
-                stateValue.value = PhoneToolchainProgress("installed",
-                    "Files verified. Run Verify tools to test Gradle/JDK/AAPT2 execution.",
-                    1f, finished, total)
+                finish("installed",
+                    "Toolchain files verified. Run Verify tools to prove Gradle/JDK/AAPT2 execution.",
+                    finished, total)
             } catch (e: Exception) {
                 staging.deleteRecursively()
-                stateValue.value = PhoneToolchainProgress(
-                    if (stopped.get()) "cancelled" else "failed",
-                    (e.message ?: "Runtime setup failed.").take(400)
-                )
+                val phase = if (stopped.get()) {
+                    if (stopReason.startsWith("Cancelled by user")) "cancelled" else "interrupted"
+                } else "failed"
+                val reason = if (stopped.get()) stopReason
+                    else (e.message ?: "Runtime setup failed. Tap Resume to retry.")
+                finish(phase, reason)
             }
         }
     }
 
-    fun cancel() { stopped.set(true) }
+    /**
+     * Distinguish a deliberate Cancel tap from Android destroying the service.
+     * Downloads are not deleted, so a later install() can resume the same archives.
+     */
+    fun cancel(userRequested: Boolean = true) {
+        if (stopped.compareAndSet(false, true)) {
+            stopReason = if (userRequested)
+                "Cancelled by user. Tap Resume to continue verified downloads."
+            else
+                "Android interrupted the installation service. Tap Resume to continue; downloaded chunks are retained."
+        }
+    }
 
     private fun sha256(file: File): String {
         val hash = MessageDigest.getInstance("SHA-256")

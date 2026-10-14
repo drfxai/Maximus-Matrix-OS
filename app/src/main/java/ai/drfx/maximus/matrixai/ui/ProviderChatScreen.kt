@@ -160,6 +160,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var settingsOpen by remember { mutableStateOf(false) }
     var tokenDetailsOpen by remember { mutableStateOf(false) }
     var quickKeyDialogOpen by remember { mutableStateOf(false) }
+    var confirmDirectProvider by remember { mutableStateOf(false) }
     var quickKeyTargetProvider by remember { mutableStateOf(state.provider) }
     var quickKeyInput by remember { mutableStateOf("") }
 
@@ -453,6 +454,44 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 quickKeyDialogOpen = true
             }
         )
+
+        // A missing catalog-confirmed free route should never strand a configured
+        // user in an opaque error. Manual provider usage requires a separate tap
+        // and explicit cost warning; no previous prompt is replayed.
+        if (state.smartComboEnabled && state.smartComboOffers == 0) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Smart Combo · no verified free route",
+                        style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (state.smartComboRefreshing)
+                            "Checking configured provider catalogs for explicit zero-cost pricing and context length…"
+                        else state.smartComboMessage,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = viewModel::refreshSmartCombo,
+                            enabled = !state.smartComboRefreshing && !state.isGenerating) {
+                            Text("Refresh", fontSize = 12.sp)
+                        }
+                        Button(onClick = { confirmDirectProvider = true },
+                            enabled = !state.isGenerating && state.hasSavedKey &&
+                                state.selectedModel.isNotBlank()) {
+                            Text("Use selected provider", fontSize = 12.sp)
+                        }
+                    }
+                    Text("Context tokens shown above are NOT a verified free API balance.",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
 
         // Conversation messages area with a floating jump-to-latest action.
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -771,6 +810,26 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         }
     }
 
+    if (confirmDirectProvider) {
+        AlertDialog(
+            onDismissRequest = { confirmDirectProvider = false },
+            title = { Text("Use ${state.provider.displayName} directly?") },
+            text = {
+                Text("This disables Smart Combo's verified-free-only requirement for future messages. " +
+                    "The selected ${state.selectedModel} account may charge or consume credits. " +
+                    "No message is sent or automatically retried by switching modes.")
+            },
+            confirmButton = {
+                Button(onClick = {
+                    confirmDirectProvider = false
+                    viewModel.setSmartComboEnabled(false)
+                }) { Text("Switch to selected provider") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDirectProvider = false }) { Text("Keep free-only") }
+            }
+        )
+    }
     if (renameOpen) {
         AlertDialog(onDismissRequest = { renameOpen = false }, title = { Text("Rename conversation") },
             text = { OutlinedTextField(value = sessionTitle, onValueChange = { sessionTitle = it }, singleLine = true) },

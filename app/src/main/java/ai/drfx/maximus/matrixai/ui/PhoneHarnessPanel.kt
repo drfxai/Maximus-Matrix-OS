@@ -201,7 +201,19 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     else "Linux, JDK, Gradle, Android SDK and ARM64 AAPT2 need installation.",
                     style = MaterialTheme.typography.bodySmall)
                 if (installState.phase != "idle") {
-                    Text(installState.message, style = MaterialTheme.typography.bodySmall)
+                    Text(installState.message, style = MaterialTheme.typography.bodySmall,
+                        color = if (installState.phase == "failed" || installState.phase == "interrupted")
+                            MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (!ready && !installState.busy && installer.storedDownloadBytes() > 0L) {
+                    Text(
+                        "Saved for resuming: " +
+                            (installer.storedDownloadBytes() / (1024L * 1024L)) +
+                            " MiB of pinned toolchain archives. A retry verifies the full SHA-256.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
                 if (installState.busy) {
                     LinearProgressIndicator(
@@ -237,7 +249,12 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     ) {
                         Icon(Icons.Default.Download, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Install Android build tools")
+                        Text(
+                            if (installState.phase in setOf("cancelled", "interrupted", "failed") ||
+                                installer.storedDownloadBytes() > 0L)
+                                "Resume Android build tool setup"
+                            else "Install Android build tools"
+                        )
                     }
                     Text("Requires about 612 MiB network download and at least 3 GiB available storage. " +
                         "Only pinned SHA-256 checked archives are accepted.",

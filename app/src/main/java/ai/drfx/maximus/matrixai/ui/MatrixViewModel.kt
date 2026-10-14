@@ -210,6 +210,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             smartComboEnabled = enabled,
             smartComboOffers = if (enabled) freeOffers.size else 0,
             smartComboRouteLabels = if (enabled) _llmState.value.smartComboRouteLabels else emptyList(),
+            smartComboProviderChecks = if (enabled) _llmState.value.smartComboProviderChecks else emptyList(),
             smartComboCheckedAtEpochMs = if (enabled) _llmState.value.smartComboCheckedAtEpochMs else null,
             smartComboMessage = if (enabled) "Checking free model catalogues…" else "Free-only routing is off."
         )
@@ -221,8 +222,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _llmState.value = _llmState.value.copy(smartComboRefreshing = true, smartComboMessage = "Verifying free model offers…")
             try {
-                val refreshed = freeCatalog.refresh()
+                val report = freeCatalog.refreshDetailed()
                 if (!_llmState.value.smartComboEnabled) return@launch
+                val refreshed = report.offers
                 freeOffers = refreshed
                 val checkedAt = System.currentTimeMillis()
                 // Human-readable non-secret catalog evidence; free price does not prove live account quota.
@@ -233,17 +235,19 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 _llmState.value = _llmState.value.copy(
                     smartComboOffers = freeOffers.size,
                     smartComboRouteLabels = routes,
+                    smartComboProviderChecks = report.checks.take(8).map { status ->
+                        status.provider.displayName + ": " + status.message
+                    },
                     smartComboCheckedAtEpochMs = checkedAt,
-                    smartComboMessage = if (freeOffers.isEmpty())
-                        "No verified free text model with published context and pricing. Manual model mode remains available."
-                    else "Ready: " + freeOffers.size + " verified zero-price text routes. Provider quota is not known."
+                    smartComboMessage = report.diagnosis
                 )
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 if (!_llmState.value.smartComboEnabled) return@launch
                 freeOffers = emptyList()
                 _llmState.value = _llmState.value.copy(smartComboOffers = 0,
-                    smartComboRouteLabels = emptyList(), smartComboCheckedAtEpochMs = null,
+                    smartComboRouteLabels = emptyList(), smartComboProviderChecks = emptyList(),
+                    smartComboCheckedAtEpochMs = null,
                     smartComboMessage = "Free catalogue unavailable. No automatic paid fallback.")
             } finally {
                 _llmState.value = _llmState.value.copy(smartComboRefreshing = false)
@@ -583,7 +587,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 return false
             }
             if (freeOffers.isEmpty()) {
-                appendAssistantError("No verified free route is ready. Refresh Smart Combo or disable it to use the selected provider.")
+                appendAssistantError(
+                    if (current.smartComboRefreshing)
+                        "Smart Combo is still checking provider catalogs. Wait for verification or explicitly switch to your selected provider."
+                    else
+                        "No catalog-confirmed free route. Refresh Smart Combo or choose 'Use selected provider' to disable free-only routing; the provider may charge."
+                )
                 return false
             }
         }
