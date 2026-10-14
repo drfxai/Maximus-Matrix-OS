@@ -9,8 +9,6 @@
 - Added tests for safe IDs/model allow lists, credential encryption/revocation, API input limits and quota states. Existing features remain unchanged.
 - Public versionName remains 1.0.0. Internal versionCode increases to 10011 for signed in-place updates.
 
-# Changelog
-
 ## v1.0.0 (build 10010)
 
 - Added a floating animated jump-to-latest message control, visible when the reader scrolls away from newest chat messages; automatic following pauses during history browsing.
