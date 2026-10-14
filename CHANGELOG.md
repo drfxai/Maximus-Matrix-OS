@@ -5,7 +5,7 @@
 - Added Hindsight Shared Project Memory (opt-in) to Project Studio, with a separate HTTPS endpoint and independently encrypted user-owned API key. Each project uses a stable bank across inference models.
 - Implemented authenticated Hindsight Retain/Recall for verified user-saved project checkpoints and optional model-progress excerpts; no shared gateway credentials or project source files in the APK.
 - Prefetch memory in the background when selecting projects or models, attach only bounded explicitly untrusted context at inference time, and preserve local workspace-hashed checkpoints plus short AES-GCM encrypted progress notes as the offline fallback.
-- New controls: save connection, enable/disable remote memory, separate consent for automatic progress excerpts, recall and sync checkpoint. Removing local connection never misrepresents remote data as deleted.
+- New controls: save connection, enable/disable remote memory, separate consent for automatic progress excerpts, recall and sync checkpoint. Disconnecting removes the remote key while preserving encrypted local model progress; cloud memories are not falsely described as deleted.
 - Cross-device shared bank permissions, Hindsight service deployment, automatic code execution and agent-driven tool approvals are NOT provided; Hindsight requires a separately configured server/cloud account and may consume LLM credits.
 - Android versionName stays 1.0.0; versionCode increases to 10012 for in-place updates.
 
