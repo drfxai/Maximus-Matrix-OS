@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 import uuid
 import zipfile
 
@@ -118,6 +119,7 @@ class BuildCoordinator:
             raise ValueError("ZIP SHA256 mismatch.")
         files = validate_zip(data)
         with self.lock:
+            self._expire_locked()
             if key in self.requests:
                 item = self.jobs[self.requests[key]]
                 if item["source_sha256"] != digest or item["project_id"] != project_id:
@@ -129,7 +131,8 @@ class BuildCoordinator:
                 raise RuntimeError("Job capacity reached; operator cleanup required.")
             job_id = uuid.uuid4().hex
             item = dict(id=job_id, project_id=project_id, source_sha256=digest,
-                        state="queued", error="", apk_sha256="", apk_path="")
+                        state="queued", error="", apk_sha256="", apk_path="",
+                        created_at=time.time(), root="")
             self.jobs[job_id] = item
             self.requests[key] = job_id
         threading.Thread(target=self._execute, args=(item, files), daemon=True).start()
@@ -144,6 +147,7 @@ class BuildCoordinator:
 
     def _execute(self, job, files):
         root = pathlib.Path(tempfile.mkdtemp(prefix="maximus-debug-"))
+        job["root"] = str(root)
         try:
             source, output = root / "source", root / "output"
             source.mkdir(mode=0o755)
@@ -170,13 +174,29 @@ class BuildCoordinator:
                 job["state"] = "failed"
             shutil.rmtree(root, ignore_errors=True)
 
+    def _expire_locked(self):
+        expired = [
+            identity for identity, job in self.jobs.items()
+            if job["state"] not in ("queued", "running")
+            and time.time() - job["created_at"] > 3600
+        ]
+        for identity in expired:
+            job = self.jobs.pop(identity)
+            self.requests = {
+                key: value for key, value in self.requests.items() if value != identity
+            }
+            if job["root"]:
+                shutil.rmtree(job["root"], ignore_errors=True)
+
     def status(self, job_id: str):
         with self.lock:
+            self._expire_locked()
             item = self.jobs.get(job_id)
             return self._public(item) if item else None
 
     def artifact(self, job_id: str):
         with self.lock:
+            self._expire_locked()
             item = self.jobs.get(job_id)
             if not item or item["state"] != "succeeded":
                 return None
