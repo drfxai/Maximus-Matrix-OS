@@ -47,6 +47,7 @@ cat > dist/release-notes.md <<NOTES
 - Project Studio includes versioned private SHA-256 checkpoints, detects modified source files, and permits explicit model continuation planning. No untrusted code execution or automatic tool replay is enabled.
 - Chat displays an animated jump-to-latest button, Copy/Download, local feedback and clearly marked unexecuted tool proposals.
 - Verified News now supports RSS/Atom and publisher-authentic images with secure fallback and retry. Vision supports bounded, sampled image uploads using available Android codecs; actual provider vision capabilities remain subject to live verification.
+- Hindsight Shared Project Memory supports opt-in per-project memory banks, encrypted user-configured credentials, background recall across model changes, and user-approved checkpoint Retain. Automatic short progress sharing requires separate consent; local validated checkpoints remain offline.
 - ElevenLabs Voice Studio supports separately encrypted user-owned credentials, verified subscription and voice discovery, and explicit text-to-speech playback in Chat. Automatic voice remains on-device; account allowance and model token usage are separate.
 - Permanent release signing certificate and Android upgrade identity verified against the previous release.
 - Unit tests, Android lint and emulator smoke checks passed before publication.
