@@ -390,4 +390,13 @@
     <string name="brain_graph_inspector">فاحص ماتريكس</string>
     <string name="brain_graph_filters">مرشحات العقد</string>
     <string name="brain_graph_explore_help">اضغط على الوحدة لفحص حالتها وفتح شاشتها. اسحب للتدوير أو كبّر بإصبعين.</string>
+    <string name="speech_follow_app_language">اتباع لغة التطبيق (موصى به)</string>
+    <string name="speech_follow_app_short">لغة التطبيق</string>
+    <string name="speech_wrong_script_review">أعاد محرّك التعرف على الكلام نصاً بحروف لا تطابق %1$s؛ ربما تجاهل اللغة المحددة. تحقق من لغة التعرف المثبتة وصحّح النص قبل الإرسال. لم تُرسل رسالة تلقائياً.</string>
+    <string name="speech_microphone_permission_required">يلزم السماح بالميكروفون لتسجيل رسالة صوتية.</string>
+    <string name="speech_attachment_read_error">تعذّرت قراءة الملف المرفق.</string>
+    <string name="speech_conversation_default">محادثة</string>
+    <string name="speech_recording_status">تسجيل رسالة صوتية · %1$d ثانية من ٦٠</string>
+    <string name="speech_recorded_audio_requires_model">الصوت الخام يتطلب Gemini أو OpenAI. استخدم الإملاء مع هذا المزود.</string>
+    <string name="speech_clear_conversation">مسح المحادثة</string>
 </resources>

@@ -390,4 +390,13 @@
     <string name="brain_graph_inspector">Инспектор Matrix</string>
     <string name="brain_graph_filters">Фильтры узлов</string>
     <string name="brain_graph_explore_help">Нажмите на модуль для проверки состояния и открытия экрана. Перетаскивайте для поворота и масштабируйте двумя пальцами.</string>
+    <string name="speech_follow_app_language">Использовать язык приложения (рекомендуется)</string>
+    <string name="speech_follow_app_short">Язык приложения</string>
+    <string name="speech_wrong_script_review">Android вернул распознанный текст с буквами другой письменности, не соответствующей %1$s. Возможно, выбранный язык был проигнорирован. Проверьте язык распознавания и исправьте текст перед отправкой. Автоматическая отправка не выполнялась.</string>
+    <string name="speech_microphone_permission_required">Для записи голосового сообщения нужен доступ к микрофону.</string>
+    <string name="speech_attachment_read_error">Не удалось прочитать вложение.</string>
+    <string name="speech_conversation_default">Беседа</string>
+    <string name="speech_recording_status">Запись голосового сообщения · %1$d с / 60 с</string>
+    <string name="speech_recorded_audio_requires_model">Для исходного аудио нужен Gemini или OpenAI. Для этого провайдера используйте диктовку.</string>
+    <string name="speech_clear_conversation">Очистить беседу</string>
 </resources>
