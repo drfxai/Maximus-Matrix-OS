@@ -1,5 +1,9 @@
 package ai.drfx.maximus.matrixai.ui
 
+import androidx.compose.ui.res.stringResource
+
+import ai.drfx.maximus.matrixai.R
+
 import android.content.Intent
 import android.database.Cursor
 import android.net.Uri
@@ -103,7 +107,7 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
             .padding(16.dp).testTag("local_model_hub"),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Local Model Hub", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.models_title), style = MaterialTheme.typography.titleLarge)
         Text(
             "Register your own model files from Android storage without uploading " +
                 "them. This is a secure model inventory: native model execution " +
@@ -113,14 +117,14 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
         Button(
             onClick = { picker.launch(arrayOf("application/octet-stream", "*/*")) },
             enabled = !busy, modifier = Modifier.testTag("local_model_import")
-        ) { Text("Import GGUF / LiteRT-LM file") }
+        ) { Text(stringResource(R.string.models_import)) }
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (status.isNotBlank()) {
             Text(status, style = MaterialTheme.typography.bodySmall)
         }
         Text("Registered files · " + entries.size, style = MaterialTheme.typography.titleMedium)
         if (entries.isEmpty()) {
-            Text("No local models registered yet.", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.models_empty), style = MaterialTheme.typography.bodySmall)
         }
         entries.forEach { entry ->
             ElevatedCard(Modifier.fillMaxWidth()) {
@@ -139,7 +143,7 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
                         style = MaterialTheme.typography.labelSmall
                     )
                     TextButton(onClick = { pendingForget = entry }) {
-                        Text("Forget file reference")
+                        Text(stringResource(R.string.models_forget))
                     }
                 }
             }
@@ -156,7 +160,7 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
     pendingForget?.let { entry ->
         AlertDialog(
             onDismissRequest = { pendingForget = null },
-            title = { Text("Forget model reference?") },
+            title = { Text(stringResource(R.string.models_confirm)) },
             text = { Text("This removes the saved reference to " + entry.displayName +
                 " without deleting the original file.") },
             confirmButton = {
@@ -175,7 +179,7 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
                     } finally {
                         pendingForget = null
                     }
-                }) { Text("Forget reference") }
+                }) { Text(stringResource(R.string.models_forget_action)) }
             },
             dismissButton = {
                 TextButton(onClick = { pendingForget = null }) { Text("Cancel") }
