@@ -320,4 +320,5 @@
     <string name="brain_graph_guide">Döndürmek için sürükle · İki parmakla yakınlaştır</string>
     <string name="brain_graph_auto">OTOMATİK DÖNÜŞ</string>
     <string name="brain_wait">Model yanıtı bekleniyor…</string>
+    <string name="brain_you">Siz</string>
 </resources>
