@@ -27,13 +27,13 @@ internal class ElevenLabsClient {
         private const val MAX_AUDIO_BYTES = 8 * 1024 * 1024
         private const val MAX_JSON_BYTES = 192 * 1024
         private const val MAX_KEY = 512
+        // Shared by every ElevenLabs screen/controller in this Android process.
+        private val inFlight = AtomicInteger(0)
         fun validVoiceId(value: String): Boolean = value.matches(Regex("[A-Za-z0-9_-]{12,80}"))
         fun validModel(value: String): Boolean = value in setOf(DEFAULT_MODEL, LOW_LATENCY_MODEL, PERSIAN_MODEL)
         fun validKey(value: String): Boolean =
             value.length in 16..MAX_KEY && value.none { it.isWhitespace() || it.code < 32 || it.code == 127 }
     }
-
-    private val inFlight = AtomicInteger(0)
 
     suspend fun quota(key: String): ElevenQuota = CancellableHttp.execute { subscription(key) }
 
