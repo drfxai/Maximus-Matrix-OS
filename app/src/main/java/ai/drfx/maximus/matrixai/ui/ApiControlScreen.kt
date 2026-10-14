@@ -79,6 +79,28 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     ) { Text("Refresh", fontSize = 12.sp) }
                 }
                 if (state.smartComboRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (state.smartComboRouteLabels.isNotEmpty()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Text("AVAILABLE VERIFIED CATALOG ROUTES", fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    state.smartComboRouteLabels.forEach { label ->
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Icon(Icons.Default.Bolt, null, tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(15.dp))
+                            Text(label, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                        }
+                    }
+                    if (state.smartComboOffers > state.smartComboRouteLabels.size) {
+                        Text("Showing first ${state.smartComboRouteLabels.size} of ${state.smartComboOffers} catalog offers.",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("Free pricing verified in catalog; live account quota and real latency may still be unknown. " +
+                        "Failing dispatched routes cool down for new requests; never replay a sent prompt.",
+                        fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Text("Text only. Provider account remaining quota may be unknown. Paid and unknown-price models are never selected automatically. No automatic replay after a dispatched request.",
                     fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

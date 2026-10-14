@@ -126,5 +126,8 @@ data class LlmUiState(
     val smartComboEnabled: Boolean = false,
     val smartComboRefreshing: Boolean = false,
     val smartComboOffers: Int = 0,
+    /** Public route labels only; never contains credentials or model response content. */
+    val smartComboRouteLabels: List<String> = emptyList(),
+    val smartComboCheckedAtEpochMs: Long? = null,
     val smartComboMessage: String = "Free-only routing is off."
 )

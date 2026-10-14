@@ -76,6 +76,10 @@ internal class SmartComboFreeExecutor(
 
     fun dispatched(prepared: Prepared): Boolean = ledger.dispatch(prepared.requestId)
 
+    /** Read-only state for safe post-dispatch provider health accounting. */
+    fun requestState(requestId: String): SmartComboQuotaLedger.State? =
+        ledger.entry(requestId)?.state
+
     /** Provider-confirmed usage only. Estimated usage keeps the request uncertain. */
     fun completed(prepared: Prepared, usage: ChatUsage) {
         if (!usage.estimated) {

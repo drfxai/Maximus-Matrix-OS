@@ -4,160 +4,331 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ai.drfx.maximus.matrixai.studio.phonehost.PhoneHarnessService
 import ai.drfx.maximus.matrixai.studio.phonehost.PhoneHostPolicy
 import ai.drfx.maximus.matrixai.studio.phonehost.PhoneHostSession
+import ai.drfx.maximus.matrixai.studio.phonehost.PhoneRuntimeInspector
+import ai.drfx.maximus.matrixai.studio.phonehost.PhoneRuntimeStatus
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
-/** On-device Mobile Harness gateway; no local Linux runtime is implied. */
+private val harnessAqua = Color(0xFF5AE4D6)
+private val harnessIndigo = Color(0xFF7469E9)
+private val harnessNight = Color(0xFF16243B)
+
+/**
+ * A self-hosted phone workspace dashboard, not a fake PRoot shell.
+ * User consent remains distinct for starting the server and sharing source.
+ */
 @Composable
 fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var running by remember { mutableStateOf(PhoneHostSession.active != null) }
     var shared by remember { mutableStateOf(PhoneHostSession.sharedProject()) }
-    var message by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf("") }
     var confirmShare by remember { mutableStateOf(false) }
+    var confirmStop by remember { mutableStateOf(false) }
+    var diagnostics by remember { mutableStateOf(PhoneRuntimeInspector.inspect(context)) }
 
     LaunchedEffect(Unit) {
         while (true) {
             running = PhoneHostSession.active != null
             shared = PhoneHostSession.sharedProject()
-            if (!running && PhoneHostSession.lastError.isNotEmpty()) {
-                message = PhoneHostSession.lastError
+            if (!running && PhoneHostSession.lastError.isNotBlank()) {
+                status = PhoneHostSession.lastError
             }
-            delay(750)
+            delay(1200)
         }
     }
 
-    ElevatedCard(modifier.fillMaxWidth().testTag("phone_harness_panel")) {
-        Column(
-            Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
-        ) {
-            Text("Mobile Harness · Phone Server", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Your phone hosts a real, authenticated local development API. " +
-                    "Only apps on this same phone can reach it. " +
-                    "Linux/terminal execution, APK compilation and access from other devices " +
-                    "are not yet enabled.",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                if (running) "Running · http://127.0.0.1:${PhoneHostPolicy.PORT}"
-                else "Stopped · nothing is exposed",
-                style = MaterialTheme.typography.labelMedium,
-                color = if (running) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    enabled = !running,
-                    onClick = {
-                        try {
-                            context.startForegroundService(
-                                Intent(context, PhoneHarnessService::class.java).apply {
-                                    action = PhoneHarnessService.ACTION_START
-                                }
-                            )
-                            message = "Starting local phone server…"
-                        } catch (error: Exception) {
-                            message = error.message ?: "Could not start phone server."
-                        }
-                    },
-                    modifier = Modifier.testTag("phone_harness_start")
-                ) { Text("Start phone server") }
-                OutlinedButton(
-                    enabled = running,
-                    onClick = {
-                        context.startService(
-                            Intent(context, PhoneHarnessService::class.java).apply {
-                                action = PhoneHarnessService.ACTION_STOP
-                            }
-                        )
-                        message = "Stopping phone server…"
-                    },
-                    modifier = Modifier.testTag("phone_harness_stop")
-                ) { Text("Stop") }
-            }
-            if (running) {
-                Text(
-                    "Access requires a new random bearer token each time the server starts. " +
-                        "The token is kept in memory and is not an AI API key.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-                OutlinedButton(onClick = {
-                    val value = PhoneHostSession.token()
-                    if (value.isNotEmpty()) {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
-                            as ClipboardManager
-                        clipboard.setPrimaryClip(
-                            ClipData.newPlainText("Maximus phone host access", value)
-                        )
-                        message = "One-time token copied. Share only with a trusted local client."
+    Column(
+        modifier.fillMaxWidth().testTag("phone_harness_panel").animateContentSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Compact visual identity: high contrast and battery-friendly static gradient.
+        Surface(shape = RoundedCornerShape(22.dp), color = harnessNight) {
+            Column(
+                Modifier.fillMaxWidth()
+                    .background(Brush.linearGradient(listOf(harnessNight, Color(0xFF273E60), Color(0xFF244957))))
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(13.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(13.dp)) {
+                        Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = harnessAqua,
+                            modifier = Modifier.padding(11.dp).size(25.dp))
                     }
-                }) { Text("Copy temporary access token") }
-
-                if (shared != null) {
-                    Text(
-                        "Source sharing enabled for: " + shared!!.take(12) + "…",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    OutlinedButton(onClick = {
-                        PhoneHostSession.setSharedProject(null)
-                        shared = null
-                        message = "Project source sharing disabled."
-                    }) { Text("Revoke source sharing") }
-                } else {
+                    Column(Modifier.weight(1f)) {
+                        Text("MOBILE HARNESS", color = Color.White, fontWeight = FontWeight.ExtraBold,
+                            style = MaterialTheme.typography.titleMedium)
+                        Text("YOUR PHONE · YOUR SERVER", color = harnessAqua,
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                    Surface(shape = RoundedCornerShape(100.dp),
+                        color = if (running) Color(0xFF174A45) else Color.White.copy(alpha = 0.12f)) {
+                        Text(if (running) "● LIVE" else "● OFFLINE", color = if (running) harnessAqua else Color.White,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Text("A private development workspace hosted on your Android device.",
+                    color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Lock, null, tint = harnessAqua, modifier = Modifier.size(15.dp))
+                    Text("127.0.0.1:${PhoneHostPolicy.PORT}  ·  Same-device only",
+                        color = Color.White.copy(alpha = 0.83f), style = MaterialTheme.typography.labelSmall)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
-                        enabled = projectId != null,
-                        onClick = { confirmShare = true },
-                        modifier = Modifier.testTag("phone_harness_approve_share")
-                    ) { Text("Allow selected project export") }
+                        enabled = !running,
+                        onClick = {
+                            status = ""
+                            try {
+                                context.startForegroundService(Intent(context, PhoneHarnessService::class.java).apply {
+                                    action = PhoneHarnessService.ACTION_START
+                                })
+                                status = "Starting private phone server…"
+                            } catch (e: Exception) {
+                                status = e.message ?: "Could not start the server."
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = harnessAqua, contentColor = harnessNight),
+                        modifier = Modifier.weight(1f).testTag("phone_harness_start")
+                    ) {
+                        Icon(Icons.Default.PlayArrow, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Start server")
+                    }
+                    OutlinedButton(
+                        enabled = running, onClick = { confirmStop = true },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
+                        modifier = Modifier.weight(1f).testTag("phone_harness_stop")
+                    ) {
+                        Icon(Icons.Default.Stop, null, Modifier.size(17.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Stop")
+                    }
                 }
             }
-            if (message.isNotEmpty()) {
-                Text(message, style = MaterialTheme.typography.bodySmall)
-            }
-            Text(
-                "Read-only routes: /v1/capabilities, /v1/projects and approved " +
-                    "/v1/projects/{id}/manifest or /export. No shell or upload routes. " +
-                    "External Wi-Fi/tunnel access requires a separate authenticated TLS gateway.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
+            HarnessCapabilityTile(
+                "WORKSPACES", "On phone", Icons.Default.FolderOpen, true, Modifier.weight(1f))
+            HarnessCapabilityTile(
+                "SOURCE API", if (running) "Online" else "Standby",
+                Icons.Default.Hub, running, Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
+            HarnessCapabilityTile(
+                "LINUX / PTY", "Not installed", Icons.Default.Terminal, false, Modifier.weight(1f))
+            HarnessCapabilityTile(
+                "APK BUILDS", "Unavailable", Icons.Default.Build, false, Modifier.weight(1f))
+        }
+
+        ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Shield, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(9.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Private access", style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold)
+                        Text("One-time session key · never saved", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Text("Starting the server does not share any source files. Approve one project separately.",
+                    style = MaterialTheme.typography.bodySmall)
+                AnimatedVisibility(visible = running) {
+                    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        OutlinedButton(onClick = {
+                            val secret = PhoneHostSession.token()
+                            if (secret.isNotBlank()) {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("Temporary local access key", secret))
+                                status = "Temporary token copied. Clear the clipboard after pairing."
+                            }
+                        }, modifier = Modifier.fillMaxWidth().testTag("phone_harness_copy_token")) {
+                            Icon(Icons.Default.ContentCopy, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Copy temporary local token")
+                        }
+                        HorizontalDivider()
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Approved project", fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    if (shared == null) "None — source remains private"
+                                    else "Selected ID: " + shared.orEmpty().take(8) + "…",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (shared == null) {
+                                Button(
+                                    onClick = { confirmShare = true },
+                                    enabled = projectId != null,
+                                    modifier = Modifier.testTag("phone_harness_approve_share")
+                                ) { Text("Approve") }
+                            } else {
+                                OutlinedButton(onClick = {
+                                    PhoneHostSession.setSharedProject(null)
+                                    shared = null
+                                    status = "Source sharing revoked."
+                                }) { Text("Revoke") }
+                            }
+                        }
+                    }
+                }
+                if (!running) {
+                    Text("Start the server to enable local pairing or per-project export.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
+        ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Memory, null, tint = harnessIndigo)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Runtime readiness", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f))
+                    TextButton(onClick = { diagnostics = PhoneRuntimeInspector.inspect(context) }) {
+                        Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Scan")
+                    }
+                }
+                Text(diagnostics.headline, style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface)
+                val storageGiB = (diagnostics.availableStorageBytes / 1073741824.0)
+                val readiness = if (diagnostics.nativeRuntimeReady) 1f else if (
+                    diagnostics.supportedForOptionalArm64Runtime
+                ) 0.25f else 0f
+                LinearProgressIndicator(
+                    progress = { readiness }, modifier = Modifier.fillMaxWidth().height(5.dp)
+                        .clip(RoundedCornerShape(6.dp)),
+                    color = harnessIndigo
+                )
+                Text(
+                    "Android API ${diagnostics.androidApi} · ${diagnostics.architecture} · " +
+                        "${diagnostics.memoryClassMiB} MiB app memory class · " +
+                        "${String.format(java.util.Locale.US, "%.1f", storageGiB)} GiB free storage",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    if (diagnostics.supportedForOptionalArm64Runtime)
+                        "ARM64 host eligible. A verified Linux bundle, native launcher and execution tests are still required."
+                    else
+                        "Optional ARM64 Linux runtime requires compatible hardware and Android 9+. Base Matrix remains usable.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (status.isNotBlank()) {
+            Surface(color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                shape = RoundedCornerShape(12.dp)) {
+                Text(status, Modifier.padding(12.dp).testTag("phone_harness_status"),
+                    style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Text("Security: local GET-only workspace API · bounded ZIP export · no public network listener, " +
+            "shell commands, signing keys or hidden source uploads. On-phone Ubuntu/PRoot and model " +
+            "inference are separate optional engines.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 
     if (confirmShare) AlertDialog(
         onDismissRequest = { confirmShare = false },
-        title = { Text("Allow local client to read this project's source?") },
-        text = {
-            Text("Any same-phone client holding the temporary access token can download " +
-                "the selected project's ZIP while sharing is enabled. " +
-                "Remove credentials and confidential files first. " +
-                "This permission is not granted to other projects.")
-        },
+        icon = { Icon(Icons.Default.FolderZip, null) },
+        title = { Text("Share selected project locally?") },
+        text = { Text("A trusted same-phone client with the temporary key can read this project's manifest " +
+            "and download its source ZIP. Remove any confidential files first. Other workspaces remain private.") },
         confirmButton = {
             Button(onClick = {
                 confirmShare = false
                 try {
                     PhoneHostSession.setSharedProject(requireNotNull(projectId))
                     shared = projectId
-                    message = "Source export approved for this project only."
-                } catch (error: Exception) {
-                    message = error.message ?: "Could not approve sharing."
+                    status = "Only the selected project is approved for export."
+                } catch (e: Exception) {
+                    status = e.message ?: "Project authorization failed."
                 }
-            }) { Text("Approve export") }
+            }) { Text("Approve one project") }
         },
-        dismissButton = {
-            TextButton(onClick = { confirmShare = false }) { Text("Cancel") }
-        }
+        dismissButton = { TextButton(onClick = { confirmShare = false }) { Text("Cancel") } }
     )
+    if (confirmStop) AlertDialog(
+        onDismissRequest = { confirmStop = false },
+        title = { Text("Stop private phone server?") },
+        text = { Text("This closes the local listener, revokes active source sharing and rotates the " +
+            "temporary key on the next start.") },
+        confirmButton = {
+            Button(onClick = {
+                confirmStop = false
+                try {
+                    context.startService(Intent(context, PhoneHarnessService::class.java).apply {
+                        action = PhoneHarnessService.ACTION_STOP
+                    })
+                    status = "Stopping and revoking the current session…"
+                } catch (e: Exception) {
+                    status = e.message ?: "Could not stop server."
+                }
+            }) { Text("Stop and revoke") }
+        },
+        dismissButton = { TextButton(onClick = { confirmStop = false }) { Text("Keep running") } }
+    )
+}
+
+@Composable
+private fun HarnessCapabilityTile(
+    label: String,
+    state: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    active: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier, shape = RoundedCornerShape(15.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Icon(icon, null, tint = if (active) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            Text(state, style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
+        }
+    }
 }
