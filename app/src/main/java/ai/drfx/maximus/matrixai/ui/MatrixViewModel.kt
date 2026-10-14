@@ -691,6 +691,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     " model=" + config.selectedModel + " agent=" + selectedAgent.id)
                 val streamTime = System.currentTimeMillis()
                 val streamedText = StringBuilder()
+                val dispatchedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
+                var firstTokenObserved = false
                 var lastStreamUiAtMs = Long.MIN_VALUE
                 val equippedAgent = if (memoryEvidenceAtRequest.isBlank()) selectedAgent else selectedAgent.copy(
                     systemPrompt = selectedAgent.systemPrompt + "\n\n" + memoryEvidenceAtRequest
@@ -718,6 +720,14 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                 }) { delta ->
+                    // Record only a genuine first NONEMPTY token after dispatch.
+                    // This elapsed duration, not estimated billing or synthetic latency,
+                    // feeds verified-free Smart Combo performance ranking.
+                    if (!firstTokenObserved && delta.isNotEmpty()) {
+                        firstTokenObserved = true
+                        val latency = android.os.SystemClock.elapsedRealtime() - dispatchedAtElapsedMs
+                        autoPrepared?.let { freeRouteHealth.observeFirstToken(it.offer.route.id, latency) }
+                    }
                     // Coalesce dense SSE tokens to <=4 UI updates per second.
                     streamedText.append(delta)
                     val elapsed = android.os.SystemClock.elapsedRealtime()

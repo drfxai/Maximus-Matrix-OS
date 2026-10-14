@@ -51,6 +51,24 @@ class SmartComboRouteHealthTest {
         assertEquals(incoming.route.capabilities, next.route.capabilities)
     }
 
+    @Test fun realFirstTokenSamplesRequireEvidenceAndUseBoundedP95() {
+        val tracker = SmartComboRouteHealth()
+        val testOffer = offer("latency")
+        tracker.observeFirstToken("latency", 120)
+        tracker.observeFirstToken("latency", 240)
+        assertNull(tracker.decorate(listOf(testOffer), 1000).single().route.p95TimeToFirstTokenMs)
+        tracker.observeFirstToken("latency", 400)
+        assertEquals(400L, tracker.decorate(listOf(testOffer), 1000).single()
+            .route.p95TimeToFirstTokenMs)
+        tracker.observeFirstToken("latency", -2)
+        tracker.observeFirstToken("latency", 200_001)
+        assertEquals(400L, tracker.decorate(listOf(testOffer), 1000).single()
+            .route.p95TimeToFirstTokenMs)
+        tracker.succeeded("latency", 1100)
+        assertEquals(400L, tracker.decorate(listOf(testOffer), 1101).single()
+            .route.p95TimeToFirstTokenMs)
+    }
+
     @Test fun overflowsCannotWrapIntoAvailableState() {
         val health = SmartComboRouteHealth()
         health.failed("test", Long.MAX_VALUE - 1L)

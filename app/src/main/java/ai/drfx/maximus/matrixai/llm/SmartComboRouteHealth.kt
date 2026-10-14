@@ -15,7 +15,8 @@ internal class SmartComboRouteHealth(
     private data class Record(
         val failures: Int,
         val cooldownUntil: Long,
-        val lastHealthyAt: Long?
+        val lastHealthyAt: Long?,
+        val firstTokenSamplesMs: List<Long> = emptyList()
     )
 
     private val routes = linkedMapOf<String, Record>()
@@ -31,13 +32,15 @@ internal class SmartComboRouteHealth(
         val shift = (failures - 1).coerceAtMost(10)
         val backoff = (baseCooldownMs * (1L shl shift)).coerceAtMost(maxCooldownMs)
         val until = if (nowMs > Long.MAX_VALUE - backoff) Long.MAX_VALUE else nowMs + backoff
-        routes[routeId] = Record(failures, until, old?.lastHealthyAt)
+        routes[routeId] = Record(failures, until, old?.lastHealthyAt,
+            old?.firstTokenSamplesMs.orEmpty())
         trim()
     }
 
     @Synchronized fun succeeded(routeId: String, nowMs: Long) {
         require(routeId.isNotBlank())
-        routes[routeId] = Record(0, 0L, nowMs)
+        routes[routeId] = Record(0, 0L, nowMs,
+            routes[routeId]?.firstTokenSamplesMs.orEmpty())
         trim()
     }
 
@@ -49,12 +52,30 @@ internal class SmartComboRouteHealth(
             val current = offer.route
             offer.copy(route = current.copy(
                 healthy = current.healthy && state.cooldownUntil <= nowMs,
+                p95TimeToFirstTokenMs = if (state.firstTokenSamplesMs.size >= 3) {
+                    val sorted = state.firstTokenSamplesMs.sorted()
+                    sorted[((sorted.size * 95 + 99) / 100 - 1).coerceIn(0, sorted.lastIndex)]
+                } else current.p95TimeToFirstTokenMs,
                 cooldownUntilEpochMs = maxOf(
                     current.cooldownUntilEpochMs ?: 0L,
                     state.cooldownUntil
                 )
             ))
         }
+    }
+
+    /**
+     * Records monotonic elapsed time from dispatch to the first NONEMPTY provider token.
+     * At least three observations are needed before using local measurements to rank.
+     * No message, user data, account balance or credentials are stored here.
+     */
+    @Synchronized fun observeFirstToken(routeId: String, durationMs: Long) {
+        if (routeId.isBlank() || durationMs !in 1L..120_000L) return
+        val previous = routes[routeId] ?: Record(0, 0L, null)
+        routes[routeId] = previous.copy(
+            firstTokenSamplesMs = (previous.firstTokenSamplesMs + durationMs).takeLast(20)
+        )
+        trim()
     }
 
     @Synchronized fun remainingCooldownMs(routeId: String, nowMs: Long): Long =
