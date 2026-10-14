@@ -13,6 +13,8 @@ import android.speech.tts.TextToSpeech
 import ai.drfx.maximus.matrixai.voice.SpeechLanguage
 import ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore
 import ai.drfx.maximus.matrixai.voice.SpeechLanguagePolicy
+import ai.drfx.maximus.matrixai.voice.SpeechTranscriptGuard
+import ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceStore
 import androidx.compose.ui.res.stringResource
 import ai.drfx.maximus.matrixai.R
 import android.util.Base64
@@ -231,6 +233,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     }
     val speechPreference = remember(context) { SpeechLanguagePreferenceStore(context) }
     var selectedSpeechLanguage by remember { mutableStateOf(speechPreference.selected()) }
+    var speechFollowsAppLanguage by remember { mutableStateOf(speechPreference.explicitChoice() == null) }
+    // Capture the language that was actually requested for this recognition turn.
+    var recordingSpeechLanguage by remember { mutableStateOf(speechPreference.selected()) }
     var voiceLanguageMenuOpen by remember { mutableStateOf(false) }
     var voiceConversation by remember { mutableStateOf(false) }
     var voiceReplies by remember { mutableStateOf(false) }
@@ -300,16 +305,24 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     }
     val voiceInput = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val transcript = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-            if (!transcript.isNullOrBlank()) {
-                if (voiceConversation && sendable && !state.isGenerating) {
-                    send(transcript, fromVoice = true)
+            val selection = SpeechTranscriptGuard.choose(
+                result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS),
+                recordingSpeechLanguage
+            )
+            if (selection.text != null) {
+                if (voiceConversation && selection.mayAutomaticallySend &&
+                    sendable && !state.isGenerating) {
+                    send(selection.text, fromVoice = true)
                 } else {
-                    prompt = transcript
-                    attachmentError = context.getString(R.string.speech_transcript_review)
+                    // Some Android recognizers ignore EXTRA_LANGUAGE. Wrong-script
+                    // output is kept editable, but NEVER auto-sent to the AI.
+                    prompt = selection.text
+                    attachmentError = if (selection.scriptMatchesLanguage)
+                        context.getString(R.string.speech_transcript_review)
+                    else context.getString(R.string.speech_wrong_script_review,
+                        recordingSpeechLanguage.label)
                 }
-            }
-            else attachmentError = context.getString(R.string.speech_no_result)
+            } else attachmentError = context.getString(R.string.speech_no_result)
         }
     }
 
@@ -474,19 +487,37 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         Icon(Icons.Default.KeyboardVoice, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
                         Text(stringResource(R.string.speech_language_label) + ": " +
-                            selectedSpeechLanguage.label, fontSize = 11.sp, maxLines = 1)
+                            selectedSpeechLanguage.label +
+                            if (speechFollowsAppLanguage)
+                                " · " + stringResource(R.string.speech_follow_app_short)
+                            else "", fontSize = 11.sp, maxLines = 1)
                         Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(16.dp))
                     }
                     DropdownMenu(
                         expanded = voiceLanguageMenuOpen,
                         onDismissRequest = { voiceLanguageMenuOpen = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.speech_follow_app_language)) },
+                            onClick = {
+                                speechPreference.set(null)
+                                speechFollowsAppLanguage = true
+                                selectedSpeechLanguage = SpeechLanguage.fromApp(
+                                    LanguagePreferenceStore(context).load()
+                                )
+                                speechVoiceInstallNeeded = false
+                                voiceLanguageMenuOpen = false
+                                tts?.stop()
+                            }
+                        )
+                        HorizontalDivider()
                         SpeechLanguage.entries.forEach { language ->
                             DropdownMenuItem(
                                 text = { Text(language.label + " · " + language.tag) },
                                 onClick = {
                                     speechPreference.set(language)
                                     selectedSpeechLanguage = language
+                                    speechFollowsAppLanguage = false
                                     speechVoiceInstallNeeded = false
                                     voiceLanguageMenuOpen = false
                                     tts?.stop()
@@ -853,10 +884,12 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         Icon(Icons.Default.AttachFile, stringResource(R.string.speech_attach_document), modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = {
+                        recordingSpeechLanguage = selectedSpeechLanguage
+                        attachmentError = null
                         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, selectedSpeechLanguage.tag)
-                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, selectedSpeechLanguage.tag)
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, recordingSpeechLanguage.tag)
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, recordingSpeechLanguage.tag)
                             .putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.speech_prompt))
                             .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
                         try { voiceInput.launch(intent) }
