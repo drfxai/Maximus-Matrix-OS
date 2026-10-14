@@ -603,7 +603,18 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         val requestSessionId = _activeChatSessionId.value
         val userMessage = ChatMessage(role = "user", content = prompt, attachment = attachment, fromVoice = fromVoice)
         _chatMessages.value = _chatMessages.value + userMessage
-        val selectedContext = ChatContextPolicy.bounded(_chatMessages.value, ModelLimitsResolver.contextWindow(current.provider, current.selectedModel))
+        // Capture the project at user-send time: a workspace switch must never inject
+        // another project's history into a request that is already in flight.
+        val memoryEvidenceAtRequest = sharedProjectMemory.cachedContext()
+        val memoryAndSystemBudget = ChatContextPolicy.estimateTokens(memoryEvidenceAtRequest) +
+            ChatContextPolicy.estimateTokens(selectedAgent.systemPrompt)
+        val modelContext = ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
+        val smallestFreeContext = if (current.smartComboEnabled)
+            freeOffers.minOfOrNull { it.route.contextWindowTokens } ?: modelContext
+        else modelContext
+        val effectiveWindow = (minOf(modelContext, smallestFreeContext) -
+            memoryAndSystemBudget).coerceAtLeast(1024)
+        val selectedContext = ChatContextPolicy.bounded(_chatMessages.value, effectiveWindow)
         if (selectedContext.messages.lastOrNull() != userMessage) {
             appendAssistantError("This request exceeds the estimated model context limit. Reduce its size.")
             return false
@@ -669,9 +680,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val streamTime = System.currentTimeMillis()
                 val streamedText = StringBuilder()
                 var lastStreamUiAtMs = Long.MIN_VALUE
-                val memoryEvidence = sharedProjectMemory.cachedContext()
-                val equippedAgent = if (memoryEvidence.isBlank()) selectedAgent else selectedAgent.copy(
-                    systemPrompt = selectedAgent.systemPrompt + "\n\n" + memoryEvidence
+                val equippedAgent = if (memoryEvidenceAtRequest.isBlank()) selectedAgent else selectedAgent.copy(
+                    systemPrompt = selectedAgent.systemPrompt + "\n\n" + memoryEvidenceAtRequest
                 )
                 val result = chatClient.send(config, requestHistory, equippedAgent, onQuota = { windows ->
                     if (windows.isNotEmpty()) {
