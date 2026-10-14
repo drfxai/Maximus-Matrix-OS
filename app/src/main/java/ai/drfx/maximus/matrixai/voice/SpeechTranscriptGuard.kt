@@ -26,9 +26,10 @@ object SpeechTranscriptGuard {
     fun scriptMatches(text: String, language: SpeechLanguage): Boolean {
         return when (language) {
             SpeechLanguage.PERSIAN, SpeechLanguage.ARABIC ->
-                text.any { it in '\u0600'..'\u06ff' || it in '\u0750'..'\u077f' ||
+                text.any { Character.isLetter(it) && (
+                    it in '\u0600'..'\u06ff' || it in '\u0750'..'\u077f' ||
                     it in '\u08a0'..'\u08ff' || it in '\ufb50'..'\ufdff' ||
-                    it in '\ufe70'..'\ufeff' }
+                    it in '\ufe70'..'\ufeff') }
             SpeechLanguage.RUSSIAN ->
                 text.any { it in '\u0400'..'\u052f' }
             // Latin script is shared by English and Turkish. No reliable

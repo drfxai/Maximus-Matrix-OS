@@ -399,4 +399,9 @@
     <string name="speech_recording_status">Sesli mesaj kaydediliyor · %1$d sn / 60 sn</string>
     <string name="speech_recorded_audio_requires_model">Ham ses için Gemini veya OpenAI gerekir. Bu sağlayıcıyla Dikte kullanın.</string>
     <string name="speech_clear_conversation">Konuşmayı temizle</string>
+    <string name="brain_enable_spoken_replies">Brain sesli yanıtlarını aç</string>
+    <string name="brain_disable_spoken_replies">Brain sesli yanıtlarını kapat</string>
+    <string name="brain_voice_playback_failed">Yanıt seslendirilemedi. Yüklü konuşma motorunu ve ses dilini kontrol edin.</string>
+    <string name="brain_action_tool_label">Araç: %1$s</string>
+    <string name="brain_action_approval_scope">Onay yalnızca bu işlem için geçerlidir. Başka uygulamalar ayrıca onay isteyebilir.</string>
 </resources>

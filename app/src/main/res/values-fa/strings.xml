@@ -399,4 +399,9 @@
     <string name="speech_recording_status">در حال ضبط پیام صوتی · %1$d ثانیه از ۶۰ ثانیه</string>
     <string name="speech_recorded_audio_requires_model">فایل صوتی خام نیازمند Gemini یا OpenAI است. برای این ارائه‌دهنده از گفتار به متن استفاده کنید.</string>
     <string name="speech_clear_conversation">پاک‌کردن گفتگو</string>
+    <string name="brain_enable_spoken_replies">فعال‌کردن پاسخ صوتی دستیار</string>
+    <string name="brain_disable_spoken_replies">بی‌صداکردن پاسخ دستیار</string>
+    <string name="brain_voice_playback_failed">پخش صوتی پاسخ ممکن نشد. موتور گفتار و زبان صدای نصب‌شده را بررسی کنید.</string>
+    <string name="brain_action_tool_label">ابزار: %1$s</string>
+    <string name="brain_action_approval_scope">این تأیید فقط برای همین اقدام است. برنامه‌های دیگر ممکن است دوباره تأیید بخواهند.</string>
 </resources>

@@ -49,6 +49,14 @@ class SpeechTranscriptGuardTest {
         assertFalse(result.mayAutomaticallySend)
     }
 
+    @Test fun arabicPunctuationAloneCannotMakeEnglishRecognizedAsPersian() {
+        val result = SpeechTranscriptGuard.choose(
+            listOf("Hello، how are you?"), SpeechLanguage.PERSIAN
+        )
+        assertFalse(result.mayAutomaticallySend)
+        assertFalse(result.scriptMatchesLanguage)
+    }
+
     @Test fun mixedPersianAndEnglishNamesAreAllowed() {
         assertTrue(SpeechTranscriptGuard.choose(
             listOf("تلگرام رو باز کن Telegram"), SpeechLanguage.PERSIAN
