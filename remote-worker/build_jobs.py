@@ -77,18 +77,20 @@ class RootlessBuilder:
 
     def run(self, source: pathlib.Path, output: pathlib.Path):
         # Constant command and offline cache: project content cannot modify host argv.
-        script = ('cd /workspace && gradle --offline --no-daemon --max-workers=1 '
+        script = ('mkdir -p /tmp/build && cp -R /workspace/. /tmp/build && '
+                  'cd /tmp/build && gradle --offline --no-daemon --max-workers=1 '
                   ':app:assembleDebug --project-cache-dir /tmp/gradle-project '
                   '>/tmp/gradle.log 2>&1 && '
                   'find app/build/outputs/apk/debug -type f -name "*.apk" '
                   '-exec cp {} /out/project-debug.apk \;')
         argv = [
             "docker", "run", "--rm", "--pull=never", "--network=none",
-            "--pids-limit=128", "--memory=3g", "--cpus=2", "--read-only",
+            "--pids-limit=128", "--memory=4g", "--cpus=2", "--read-only",
             "--cap-drop=ALL", "--security-opt=no-new-privileges",
             "--user=65534:65534", "--env=HOME=/tmp",
-            "--env=GRADLE_USER_HOME=/opt/gradle-cache",
-            "--tmpfs=/tmp:rw,nosuid,nodev,size=1g",
+            "--env=GRADLE_USER_HOME=/tmp/gradle-home",
+            "--env=GRADLE_RO_DEP_CACHE=/opt/gradle-cache",
+            "--tmpfs=/tmp:rw,nosuid,nodev,size=2g",
             f"--mount=type=bind,src={source},dst=/workspace,readonly",
             f"--mount=type=bind,src={output},dst=/out",
             self.image, "/bin/sh", "-c", script
@@ -156,6 +158,7 @@ class BuildCoordinator:
             with self.lock:
                 job["state"] = "running"
             apk = self.runner.run(source, output)
+            shutil.rmtree(source, ignore_errors=True)
             digest = hashlib.sha256(apk.read_bytes()).hexdigest()
             with self.lock:
                 job["apk_path"] = str(apk)
