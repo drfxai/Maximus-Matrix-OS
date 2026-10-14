@@ -35,13 +35,22 @@ class AndroidCapabilities(private val context: Context) {
 
     fun webSearch(query: String): ToolOutcome {
         if (query.isBlank()) return ToolOutcome(false, "Search query is empty.")
-        val intent = Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, query)
-        return launch(intent, "Opened web search for: $query")
+        val url = "https://www.google.com/search?q=" + Uri.encode(query.take(350))
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            // Prefer the user's requested Chrome app, while falling back to
+            // the chosen browser if Chrome is not installed.
+            setPackage("com.android.chrome")
+        }
+        val result = launch(intent, "Opened Google search in Chrome")
+        return if (result.success) result else
+            launch(Intent(Intent.ACTION_VIEW, Uri.parse(url)),
+                "Opened Google search in the device browser")
     }
 
     fun openSettings(section: String): ToolOutcome {
         val action = when (section.lowercase()) {
-            "wifi" -> Settings.ACTION_WIFI_SETTINGS
+            "wifi" -> if (Build.VERSION.SDK_INT >= 29)
+                Settings.Panel.ACTION_WIFI else Settings.ACTION_WIFI_SETTINGS
             "bluetooth" -> Settings.ACTION_BLUETOOTH_SETTINGS
             "display" -> Settings.ACTION_DISPLAY_SETTINGS
             "battery" -> Settings.ACTION_BATTERY_SAVER_SETTINGS
@@ -52,7 +61,10 @@ class AndroidCapabilities(private val context: Context) {
     }
 
     fun openCamera(): ToolOutcome =
-        launch(Intent(MediaStore.ACTION_IMAGE_CAPTURE), "Opened camera")
+        // Opening the device's camera app requires the user to press its shutter;
+        // no hidden capture or ambient camera access is performed.
+        launch(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA),
+            "Opened the camera app; take a photo using the camera controls.")
 
     fun setAlarm(hour: Int, minute: Int, label: String): ToolOutcome {
         val safeHour = hour.coerceIn(0, 23)
