@@ -257,4 +257,27 @@
     <string name="chat_baseurl">Temel adres</string>
     <string name="chat_token_inspector">Token ve bağlam inceleyici</string>
     <string name="chat_close_inspector">İnceleyiciyi kapat</string>
+    <string name="phone_harness_title">MOBILE HARNESS</string>
+    <string name="phone_harness_subtitle">TELEFONUN · SUNUCUN</string>
+    <string name="phone_workspace_desc">Android cihazınızda çalışan özel geliştirme alanı.</string>
+    <string name="phone_start_server">Sunucuyu başlat</string>
+    <string name="phone_stop_server">Durdur</string>
+    <string name="phone_private">Özel erişim</string>
+    <string name="phone_one_time">Tek kullanımlık oturum anahtarı · kaydedilmez</string>
+    <string name="phone_no_share">Sunucuyu başlatmak kodları paylaşmaz. Tek bir projeyi ayrıca onaylayın.</string>
+    <string name="phone_copy_token">Geçici yerel anahtarı kopyala</string>
+    <string name="phone_shared_project">Onaylanan proje</string>
+    <string name="phone_approve">Onayla</string>
+    <string name="phone_revoke">İzni kaldır</string>
+    <string name="phone_offline_desc">Yerel eşleştirme veya proje aktarımı için sunucuyu başlatın.</string>
+    <string name="phone_readiness">Çalışma ortamı durumu</string>
+    <string name="phone_scan">Tara</string>
+    <string name="phone_build_confirm">Bu güvenilir proje telefonda derlensin mi?</string>
+    <string name="phone_approve_build">Yerel derlemeyi onayla</string>
+    <string name="phone_share_confirm">Seçilen proje yerel paylaşılsın mı?</string>
+    <string name="phone_share_approve">Tek projeyi onayla</string>
+    <string name="phone_stop_confirm">Özel telefon sunucusu durdurulsun mu?</string>
+    <string name="phone_stop_revoke">Durdur ve izinleri kaldır</string>
+    <string name="phone_keep_running">Çalışmaya devam et</string>
+    <string name="phone_runtime_note">Linux dosyaları çalıştığının kanıtı değildir. Gerçek telefonda araçları doğrulayın.</string>
 </resources>
