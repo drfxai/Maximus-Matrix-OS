@@ -22,12 +22,13 @@ internal class ElevenLabsClient {
         const val ORIGIN = "https://api.elevenlabs.io"
         const val DEFAULT_MODEL = "eleven_multilingual_v2"
         const val LOW_LATENCY_MODEL = "eleven_flash_v2_5"
+        const val PERSIAN_MODEL = "eleven_v3"
         const val MAX_SPOKEN_CHARACTERS = 2500
         private const val MAX_AUDIO_BYTES = 8 * 1024 * 1024
         private const val MAX_JSON_BYTES = 192 * 1024
         private const val MAX_KEY = 512
         fun validVoiceId(value: String): Boolean = value.matches(Regex("[A-Za-z0-9_-]{12,80}"))
-        fun validModel(value: String): Boolean = value in setOf(DEFAULT_MODEL, LOW_LATENCY_MODEL)
+        fun validModel(value: String): Boolean = value in setOf(DEFAULT_MODEL, LOW_LATENCY_MODEL, PERSIAN_MODEL)
         fun validKey(value: String): Boolean =
             value.length in 16..MAX_KEY && value.none { it.isWhitespace() || it.code < 32 || it.code == 127 }
     }
