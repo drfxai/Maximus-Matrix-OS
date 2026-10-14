@@ -166,13 +166,16 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
                 Text("Speech model: " + model)
             }
             DropdownMenu(expanded = modelPickerOpen, onDismissRequest = { modelPickerOpen = false }) {
-                listOf(ElevenLabsClient.DEFAULT_MODEL, ElevenLabsClient.LOW_LATENCY_MODEL).forEach { id ->
+                listOf(ElevenLabsClient.DEFAULT_MODEL, ElevenLabsClient.LOW_LATENCY_MODEL, ElevenLabsClient.PERSIAN_MODEL).forEach { id ->
                     DropdownMenuItem(text = { Text(id) }, onClick = {
                         store.saveModel(id); model = id; modelPickerOpen = false
                     })
                 }
             }
         }
+
+        Text("Persian speech: choose eleven_v3. Flash v2.5 prioritizes speed; Multilingual v2 prioritizes voice quality. Model choice affects account charges.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Button(enabled = !busy && hasKey && voiceId.isNotBlank(), onClick = {
             execute {
