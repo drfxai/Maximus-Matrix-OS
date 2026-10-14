@@ -235,6 +235,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var voiceConversation by remember { mutableStateOf(false) }
     var voiceReplies by remember { mutableStateOf(false) }
     var speechReady by remember { mutableStateOf(false) }
+    var speechVoiceInstallNeeded by remember { mutableStateOf(false) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     DisposableEffect(context) {
         val engine = TextToSpeech(context) { result -> speechReady = result == TextToSpeech.SUCCESS }
@@ -265,9 +266,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             ).locale()
             val engine = tts
             if (engine == null || engine.isLanguageAvailable(language) < TextToSpeech.LANG_AVAILABLE) {
+                speechVoiceInstallNeeded = true
                 attachmentError = context.getString(R.string.speech_tts_missing, language.toLanguageTag())
                 return@LaunchedEffect
             }
+            speechVoiceInstallNeeded = false
             engine.language = language
             engine.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "reply-" + last.timestampMs)
         }
@@ -484,6 +487,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 onClick = {
                                     speechPreference.set(language)
                                     selectedSpeechLanguage = language
+                                    speechVoiceInstallNeeded = false
                                     voiceLanguageMenuOpen = false
                                     tts?.stop()
                                 }
@@ -688,9 +692,12 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 if ((tts?.isLanguageAvailable(language) ?: TextToSpeech.LANG_NOT_SUPPORTED) >= TextToSpeech.LANG_AVAILABLE) {
                                     tts?.language = language
                                     tts?.speak(message.content, TextToSpeech.QUEUE_FLUSH, null, "replay-" + message.timestampMs)
-                                } else attachmentError = context.getString(
-                                    R.string.speech_tts_missing, language.toLanguageTag()
-                                )
+                                } else {
+                                    speechVoiceInstallNeeded = true
+                                    attachmentError = context.getString(
+                                        R.string.speech_tts_missing, language.toLanguageTag()
+                                    )
+                                }
                             }
                         }, onPlayVoice = {
                             message.attachment?.let { voice ->
@@ -801,6 +808,19 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         }
         if (attachmentError != null) {
             Text(attachmentError!!, color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
+        }
+        if (speechVoiceInstallNeeded) {
+            OutlinedButton(
+                onClick = {
+                    runCatching {
+                        context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA))
+                    }.onFailure {
+                        attachmentError = context.getString(R.string.speech_tts_setup_unavailable)
+                    }
+                }
+            ) {
+                Text(stringResource(R.string.speech_install_tts))
+            }
         }
 
         // Compact message input field; screen-level IME insets keep it above the keyboard.
