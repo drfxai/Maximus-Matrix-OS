@@ -24,6 +24,10 @@ class HindsightMemorySettingsTest {
             assertFalse(raw.contains("hsk_owned_by_user_1234567890abcdef"))
             assertEquals("hsk_owned_by_user_1234567890abcdef",
                 HindsightMemorySettings(context).token())
+            assertThrows(IllegalArgumentException::class.java) {
+                settings.configure("https://another-memory.example.org", null)
+            }
+            assertEquals("https://api.hindsight.vectorize.io", settings.endpoint())
             settings.setActiveProject("123e4567-e89b-12d3-a456-426614174000")
             settings.setEnabled(true)
             assertTrue(settings.enabled())
