@@ -320,4 +320,5 @@
     <string name="brain_graph_guide">چرخش با لمس · بزرگ‌نمایی با دو انگشت</string>
     <string name="brain_graph_auto">چرخش خودکار</string>
     <string name="brain_wait">در انتظار پاسخ مدل…</string>
+    <string name="brain_you">شما</string>
 </resources>
