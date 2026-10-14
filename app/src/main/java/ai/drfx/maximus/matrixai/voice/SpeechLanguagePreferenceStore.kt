@@ -39,7 +39,7 @@ internal object SpeechLanguagePolicy {
         // distinctive Persian code points (e.g. "خوشحالم"). For audio playback,
         // prefer Persian over an unrelated Latin/Cyrillic voice for Arabic-script text.
         // An explicit Arabic selection above still wins.
-        if (text.any { it in '\\u0600'..'\\u06ff' }) return SpeechLanguage.PERSIAN
+        if (text.any { it in '\u0600'..'\u06ff' }) return SpeechLanguage.PERSIAN
         return selected
     }
 }
