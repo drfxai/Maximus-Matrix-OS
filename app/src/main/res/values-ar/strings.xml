@@ -399,4 +399,9 @@
     <string name="speech_recording_status">تسجيل رسالة صوتية · %1$d ثانية من ٦٠</string>
     <string name="speech_recorded_audio_requires_model">الصوت الخام يتطلب Gemini أو OpenAI. استخدم الإملاء مع هذا المزود.</string>
     <string name="speech_clear_conversation">مسح المحادثة</string>
+    <string name="brain_enable_spoken_replies">تشغيل ردود المساعد الصوتية</string>
+    <string name="brain_disable_spoken_replies">كتم ردود المساعد</string>
+    <string name="brain_voice_playback_failed">تعذر نطق الرد. تحقق من محرك الكلام واللغة الصوتية المثبتة.</string>
+    <string name="brain_action_tool_label">الأداة: %1$s</string>
+    <string name="brain_action_approval_scope">تنطبق الموافقة على هذا الإجراء فقط. قد تطلب التطبيقات الخارجية تأكيداً آخر.</string>
 </resources>
