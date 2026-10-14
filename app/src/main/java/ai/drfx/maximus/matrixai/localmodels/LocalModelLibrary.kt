@@ -83,10 +83,10 @@ class LocalModelLibrary(context: Context) {
     private fun valid(item: LocalModelEntry): Boolean {
         val uri = runCatching { Uri.parse(item.uri) }.getOrNull()
         return item.id.matches(Regex("[a-f0-9-]{36}")) &&
-            uri?.scheme == "content" && !uri.authority.isNullOrBlank() &&
+            uri != null && uri.scheme == "content" && !uri.authority.isNullOrBlank() &&
             item.displayName.length in 1..128 &&
             item.displayName.none { it == '/' || it == '\\' || it == '\u0000' } &&
-            item.sizeBytes in 8..LocalModelIntakePolicy.MAX_MODEL_BYTES &&
+            item.sizeBytes in 8L..LocalModelIntakePolicy.MAX_MODEL_BYTES &&
             item.format != LocalModelFormat.UNSUPPORTED &&
             item.note.length <= 300
     }
