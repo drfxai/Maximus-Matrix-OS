@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.0 (build 10012)
+
+- Added optional Hindsight Shared Project Memory in Project Studio, connected to one isolated user-authorized memory bank per project.
+- Models working on the same project can recall approved past decisions, experiences, failed attempts and tasks through Hindsight while a verified local checkpoint remains the authoritative source and file-hash integrity guard.
+- User-owned Hindsight Cloud API key is encrypted by Android Keystore and never embedded in release assets. Bank names are portable across model providers and devices when authorized.
+- A user-approved Retain action publishes a bounded project checkpoint synopsis and manually reviewed lesson, never raw source files, attachments, credentials or full conversations. Sensitive content preflight guards prevent obvious secret uploads.
+- Project Studio's Plan and Resume operations load relevant shared memories automatically when enabled, without asking the user to rewrite the previous project history. Cloud failures are visible rather than silently fabricating memory.
+- Memory-derived text is untrusted historical data, not tool authorization or evidence of code execution. Remote cloud build or automatic code execution remain disabled.
+- Public version remains V1.0.0; internal version code advances to 10012 for in-place upgrades.
+
 ## v1.0.0 (build 10011)
 
 - Added ElevenLabs Voice Studio in Control Hub: enter a user-owned API key encrypted with Android Keystore, verify subscription, inspect reported allowance, load and select account voices, and select multilingual or low-latency speech models.
