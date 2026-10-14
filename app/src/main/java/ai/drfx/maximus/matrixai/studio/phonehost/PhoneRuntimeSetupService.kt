@@ -42,7 +42,7 @@ class PhoneRuntimeSetupService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val installer = PhoneRuntimeInstallSession.forContext(applicationContext)
         if (intent?.action == CANCEL) {
-            installer.cancel()
+            installer.cancel(userRequested = true)
             return START_NOT_STICKY
         }
         if (intent?.action != START) {
@@ -94,7 +94,10 @@ class PhoneRuntimeSetupService : Service() {
 
     override fun onDestroy() {
         val installer = PhoneRuntimeInstallSession.forContext(applicationContext)
-        if (installer.state.value.busy) installer.cancel()
+        if (installer.state.value.busy) {
+            // Service destruction is not proof that the user pressed Cancel.
+            installer.cancel(userRequested = false)
+        }
         scope.cancel()
         super.onDestroy()
     }
