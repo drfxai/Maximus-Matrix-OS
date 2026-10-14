@@ -101,7 +101,14 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                             autoShare = false
                             bridge.forgetCache()
                         }
-                        status = if (checked) "Shared project memory enabled." else "Shared memory disabled."
+                        status = if (checked) "Shared project memory enabled. Loading prior project facts…" else "Shared memory disabled."
+                        if (checked && projectId != null) {
+                            scope.launch {
+                                runCatching { bridge.refresh() }
+                                    .onSuccess { status = "$it historical facts available to the next model." }
+                                    .onFailure { status = "No remote memories loaded yet. Local checkpoint remains available." }
+                            }
+                        }
                     } catch (error: Exception) { status = error.message ?: "Cannot enable memory." }
                 }
             )
