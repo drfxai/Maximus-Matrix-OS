@@ -376,4 +376,18 @@
     <string name="dev_confirm_branch">إنشاء هذا الفرع؟</string>
     <string name="dev_commit_done">تم إنشاء التغيير:</string>
     <string name="dev_branch_done">تم إنشاء فرع التطوير.</string>
+    <string name="brain_node_mission">التحكم بالمهمات</string>
+    <string name="brain_node_genome">جينوم التداول</string>
+    <string name="brain_node_pine">مكتبة Pine</string>
+    <string name="brain_node_quant">مختبر كمي</string>
+    <string name="brain_node_validation">مختبر التحقق</string>
+    <string name="brain_node_research">محرك الأبحاث</string>
+    <string name="brain_node_gateway">بوابة الذكاء الاصطناعي</string>
+    <string name="brain_node_finops">المال والتحكم</string>
+    <string name="brain_node_alerts">تنبيهات السوق</string>
+    <string name="brain_node_vision">رؤية المخطط</string>
+    <string name="brain_graph_count">%1$d وحدات · %2$d وصلات</string>
+    <string name="brain_graph_inspector">فاحص ماتريكس</string>
+    <string name="brain_graph_filters">مرشحات العقد</string>
+    <string name="brain_graph_explore_help">اضغط على الوحدة لفحص حالتها وفتح شاشتها. اسحب للتدوير أو كبّر بإصبعين.</string>
 </resources>
