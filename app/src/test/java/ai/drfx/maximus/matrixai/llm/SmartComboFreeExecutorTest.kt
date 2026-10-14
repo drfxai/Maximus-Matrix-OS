@@ -57,6 +57,18 @@ class SmartComboFreeExecutorTest {
         assertTrue(executor.dispatched(requireNotNull(selected)))
     }
 
+    @Test fun conflictingDuplicateRouteIdentifiersNeverBindWrongProviderEndpoint() {
+        val executor = SmartComboFreeExecutor()
+        val first = offer("same-id", endpoint = "https://legitimate.example/v1")
+        val second = offer("same-id", endpoint = "https://unexpected.example/v1")
+        assertNull(executor.prepare("duplicate", 300, 1000, setOf(ModelCapability.CHAT),
+            listOf(first, second),
+            resolveCredential = { _, _ -> "user-owned-test-secret" },
+            agentId = "general"
+        ))
+        assertNotNull(prepare(executor, "duplicate", listOf(offer("different-id"))))
+    }
+
     @Test fun unavailableAllCredentialsLeavesRequestIdReusable() {
         val executor = SmartComboFreeExecutor()
         assertNull(executor.prepare("one", 300, 1000, setOf(ModelCapability.CHAT),
