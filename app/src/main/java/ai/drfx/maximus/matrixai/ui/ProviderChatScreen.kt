@@ -326,17 +326,17 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     }
                 }
             }
-            TextButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) { Text("New") }
+            TextButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) { Text(stringResource(R.string.speech_new)) }
             TextButton(onClick = {
                 sessionTitle = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty()
                 renameOpen = true
-            }, enabled = sessions.any { it.id == activeSessionId }) { Text("Rename") }
-            TextButton(onClick = { deleteOpen = true }, enabled = sessions.any { it.id == activeSessionId }) { Text("Delete") }
+            }, enabled = sessions.any { it.id == activeSessionId }) { Text(stringResource(R.string.speech_rename)) }
+            TextButton(onClick = { deleteOpen = true }, enabled = sessions.any { it.id == activeSessionId }) { Text(stringResource(R.string.speech_delete)) }
         }
         if (messages.lastOrNull()?.isError == true && !state.isGenerating && sendable) {
             TextButton(onClick = {
                 messages.lastOrNull { it.role == "user" }?.let { viewModel.sendChat(it.content, it.attachment, false) }
-            }) { Text("Retry last request") }
+            }) { Text(stringResource(R.string.speech_retry)) }
         }
         // Compact unified header: Model info, Token telemetry badge, settings trigger, voice toggle
         Row(
@@ -427,7 +427,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             Spacer(Modifier.width(4.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { tts?.stop(); voicePlayback.stop(); elevenJob?.cancel(); elevenPlayback.stop() }) { Icon(Icons.Default.Stop, "Stop audio") }
+                IconButton(onClick = { tts?.stop(); voicePlayback.stop(); elevenJob?.cancel(); elevenPlayback.stop() }) { Icon(Icons.Default.Stop, stringResource(R.string.speech_stop_audio)) }
                 IconButton(
                     onClick = {
                         voiceReplies = !voiceReplies
@@ -440,7 +440,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 ) {
                     Icon(
                         if (voiceReplies) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                        if (voiceReplies) "Disable spoken replies" else "Enable spoken replies",
+                        if (voiceReplies) stringResource(R.string.speech_disable_replies) else stringResource(R.string.speech_enable_replies),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -817,7 +817,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Chat input" },
                     maxLines = 3,
                     enabled = !recording,
-                    placeholder = { Text("Message the selected persona…", fontSize = 13.sp) },
+                    placeholder = { Text(stringResource(R.string.speech_input_hint), fontSize = 13.sp) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { send() }),
                     shape = RoundedCornerShape(12.dp)
@@ -827,10 +827,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { imagePicker.launch("image/*") }, enabled = !recording, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Image, "Attach image", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Image, stringResource(R.string.speech_attach_image), modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = { filePicker.launch(arrayOf("text/*", "application/pdf", "application/json")) }, enabled = !recording, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.AttachFile, "Attach document", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.AttachFile, stringResource(R.string.speech_attach_document), modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = {
                         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -842,7 +842,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         try { voiceInput.launch(intent) }
                         catch (e: Exception) { attachmentError = context.getString(R.string.speech_recognizer_unavailable) }
                     }, enabled = !recording, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.KeyboardVoice, "Dictate text message", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.KeyboardVoice, stringResource(R.string.speech_dictate), modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = {
                         if (recording) finishRecording()
@@ -851,7 +851,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         else micPermission.launch(Manifest.permission.RECORD_AUDIO)
                     }, modifier = Modifier.size(36.dp)) {
                         Icon(if (recording) Icons.Default.StopCircle else Icons.Default.FiberManualRecord,
-                            if (recording) "Finish voice message" else "Record voice message",
+                            if (recording) stringResource(R.string.speech_stop_audio) else stringResource(R.string.speech_record),
                             tint = if (recording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp))
                     }
@@ -885,7 +885,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(Icons.Default.Send, "Send message", modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Send, stringResource(R.string.speech_send), modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -921,7 +921,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     if (deleteOpen) {
         AlertDialog(onDismissRequest = { deleteOpen = false }, title = { Text("Delete conversation?") },
             text = { Text("This removes its locally saved messages.") },
-            confirmButton = { TextButton(onClick = { viewModel.deleteChatSession(activeSessionId); deleteOpen = false }) { Text("Delete") } },
+            confirmButton = { TextButton(onClick = { viewModel.deleteChatSession(activeSessionId); deleteOpen = false }) { Text(stringResource(R.string.speech_delete)) } },
             dismissButton = { TextButton(onClick = { deleteOpen = false }) { Text("Cancel") } })
     }
     // Quick In-Chat API Key Entry Dialog
