@@ -12,7 +12,8 @@ args = sys.argv[1:]
 with open('gh-calls.jsonl', 'a') as f: f.write(json.dumps(args)+'\\n')
 if args[:2] == ['release','upload'] and any(a.startswith('dist/') for a in args) and os.environ.get('FAIL_UPLOAD') == '1': sys.exit(1)
 if args[:2] == ['release','download']:
-    for name in (os.environ['ARM64_APK'],os.environ['UNIVERSAL_APK'],'SHA256SUMS'):
+    for name in (os.environ['ARM64_APK'],os.environ['UNIVERSAL_APK'],'SHA256SUMS',
+                 'MAXIMUS-MATRIX-OS-PRoot-Source-V1.0.0.tar.gz','NATIVE-SOURCE-SHA256SUMS'):
         shutil.copyfile('dist/'+name,'published/'+name)
 if args[:2] == ['release','view']: print(json.dumps({'isDraft':False,'isPrerelease':False}))
 '''
@@ -33,6 +34,11 @@ class PublicationTests(unittest.TestCase):
             import hashlib
             checksum=hashlib.sha256(b'new validated fixture').hexdigest()
             (root/'dist/SHA256SUMS').write_text(''.join(f'{checksum}  {name}\n' for name in names))
+            source_name = 'MAXIMUS-MATRIX-OS-PRoot-Source-V1.0.0.tar.gz'
+            source_bytes = b'complete PRoot source fixture'
+            (root/'dist'/source_name).write_bytes(source_bytes)
+            (root/'dist/NATIVE-SOURCE-SHA256SUMS').write_text(
+                hashlib.sha256(source_bytes).hexdigest() + '  ' + source_name + '\n')
             if verified:
                 (root/'dist/upgrade-verified').touch()
                 (root/'dist/android-upgrade-verified').touch()
