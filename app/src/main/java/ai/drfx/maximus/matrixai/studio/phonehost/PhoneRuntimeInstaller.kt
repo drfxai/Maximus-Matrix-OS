@@ -224,56 +224,16 @@ internal class PhoneRuntimeInstaller(context: Context) {
         }
     }
 
-    /** Resolve Unix guest paths into normalized root-relative components. */
-    private fun components(path: String): List<String> {
-        val parts = mutableListOf<String>()
-        for (p in path.split('/')) when (p) {
-            "", "." -> Unit
-            ".." -> {
-                check(parts.isNotEmpty()) { "Archive path escaped the guest root." }
-                parts.removeAt(parts.lastIndex)
-            }
-            else -> parts.add(p)
-        }
-        return parts
-    }
-
-    private fun member(input: String): String {
-        var value = input
-        while (value.startsWith("./")) value = value.substring(2)
-        check(value.length <= 512 && !value.startsWith("/") &&
-            '\\' !in value && '\u0000' !in value && ':' !in value) {
-            "Unsafe Linux archive member."
-        }
-        return components(value).joinToString("/")
-    }
-
-    private fun linkTarget(path: String, link: String): String {
-        check(link.length in 1..512 && '\\' !in link && '\u0000' !in link)
-        val combined = if (link.startsWith("/")) link else
-            path.substringBeforeLast('/', "").let { if (it.isBlank()) link else it + "/" + link }
-        return components(combined).joinToString("/")
-    }
+    private fun member(path: String): String = PhoneRuntimePathPolicy.member(path)
+    private fun linkTarget(guest: String, link: String): String =
+        PhoneRuntimePathPolicy.linkTarget(guest, link)
 
     private fun destination(root: File, member: String, links: Map<String, String>): File {
-        var parts = components(member)
-        var count = 0
-        while (true) {
-            check(count++ < 24) { "Recursive runtime symlink." }
-            var changed = false
-            for (i in 1 until parts.size) {
-                val prefix = parts.take(i).joinToString("/")
-                val link = links[prefix] ?: continue
-                parts = components(linkTarget(prefix, link) + "/" + parts.drop(i).joinToString("/"))
-                changed = true
-                break
-            }
-            if (!changed) break
-        }
-        val cleanRoot = root.absoluteFile.toPath().normalize()
-        val file = cleanRoot.resolve(parts.joinToString("/")).normalize()
-        check(file != cleanRoot && file.startsWith(cleanRoot)) { "Escaping staged root." }
-        return file.toFile()
+        val safeRelative = PhoneRuntimePathPolicy.mappedRelative(member, links)
+        val rootPath = root.absoluteFile.toPath().normalize()
+        val path = rootPath.resolve(safeRelative).normalize()
+        check(path != rootPath && path.startsWith(rootPath)) { "Escaping Linux staging root." }
+        return path.toFile()
     }
 
     /**
