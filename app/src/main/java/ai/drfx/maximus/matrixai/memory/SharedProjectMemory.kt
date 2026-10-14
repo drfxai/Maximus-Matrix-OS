@@ -15,13 +15,23 @@ internal class SharedProjectMemory(context: Context) {
     private val remote = HindsightMemoryClient()
     private val workspace = ProjectWorkspaceStore(context.applicationContext)
     private val checkpoints = ProjectContinuityStore(context.applicationContext, workspace)
-    private data class Snapshot(val loadedAt: Long, val facts: List<HindsightMemoryClient.Memory>)
+    private data class Snapshot(
+        val loadedAt: Long,
+        val connectionId: String,
+        val facts: List<HindsightMemoryClient.Memory>
+    )
     private data class LocalSnapshot(val loadedAt: Long, val text: String)
     companion object {
         // Shared across ViewModel and Project Studio within this app process. Never persisted
         // as privileged instructions or treated as an authenticated source of action rights.
         private val cache = ConcurrentHashMap<String, Snapshot>()
         private val local = ConcurrentHashMap<String, LocalSnapshot>()
+    }
+
+    private fun connectionId(origin: String, key: String): String {
+        val bytes = java.security.MessageDigest.getInstance("SHA-256")
+            .digest((origin + "\u0000" + key).toByteArray(Charsets.UTF_8))
+        return bytes.joinToString("") { "%02x".format(it) }
     }
 
     fun activeProject(): String = settings.activeProject()
@@ -32,7 +42,10 @@ internal class SharedProjectMemory(context: Context) {
         if (!settings.enabled()) return ""
         val project = settings.activeProject()
         val snapshot = cache[project]
-        val recent = snapshot?.takeIf { System.currentTimeMillis() - it.loadedAt <= 300_000L }
+        val recent = snapshot?.takeIf {
+            System.currentTimeMillis() - it.loadedAt <= 300_000L &&
+                it.connectionId == connectionId(settings.endpoint(), settings.token())
+        }
         val facts = recent?.facts.orEmpty().take(6).joinToString("\n") {
             "- [memory ${it.id.take(24)}, ${it.type}] ${it.text.replace('\n', ' ').take(350)}"
         }.take(1850)
@@ -72,8 +85,15 @@ internal class SharedProjectMemory(context: Context) {
         require(settings.enabled()) { "Enable shared memory to recall project history." }
         val project = settings.activeProject().takeIf { it.isNotBlank() }
             ?: error("Select a Project Studio workspace first.")
-        val memories = remote.recall(settings.endpoint(), settings.token(), project, query)
-        cache[project] = Snapshot(System.currentTimeMillis(), memories)
+        val origin = settings.endpoint()
+        val key = settings.token()
+        val stamp = connectionId(origin, key)
+        val memories = remote.recall(origin, key, project, query)
+        // Reject a late result after an account/project change or revoked consent.
+        if (settings.enabled() && settings.activeProject() == project &&
+            connectionId(settings.endpoint(), settings.token()) == stamp) {
+            cache[project] = Snapshot(System.currentTimeMillis(), stamp, memories)
+        }
         return memories.size
     }
 
