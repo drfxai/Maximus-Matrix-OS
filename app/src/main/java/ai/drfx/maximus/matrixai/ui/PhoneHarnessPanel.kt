@@ -29,6 +29,7 @@ import ai.drfx.maximus.matrixai.studio.phonehost.PhoneHostPolicy
 import ai.drfx.maximus.matrixai.studio.phonehost.PhoneHostSession
 import ai.drfx.maximus.matrixai.studio.phonehost.PhoneRuntimeInspector
 import ai.drfx.maximus.matrixai.studio.phonehost.PhoneRuntimeStatus
+import ai.drfx.maximus.matrixai.studio.phonehost.PhoneBuildSession
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -48,6 +49,9 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
     var status by remember { mutableStateOf("") }
     var confirmShare by remember { mutableStateOf(false) }
     var confirmStop by remember { mutableStateOf(false) }
+    var confirmBuild by remember { mutableStateOf(false) }
+    val phoneBuilder = remember(context) { PhoneBuildSession.forContext(context) }
+    val buildState by phoneBuilder.state.collectAsState()
     var diagnostics by remember { mutableStateOf(PhoneRuntimeInspector.inspect(context)) }
 
     LaunchedEffect(Unit) {
@@ -144,7 +148,54 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
             HarnessCapabilityTile(
                 "LINUX / PTY", "Not installed", Icons.Default.Terminal, false, Modifier.weight(1f))
             HarnessCapabilityTile(
-                "APK BUILDS", "Unavailable", Icons.Default.Build, false, Modifier.weight(1f))
+                "APK BUILDS", if (buildState.verifiedTools) "Tools verified" else "Needs toolchain",
+                Icons.Default.Build, buildState.verifiedTools, Modifier.weight(1f))
+        }
+
+        ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Build, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(9.dp))
+                    Text("Build Debug APK on this phone", fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall)
+                }
+                Text(buildState.message, style = MaterialTheme.typography.bodySmall)
+                Text("ARM64 Android 9+ · offline Gradle · verified native PRoot toolchain required. " +
+                    "Build scripts execute with this app's privileges; use only trusted projects.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { phoneBuilder.verifyTools() },
+                        enabled = !buildState.busy, modifier = Modifier.weight(1f)
+                            .testTag("phone_build_verify")) { Text("Verify tools") }
+                    Button(onClick = { confirmBuild = true },
+                        enabled = !buildState.busy && buildState.verifiedTools && projectId != null,
+                        modifier = Modifier.weight(1f).testTag("phone_build_start")) {
+                        Text("Build APK")
+                    }
+                }
+                if (buildState.busy) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    OutlinedButton(onClick = { phoneBuilder.cancel() }) {
+                        Text("Cancel build")
+                    }
+                }
+                if (buildState.logTail.isNotBlank()) {
+                    var showLog by remember { mutableStateOf(false) }
+                    TextButton(onClick = { showLog = !showLog }) {
+                        Text(if (showLog) "Hide build log" else "Show build log")
+                    }
+                    if (showLog) Text(buildState.logTail.takeLast(6000),
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                if (buildState.phase == "succeeded") {
+                    Text("APK SHA-256: " + buildState.apkSha256.orEmpty(),
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("Verified APK is ready for export from the local build session.",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            }
         }
 
         ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -266,6 +317,21 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 
+    if (confirmBuild) AlertDialog(
+        onDismissRequest = { confirmBuild = false },
+        title = { Text("Run project build scripts on this phone?") },
+        text = { Text("Gradle scripts can execute code with the app's privileges. " +
+            "PRoot is not a security sandbox. Only build source you own or trust. " +
+            "The build is offline and may use significant battery, memory and storage.") },
+        confirmButton = {
+            Button(onClick = {
+                confirmBuild = false
+                try { phoneBuilder.build(requireNotNull(projectId)) }
+                catch (e: Exception) { status = e.message ?: "Could not start local build." }
+            }) { Text("Build trusted project") }
+        },
+        dismissButton = { TextButton(onClick = { confirmBuild = false }) { Text("Cancel") } }
+    )
     if (confirmShare) AlertDialog(
         onDismissRequest = { confirmShare = false },
         icon = { Icon(Icons.Default.FolderZip, null) },
