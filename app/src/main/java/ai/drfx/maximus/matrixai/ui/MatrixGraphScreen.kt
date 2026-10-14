@@ -743,7 +743,9 @@ fun MatrixGraphScreen(
                          else stringResource(R.string.brain_chat_intro),
                         color = muted, fontSize = 11.sp, maxLines = 2)
                 } else {
-                    brainMessages.takeLast(3).forEach { item ->
+                    // Keep the home-screen assistant compact; long chat history belongs
+                    // in the dedicated Chat screen. Show only the latest exchange.
+                    brainMessages.takeLast(2).forEach { item ->
                         Surface(color = if (item.role == "user")
                             graphTone(GraphAccent, light).copy(alpha = .10f)
                             else if (item.isError) MaterialTheme.colorScheme.errorContainer
@@ -764,20 +766,27 @@ fun MatrixGraphScreen(
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text(stringResource(R.string.brain_wait), fontSize = 10.sp, color = muted)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        mission, { mission = it },
-                        Modifier.weight(1f).semantics { contentDescription = "Assistant question" },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = {
-                            submitBrain(mission)
-                            keyboard?.hide()
-                            focusManager.clearFocus()
-                        }),
-                        placeholder = { Text(stringResource(R.string.brain_prompt), fontSize = 12.sp) },
-                        shape = RoundedCornerShape(25.dp)
-                    )
+                // Give the text field the full width in RTL and on compact phones.
+                // Icon buttons on a separate row prevent squeezed or overlapping input.
+                OutlinedTextField(
+                    mission, { mission = it.take(4000) },
+                    Modifier.fillMaxWidth(),
+                    minLines = 1,
+                    maxLines = 3,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = {
+                        submitBrain(mission)
+                        keyboard?.hide()
+                        focusManager.clearFocus()
+                    }),
+                    placeholder = { Text(stringResource(R.string.brain_prompt), fontSize = 12.sp) },
+                    shape = RoundedCornerShape(20.dp)
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = {
                         try {
                             voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
