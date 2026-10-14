@@ -36,6 +36,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val usageStore = ApiUsageStore(application)
     private val freeCatalog = SmartComboFreeCatalog(discovery, apiStore)
     private val freeExecutor = SmartComboFreeExecutor()
+    private val freeRouteHealth = ai.drfx.maximus.matrixai.llm.SmartComboRouteHealth()
     private val sharedProjectMemory = SharedProjectMemory(application)
     private var freeOffers: List<SmartComboFreeCatalog.Offer> = emptyList()
     private val dataClient = CompanyDataClient()
@@ -208,6 +209,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         _llmState.value = _llmState.value.copy(
             smartComboEnabled = enabled,
             smartComboOffers = if (enabled) freeOffers.size else 0,
+            smartComboRouteLabels = if (enabled) _llmState.value.smartComboRouteLabels else emptyList(),
+            smartComboCheckedAtEpochMs = if (enabled) _llmState.value.smartComboCheckedAtEpochMs else null,
             smartComboMessage = if (enabled) "Checking free model catalogues…" else "Free-only routing is off."
         )
         if (enabled) scheduleSmartComboRefresh()
@@ -221,8 +224,16 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val refreshed = freeCatalog.refresh()
                 if (!_llmState.value.smartComboEnabled) return@launch
                 freeOffers = refreshed
+                val checkedAt = System.currentTimeMillis()
+                // Human-readable non-secret catalog evidence; free price does not prove live account quota.
+                val routes = refreshed.take(8).map { offer ->
+                    offer.route.provider.displayName.take(25) + " · " +
+                        offer.route.modelId.take(55) + " · zero catalog price"
+                }
                 _llmState.value = _llmState.value.copy(
                     smartComboOffers = freeOffers.size,
+                    smartComboRouteLabels = routes,
+                    smartComboCheckedAtEpochMs = checkedAt,
                     smartComboMessage = if (freeOffers.isEmpty())
                         "No verified free text model with published context and pricing. Manual model mode remains available."
                     else "Ready: " + freeOffers.size + " verified zero-price text routes. Provider quota is not known."
@@ -232,6 +243,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 if (!_llmState.value.smartComboEnabled) return@launch
                 freeOffers = emptyList()
                 _llmState.value = _llmState.value.copy(smartComboOffers = 0,
+                    smartComboRouteLabels = emptyList(), smartComboCheckedAtEpochMs = null,
                     smartComboMessage = "Free catalogue unavailable. No automatic paid fallback.")
             } finally {
                 _llmState.value = _llmState.value.copy(smartComboRefreshing = false)
@@ -649,7 +661,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         estimatedInput = selectedContext.estimatedTokens,
                         reservedOutput = 2048,
                         requiredCapabilities = selectedAgent.requiredCapabilities,
-                        offers = freeOffers,
+                        offers = freeRouteHealth.decorate(freeOffers, System.currentTimeMillis()),
                         resolveCredential = { provider, endpoint -> apiStore.resolveCredential(provider, endpoint) },
                         agentId = selectedAgent.id
                     )
@@ -730,7 +742,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                 }
-                autoPrepared?.let { freeExecutor.completed(it, result.usage) }
+                autoPrepared?.let {
+                    freeExecutor.completed(it, result.usage)
+                    freeRouteHealth.succeeded(it.offer.route.id, System.currentTimeMillis())
+                }
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 if (result.transcript != null) {
                     val index = _chatMessages.value.indexOfLast { it.role == "user" && it.attachment?.mimeType?.startsWith("audio/") == true }
@@ -808,7 +823,15 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     "Model response completed"
                 )
             } catch (error: Throwable) {
-                autoPrepared?.let { freeExecutor.failed(it) }
+                autoPrepared?.let {
+                    freeExecutor.failed(it)
+                    if (error !is CancellationException) {
+                        val ledgerState = freeExecutor.requestState(it.requestId)
+                        if (ledgerState == SmartComboQuotaLedger.State.UNCERTAIN) {
+                            freeRouteHealth.failed(it.offer.route.id, System.currentTimeMillis())
+                        }
+                    }
+                }
                 if (error is CancellationException) {
                     if (requestGeneration == chatGeneration) _llmState.value = _llmState.value.copy(isGenerating = false, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                     throw error
