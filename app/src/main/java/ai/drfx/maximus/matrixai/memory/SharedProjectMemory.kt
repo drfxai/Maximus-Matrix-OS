@@ -69,15 +69,14 @@ internal class SharedProjectMemory(context: Context) {
         if (!settings.enabled()) return
         val project = settings.activeProject().takeIf { it.isNotBlank() } ?: return
         val snapshot = runCatching { checkpoints.latest(project) }.getOrNull()
-        if (snapshot == null || !snapshot.unchanged) {
-            local.remove(project)
-            return
-        }
-        local[project] = LocalSnapshot(
-            System.currentTimeMillis(),
-            "Revision ${snapshot.revision}. Goal: ${snapshot.objective.take(300)}. " +
-                "Next task: ${snapshot.nextTask.take(300)}. Actual workspace files require verification."
-        )
+            ?.takeIf { it.unchanged }
+        val checkpointText = if (snapshot == null) "" else
+            "Revision ${snapshot.revision}. Goal: ${snapshot.objective.take(240)}. " +
+            "Next task: ${snapshot.nextTask.take(220)}. Files require independent verification."
+        val recent = settings.recentProgress(project).take(950)
+        val combined = listOf(checkpointText, recent).filter { it.isNotBlank() }.joinToString("\n")
+        if (combined.isBlank()) local.remove(project) else
+            local[project] = LocalSnapshot(System.currentTimeMillis(), combined)
     }
 
     suspend fun refresh(query: String = "Project requirements, verified decisions, changes, unfinished tasks and next steps"): Int {
@@ -123,8 +122,11 @@ internal class SharedProjectMemory(context: Context) {
     suspend fun storeModelProgress(
         project: String, model: String, userTask: String, modelResponse: String
     ) {
-        if (!settings.autoShare() || project != settings.activeProject()) return
+        if (!settings.enabled() || project != settings.activeProject()) return
         if (project.isBlank() || !workspace.projects().any { it.id == project }) return
+        settings.rememberProgress(project, model, userTask, modelResponse)
+        warmLocalCheckpoint()
+        if (!settings.autoShare()) return
         val memo = """
             PROJECT PROGRESS from model ${model.take(80)}
             User task: ${userTask.take(440)}
