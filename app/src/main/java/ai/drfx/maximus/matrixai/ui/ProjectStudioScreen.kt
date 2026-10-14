@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.sp
 import ai.drfx.maximus.matrixai.R
 import androidx.compose.ui.res.stringResource
 import ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore
+import ai.drfx.maximus.matrixai.studio.ProjectTaskMode
+import ai.drfx.maximus.matrixai.studio.ProjectTaskModeStore
+import ai.drfx.maximus.matrixai.studio.ProjectTaskModePolicy
 import ai.drfx.maximus.matrixai.studio.ProjectContinuityStore
 import ai.drfx.maximus.matrixai.memory.SharedProjectMemory
 import ai.drfx.maximus.matrixai.studio.StudioProject
@@ -54,12 +57,14 @@ fun ProjectStudioScreen(
     val store = remember(context) { ProjectWorkspaceStore(context.applicationContext) }
     val continuity = remember(context) { ProjectContinuityStore(context.applicationContext, store) }
     val sharedMemory = remember(context) { SharedProjectMemory(context.applicationContext) }
+    val taskModes = remember(context) { ProjectTaskModeStore(context.applicationContext) }
     val scope = rememberCoroutineScope()
     var projects by remember { mutableStateOf(store.projects()) }
     var activeId by remember { mutableStateOf(projects.firstOrNull()?.id) }
     val active = projects.firstOrNull { it.id == activeId }
     var files by remember { mutableStateOf(emptyList<StudioFile>()) }
     var brief by remember(activeId) { mutableStateOf(active?.brief.orEmpty()) }
+    var projectTaskMode by remember(activeId) { mutableStateOf(taskModes.read(activeId)) }
     var nextTask by remember(activeId) { mutableStateOf("Review outstanding tasks, verify source files, and continue safely.") }
     var projectName by remember { mutableStateOf("") }
     var githubUrl by remember { mutableStateOf("") }
@@ -183,6 +188,30 @@ fun ProjectStudioScreen(
         item {
             StudioPanel {
                 Text(stringResource(R.string.studio_ai_brief), fontWeight = FontWeight.SemiBold, color = studioPurple)
+                Spacer(Modifier.height(8.dp))
+                Text("Workspace mode", style = MaterialTheme.typography.labelMedium)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    ProjectTaskMode.entries.forEach { mode ->
+                        FilterChip(
+                            selected = projectTaskMode == mode,
+                            enabled = activeId != null && !busy,
+                            onClick = {
+                                val id = activeId ?: return@FilterChip
+                                try {
+                                    taskModes.save(id, mode)
+                                    projectTaskMode = mode
+                                } catch (error: Exception) {
+                                    message = error.message ?: "Unable to save workspace mode."
+                                }
+                            },
+                            label = { Text(mode.displayName) }
+                        )
+                    }
+                }
+                Text("Modes change AI planning instructions only; no tools, files or builds run automatically.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(7.dp))
                 OutlinedTextField(
                     value = brief,
@@ -215,7 +244,7 @@ fun ProjectStudioScreen(
                             try {
                                 val plan = withContext(Dispatchers.IO) {
                                     store.saveBrief(id, brief)
-                                    store.aiPlanPrompt(id)
+                                    ProjectTaskModePolicy.enrichPlan(store.aiPlanPrompt(id), projectTaskMode)
                                 }
                                 refresh(id)
                                 val sent = onPlanWithAi(plan)
