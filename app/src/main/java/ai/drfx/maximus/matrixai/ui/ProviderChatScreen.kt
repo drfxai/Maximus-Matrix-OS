@@ -10,6 +10,11 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import ai.drfx.maximus.matrixai.voice.SpeechLanguage
+import ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore
+import ai.drfx.maximus.matrixai.voice.SpeechLanguagePolicy
+import androidx.compose.ui.res.stringResource
+import ai.drfx.maximus.matrixai.R
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -224,6 +229,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) startRecording() else attachmentError = "Microphone permission is required to record a voice message."
     }
+    val speechPreference = remember(context) { SpeechLanguagePreferenceStore(context) }
+    var selectedSpeechLanguage by remember { mutableStateOf(speechPreference.selected()) }
+    var voiceLanguageMenuOpen by remember { mutableStateOf(false) }
+    var voiceConversation by remember { mutableStateOf(false) }
     var voiceReplies by remember { mutableStateOf(false) }
     var speechReady by remember { mutableStateOf(false) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
@@ -247,13 +256,16 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(messages.lastOrNull()?.timestampMs, voiceReplies, speechReady, state.isGenerating) {
+    LaunchedEffect(messages.lastOrNull()?.timestampMs, voiceReplies, speechReady,
+        state.isGenerating, selectedSpeechLanguage) {
         val last = messages.lastOrNull()
         if (!state.isGenerating && voiceReplies && speechReady && last?.role == "assistant" && !last.isError) {
-            val language = if (last.content.any { it in '\u0600'..'\u06ff' }) Locale("fa", "IR") else Locale.ENGLISH
+            val language = SpeechLanguagePolicy.preferredTtsLanguage(
+                last.content, selectedSpeechLanguage
+            ).locale()
             val engine = tts
             if (engine == null || engine.isLanguageAvailable(language) < TextToSpeech.LANG_AVAILABLE) {
-                attachmentError = "The installed speech engine has no voice for this response language."
+                attachmentError = context.getString(R.string.speech_tts_missing, language.toLanguageTag())
                 return@LaunchedEffect
             }
             engine.language = language
@@ -287,10 +299,14 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         if (result.resultCode == Activity.RESULT_OK) {
             val transcript = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!transcript.isNullOrBlank()) {
-                if (sendable) send(transcript, fromVoice = true)
-                else prompt = transcript
+                if (voiceConversation && sendable && !state.isGenerating) {
+                    send(transcript, fromVoice = true)
+                } else {
+                    prompt = transcript
+                    attachmentError = context.getString(R.string.speech_transcript_review)
+                }
             }
-            else attachmentError = "No speech was recognized."
+            else attachmentError = context.getString(R.string.speech_no_result)
         }
     }
 
@@ -413,7 +429,13 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { tts?.stop(); voicePlayback.stop(); elevenJob?.cancel(); elevenPlayback.stop() }) { Icon(Icons.Default.Stop, "Stop audio") }
                 IconButton(
-                    onClick = { voiceReplies = !voiceReplies; if (!voiceReplies) tts?.stop() },
+                    onClick = {
+                        voiceReplies = !voiceReplies
+                        if (!voiceReplies) {
+                            voiceConversation = false
+                            tts?.stop()
+                        }
+                    },
                     modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
@@ -606,11 +628,15 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                     }
                                 }
                             } else if (speechReady) {
-                                val language = if (message.content.any { it in '\u0600'..'\u06ff' }) Locale("fa", "IR") else Locale.ENGLISH
+                                val language = SpeechLanguagePolicy.preferredTtsLanguage(
+                                    message.content, selectedSpeechLanguage
+                                ).locale()
                                 if ((tts?.isLanguageAvailable(language) ?: TextToSpeech.LANG_NOT_SUPPORTED) >= TextToSpeech.LANG_AVAILABLE) {
                                     tts?.language = language
                                     tts?.speak(message.content, TextToSpeech.QUEUE_FLUSH, null, "replay-" + message.timestampMs)
-                                } else attachmentError = "No installed speech voice supports this response language."
+                                } else attachmentError = context.getString(
+                                    R.string.speech_tts_missing, language.toLanguageTag()
+                                )
                             }
                         }, onPlayVoice = {
                             message.attachment?.let { voice ->
@@ -755,10 +781,12 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     IconButton(onClick = {
                         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
-                            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your message")
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, selectedSpeechLanguage.tag)
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, selectedSpeechLanguage.tag)
+                            .putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.speech_prompt))
+                            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
                         try { voiceInput.launch(intent) }
-                        catch (e: Exception) { attachmentError = "Speech recognition is unavailable on this device." }
+                        catch (e: Exception) { attachmentError = context.getString(R.string.speech_recognizer_unavailable) }
                     }, enabled = !recording, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Default.KeyboardVoice, "Dictate text message", modifier = Modifier.size(18.dp))
                     }
