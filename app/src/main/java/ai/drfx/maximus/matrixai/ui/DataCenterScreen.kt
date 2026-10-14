@@ -1,5 +1,9 @@
 package ai.drfx.maximus.matrixai.ui
 
+import androidx.compose.ui.res.stringResource
+
+import ai.drfx.maximus.matrixai.R
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,7 +33,7 @@ fun DataCenterScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("Knowledge Data Center", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.data_title), style = MaterialTheme.typography.headlineSmall)
             Text(
                 "Gateway for the company database, Pine library, documents, projects and reusable primitives.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -44,7 +48,7 @@ fun DataCenterScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("Company Data API", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.data_company_title), fontWeight = FontWeight.SemiBold)
                     Text(
                         "Connect the real company backend. The app does not fabricate Pine-library or database counts.",
                         color = MaterialTheme.colorScheme.tertiary,
@@ -55,14 +59,14 @@ fun DataCenterScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         value = baseUrl,
                         onValueChange = { baseUrl = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Data API base URL") },
+                        label = { Text(stringResource(R.string.data_url)) },
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = token,
                         onValueChange = { token = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Access token (optional if local/public)") },
+                        label = { Text(stringResource(R.string.data_token)) },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true
                     )
@@ -75,7 +79,7 @@ fun DataCenterScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         }
                         if (state.status.connected) {
                             OutlinedButton(onClick = viewModel::disconnectDataCenter) {
-                                Text("Disconnect")
+                                Text(stringResource(R.string.data_disconnect))
                             }
                         }
                     }
@@ -111,7 +115,7 @@ fun DataCenterScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         value = query,
                         onValueChange = { query = it },
                         modifier = Modifier.weight(1f),
-                        label = { Text("Search company knowledge") },
+                        label = { Text(stringResource(R.string.data_search)) },
                         singleLine = true
                     )
                     Spacer(Modifier.width(8.dp))
