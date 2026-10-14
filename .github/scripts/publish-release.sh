@@ -11,10 +11,15 @@ restore_previous() {
   }
 }
 trap restore_previous ERR
-gh release upload "$RELEASE_TAG" "dist/$ARM64_APK" "dist/$UNIVERSAL_APK" dist/SHA256SUMS --clobber
+test -s dist/MAXIMUS-MATRIX-OS-PRoot-Source-V1.0.0.tar.gz
+(cd dist && sha256sum --check NATIVE-SOURCE-SHA256SUMS)
+gh release upload "$RELEASE_TAG" "dist/$ARM64_APK" "dist/$UNIVERSAL_APK" dist/SHA256SUMS \
+  dist/MAXIMUS-MATRIX-OS-PRoot-Source-V1.0.0.tar.gz dist/NATIVE-SOURCE-SHA256SUMS --clobber
 mkdir -p published
-gh release download "$RELEASE_TAG" --pattern "$ARM64_APK" --pattern "$UNIVERSAL_APK" --pattern SHA256SUMS --dir published
-(cd published && sha256sum --check SHA256SUMS)
+gh release download "$RELEASE_TAG" --pattern "$ARM64_APK" --pattern "$UNIVERSAL_APK" \
+  --pattern SHA256SUMS --pattern MAXIMUS-MATRIX-OS-PRoot-Source-V1.0.0.tar.gz \
+  --pattern NATIVE-SOURCE-SHA256SUMS --dir published
+(cd published && sha256sum --check SHA256SUMS && sha256sum --check NATIVE-SOURCE-SHA256SUMS)
 cmp "dist/$ARM64_APK" "published/$ARM64_APK"
 cmp "dist/$UNIVERSAL_APK" "published/$UNIVERSAL_APK"
 gh release view "$RELEASE_TAG" --json isDraft,isPrerelease > published/release.json
@@ -39,6 +44,8 @@ cat > dist/release-notes.md <<NOTES
 - News Intelligence includes manual and in-screen automatic refresh, an optional authorized calendar feed, daily and weekly views, and advance high-impact event reminders.
 - Image attachments on authenticated 9Router routes may be attempted when vision support is unknown; explicitly text-only routes are rejected. Provider vision support remains unverified until tested.
 - Project Studio supports locally persisted Android starter projects, safe ZIP and public GitHub import, source editing, explicit ZIP export and user-triggered AI project planning.
+- Optional native ARM64 Android 9+ Debug APK builds may run on the phone after the user installs both pinned SHA256-verified Ubuntu/Android toolchain bundles, passes real Java/Gradle/AAPT2 probes, and explicitly approves execution of trusted project source. PRoot is not a security sandbox. Physical-device compatibility is unverified unless a real phone successfully builds a project.
+- Complete corresponding third-party GPL/LGPL/BSD source for bundled PRoot native binaries is included as a separate release asset.
 - Project Studio never silently executes imported code. An opt-in remote Debug APK build requires a separate authenticated, rootless Docker worker, explicit project-source approval and artifact SHA-256 verification; production signing keys are never sent to the worker.
 - Mobile Harness Phone Server is user-started and binds only to 127.0.0.1, exposes authenticated read-only workspace APIs and allows bounded source ZIP export for only a separately approved project. Its redesigned dashboard displays the phone runtime/ABI/RAM/storage state; on-device Ubuntu/PRoot terminal execution and on-phone Gradle builds are NOT bundled or verified.
 - Added selectable English, Russian, Turkish, Arabic and Persian interface languages, persisted on-device. Navigation, settings and Project Studio are localized; Arabic/Persian use RTL. Some legacy screens still use English labels.

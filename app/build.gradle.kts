@@ -65,6 +65,12 @@ android {
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
         jniLibs.useLegacyPackaging = true
+        // These upstream .so carriers contain actual ARM64 executables/loader.
+        // Keep their verified bytes intact; AGP must not strip or relink them.
+        jniLibs.keepDebugSymbols += setOf(
+            "**/libproot.so", "**/libprootloader.so",
+            "**/libtalloc.so", "**/libandroid-shmem.so"
+        )
     }
 }
 

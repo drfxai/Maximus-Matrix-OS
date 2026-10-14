@@ -63,6 +63,8 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                 val proof = execute(
                     workspace = probeWorkspace,
                     command = "command -v gradle >/dev/null && command -v java >/dev/null && " +
+                        "test -f /root/.gradle/init.d/maximus-android.gradle && " +
+                        "test -d /root/maven/localMvnRepository && " +
                         "test -f /root/android-sdk/platforms/android-36/android.jar && " +
                         "test -x /root/android-sdk/build-tools/35.0.0/aapt2 && " +
                         "gradle --version && /root/android-sdk/build-tools/35.0.0/aapt2 version",
@@ -239,7 +241,12 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
         val env = pb.environment()
         env.clear()
         env["HOME"] = "/root"
-        env["PATH"] = "/opt/gradle/gradle-8.14.3/bin:/root/android-sdk/build-tools/35.0.0:" +
+        env["JAVA_HOME"] = "/opt/jdk-17.0.20.1+1"
+        env["GRADLE_HOME"] = "/opt/gradle/gradle-8.14.3"
+        env["ORG_GRADLE_PROJECT_android.aapt2FromMavenOverride"] =
+            "/root/android-sdk/build-tools/35.0.0/aapt2"
+        env["PATH"] = "/opt/jdk-17.0.20.1+1/bin:/opt/gradle/gradle-8.14.3/bin:" +
+            "/root/android-sdk/build-tools/35.0.0:" +
             "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
         env["ANDROID_HOME"] = "/root/android-sdk"
         env["ANDROID_SDK_ROOT"] = "/root/android-sdk"

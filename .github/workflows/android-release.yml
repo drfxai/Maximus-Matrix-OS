@@ -41,12 +41,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.3.1"
+      - name: Verify and package pinned native PRoot files
+        run: python3 .github/scripts/prepare-phone-native.py
+      - name: Test ARM64 runtime provenance checks
+        run: python3 -m unittest discover -s .github/scripts/tests -p "test_*.py" -v
       - run: python3 .github/scripts/test-release-identity.py
       - run: python3 .github/scripts/test-release-publication.py
       - name: Test remote Worker discovery gateway
         run: python3 -m unittest discover -s remote-worker/tests -t remote-worker -v
       - run: bash -n .github/scripts/*.sh
       - run: gradle testDebugUnitTest lintRelease assembleDebug --no-daemon --stacktrace
+      - name: Verify packaged PRoot ELF bytes
+        run: python3 .github/scripts/verify-phone-native-packaging.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -77,6 +83,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.3.1"
+      - name: Verify and package pinned native PRoot files
+        run: python3 .github/scripts/prepare-phone-native.py
       - name: Precompile application and all instrumentation tests before emulator boot
         run: gradle assembleDebug assembleDebugAndroidTest --no-daemon --stacktrace
       - name: Enable KVM
@@ -145,6 +153,9 @@ jobs:
         with:
           gradle-version: "9.3.1"
 
+      - name: Verify and package pinned native PRoot files
+        run: python3 .github/scripts/prepare-phone-native.py
+
       - name: Prepare release signing
         id: signing
         shell: bash
@@ -208,6 +219,26 @@ jobs:
             grep -q "versionName='1.0.0'" "dist/$(basename "$apk").badging.txt"
           done
           (cd dist && sha256sum "$ARM64_APK" "$UNIVERSAL_APK" > SHA256SUMS)
+
+      - name: Include complete matching PRoot LGPL/GPL/BSD source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$(mktemp -d)"
+          trap 'rm -rf "$source_dir"' EXIT
+          git clone --recurse-submodules https://github.com/techjarves/Mobile-Harness.git "$source_dir/mobile-harness"
+          git -C "$source_dir/mobile-harness" checkout 96b1da08d03af4f2d63970a3794c7fda068948c4
+          git -C "$source_dir/mobile-harness" submodule update --init --recursive
+          test "$(git -C "$source_dir/mobile-harness" rev-parse HEAD)" = 96b1da08d03af4f2d63970a3794c7fda068948c4
+          test -f "$source_dir/mobile-harness/third_party/proot/src/cli/proot.c"
+          test -f "$source_dir/mobile-harness/third_party/libandroid-shmem/shmem.c"
+          test -f "$source_dir/mobile-harness/third_party/talloc/talloc.c"
+          tar -czf dist/MAXIMUS-MATRIX-OS-PRoot-Source-V1.0.0.tar.gz \
+            --exclude-vcs -C "$source_dir/mobile-harness" \
+            app/src/main/cpp app/src/main/assets/licenses \
+            third_party/proot third_party/libandroid-shmem third_party/talloc \
+            app/build.gradle.kts .gitmodules
+          (cd dist && sha256sum MAXIMUS-MATRIX-OS-PRoot-Source-V1.0.0.tar.gz > NATIVE-SOURCE-SHA256SUMS)
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
