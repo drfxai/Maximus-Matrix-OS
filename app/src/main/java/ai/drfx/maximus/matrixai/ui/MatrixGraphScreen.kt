@@ -8,6 +8,7 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.Paint
 import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import ai.drfx.maximus.matrixai.llm.ConnectionStatus
@@ -55,6 +57,7 @@ import ai.drfx.maximus.matrixai.agent.BrainRequestRouter
 import ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore
 import ai.drfx.maximus.matrixai.voice.SpeechLanguage
 import ai.drfx.maximus.matrixai.voice.SpeechTranscriptGuard
+import ai.drfx.maximus.matrixai.voice.SpeechLanguagePolicy
 import kotlinx.coroutines.isActive
 import java.util.Locale
 import kotlin.math.*
@@ -216,8 +219,20 @@ fun MatrixGraphScreen(
     var linkOpacity by remember { mutableFloatStateOf(.28f) }
     var mission by remember { mutableStateOf("") }
     var voiceError by remember { mutableStateOf<String?>(null) }
-    val speechLanguage = remember(appContext) { SpeechLanguagePreferenceStore(appContext).selected() }
+    var brainSpokenReplies by remember { mutableStateOf(false) }
+    var brainVoiceSetupNeeded by remember { mutableStateOf(false) }
+    var brainTtsReady by remember { mutableStateOf(false) }
+    var spokenReplyTimestamp by remember { mutableLongStateOf(-1L) }
+    var brainTts by remember { mutableStateOf<TextToSpeech?>(null) }
+    val speechLanguage = SpeechLanguagePreferenceStore(appContext).selected()
     var recordingSpeechLanguage by remember { mutableStateOf(speechLanguage) }
+    DisposableEffect(appContext) {
+        val engine = TextToSpeech(appContext) { result ->
+            brainTtsReady = result == TextToSpeech.SUCCESS
+        }
+        brainTts = engine
+        onDispose { engine.stop(); engine.shutdown(); brainTts = null }
+    }
     fun submitBrain(raw: String) {
         if (raw.isBlank() || llm.isGenerating) return
         when (val req = BrainRequestRouter.route(raw)) {
@@ -244,6 +259,31 @@ fun MatrixGraphScreen(
             } else voiceError = appContext.getString(R.string.brain_voice_empty)
         }
     }
+    LaunchedEffect(brainSpokenReplies, brainTtsReady, llm.isGenerating,
+        brainMessages.lastOrNull()?.timestampMs, speechLanguage) {
+        val reply = brainMessages.lastOrNull()
+        if (!brainSpokenReplies || !brainTtsReady || llm.isGenerating ||
+            reply == null || reply.role != "assistant" || reply.isError ||
+            reply.content.isBlank() || reply.timestampMs == spokenReplyTimestamp) return@LaunchedEffect
+
+        val language = SpeechLanguagePolicy.preferredTtsLanguage(
+            reply.content, speechLanguage
+        ).locale()
+        val engine = brainTts ?: return@LaunchedEffect
+        if (engine.isLanguageAvailable(language) < TextToSpeech.LANG_AVAILABLE ||
+            engine.setLanguage(language) < TextToSpeech.LANG_AVAILABLE) {
+            brainVoiceSetupNeeded = true
+            voiceError = appContext.getString(R.string.speech_tts_missing, language.toLanguageTag())
+            return@LaunchedEffect
+        }
+        brainVoiceSetupNeeded = false
+        if (engine.speak(reply.content, TextToSpeech.QUEUE_FLUSH, null,
+                "brain-reply-" + reply.timestampMs) == TextToSpeech.SUCCESS) {
+            spokenReplyTimestamp = reply.timestampMs
+        } else {
+            voiceError = appContext.getString(R.string.brain_voice_playback_failed)
+        }
+    }
     fun reset() {
         rotation = GraphRotation.defaultBrainView()
         zoom = 1f
@@ -252,6 +292,13 @@ fun MatrixGraphScreen(
         lastTouch = SystemClock.uptimeMillis()
     }
     val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner, brainTts) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) brainTts?.stop()
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(owner, autoRotate, motionEnabled, keyboardVisible) {
         // Pause the costly orbit when users reduce motion or start entering text.
         if (!motionEnabled || keyboardVisible) return@LaunchedEffect
@@ -814,6 +861,24 @@ fun MatrixGraphScreen(
                         Icon(Icons.Default.Mic, stringResource(R.string.brain_speak),
                             tint = graphTone(GraphPurple, light))
                     }
+                    IconButton(onClick = {
+                        if (brainSpokenReplies) {
+                            brainTts?.stop()
+                            brainVoiceSetupNeeded = false
+                        } else {
+                            // Enable for FUTURE answers only, never replay an old answer.
+                            spokenReplyTimestamp = brainMessages.lastOrNull()?.timestampMs ?: -1L
+                        }
+                        brainSpokenReplies = !brainSpokenReplies
+                    }) {
+                        Icon(
+                            if (brainSpokenReplies) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                            stringResource(if (brainSpokenReplies)
+                                R.string.brain_disable_spoken_replies
+                            else R.string.brain_enable_spoken_replies),
+                            tint = graphTone(GraphPurple, light)
+                        )
+                    }
                     IconButton(onClick = { submitBrain(mission) },
                         enabled = mission.isNotBlank() && !llm.isGenerating &&
                             status != "EXECUTING" && status != "PLANNING") {
@@ -822,6 +887,15 @@ fun MatrixGraphScreen(
                     }
                 }
                 voiceError?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
+                if (brainVoiceSetupNeeded) {
+                    TextButton(onClick = {
+                        runCatching {
+                            appContext.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA))
+                        }.onFailure {
+                            voiceError = appContext.getString(R.string.speech_tts_setup_unavailable)
+                        }
+                    }) { Text(stringResource(R.string.speech_install_tts)) }
+                }
                 Text(stringResource(R.string.brain_action_approval),
                     color = muted, fontSize = 9.sp, maxLines = 2)
 
