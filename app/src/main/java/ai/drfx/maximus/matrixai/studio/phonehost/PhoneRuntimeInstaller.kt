@@ -33,18 +33,7 @@ internal data class PhoneToolchainProgress(
 
 /** Pinned artifacts, no arbitrary URL, no scripts or imported project execution. */
 internal class PhoneRuntimeInstaller(context: Context) {
-    private data class Bundle(
-        val title: String, val name: String, val size: Long,
-        val hash: String, val expandedLimit: Long
-    )
-    private val bundles = listOf(
-        Bundle("Linux base", "pocketdev-core-arm64-2026.09.5.tar.zst",
-            72_185_773L, "df0cf7251c74f82d424231e3804114a4ca66b16130eea9abab11e220dc7ac012",
-            600_000_000L),
-        Bundle("Android SDK/Gradle", "pocketdev-android-arm64-2026.09.1.tar.zst",
-            569_652_007L, "01bea058ebcb17416d1eb08c0211b3782da3228eb3719f2d61dd3ec6",
-            1_400_000_000L)
-    )
+    private val bundles = PhoneRuntimeBundlePins.ALL
     private val app = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val stopped = AtomicBoolean(false)
@@ -206,8 +195,8 @@ internal class PhoneRuntimeInstaller(context: Context) {
             partial.delete()
         }
         var offset = partial.length()
-        var url = URL("https://github.com/techjarves/Mobile-Harness/releases/download/" +
-            "runtime-2026.09.4/" + bundle.name)
+        var url = URL("https://github.com/" + PhoneRuntimeBundlePins.OWNER_REPO +
+            "/releases/download/" + PhoneRuntimeBundlePins.RELEASE + "/" + bundle.name)
         var redirects = 0
         while (true) {
             check(!stopped.get()) { "Cancelled." }
