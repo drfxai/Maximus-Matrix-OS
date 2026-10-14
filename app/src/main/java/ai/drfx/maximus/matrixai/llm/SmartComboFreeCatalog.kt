@@ -77,7 +77,7 @@ internal class SmartComboFreeCatalog(
                 if (!model.verified || ModelCapability.CHAT !in model.capabilities) continue
                 chat++
                 val price = model.catalogFreeTextPrice
-                if (price?.verified != true || !price.isFree) continue
+                if (price == null || !price.verified || !price.isFree) continue
                 free++
                 val context = model.catalogContextTokens
                 if (context == null) {
