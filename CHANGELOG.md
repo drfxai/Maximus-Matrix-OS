@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.0 (build 10011)
+
+- Added ElevenLabs Voice Studio in Control Hub: enter a user-owned API key encrypted with Android Keystore, verify subscription, inspect reported allowance, load and select account voices, and select multilingual or low-latency speech models.
+- Assistant-message Speak actions can explicitly use ElevenLabs text-to-speech with temporary MP3 playback and cleanup. Auto-spoken responses remain local Android TTS to prevent unapproved remote voice charges.
+- Before each speech request, recheck ElevenLabs account limits and prevent requests that exceed reported remaining allowance. No shared provider credential is stored in the APK; synthesis needs explicit user interaction.
+- No ElevenLabs voice cloning, arbitrary-model billing, paid auto fallback or streaming conversation claim. Character/credit usage is provider reported, separate from model tokens. API permissions and model-specific billing may differ.
+- Added tests for safe IDs/model allow lists, credential encryption/revocation, API input limits and quota states. Existing features remain unchanged.
+- Public versionName remains 1.0.0. Internal versionCode increases to 10011 for signed in-place updates.
+
 ## v1.0.0 (build 10010)
 
 - Added a floating animated jump-to-latest message control, visible when the reader scrolls away from newest chat messages; automatic following pauses during history browsing.

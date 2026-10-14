@@ -63,7 +63,7 @@ jobs:
       matrix:
         include:
           - suite: credentials-and-history
-            test_classes: ai.drfx.maximus.matrixai.ProviderCredentialIsolationTest,ai.drfx.maximus.matrixai.database.ChatPersistenceTest,ai.drfx.maximus.matrixai.studio.StudioWorkspaceTest,ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceTest,ai.drfx.maximus.matrixai.studio.remote.RemoteWorkerProfileStoreTest,ai.drfx.maximus.matrixai.studio.ProjectContinuityStoreTest,ai.drfx.maximus.matrixai.vision.ImageInputPipelineTest
+            test_classes: ai.drfx.maximus.matrixai.ProviderCredentialIsolationTest,ai.drfx.maximus.matrixai.database.ChatPersistenceTest,ai.drfx.maximus.matrixai.studio.StudioWorkspaceTest,ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceTest,ai.drfx.maximus.matrixai.studio.remote.RemoteWorkerProfileStoreTest,ai.drfx.maximus.matrixai.studio.ProjectContinuityStoreTest,ai.drfx.maximus.matrixai.vision.ImageInputPipelineTest,ai.drfx.maximus.matrixai.voice.ElevenVoiceSettingsTest
           - suite: keyboard
             test_classes: ai.drfx.maximus.matrixai.ui.KeyboardLayoutTest
     env:
