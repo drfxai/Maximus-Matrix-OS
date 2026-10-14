@@ -376,4 +376,18 @@
     <string name="dev_confirm_branch">Create this branch?</string>
     <string name="dev_commit_done">Commit created:</string>
     <string name="dev_branch_done">Feature branch created.</string>
+    <string name="brain_node_mission">Mission Control</string>
+    <string name="brain_node_genome">Trading Genome</string>
+    <string name="brain_node_pine">Pine Library</string>
+    <string name="brain_node_quant">Quant Lab</string>
+    <string name="brain_node_validation">Validation Lab</string>
+    <string name="brain_node_research">Research Engine</string>
+    <string name="brain_node_gateway">AI Gateway</string>
+    <string name="brain_node_finops">FinOps &amp; Control</string>
+    <string name="brain_node_alerts">Market Alerts</string>
+    <string name="brain_node_vision">AI Chart Vision</string>
+    <string name="brain_graph_count">%1$d modules · %2$d links</string>
+    <string name="brain_graph_inspector">Matrix inspector</string>
+    <string name="brain_graph_filters">Node filters</string>
+    <string name="brain_graph_explore_help">Tap a module to inspect real state and open its screen. Drag the graph or pinch to zoom.</string>
 </resources>
