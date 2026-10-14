@@ -4,7 +4,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SmartComboFreeExecutorTest {
-    private fun offer(id: String, cost: Double = 0.0) = SmartComboFreeCatalog.Offer(
+    private fun offer(id: String, cost: Double = 0.0, endpoint: String = "https://openrouter.ai/api/v1") = SmartComboFreeCatalog.Offer(
         route = SmartComboPlanner.Route(
             id = "OPENAI_COMPATIBLE::$id",
             provider = LlmProvider.OPENAI_COMPATIBLE, modelId = id,
@@ -14,7 +14,7 @@ class SmartComboFreeExecutorTest {
             price = SmartComboPlanner.Price(cost, cost, verified = true),
             p95TimeToFirstTokenMs = null, quality = 75
         ),
-        endpoint = "https://openrouter.ai/api/v1",
+        endpoint = endpoint,
         quotaScope = "account-one"
     )
 
@@ -38,6 +38,30 @@ class SmartComboFreeExecutorTest {
         assertNull(executor.prepare("missing", 300, 1000, setOf(ModelCapability.CHAT),
             listOf(offer("free")), { _, _ -> "" }, "general"))
         assertNull(prepare(executor, "no-free", listOf(offer("paid", 0.10))))
+    }
+
+    @Test fun skipsMissingCredentialBeforeReservationAndSelectsAnotherVerifiedFreeRoute() {
+        val executor = SmartComboFreeExecutor()
+        val selected = executor.prepare(
+            "usable", 300, 1000, setOf(ModelCapability.CHAT),
+            listOf(
+                offer("unconfigured", endpoint = "https://missing.example/v1"),
+                offer("available", endpoint = "https://working.example/v1")
+            ),
+            resolveCredential = { _, endpoint ->
+                if (endpoint == "https://working.example/v1") "owned-user-key" else ""
+            },
+            agentId = "general"
+        )
+        assertEquals("available", selected?.config?.selectedModel)
+        assertTrue(executor.dispatched(requireNotNull(selected)))
+    }
+
+    @Test fun unavailableAllCredentialsLeavesRequestIdReusable() {
+        val executor = SmartComboFreeExecutor()
+        assertNull(executor.prepare("one", 300, 1000, setOf(ModelCapability.CHAT),
+            listOf(offer("no-key")), { _, _ -> "" }, "general"))
+        assertNotNull(prepare(executor, "one", listOf(offer("with-key"))))
     }
 
     @Test fun failureBeforeDispatchAllowsNewRequestWithoutLeakingLocalQuota() {
