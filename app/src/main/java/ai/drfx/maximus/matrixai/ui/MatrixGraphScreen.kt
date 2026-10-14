@@ -51,6 +51,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import ai.drfx.maximus.matrixai.llm.ConnectionStatus
+import ai.drfx.maximus.matrixai.agent.BrainRequestRouter
+import ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore
 import kotlinx.coroutines.isActive
 import java.util.Locale
 import kotlin.math.*
@@ -155,6 +157,7 @@ fun MatrixGraphScreen(
     val events by viewModel.events.collectAsState()
     val status by viewModel.status.collectAsState()
     val llm by viewModel.llmState.collectAsState()
+    val brainMessages by viewModel.chatMessages.collectAsState()
     val dataCenter by viewModel.dataCenter.collectAsState()
     val recentAlerts by viewModel.notificationService.recentAlerts.collectAsState()
     val watchlist by viewModel.notificationService.activeWatchlist.collectAsState()
@@ -190,13 +193,25 @@ fun MatrixGraphScreen(
     var spread by remember { mutableFloatStateOf(1f) }
     var linkOpacity by remember { mutableFloatStateOf(.28f) }
     var mission by remember { mutableStateOf("") }
-    var pendingVoice by remember { mutableStateOf<String?>(null) }
     var voiceError by remember { mutableStateOf<String?>(null) }
+    val speechTag = SpeechLanguagePreferenceStore(appContext).selected().tag
+    fun submitBrain(raw: String) {
+        if (raw.isBlank() || llm.isGenerating) return
+        when (val req = BrainRequestRouter.route(raw)) {
+            is BrainRequestRouter.Request.DeviceAction -> {
+                viewModel.runMission(req.canonicalObjective)
+                mission = ""
+            }
+            is BrainRequestRouter.Request.Conversation -> {
+                if (viewModel.sendChat(req.text)) mission = ""
+            }
+        }
+    }
     val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val words = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-            if (!words.isNullOrBlank()) { mission = words; pendingVoice = words; voiceError = null }
-            else voiceError = "No command was recognized. Please try again."
+            if (!words.isNullOrBlank()) { mission = words; voiceError = null }
+            else voiceError = appContext.getString(R.string.brain_voice_empty)
         }
     }
     fun reset() {
@@ -222,11 +237,7 @@ fun MatrixGraphScreen(
             }
         }
     }
-    if (pendingVoice != null) AlertDialog(onDismissRequest = { pendingVoice = null },
-        title = { Text(stringResource(R.string.graph_voice_command)) }, text = { Text(pendingVoice.orEmpty()) },
-        confirmButton = { TextButton(onClick = { pendingVoice?.let(viewModel::runMission); mission = ""; pendingVoice = null },
-            enabled = status != "EXECUTING" && status != "PLANNING") { Text(stringResource(R.string.graph_execute)) } },
-        dismissButton = { TextButton(onClick = { pendingVoice = null }) { Text(stringResource(R.string.graph_edit_cancel)) } })
+    // Dictation fills editable text; it never automatically sends or executes a command.
 
     fun getActionForNode(node: LiveNode): Pair<String, () -> Unit>? {
         return when {
@@ -415,7 +426,7 @@ fun MatrixGraphScreen(
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
-                            "CEREBRAL CORTEX",
+                            stringResource(R.string.brain_cortex),
                             color = graphTone(GraphAccent, light),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
@@ -424,24 +435,22 @@ fun MatrixGraphScreen(
                         )
                     }
                 }
-                Text("DUAL-HEMISPHERE 3D GRAPH · 48.2 Hz BIO-PULSE", color = muted, fontSize = 8.5.sp, letterSpacing = .6.sp)
+                Text(stringResource(R.string.brain_subtitle), color = muted, fontSize = 8.5.sp, letterSpacing = .6.sp)
             }
             Box(Modifier.size(7.dp).background(if (status == "READY") GraphAccent else GraphGold, CircleShape))
-            Text(status, Modifier.padding(start = 6.dp), color = graphTone(GraphAccent, light), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(if (status == "READY") stringResource(R.string.brain_status_ready) else status, Modifier.padding(start = 6.dp), color = graphTone(GraphAccent, light), fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
 
         // Horizontal Anatomical Lobe Filter Chips
-        val lobeFilters = remember {
-            listOf(
-                "ALL" to "All Lobes",
-                "FRONTAL LOBE" to "🧠 Frontal",
-                "PARIETAL LOBE" to "⚡ Parietal",
-                "OCCIPITAL LOBE" to "👁️ Occipital",
-                "TEMPORAL LOBE" to "🌐 Temporal",
-                "LIMBIC SYSTEM" to "🧬 Limbic",
-                "CEREBELLAR" to "⚙️ Cerebellar"
-            )
-        }
+        val lobeFilters = listOf(
+            "ALL" to stringResource(R.string.brain_lobes_all),
+            "FRONTAL LOBE" to stringResource(R.string.brain_lobe_frontal),
+            "PARIETAL LOBE" to stringResource(R.string.brain_lobe_parietal),
+            "OCCIPITAL LOBE" to stringResource(R.string.brain_lobe_occipital),
+            "TEMPORAL LOBE" to stringResource(R.string.brain_lobe_temporal),
+            "LIMBIC SYSTEM" to stringResource(R.string.brain_lobe_limbic),
+            "CEREBELLAR" to stringResource(R.string.brain_lobe_cerebellar)
+        )
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
@@ -595,9 +604,11 @@ fun MatrixGraphScreen(
                                 fontSize = 8.sp,
                                 letterSpacing = .6.sp
                             )
-                            Text("Drag X/Y · Twist Z · Pinch zoom", color = muted, fontSize = 10.sp)
+                            Text(stringResource(R.string.brain_graph_guide), color = muted, fontSize = 10.sp)
                             Text(
-                                if (selected != null) "NEURON LOCKED" else if (autoRotate) "AUTO BIO-ORBIT" else "MANUAL ORBIT",
+                                if (selected != null) stringResource(R.string.graph_inspector)
+                                else if (autoRotate) stringResource(R.string.brain_graph_auto)
+                                else stringResource(R.string.brain_graph_guide),
                                 color = graphTone(GraphAccent, light),
                                 fontSize = 8.sp,
                                 letterSpacing = 1.sp
@@ -681,7 +692,7 @@ fun MatrixGraphScreen(
                     }
                     Spacer(Modifier.height(20.dp))
                     IntelligenceRing(status, light, Modifier.fillMaxWidth().aspectRatio(1f))
-                    Text(if (llm.status == ConnectionStatus.CONNECTED) "MODEL CONNECTED" else "MODEL OFFLINE", Modifier.align(Alignment.CenterHorizontally),
+                    Text(if (llm.status == ConnectionStatus.CONNECTED) stringResource(R.string.brain_model_connected) else stringResource(R.string.brain_model_offline), Modifier.align(Alignment.CenterHorizontally),
                         color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
                 }
             }
@@ -944,7 +955,7 @@ private fun IntelligenceRing(status: String, light: Boolean, modifier: Modifier)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("M.A.X.", color = if (light) Color(0xFF40365F) else Color(0xFFD9CBF7), fontSize = 9.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
-            Text("48 Hz", color = graphTone(GraphAccent, light), fontSize = 7.5.sp, fontWeight = FontWeight.SemiBold)
+            Text("AI", color = graphTone(GraphAccent, light), fontSize = 7.5.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
