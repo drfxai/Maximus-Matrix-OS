@@ -257,4 +257,27 @@
     <string name="chat_baseurl">Base URL</string>
     <string name="chat_token_inspector">Token &amp; Context Inspector</string>
     <string name="chat_close_inspector">Close Inspector</string>
+    <string name="phone_harness_title">MOBILE HARNESS</string>
+    <string name="phone_harness_subtitle">YOUR PHONE · YOUR SERVER</string>
+    <string name="phone_workspace_desc">A private development workspace hosted on your Android device.</string>
+    <string name="phone_start_server">Start server</string>
+    <string name="phone_stop_server">Stop</string>
+    <string name="phone_private">Private access</string>
+    <string name="phone_one_time">One-time session key · never saved</string>
+    <string name="phone_no_share">Starting the server does not share any source files. Approve one project separately.</string>
+    <string name="phone_copy_token">Copy temporary local token</string>
+    <string name="phone_shared_project">Approved project</string>
+    <string name="phone_approve">Approve</string>
+    <string name="phone_revoke">Revoke</string>
+    <string name="phone_offline_desc">Start the server to enable local pairing or per-project export.</string>
+    <string name="phone_readiness">Runtime readiness</string>
+    <string name="phone_scan">Scan</string>
+    <string name="phone_build_confirm">Build this trusted project locally?</string>
+    <string name="phone_approve_build">Approve local build</string>
+    <string name="phone_share_confirm">Share selected project locally?</string>
+    <string name="phone_share_approve">Approve one project</string>
+    <string name="phone_stop_confirm">Stop private phone server?</string>
+    <string name="phone_stop_revoke">Stop and revoke</string>
+    <string name="phone_keep_running">Keep running</string>
+    <string name="phone_runtime_note">Linux runtime files are not proof of successful execution. Verify tools on the actual phone.</string>
 </resources>
