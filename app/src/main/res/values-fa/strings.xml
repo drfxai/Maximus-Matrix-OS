@@ -390,4 +390,13 @@
     <string name="brain_graph_inspector">بازرس ماتریکس</string>
     <string name="brain_graph_filters">فیلتر گره‌ها</string>
     <string name="brain_graph_explore_help">برای بررسی وضعیت واقعی و ورود به بخش موردنظر، روی گره بزنید. برای چرخش بکشید یا بزرگ‌نمایی کنید.</string>
+    <string name="speech_follow_app_language">پیروی از زبان برنامه (پیشنهادی)</string>
+    <string name="speech_follow_app_short">زبان برنامه</string>
+    <string name="speech_wrong_script_review">موتور تشخیص گفتار اندروید متنی با نویسه‌های متفاوت از زبان %1$s برگرداند؛ ممکن است زبان انتخابی را رعایت نکرده باشد. زبان گفتار نصب‌شده را بررسی کنید و متن را پیش از ارسال اصلاح کنید. پیامی به‌صورت خودکار فرستاده نشده است.</string>
+    <string name="speech_microphone_permission_required">برای ضبط پیام صوتی باید اجازه دسترسی به میکروفون داده شود.</string>
+    <string name="speech_attachment_read_error">خواندن فایل پیوست ممکن نشد.</string>
+    <string name="speech_conversation_default">گفتگو</string>
+    <string name="speech_recording_status">در حال ضبط پیام صوتی · %1$d ثانیه از ۶۰ ثانیه</string>
+    <string name="speech_recorded_audio_requires_model">فایل صوتی خام نیازمند Gemini یا OpenAI است. برای این ارائه‌دهنده از گفتار به متن استفاده کنید.</string>
+    <string name="speech_clear_conversation">پاک‌کردن گفتگو</string>
 </resources>
