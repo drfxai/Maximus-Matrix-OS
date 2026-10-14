@@ -18,6 +18,9 @@ import ai.drfx.maximus.matrixai.ui.theme.AppLanguage
 class MainActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) {
         val chosen = LanguagePreferenceStore(newBase).load()
+        // Keep date/number formatting and speech defaults consistent with the
+        // in-app selection, not the independent system-wide device language.
+        java.util.Locale.setDefault(java.util.Locale.forLanguageTag(chosen.tag))
         super.attachBaseContext(LanguagePreferenceStore.localizedContext(newBase, chosen))
     }
 
