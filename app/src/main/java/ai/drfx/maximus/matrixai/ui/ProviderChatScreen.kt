@@ -229,7 +229,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         }
     }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) startRecording() else attachmentError = "Microphone permission is required to record a voice message."
+        if (granted) startRecording()
+        else attachmentError = context.getString(R.string.speech_microphone_permission_required)
     }
     val speechPreference = remember(context) { SpeechLanguagePreferenceStore(context) }
     var selectedSpeechLanguage by remember { mutableStateOf(speechPreference.selected()) }
@@ -294,7 +295,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         scope.launch {
             runCatching { withContext(Dispatchers.IO) { loadChatAttachment(context, uri) } }
                 .onSuccess { attachment = it; attachmentError = null }
-                .onFailure { attachmentError = it.message ?: "Could not read the attachment." }
+                .onFailure { attachmentError = context.getString(R.string.speech_attachment_read_error) }
         }
     }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -333,7 +334,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box {
                 TextButton(onClick = { sessionsOpen = true }) {
-                    Text(sessions.firstOrNull { it.id == activeSessionId }?.title ?: "Conversation")
+                    Text(sessions.firstOrNull { it.id == activeSessionId }?.title
+                        ?: stringResource(R.string.speech_conversation_default))
                 }
                 DropdownMenu(expanded = sessionsOpen, onDismissRequest = { sessionsOpen = false }) {
                     sessions.forEach { session ->
@@ -465,7 +467,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         onClick = viewModel::clearChat,
                         modifier = Modifier.size(34.dp)
                     ) {
-                        Icon(Icons.Default.Delete, "Clear conversation", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Delete, stringResource(R.string.speech_clear_conversation),
+                            modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -486,11 +489,15 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         modifier = Modifier.testTag("voice_language_picker")) {
                         Icon(Icons.Default.KeyboardVoice, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.speech_language_label) + ": " +
-                            selectedSpeechLanguage.label +
-                            if (speechFollowsAppLanguage)
-                                " · " + stringResource(R.string.speech_follow_app_short)
-                            else "", fontSize = 11.sp, maxLines = 1)
+                        Text(
+                            stringResource(R.string.speech_language_label) + ": " +
+                                selectedSpeechLanguage.label +
+                                (if (speechFollowsAppLanguage)
+                                    " · " + stringResource(R.string.speech_follow_app_short)
+                                 else ""),
+                            fontSize = 11.sp,
+                            maxLines = 1
+                        )
                         Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(16.dp))
                     }
                     DropdownMenu(
@@ -826,12 +833,12 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         }
         if (attachment?.mimeType?.startsWith("audio/") == true &&
             state.provider != LlmProvider.GEMINI && state.provider != LlmProvider.OPENAI) {
-            Text("Recorded audio requires Gemini or OpenAI. Use Dictate with this provider.",
+            Text(stringResource(R.string.speech_recorded_audio_requires_model),
                 color = MaterialTheme.colorScheme.tertiary, fontSize = 10.sp)
         }
         if (recording) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Recording voice message · " + recordingSeconds + "s / 60s",
+                Text(stringResource(R.string.speech_recording_status, recordingSeconds),
                     color = MaterialTheme.colorScheme.error, fontSize = 11.sp,
                     modifier = Modifier.weight(1f))
                 TextButton(onClick = { recorder.cancel(); recording = false }) { Text(stringResource(R.string.chat_discard), fontSize = 11.sp) }
