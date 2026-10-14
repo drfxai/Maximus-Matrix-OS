@@ -45,6 +45,8 @@ jobs:
         run: python3 .github/scripts/prepare-phone-native.py
       - name: Test ARM64 runtime provenance checks
         run: python3 -m unittest discover -s .github/scripts/tests -p "test_*.py" -v
+      - name: Validate five translated Android resource packs
+        run: python3 .github/scripts/check-ui-locales.py
       - run: python3 .github/scripts/test-release-identity.py
       - run: python3 .github/scripts/test-release-publication.py
       - name: Test remote Worker discovery gateway
