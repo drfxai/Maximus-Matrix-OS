@@ -87,7 +87,7 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
         Row {
             Column(Modifier.weight(1f)) {
                 Text("Enable Hindsight memory", style = MaterialTheme.typography.titleSmall)
-                Text("Sends project checkpoints you explicitly synchronize to your own memory bank.",
+                Text("Keeps encrypted short progress locally; only approved checkpoints sync remotely unless auto-share is separately enabled.",
                     style = MaterialTheme.typography.bodySmall)
             }
             Switch(
