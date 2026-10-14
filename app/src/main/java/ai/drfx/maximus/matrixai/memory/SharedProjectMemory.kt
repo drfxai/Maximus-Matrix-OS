@@ -16,7 +16,11 @@ internal class SharedProjectMemory(context: Context) {
     private val workspace = ProjectWorkspaceStore(context.applicationContext)
     private val checkpoints = ProjectContinuityStore(context.applicationContext, workspace)
     private data class Snapshot(val loadedAt: Long, val facts: List<HindsightMemoryClient.Memory>)
-    private val cache = ConcurrentHashMap<String, Snapshot>()
+    companion object {
+        // Shared across ViewModel and Project Studio within this app process. Never persisted
+        // as privileged instructions or treated as an authenticated source of action rights.
+        private val cache = ConcurrentHashMap<String, Snapshot>()
+    }
 
     fun activeProject(): String = settings.activeProject()
     fun enabled(): Boolean = settings.enabled()
