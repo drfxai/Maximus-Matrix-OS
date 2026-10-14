@@ -10,6 +10,20 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SpeechLanguagePreferenceTest {
+    @Test fun majorSpeechAndMobileHarnessLabelsAreTranslatedInAllFiveLanguages() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        val english = LanguagePreferenceStore.localizedContext(app, AppLanguage.ENGLISH)
+        val englishVoice = english.getString(ai.drfx.maximus.matrixai.R.string.speech_conversation_label)
+        val englishBuild = english.getString(ai.drfx.maximus.matrixai.R.string.phone_install)
+        for (language in AppLanguage.entries.filter { it != AppLanguage.ENGLISH }) {
+            val localized = LanguagePreferenceStore.localizedContext(app, language)
+            val voice = localized.getString(ai.drfx.maximus.matrixai.R.string.speech_conversation_label)
+            val build = localized.getString(ai.drfx.maximus.matrixai.R.string.phone_install)
+            assertTrue("Voice label missing for " + language.tag, voice.isNotBlank() && voice != englishVoice)
+            assertTrue("Install label missing for " + language.tag, build.isNotBlank() && build != englishBuild)
+        }
+    }
+
     @Test fun speechDefaultsToChosenInterfaceLanguageAndAcceptsManualOverride() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext
         val interfacePrefs = LanguagePreferenceStore(app)
