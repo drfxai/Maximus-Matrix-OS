@@ -320,4 +320,5 @@
     <string name="brain_graph_guide">اسحب للتدوير · قرّب بإصبعين</string>
     <string name="brain_graph_auto">دوران تلقائي</string>
     <string name="brain_wait">بانتظار رد النموذج…</string>
+    <string name="brain_you">أنت</string>
 </resources>
