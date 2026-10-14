@@ -4,6 +4,8 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import org.json.JSONArray
+import org.json.JSONObject
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -63,6 +65,48 @@ internal class HindsightMemorySettings(context: Context) {
     fun setAutoShare(value: Boolean) {
         require(!value || enabled()) { "Enable memory before sharing progress." }
         check(prefs.edit().putBoolean("auto_share", value).commit())
+    }
+
+    /** Small on-device encrypted progress journal shared by all models of the same project.
+     * A successful chat may contribute a short excerpt, not source files or attachments. */
+    @Synchronized
+    fun rememberProgress(projectId: String, model: String, task: String, outcome: String) {
+        HindsightMemoryClient.bankFor(projectId) // validates stable project identity
+        val text = "Model: ${model.take(70)}. Task: ${task.take(320)}. " +
+            "Proposed result: ${outcome.take(720)}. Unverified until files/tests are checked."
+        if (!HindsightMemoryClient.shareable(text)) return
+        val key = "journal_" + projectId
+        val existing = prefs.getString(key, "").orEmpty()
+        val list = runCatching {
+            if (existing.isBlank()) JSONArray() else JSONArray(decrypt(existing))
+        }.getOrDefault(JSONArray())
+        list.put(JSONObject().put("time", System.currentTimeMillis()).put("text", text))
+        val trimmed = JSONArray()
+        for (i in (list.length() - 4).coerceAtLeast(0) until list.length()) {
+            trimmed.put(list.getJSONObject(i))
+        }
+        check(prefs.edit().putString(key, encrypt(trimmed.toString())).commit()) {
+            "Local project memory could not be saved."
+        }
+    }
+
+    @Synchronized
+    fun recentProgress(projectId: String): String {
+        HindsightMemoryClient.bankFor(projectId)
+        val value = prefs.getString("journal_" + projectId, "").orEmpty()
+        if (value.isBlank()) return ""
+        return runCatching {
+            val array = JSONArray(decrypt(value))
+            buildList {
+                for (i in (array.length() - 4).coerceAtLeast(0) until array.length()) {
+                    val item = array.getJSONObject(i)
+                    val timestamp = item.optLong("time", 0)
+                    val text = item.optString("text")
+                    if (timestamp > 0 && System.currentTimeMillis() - timestamp < 30L * 24 * 3600 * 1000 &&
+                        HindsightMemoryClient.shareable(text)) add(text.take(1200))
+                }
+            }.joinToString("\n").take(2100)
+        }.getOrDefault("")
     }
 
     fun clear() {
