@@ -151,9 +151,9 @@ fun MatrixGraphScreen(
             onDismissRequest = { viewModel.approveAgentAction(request.id, false) },
             title = { Text(stringResource(R.string.graph_authorize)) },
             text = { Column {
-                Text("Tool: " + request.action.tool)
+                Text(stringResource(R.string.brain_action_tool_label, request.action.tool))
                 request.action.arguments.forEach { (name, value) -> Text(name + ": " + value.take(500)) }
-                Text("Approval applies only to this action. External apps may require another confirmation.")
+                Text(stringResource(R.string.brain_action_approval_scope))
             } },
             confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text(stringResource(R.string.graph_approve)) } },
             dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text(stringResource(R.string.graph_reject)) } }
