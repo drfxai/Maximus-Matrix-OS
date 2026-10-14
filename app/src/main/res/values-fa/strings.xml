@@ -136,4 +136,6 @@
     <string name="phone_apk_builds">ساخت APK</string>
     <string name="phone_build_log">نمایش گزارش Gradle</string>
     <string name="phone_hide_log">پنهان‌کردن گزارش ساخت</string>
+    <string name="speech_install_tts">نصب زبان گفتاری</string>
+    <string name="speech_tts_setup_unavailable">تنظیم صدای گفتاری در دسترس نیست. سرویس گفتار یا صدای فارسی را از تنظیمات اندروید نصب کنید.</string>
 </resources>
