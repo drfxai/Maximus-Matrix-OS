@@ -81,7 +81,7 @@ internal class AgentTeamStore(context: Context) {
         AgentTeamReport(
             json.optLong("time", 0L),
             json.optString("status", "NOT_RUN"),
-            json.optString("summary", ""),
+            json.optString("summary", "").orEmpty(),
             json.optInt("evidence", 0)
         )
     }.getOrDefault(AgentTeamReport())
