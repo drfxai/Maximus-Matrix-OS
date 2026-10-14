@@ -210,9 +210,8 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                 }
                 if (!ready && !installState.busy && installer.storedDownloadBytes() > 0L) {
                     Text(
-                        "Saved for resuming: " +
-                            (installer.storedDownloadBytes() / (1024L * 1024L)) +
-                            " MiB of pinned toolchain archives. A retry verifies the full SHA-256.",
+                        stringResource(R.string.phone_saved_resuming,
+                            installer.storedDownloadBytes() / (1024L * 1024L)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -256,8 +255,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                             stringResource(R.string.phone_resume)
                         else stringResource(R.string.phone_install))
                     }
-                    Text("Requires about 612 MiB network download and at least 3 GiB available storage. " +
-                        "Only pinned SHA-256 checked archives are accepted.",
+                    Text(stringResource(R.string.phone_download_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -313,9 +311,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                         Text(stringResource(R.string.phone_save_apk))
                     }
                 }
-                Text("Security: Gradle build scripts run native code under this app UID. " +
-                    "PRoot is not a sandbox: only compile projects you created or thoroughly trust. " +
-                    "No production signing key is used.",
+                Text(stringResource(R.string.phone_review_security),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
