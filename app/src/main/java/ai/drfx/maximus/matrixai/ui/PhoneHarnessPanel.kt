@@ -29,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import ai.drfx.maximus.matrixai.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -170,16 +172,16 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
 
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
             HarnessCapabilityTile(
-                "WORKSPACES", "On phone", Icons.Default.FolderOpen, true, Modifier.weight(1f))
+                stringResource(R.string.phone_workspaces), "On phone", Icons.Default.FolderOpen, true, Modifier.weight(1f))
             HarnessCapabilityTile(
-                "SOURCE API", if (running) "Online" else "Standby",
+                stringResource(R.string.phone_source_api), if (running) "Online" else "Standby",
                 Icons.Default.Hub, running, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
             HarnessCapabilityTile(
-                "LINUX / PTY", "Not installed", Icons.Default.Terminal, false, Modifier.weight(1f))
+                stringResource(R.string.phone_linux_pty), stringResource(R.string.phone_offline), Icons.Default.Terminal, false, Modifier.weight(1f))
             HarnessCapabilityTile(
-                "APK BUILDS", if (buildState.verifiedTools) "Tools verified" else "Needs setup",
+                stringResource(R.string.phone_apk_builds), if (buildState.verifiedTools) stringResource(R.string.phone_available) else stringResource(R.string.phone_needs_setup),
                 Icons.Default.Build, buildState.verifiedTools, Modifier.weight(1f))
         }
 
@@ -189,16 +191,16 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     Icon(Icons.Default.Build, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Build Android APK on this phone",
+                        Text(stringResource(R.string.phone_install_title),
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text("No PC or VPS · ARM64 Android 9+ · Debug APK",
+                        Text(stringResource(R.string.phone_install_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 val ready = installer.installed()
-                Text(if (ready) "Android toolchain files installed"
-                    else "Linux, JDK, Gradle, Android SDK and ARM64 AAPT2 need installation.",
+                Text(if (ready) stringResource(R.string.phone_installed)
+                    else stringResource(R.string.phone_install_required),
                     style = MaterialTheme.typography.bodySmall)
                 if (installState.phase != "idle") {
                     Text(installState.message, style = MaterialTheme.typography.bodySmall,
@@ -230,7 +232,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                         context.startService(Intent(context, PhoneRuntimeSetupService::class.java).apply {
                             action = PhoneRuntimeSetupService.CANCEL
                         })
-                    }) { Text("Cancel installation") }
+                    }) { Text(stringResource(R.string.phone_cancel_install)) }
                 }
                 if (!ready && !installState.busy) {
                     Button(
@@ -249,12 +251,10 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     ) {
                         Icon(Icons.Default.Download, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(
-                            if (installState.phase in setOf("cancelled", "interrupted", "failed") ||
-                                installer.storedDownloadBytes() > 0L)
-                                "Resume Android build tool setup"
-                            else "Install Android build tools"
-                        )
+                        Text(if (installState.phase in setOf("cancelled", "interrupted", "failed") ||
+                            installer.storedDownloadBytes() > 0L)
+                            stringResource(R.string.phone_resume)
+                        else stringResource(R.string.phone_install))
                     }
                     Text("Requires about 612 MiB network download and at least 3 GiB available storage. " +
                         "Only pinned SHA-256 checked archives are accepted.",
@@ -267,13 +267,13 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                             onClick = { builder.verifyTools() },
                             enabled = !buildState.busy && !installState.busy,
                             modifier = Modifier.weight(1f).testTag("phone_build_verify")
-                        ) { Text("Verify tools") }
+                        ) { Text(stringResource(R.string.phone_verify)) }
                         Button(
                             onClick = { confirmBuild = true },
                             enabled = projectId != null && buildState.verifiedTools &&
                                 !buildState.busy && !installState.busy,
                             modifier = Modifier.weight(1f).testTag("phone_build_start")
-                        ) { Text("Build Debug APK") }
+                        ) { Text(stringResource(R.string.phone_build)) }
                     }
                 }
                 Text(buildState.message, style = MaterialTheme.typography.bodySmall,
@@ -286,11 +286,11 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                         context.startService(Intent(context, PhoneLocalBuildService::class.java).apply {
                             action = PhoneLocalBuildService.CANCEL
                         })
-                    }) { Text("Cancel Gradle build") }
+                    }) { Text(stringResource(R.string.phone_cancel_build)) }
                 }
                 if (buildState.logTail.isNotBlank()) {
                     TextButton(onClick = { showBuildLog = !showBuildLog }) {
-                        Text(if (showBuildLog) "Hide build log" else "View Gradle log")
+                        Text(if (showBuildLog) stringResource(R.string.phone_hide_log) else stringResource(R.string.phone_build_log))
                     }
                     if (showBuildLog) {
                         Surface(color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -310,7 +310,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     ) {
                         Icon(Icons.Default.SaveAlt, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Save verified APK")
+                        Text(stringResource(R.string.phone_save_apk))
                     }
                 }
                 Text("Security: Gradle build scripts run native code under this app UID. " +
