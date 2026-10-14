@@ -25,6 +25,13 @@
         android:supportsRtl="true">
         <receiver android:name=".news.EconomicEventAlarmReceiver" android:exported="false" />
         <service
+            android:name=".studio.phonehost.PhoneLocalBuildService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-approved, locally executed Gradle build with cancellation" />
+        </service>
+        <service
             android:name=".studio.phonehost.PhoneRuntimeSetupService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
