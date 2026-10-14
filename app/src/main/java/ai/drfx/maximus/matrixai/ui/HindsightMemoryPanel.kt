@@ -133,7 +133,7 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                 busy = true
                 scope.launch {
                     try {
-                        val count = bridge.refresh()
+                        val count = bridge.refresh(force = true)
                         status = "$count project memories recalled. Models can use them after switching."
                     } catch (e: CancellationException) { throw e }
                     catch (e: Exception) { status = e.message ?: "Recall failed." }
