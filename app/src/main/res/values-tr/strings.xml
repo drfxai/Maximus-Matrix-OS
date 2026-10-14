@@ -390,4 +390,13 @@
     <string name="brain_graph_inspector">Matrix inceleyicisi</string>
     <string name="brain_graph_filters">Düğüm filtreleri</string>
     <string name="brain_graph_explore_help">Gerçek durumu incelemek için bir modüle dokunun. Döndürmek için sürükleyin, yakınlaştırmak için iki parmağınızı kullanın.</string>
+    <string name="speech_follow_app_language">Uygulama dilini izle (önerilen)</string>
+    <string name="speech_follow_app_short">Uygulama dili</string>
+    <string name="speech_wrong_script_review">Android konuşma tanıyıcısı %1$s için farklı yazı sisteminde metin üretti; seçilen dili yok saymış olabilir. Yüklü konuşma dilini kontrol edip göndermeden önce metni düzeltin. Otomatik mesaj gönderilmedi.</string>
+    <string name="speech_microphone_permission_required">Sesli mesaj kaydetmek için mikrofon izni gerekir.</string>
+    <string name="speech_attachment_read_error">Ek dosya okunamadı.</string>
+    <string name="speech_conversation_default">Sohbet</string>
+    <string name="speech_recording_status">Sesli mesaj kaydediliyor · %1$d sn / 60 sn</string>
+    <string name="speech_recorded_audio_requires_model">Ham ses için Gemini veya OpenAI gerekir. Bu sağlayıcıyla Dikte kullanın.</string>
+    <string name="speech_clear_conversation">Konuşmayı temizle</string>
 </resources>
