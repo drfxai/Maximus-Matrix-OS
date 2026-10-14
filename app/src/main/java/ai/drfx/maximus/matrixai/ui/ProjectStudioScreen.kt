@@ -189,7 +189,7 @@ fun ProjectStudioScreen(
             StudioPanel {
                 Text(stringResource(R.string.studio_ai_brief), fontWeight = FontWeight.SemiBold, color = studioPurple)
                 Spacer(Modifier.height(8.dp))
-                Text("Workspace mode", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.project_mode), style = MaterialTheme.typography.labelMedium)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     ProjectTaskMode.entries.forEach { mode ->
@@ -209,7 +209,7 @@ fun ProjectStudioScreen(
                         )
                     }
                 }
-                Text("Modes change AI planning instructions only; no tools, files or builds run automatically.",
+                Text(stringResource(R.string.project_mode_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(7.dp))
@@ -268,12 +268,12 @@ fun ProjectStudioScreen(
         }
         item {
             StudioPanel {
-                Text("PROJECT CONTINUITY · LOCAL CHECKPOINT", fontWeight = FontWeight.Bold, color = studioCyan)
+                Text(stringResource(R.string.project_continuity), fontWeight = FontWeight.Bold, color = studioCyan)
                 Text("Save hashes and task state privately; no project files or keys are uploaded. Handoff requires verified files and explicit user approval.",
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     value = nextTask, onValueChange = { nextTask = it.take(2000) },
-                    label = { Text("Next task for another model") },
+                    label = { Text(stringResource(R.string.project_next)) },
                     minLines = 2, maxLines = 4, enabled = active != null && !busy,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -295,7 +295,7 @@ fun ProjectStudioScreen(
                         }
                     }, enabled = active != null && !busy && nextTask.isNotBlank()) {
                         Icon(Icons.Default.Save, null, Modifier.size(16.dp))
-                        Spacer(Modifier.width(5.dp)); Text("Checkpoint")
+                        Spacer(Modifier.width(5.dp)); Text(stringResource(R.string.project_checkpoint))
                     }
                     Button(onClick = {
                         val id = activeId ?: return@Button
@@ -315,7 +315,7 @@ fun ProjectStudioScreen(
                         }
                     }, enabled = active != null && !busy) {
                         Icon(Icons.Default.PlayArrow, null, Modifier.size(16.dp))
-                        Spacer(Modifier.width(5.dp)); Text("Resume plan")
+                        Spacer(Modifier.width(5.dp)); Text(stringResource(R.string.project_resume))
                     }
                 }
             }

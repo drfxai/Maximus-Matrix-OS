@@ -45,6 +45,8 @@ jobs:
         run: python3 .github/scripts/prepare-phone-native.py
       - name: Test ARM64 runtime provenance checks
         run: python3 -m unittest discover -s .github/scripts/tests -p "test_*.py" -v
+      - name: Validate five translated Android resource packs
+        run: python3 .github/scripts/check-ui-locales.py
       - run: python3 .github/scripts/test-release-identity.py
       - run: python3 .github/scripts/test-release-publication.py
       - name: Test remote Worker discovery gateway
@@ -69,7 +71,7 @@ jobs:
       matrix:
         include:
           - suite: credentials-and-history
-            test_classes: ai.drfx.maximus.matrixai.ProviderCredentialIsolationTest,ai.drfx.maximus.matrixai.database.ChatPersistenceTest,ai.drfx.maximus.matrixai.studio.StudioWorkspaceTest,ai.drfx.maximus.matrixai.studio.phonehost.PhoneHarnessIntegrationTest,ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceTest,ai.drfx.maximus.matrixai.studio.remote.RemoteWorkerProfileStoreTest,ai.drfx.maximus.matrixai.studio.ProjectContinuityStoreTest,ai.drfx.maximus.matrixai.vision.ImageInputPipelineTest,ai.drfx.maximus.matrixai.voice.ElevenVoiceSettingsTest,ai.drfx.maximus.matrixai.memory.HindsightMemorySettingsTest
+            test_classes: ai.drfx.maximus.matrixai.ProviderCredentialIsolationTest,ai.drfx.maximus.matrixai.database.ChatPersistenceTest,ai.drfx.maximus.matrixai.studio.StudioWorkspaceTest,ai.drfx.maximus.matrixai.studio.phonehost.PhoneHarnessIntegrationTest,ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceTest,ai.drfx.maximus.matrixai.studio.remote.RemoteWorkerProfileStoreTest,ai.drfx.maximus.matrixai.studio.ProjectContinuityStoreTest,ai.drfx.maximus.matrixai.vision.ImageInputPipelineTest,ai.drfx.maximus.matrixai.voice.ElevenVoiceSettingsTest,ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceTest,ai.drfx.maximus.matrixai.memory.HindsightMemorySettingsTest
           - suite: keyboard
             test_classes: ai.drfx.maximus.matrixai.ui.KeyboardLayoutTest
     env:

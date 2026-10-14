@@ -1,5 +1,9 @@
 package ai.drfx.maximus.matrixai.ui
 
+import androidx.compose.ui.res.stringResource
+
+import ai.drfx.maximus.matrixai.R
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -68,11 +72,11 @@ fun DiagnosticsScreen(
         context.startActivity(Intent.createChooser(intent, title))
     }
     if (confirmClear) AlertDialog(onDismissRequest = { confirmClear = false },
-        title = { Text("Clear diagnostic logs?") },
-        text = { Text("This removes the in-memory entries for the current session.") },
+        title = { Text(stringResource(R.string.diag_clear_title)) },
+        text = { Text(stringResource(R.string.diag_clear_desc)) },
         confirmButton = { TextButton(onClick = {
             AppLogStore.clear(); confirmClear = false; copied = false
-        }) { Text("Clear") } },
+        }) { Text(stringResource(R.string.diag_clear)) } },
         dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } })
 
     androidx.compose.foundation.lazy.LazyColumn(
@@ -83,9 +87,9 @@ fun DiagnosticsScreen(
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Diagnostics & Telemetry", style = MaterialTheme.typography.headlineSmall,
+                    Text(stringResource(R.string.diag_title), style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.ExtraBold)
-                    Text("Runtime logs & error reporting",
+                    Text(stringResource(R.string.diag_subtitle),
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
                 IconButton(onClick = { onThemeModeChange(if (themeMode == AppThemeMode.DARK)
@@ -100,17 +104,17 @@ fun DiagnosticsScreen(
                 OutlinedButton(onClick = { shareReport("Report an issue") },
                     Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
                     Icon(Icons.Default.BugReport, null, Modifier.size(17.dp))
-                    Spacer(Modifier.width(5.dp)); Text("Report Error", fontSize = 11.sp)
+                    Spacer(Modifier.width(5.dp)); Text(stringResource(R.string.diag_report), fontSize = 11.sp)
                 }
                 Button(onClick = { shareReport("Export diagnostics") },
                     Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
                     Icon(Icons.Default.Share, null, Modifier.size(17.dp))
-                    Spacer(Modifier.width(5.dp)); Text("Export Report", fontSize = 11.sp)
+                    Spacer(Modifier.width(5.dp)); Text(stringResource(R.string.diag_export), fontSize = 11.sp)
                 }
             }
         }
         item {
-            Text("ENGINE TELEMETRY", color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Text(stringResource(R.string.diag_telemetry), color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         }
         item {
@@ -138,7 +142,7 @@ fun DiagnosticsScreen(
                     Icon(Icons.Default.VerifiedUser, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Subsystem Health", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(stringResource(R.string.diag_subsystem), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         Text(audit ?: if (llm.status == ConnectionStatus.CONNECTED)
                             "Provider connected · runtime " + runtime else "Provider offline · runtime " + runtime,
                             color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
@@ -147,7 +151,7 @@ fun DiagnosticsScreen(
                         audit = "Checked: " + entries.size + " entries · " + errors +
                             " errors · provider " + llm.status.name
                         AppLogStore.info("AUDIT", "Local audit completed")
-                    }) { Text("Run Audit", fontSize = 11.sp) }
+                    }) { Text(stringResource(R.string.diag_audit), fontSize = 11.sp) }
                 }
             }
         }
@@ -165,7 +169,7 @@ fun DiagnosticsScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedTextField(query, { query = it }, Modifier.weight(1f),
                     singleLine = true, leadingIcon = { Icon(Icons.Default.Search, null) },
-                    placeholder = { Text("Search logs & traces", fontSize = 12.sp) })
+                    placeholder = { Text(stringResource(R.string.diag_search), fontSize = 12.sp) })
                 IconButton(onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText("MAXIMUS AI Diagnostic Log", AppLogStore.exportText()))
@@ -175,7 +179,7 @@ fun DiagnosticsScreen(
                     Icon(Icons.Default.Delete, "Clear logs", tint = MaterialTheme.colorScheme.error)
                 }
             }
-            if (copied) Text("Redacted report copied.", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+            if (copied) Text(stringResource(R.string.diag_copied), color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
         }
         item {
             Surface(Modifier.fillMaxWidth().heightIn(min = 220.dp), shape = RoundedCornerShape(17.dp),
@@ -184,7 +188,7 @@ fun DiagnosticsScreen(
                 SelectionContainer {
                     Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (filtered.isEmpty()) {
-                            Text("No matching entries. Runtime activity will appear here.",
+                            Text(stringResource(R.string.diag_none),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontFamily = FontFamily.Monospace, fontSize = 11.sp)
                         }

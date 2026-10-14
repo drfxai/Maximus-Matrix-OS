@@ -177,7 +177,7 @@ internal class PhoneRuntimeInstaller(context: Context) {
         return hash.digest().joinToString("") { "%02x".format(it) }
     }
 
-    private fun download(bundle: Bundle, update: (Long) -> Unit): File {
+    private fun download(bundle: PhoneRuntimeBundlePins.Bundle, update: (Long) -> Unit): File {
         val verified = File(downloads, bundle.name + ".verified")
         if (verified.isFile && verified.length() == bundle.size && sha256(verified) == bundle.hash) {
             update(bundle.size)

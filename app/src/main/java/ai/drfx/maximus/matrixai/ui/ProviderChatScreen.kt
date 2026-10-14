@@ -109,10 +109,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     val pendingAction by viewModel.pendingAgentConfirmation.collectAsState()
     pendingAction?.let { request ->
         AlertDialog(onDismissRequest = { viewModel.approveAgentAction(request.id, false) },
-            title = { Text("Approve runtime action") },
+            title = { Text(stringResource(R.string.chat_approve_action)) },
             text = { Text(request.action.tool + "\n" + request.action.arguments.entries.joinToString("\n") { "${it.key}: ${it.value}" }) },
-            confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text("Approve") } },
-            dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text("Reject") } })
+            confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text(stringResource(R.string.graph_approve)) } },
+            dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text(stringResource(R.string.graph_reject)) } })
     }
     val messages by viewModel.chatMessages.collectAsState()
     val sessions by viewModel.chatSessions.collectAsState()
@@ -235,6 +235,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var voiceConversation by remember { mutableStateOf(false) }
     var voiceReplies by remember { mutableStateOf(false) }
     var speechReady by remember { mutableStateOf(false) }
+    var speechVoiceInstallNeeded by remember { mutableStateOf(false) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     DisposableEffect(context) {
         val engine = TextToSpeech(context) { result -> speechReady = result == TextToSpeech.SUCCESS }
@@ -265,9 +266,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             ).locale()
             val engine = tts
             if (engine == null || engine.isLanguageAvailable(language) < TextToSpeech.LANG_AVAILABLE) {
+                speechVoiceInstallNeeded = true
                 attachmentError = context.getString(R.string.speech_tts_missing, language.toLanguageTag())
                 return@LaunchedEffect
             }
+            speechVoiceInstallNeeded = false
             engine.language = language
             engine.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "reply-" + last.timestampMs)
         }
@@ -326,17 +329,17 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     }
                 }
             }
-            TextButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) { Text("New") }
+            TextButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) { Text(stringResource(R.string.speech_new)) }
             TextButton(onClick = {
                 sessionTitle = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty()
                 renameOpen = true
-            }, enabled = sessions.any { it.id == activeSessionId }) { Text("Rename") }
-            TextButton(onClick = { deleteOpen = true }, enabled = sessions.any { it.id == activeSessionId }) { Text("Delete") }
+            }, enabled = sessions.any { it.id == activeSessionId }) { Text(stringResource(R.string.speech_rename)) }
+            TextButton(onClick = { deleteOpen = true }, enabled = sessions.any { it.id == activeSessionId }) { Text(stringResource(R.string.speech_delete)) }
         }
         if (messages.lastOrNull()?.isError == true && !state.isGenerating && sendable) {
             TextButton(onClick = {
                 messages.lastOrNull { it.role == "user" }?.let { viewModel.sendChat(it.content, it.attachment, false) }
-            }) { Text("Retry last request") }
+            }) { Text(stringResource(R.string.speech_retry)) }
         }
         // Compact unified header: Model info, Token telemetry badge, settings trigger, voice toggle
         Row(
@@ -427,7 +430,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             Spacer(Modifier.width(4.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { tts?.stop(); voicePlayback.stop(); elevenJob?.cancel(); elevenPlayback.stop() }) { Icon(Icons.Default.Stop, "Stop audio") }
+                IconButton(onClick = { tts?.stop(); voicePlayback.stop(); elevenJob?.cancel(); elevenPlayback.stop() }) { Icon(Icons.Default.Stop, stringResource(R.string.speech_stop_audio)) }
                 IconButton(
                     onClick = {
                         voiceReplies = !voiceReplies
@@ -440,7 +443,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 ) {
                     Icon(
                         if (voiceReplies) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                        if (voiceReplies) "Disable spoken replies" else "Enable spoken replies",
+                        if (voiceReplies) stringResource(R.string.speech_disable_replies) else stringResource(R.string.speech_enable_replies),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -484,6 +487,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 onClick = {
                                     speechPreference.set(language)
                                     selectedSpeechLanguage = language
+                                    speechVoiceInstallNeeded = false
                                     voiceLanguageMenuOpen = false
                                     tts?.stop()
                                 }
@@ -542,7 +546,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Smart Combo · no verified free route",
+                    Text(stringResource(R.string.chat_combo_unavailable),
                         style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     Text(
                         if (state.smartComboRefreshing)
@@ -554,12 +558,12 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = viewModel::refreshSmartCombo,
                             enabled = !state.smartComboRefreshing && !state.isGenerating) {
-                            Text("Refresh", fontSize = 12.sp)
+                            Text(stringResource(R.string.api_refresh), fontSize = 12.sp)
                         }
                         Button(onClick = { confirmDirectProvider = true },
                             enabled = !state.isGenerating && state.hasSavedKey &&
                                 state.selectedModel.isNotBlank()) {
-                            Text("Use selected provider", fontSize = 12.sp)
+                            Text(stringResource(R.string.chat_manual), fontSize = 12.sp)
                         }
                     }
                     Text("Context tokens shown above are NOT a verified free API balance.",
@@ -688,9 +692,12 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 if ((tts?.isLanguageAvailable(language) ?: TextToSpeech.LANG_NOT_SUPPORTED) >= TextToSpeech.LANG_AVAILABLE) {
                                     tts?.language = language
                                     tts?.speak(message.content, TextToSpeech.QUEUE_FLUSH, null, "replay-" + message.timestampMs)
-                                } else attachmentError = context.getString(
-                                    R.string.speech_tts_missing, language.toLanguageTag()
-                                )
+                                } else {
+                                    speechVoiceInstallNeeded = true
+                                    attachmentError = context.getString(
+                                        R.string.speech_tts_missing, language.toLanguageTag()
+                                    )
+                                }
                             }
                         }, onPlayVoice = {
                             message.attachment?.let { voice ->
@@ -752,7 +759,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         }
 
         if (state.isGenerating) {
-            TextButton(onClick = { viewModel.cancelChat() }) { Text("Stop generation") }
+            TextButton(onClick = { viewModel.cancelChat() }) { Text(stringResource(R.string.chat_stop)) }
         }
         if (attachment != null) {
             AssistChip(
@@ -796,11 +803,24 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 Text("Recording voice message · " + recordingSeconds + "s / 60s",
                     color = MaterialTheme.colorScheme.error, fontSize = 11.sp,
                     modifier = Modifier.weight(1f))
-                TextButton(onClick = { recorder.cancel(); recording = false }) { Text("Discard", fontSize = 11.sp) }
+                TextButton(onClick = { recorder.cancel(); recording = false }) { Text(stringResource(R.string.chat_discard), fontSize = 11.sp) }
             }
         }
         if (attachmentError != null) {
             Text(attachmentError!!, color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
+        }
+        if (speechVoiceInstallNeeded) {
+            OutlinedButton(
+                onClick = {
+                    runCatching {
+                        context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA))
+                    }.onFailure {
+                        attachmentError = context.getString(R.string.speech_tts_setup_unavailable)
+                    }
+                }
+            ) {
+                Text(stringResource(R.string.speech_install_tts))
+            }
         }
 
         // Compact message input field; screen-level IME insets keep it above the keyboard.
@@ -817,7 +837,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Chat input" },
                     maxLines = 3,
                     enabled = !recording,
-                    placeholder = { Text("Message the selected persona…", fontSize = 13.sp) },
+                    placeholder = { Text(stringResource(R.string.speech_input_hint), fontSize = 13.sp) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { send() }),
                     shape = RoundedCornerShape(12.dp)
@@ -827,10 +847,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { imagePicker.launch("image/*") }, enabled = !recording, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Image, "Attach image", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Image, stringResource(R.string.speech_attach_image), modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = { filePicker.launch(arrayOf("text/*", "application/pdf", "application/json")) }, enabled = !recording, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.AttachFile, "Attach document", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.AttachFile, stringResource(R.string.speech_attach_document), modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = {
                         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -842,7 +862,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         try { voiceInput.launch(intent) }
                         catch (e: Exception) { attachmentError = context.getString(R.string.speech_recognizer_unavailable) }
                     }, enabled = !recording, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.KeyboardVoice, "Dictate text message", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.KeyboardVoice, stringResource(R.string.speech_dictate), modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = {
                         if (recording) finishRecording()
@@ -851,7 +871,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         else micPermission.launch(Manifest.permission.RECORD_AUDIO)
                     }, modifier = Modifier.size(36.dp)) {
                         Icon(if (recording) Icons.Default.StopCircle else Icons.Default.FiberManualRecord,
-                            if (recording) "Finish voice message" else "Record voice message",
+                            if (recording) stringResource(R.string.speech_stop_audio) else stringResource(R.string.speech_record),
                             tint = if (recording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp))
                     }
@@ -885,7 +905,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(Icons.Default.Send, "Send message", modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Send, stringResource(R.string.speech_send), modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -913,15 +933,15 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         )
     }
     if (renameOpen) {
-        AlertDialog(onDismissRequest = { renameOpen = false }, title = { Text("Rename conversation") },
+        AlertDialog(onDismissRequest = { renameOpen = false }, title = { Text(stringResource(R.string.chat_rename)) },
             text = { OutlinedTextField(value = sessionTitle, onValueChange = { sessionTitle = it }, singleLine = true) },
-            confirmButton = { TextButton(onClick = { viewModel.renameChatSession(activeSessionId, sessionTitle); renameOpen = false }) { Text("Save") } },
+            confirmButton = { TextButton(onClick = { viewModel.renameChatSession(activeSessionId, sessionTitle); renameOpen = false }) { Text(stringResource(R.string.chat_save)) } },
             dismissButton = { TextButton(onClick = { renameOpen = false }) { Text("Cancel") } })
     }
     if (deleteOpen) {
-        AlertDialog(onDismissRequest = { deleteOpen = false }, title = { Text("Delete conversation?") },
-            text = { Text("This removes its locally saved messages.") },
-            confirmButton = { TextButton(onClick = { viewModel.deleteChatSession(activeSessionId); deleteOpen = false }) { Text("Delete") } },
+        AlertDialog(onDismissRequest = { deleteOpen = false }, title = { Text(stringResource(R.string.chat_delete_confirm)) },
+            text = { Text(stringResource(R.string.chat_delete_confirm_desc)) },
+            confirmButton = { TextButton(onClick = { viewModel.deleteChatSession(activeSessionId); deleteOpen = false }) { Text(stringResource(R.string.speech_delete)) } },
             dismissButton = { TextButton(onClick = { deleteOpen = false }) { Text("Cancel") } })
     }
     // Quick In-Chat API Key Entry Dialog
@@ -955,7 +975,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     OutlinedTextField(
                         value = quickKeyInput,
                         onValueChange = { quickKeyInput = it },
-                        label = { Text("API Key") },
+                        label = { Text(stringResource(R.string.chat_api_key)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
@@ -1014,7 +1034,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DataUsage, null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(8.dp))
-                        Text("Token & Context Inspector", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.chat_token_inspector), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
                     Text(
                         "${(metrics.contextUsagePercent * 100).toInt()}% Used",
@@ -1082,7 +1102,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     onClick = { tokenDetailsOpen = false },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                 ) {
-                    Text("Close Inspector")
+                    Text(stringResource(R.string.chat_close_inspector))
                 }
             }
         }
@@ -1098,7 +1118,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     .padding(horizontal = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("AI Engine & Provider Setup", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.chat_provider_settings), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(
                     "Select engine preset or enter custom OpenAI-compatible endpoint.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1174,7 +1194,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 OutlinedTextField(
                                     value = baseUrl,
                                     onValueChange = { baseUrl = it },
-                                    label = { Text("Base URL") },
+                                    label = { Text(stringResource(R.string.chat_baseurl)) },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )

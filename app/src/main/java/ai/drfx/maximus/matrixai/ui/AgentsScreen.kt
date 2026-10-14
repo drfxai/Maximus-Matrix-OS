@@ -1,5 +1,9 @@
 package ai.drfx.maximus.matrixai.ui
 
+import androidx.compose.ui.res.stringResource
+
+import ai.drfx.maximus.matrixai.R
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,7 +30,7 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text("Persona Catalog", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.agents_title), style = MaterialTheme.typography.headlineSmall)
             Text(
                 "Personas are available when the selected model supports their required conversation features.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

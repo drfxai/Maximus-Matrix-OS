@@ -1,5 +1,9 @@
 package ai.drfx.maximus.matrixai.ui
 
+import androidx.compose.ui.res.stringResource
+
+import ai.drfx.maximus.matrixai.R
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -48,7 +52,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Text("AI Engine & Token Telemetry", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.api_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
                 "Provider-specific connections with authenticated model discovery and explicitly estimated context metrics.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -61,8 +65,8 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
             ControlCard {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("SMART COMBO · VERIFIED FREE", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("When enabled, conversation text may be sent to any configured provider advertising a verified free model.",
+                        Text(stringResource(R.string.api_combo_title), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(stringResource(R.string.api_combo_desc),
                             fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(checked = state.smartComboEnabled, onCheckedChange = viewModel::setSmartComboEnabled,
@@ -76,12 +80,12 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     OutlinedButton(
                         onClick = viewModel::refreshSmartCombo,
                         enabled = state.smartComboEnabled && !state.smartComboRefreshing && !state.isGenerating
-                    ) { Text("Refresh", fontSize = 12.sp) }
+                    ) { Text(stringResource(R.string.api_refresh), fontSize = 12.sp) }
                 }
                 if (state.smartComboRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (state.smartComboEnabled && state.smartComboProviderChecks.isNotEmpty()) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Text("PROVIDER CHECK RESULTS", fontSize = 11.sp,
+                    Text(stringResource(R.string.api_provider_results), fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     state.smartComboProviderChecks.forEach { check ->
@@ -94,7 +98,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 }
                 if (state.smartComboRouteLabels.isNotEmpty()) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Text("AVAILABLE VERIFIED CATALOG ROUTES", fontSize = 11.sp,
+                    Text(stringResource(R.string.api_free_routes), fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     state.smartComboRouteLabels.forEach { label ->
@@ -125,7 +129,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Bolt, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Provider Quick Presets", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text(stringResource(R.string.api_presets), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 Text(
                     "Select an isolated provider configuration; model availability requires authenticated discovery.",
@@ -189,7 +193,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DataUsage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Token Usage & Estimated Capacity", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(stringResource(R.string.api_usage), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
@@ -332,7 +336,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         onClick = viewModel::clearUsage,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text("Reset token statistics", fontSize = 11.sp)
+                        Text(stringResource(R.string.api_reset), fontSize = 11.sp)
                     }
                 }
             }
@@ -344,7 +348,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Memory, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Connection & Engine Status", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text(stringResource(R.string.api_status), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 MetricLine(
                     "Status",
@@ -366,7 +370,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Speed, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Local Budget Preferences", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text(stringResource(R.string.api_budget), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 Text(
                     "Configure local usage tracking. Provider account quotas are not enforced here.",
@@ -404,7 +408,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     },
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("Save Quotas")
+                    Text(stringResource(R.string.api_save_quotas))
                 }
             }
         }

@@ -703,9 +703,22 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val dispatchedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
                 var firstTokenObserved = false
                 var lastStreamUiAtMs = Long.MIN_VALUE
-                val equippedAgent = if (memoryEvidenceAtRequest.isBlank()) selectedAgent else selectedAgent.copy(
-                    systemPrompt = selectedAgent.systemPrompt + "\n\n" + memoryEvidenceAtRequest
-                )
+                val speechInstruction = if (fromVoice) {
+                    val speech = ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore(
+                        getApplication<Application>()
+                    ).selected()
+                    "\n\nVoice response language: " + speech.tag +
+                        ". Reply naturally in the language of the user speech. " +
+                        "For fa-IR use fluent Persian written in Persian script. " +
+                        "Do not claim an audio recording or transcription was verified by the model."
+                } else ""
+                val equippedAgent = if (memoryEvidenceAtRequest.isBlank() && speechInstruction.isBlank()) {
+                    selectedAgent
+                } else {
+                    selectedAgent.copy(systemPrompt = selectedAgent.systemPrompt +
+                        (if (memoryEvidenceAtRequest.isBlank()) "" else "\n\n" + memoryEvidenceAtRequest) +
+                        speechInstruction)
+                }
                 val result = chatClient.send(config, requestHistory, equippedAgent, onQuota = { windows ->
                     if (windows.isNotEmpty()) {
                         autoPrepared?.let { freeExecutor.observeProviderQuota(it, windows) }

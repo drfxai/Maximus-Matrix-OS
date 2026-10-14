@@ -24,9 +24,11 @@ Upstream runtime release: https://github.com/techjarves/Mobile-Harness/releases/
   - SHA-256 df0cf7251c74f82d424231e3804114a4ca66b16130eea9abab11e220dc7ac012
 - Android Gradle/SDK file: pocketdev-android-arm64-2026.09.1.tar.zst
   - 569,652,007 bytes
-  - SHA-256 01bea058ebcb17416d1eb08c0211b3782da3228eb3719f2d61dd3ec6
+  - SHA-256 01bea058ebcb17416d1eb08c0211b3782da3228eb3c8348eb3719f2d61dd3ec6
 
 The two pinned releases contain Ubuntu ARM64, Temurin OpenJDK17, Android SDK36, ARM64 AAPT2 35.0.0, Gradle 8.14.3 and an offline Maven repository. Each component and downloaded model/project may have separate licensing and security terms.
+
+Android SDK SHA-256 above was corrected against the GitHub release asset digest; the former truncated value caused valid device downloads to fail integrity verification. Never disable this check.
 
 The app fetches these releases using HTTPS and restricted redirect hostnames; interrupted downloads are resumed only when Content-Range matches the exact pinned length, and a full SHA-256 is always required. Two-pass bounded tar.zst extraction occurs in private temporary storage. Symlink parents are resolved in guest rootfs space; path traversal, unknown archive types, size overruns and excessive entries are rejected. Staging is activated only after expected files exist.
 

@@ -183,14 +183,14 @@ fun RemoteWorkerPanel(projectId: String? = null, modifier: Modifier = Modifier) 
                         enabled = !busy && projectId != null,
                         onClick = { confirmDebugBuild = true },
                         modifier = Modifier.testTag("runtime_build_debug_button")
-                    ) { Text("Build Debug APK") }
+                    ) { Text(stringResource(R.string.remote_build)) }
                     debugJob?.let { job ->
                         Text("Debug build: " + job.state + " · " + job.id.take(10),
                             style = MaterialTheme.typography.bodySmall)
                         if (job.state == "succeeded") {
                             OutlinedButton(onClick = {
                                 downloadDebug.launch("maximus-project-debug.apk")
-                            }, enabled = !busy) { Text("Download verified Debug APK") }
+                            }, enabled = !busy) { Text(stringResource(R.string.remote_download)) }
                         }
                     }
                 } else {
@@ -241,7 +241,7 @@ fun RemoteWorkerPanel(projectId: String? = null, modifier: Modifier = Modifier) 
                             status = error.message ?: "Remote debug build could not start."
                         } finally { busy = false }
                     }
-                }) { Text("Approve and build") }
+                }) { Text(stringResource(R.string.remote_approve)) }
             },
             dismissButton = {
                 OutlinedButton(onClick = { confirmDebugBuild = false }) { Text("Cancel") }

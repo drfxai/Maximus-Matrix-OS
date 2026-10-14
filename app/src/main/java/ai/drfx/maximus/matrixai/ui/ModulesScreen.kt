@@ -1,5 +1,9 @@
 package ai.drfx.maximus.matrixai.ui
 
+import androidx.compose.ui.res.stringResource
+
+import ai.drfx.maximus.matrixai.R
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,7 +45,7 @@ fun ModulesScreen(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text("System Modules", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.modules_title), style = MaterialTheme.typography.headlineSmall)
             Text(
                 "Legacy projects are internal engines of MAXIMUS MATRIX OS, not separate user-facing products.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
