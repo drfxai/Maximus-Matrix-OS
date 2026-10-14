@@ -29,7 +29,7 @@ internal class ElevenLabsClient {
         fun validVoiceId(value: String): Boolean = value.matches(Regex("[A-Za-z0-9_-]{12,80}"))
         fun validModel(value: String): Boolean = value in setOf(DEFAULT_MODEL, LOW_LATENCY_MODEL)
         fun validKey(value: String): Boolean =
-            value.length in 16..MAX_KEY && value.none { it.isWhitespace() || it.isISOControl() }
+            value.length in 16..MAX_KEY && value.none { it.isWhitespace() || it.code < 32 || it.code == 127 }
     }
 
     private val inFlight = AtomicInteger(0)
