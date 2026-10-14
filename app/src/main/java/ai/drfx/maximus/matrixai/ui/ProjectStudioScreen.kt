@@ -28,6 +28,9 @@ import ai.drfx.maximus.matrixai.R
 import androidx.compose.ui.res.stringResource
 import ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore
 import ai.drfx.maximus.matrixai.studio.ProjectContinuityStore
+import ai.drfx.maximus.matrixai.studio.memory.HindsightMemorySettings
+import ai.drfx.maximus.matrixai.studio.memory.HindsightClient
+import ai.drfx.maximus.matrixai.studio.memory.ProjectSharedMemory
 import ai.drfx.maximus.matrixai.studio.StudioProject
 import ai.drfx.maximus.matrixai.studio.StudioFile
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +55,10 @@ fun ProjectStudioScreen(
     val context = LocalContext.current
     val store = remember(context) { ProjectWorkspaceStore(context.applicationContext) }
     val continuity = remember(context) { ProjectContinuityStore(context.applicationContext, store) }
+    val hindsightSettings = remember(context) { HindsightMemorySettings(context.applicationContext) }
+    val sharedMemory = remember(context) {
+        ProjectSharedMemory(hindsightSettings, HindsightClient(), continuity, store)
+    }
     val scope = rememberCoroutineScope()
     var projects by remember { mutableStateOf(store.projects()) }
     var activeId by remember { mutableStateOf(projects.firstOrNull()?.id) }
@@ -213,7 +220,10 @@ fun ProjectStudioScreen(
                             try {
                                 val plan = withContext(Dispatchers.IO) {
                                     store.saveBrief(id, brief)
-                                    store.aiPlanPrompt(id)
+                                    val plan = store.aiPlanPrompt(id)
+                                    if (hindsightSettings.enabledFor(id)) {
+                                        plan + "\n\n" + sharedMemory.resume(id, "Plan the next safe project tasks")
+                                    } else plan
                                 }
                                 refresh(id)
                                 val sent = onPlanWithAi(plan)
@@ -267,7 +277,9 @@ fun ProjectStudioScreen(
                         busy = true
                         scope.launch {
                             try {
-                                val prompt = withContext(Dispatchers.IO) { continuity.resumePrompt(id) }
+                                val prompt = withContext(Dispatchers.IO) {
+                                    sharedMemory.resume(id, nextTask.take(500))
+                                }
                                 val sent = onPlanWithAi(prompt)
                                 message = if (sent) "Verified checkpoint sent for planning (source contents not attached)."
                                 else "Connect a suitable model to continue."
@@ -280,6 +292,16 @@ fun ProjectStudioScreen(
                         Spacer(Modifier.width(5.dp)); Text("Resume plan")
                     }
                 }
+            }
+        }
+        item {
+            StudioPanel {
+                HindsightMemoryPanel(
+                    projectId = activeId,
+                    settings = hindsightSettings,
+                    memory = sharedMemory,
+                    onContinue = onPlanWithAi
+                )
             }
         }
         item {
