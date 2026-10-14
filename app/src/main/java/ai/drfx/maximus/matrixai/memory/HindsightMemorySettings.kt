@@ -109,6 +109,12 @@ internal class HindsightMemorySettings(context: Context) {
         }.getOrDefault("")
     }
 
+    /** Disconnect cloud access without destroying durable local project history. */
+    fun disconnect() {
+        check(prefs.edit().remove("token").remove("endpoint")
+            .putBoolean("enabled", false).putBoolean("auto_share", false).commit())
+    }
+
     fun clear() {
         check(prefs.edit().clear().commit())
     }
