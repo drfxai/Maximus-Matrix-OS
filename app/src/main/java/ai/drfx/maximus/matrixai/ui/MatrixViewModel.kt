@@ -554,6 +554,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
         val current = _llmState.value
+        val memoryProjectAtRequest = sharedProjectMemory.activeProject()
         if (!historyReady || current.status !in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED) || current.selectedModel.isBlank()) {
             appendAssistantError("Connect an API and select a supported model before sending a message.")
             return false
@@ -752,7 +753,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     val userTask = prompt
                     val output = result.text
                     viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        try { sharedProjectMemory.storeModelProgress(modelName, userTask, output) }
+                        try { sharedProjectMemory.storeModelProgress(memoryProjectAtRequest, modelName, userTask, output) }
                         catch (_: Exception) { /* No generated content or credentials are logged. */ }
                     }
                 }
