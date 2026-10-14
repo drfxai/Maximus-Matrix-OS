@@ -770,7 +770,7 @@ fun MatrixGraphScreen(
                 // Icon buttons on a separate row prevent squeezed or overlapping input.
                 OutlinedTextField(
                     mission, { mission = it.take(4000) },
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().semantics { contentDescription = "Assistant question" },
                     minLines = 1,
                     maxLines = 3,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
