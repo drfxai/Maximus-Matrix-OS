@@ -13,7 +13,10 @@ import java.net.Socket
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.util.concurrent.Executors
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.RejectedExecutionException
 import kotlin.concurrent.thread
 
 /**
@@ -31,9 +34,15 @@ internal class PhoneHarnessHttpServer(context: Context) : AutoCloseable {
         .joinToString("") { "%02x".format(it) }
     private val workspace = ProjectWorkspaceStore(application)
     private val socket = ServerSocket()
-    private val executor = Executors.newFixedThreadPool(2) { runnable ->
-        thread(start = false, isDaemon = true, name = "phone-harness-client", block = { runnable.run() })
-    }
+    private val executor = ThreadPoolExecutor(
+        2, 2, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(4),
+        { runnable ->
+            thread(start = false, isDaemon = true, name = "phone-harness-client") {
+                runnable.run()
+            }
+        },
+        ThreadPoolExecutor.AbortPolicy()
+    )
     @Volatile private var stopped = false
     @Volatile var approvedProject: String? = null
         private set
@@ -51,7 +60,12 @@ internal class PhoneHarnessHttpServer(context: Context) : AutoCloseable {
                         client.close()
                         break
                     }
-                    executor.execute { handle(client) }
+                    try {
+                        executor.execute { handle(client) }
+                    } catch (_: RejectedExecutionException) {
+                        // Bounded queue. A local flood must not retain sockets forever.
+                        client.close()
+                    }
                 } catch (_: Exception) {
                     if (stopped) break
                 }
