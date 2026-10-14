@@ -34,6 +34,17 @@ class HindsightMemorySettingsTest {
             assertFalse(settings.autoShare())
             settings.setAutoShare(true)
             assertTrue(HindsightMemorySettings(context).autoShare())
+            settings.rememberProgress("123e4567-e89b-12d3-a456-426614174000",
+                "test-model", "Fix parser regression", "Patch proposed; tests not yet run.")
+            val progress = HindsightMemorySettings(context)
+                .recentProgress("123e4567-e89b-12d3-a456-426614174000")
+            assertTrue(progress.contains("Fix parser regression"))
+            val journalBytes = prefsValue(context, "journal_123e4567-e89b-12d3-a456-426614174000")
+            assertFalse(journalBytes.contains("Fix parser regression"))
+            settings.rememberProgress("123e4567-e89b-12d3-a456-426614174000",
+                "test-model", "password = unsafe-secret", "Should not persist")
+            assertFalse(settings.recentProgress("123e4567-e89b-12d3-a456-426614174000")
+                .contains("unsafe-secret"))
             assertEquals("123e4567-e89b-12d3-a456-426614174000",
                 HindsightMemorySettings(context).activeProject())
             settings.clear()
@@ -42,4 +53,8 @@ class HindsightMemorySettingsTest {
             assertFalse(settings.autoShare())
         } finally { settings.clear() }
     }
+
+    private fun prefsValue(context: Context, key: String): String =
+        context.getSharedPreferences("maximus_shared_memory_v1", Context.MODE_PRIVATE)
+            .getString(key, "").orEmpty()
 }
