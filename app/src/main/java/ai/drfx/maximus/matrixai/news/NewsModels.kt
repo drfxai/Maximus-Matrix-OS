@@ -65,7 +65,8 @@ data class NewsArticle(
     val publishedAtMs: Long? = null,
     val retrievedAtMs: Long? = null,
     val fullContent: String = "",
-    val aiTakeaway: String = ""
+    val aiTakeaway: String = "",
+    val imageUrl: String = ""
 )
 
 data class NewsIntelligenceUiState(

@@ -13,7 +13,14 @@ import android.speech.tts.TextToSpeech
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -27,6 +34,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
@@ -55,9 +67,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -66,9 +81,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.drfx.maximus.matrixai.llm.*
+import ai.drfx.maximus.matrixai.vision.ImageInputPipeline
+import androidx.compose.foundation.background
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import java.io.File
 import java.io.FileOutputStream
 import java.text.NumberFormat
@@ -94,9 +114,29 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var deleteOpen by remember { mutableStateOf(false) }
     var sessionTitle by remember { mutableStateOf("") }
     val sendable = state.status in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED)
+    val context = LocalContext.current
     val metrics = state.tokenMetrics
     val numberFormat = remember { NumberFormat.getNumberInstance(Locale.US) }
     val clipboardManager = LocalClipboardManager.current
+    val reactionStore = remember(context) { ChatFeedbackStore(context.applicationContext) }
+    var pendingExport by remember { mutableStateOf<ChatExport?>(null) }
+    var copiedKey by remember { mutableStateOf("") }
+    val exportPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        val item = pendingExport
+        pendingExport = null
+        if (uri != null && item != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { it.write(item.bytes) }
+                    ?: error("Could not open the destination.")
+            }.onSuccess {
+                android.widget.Toast.makeText(context, "Response downloaded", android.widget.Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                android.widget.Toast.makeText(context, "Export failed: " + it.message, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     var baseUrl by remember(state.baseUrl) {
         mutableStateOf(state.baseUrl.ifBlank { state.provider.defaultBaseUrl })
@@ -105,7 +145,6 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var prompt by remember { mutableStateOf("") }
     var modelExpanded by remember { mutableStateOf(false) }
     var agentExpanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val voicePlayback = remember(context) { VoicePlaybackController(context) }
     DisposableEffect(voicePlayback) { onDispose { voicePlayback.stop() } }
@@ -119,10 +158,22 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var attachmentError by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(state.provider) { apiKey = ""; quickKeyInput = ""; attachment = null }
     val listState = rememberLazyListState()
+    var followLatest by remember(activeSessionId) { mutableStateOf(true) }
+    val showJumpToLatest = messages.isNotEmpty() && listState.canScrollForward
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    // Auto-follow fresh messages only while the reader stays at the bottom.
+    // A real user drag away from the latest message suspends auto-follow.
+    LaunchedEffect(listState, activeSessionId) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Stop || interaction is DragInteraction.Cancel) {
+                followLatest = !listState.canScrollForward
+            }
+        }
+    }
+    LaunchedEffect(messages.size, state.isGenerating, activeSessionId) {
+        if (followLatest && messages.isNotEmpty()) {
+            val last = messages.lastIndex + if (state.isGenerating) 1 else 0
+            listState.animateScrollToItem(last)
         }
     }
     var recording by remember { mutableStateOf(false) }
@@ -201,6 +252,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         if (state.isGenerating || !sendable ||
             (text.isBlank() && attachment == null)) return
         if (viewModel.sendChat(text, attachment, fromVoice)) {
+            followLatest = true
             prompt = ""
             attachment = null
             attachmentError = null
@@ -208,9 +260,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     }
     fun load(uri: Uri) {
         scope.launch {
-            runCatching { loadChatAttachment(context, uri) }
+            runCatching { withContext(Dispatchers.IO) { loadChatAttachment(context, uri) } }
                 .onSuccess { attachment = it; attachmentError = null }
-                .onFailure { attachmentError = it.message ?: "Could not read the file." }
+                .onFailure { attachmentError = it.message ?: "Could not read the attachment." }
         }
     }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -391,13 +443,14 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }
         )
 
-        // Conversation messages area
-        Surface(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            shape = RoundedCornerShape(16.dp)
-        ) {
+        // Conversation messages area with a floating jump-to-latest action.
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(16.dp)
+            ) {
             if (messages.isEmpty()) {
                 Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
                     Column(
@@ -456,7 +509,24 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(messages) { message ->
-                        ChatBubble(message, onSpeak = {
+                        ChatBubble(
+                            message = message,
+                            sessionId = activeSessionId,
+                            feedbackStore = reactionStore,
+                            copied = copiedKey == reactionStore.key(activeSessionId, message.timestampMs, message.content),
+                            onCopy = {
+                                val exported = runCatching { ChatPresentation.export(message.content) }.getOrNull()
+                                clipboardManager.setText(
+                                    AnnotatedString(exported?.bytes?.toString(Charsets.UTF_8) ?: message.content)
+                                )
+                                copiedKey = reactionStore.key(activeSessionId, message.timestampMs, message.content)
+                            },
+                            onDownload = {
+                                runCatching { ChatPresentation.export(message.content) }
+                                    .onSuccess { pendingExport = it; exportPicker.launch(it.name) }
+                                    .onFailure { attachmentError = it.message ?: "Export unavailable." }
+                            },
+                            onSpeak = {
                             if (speechReady) {
                                 val language = if (message.content.any { it in '\u0600'..'\u06ff' }) Locale("fa", "IR") else Locale.ENGLISH
                                 if ((tts?.isLanguageAvailable(language) ?: TextToSpeech.LANG_NOT_SUPPORTED) >= TextToSpeech.LANG_AVAILABLE) {
@@ -473,18 +543,51 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     }
                     if (state.isGenerating) {
                         item {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
-                                Text(
-                                    "Persona is generating response with ${state.provider.displayName}…",
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontSize = 11.sp
-                                )
-                            }
+                            GeneratingPulse(state.provider.displayName)
                         }
+                    }
+                }
+            }
+            // Close the message Surface before placing the floating action above it.
+            }
+            val jumpAlpha by animateFloatAsState(
+                targetValue = if (showJumpToLatest) 1f else 0f,
+                animationSpec = tween(durationMillis = 190),
+                label = "latest_button_alpha"
+            )
+            val jumpScale by animateFloatAsState(
+                targetValue = if (showJumpToLatest) 1f else 0.85f,
+                animationSpec = tween(durationMillis = 190),
+                label = "latest_button_scale"
+            )
+            if (showJumpToLatest || jumpAlpha > 0.01f) {
+                Surface(
+                    onClick = {
+                        followLatest = true
+                        scope.launch {
+                            val last = (listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)
+                            listState.animateScrollToItem(last)
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 15.dp, bottom = 15.dp)
+                        .size(48.dp)
+                        .graphicsLayer(alpha = jumpAlpha, scaleX = jumpScale, scaleY = jumpScale)
+                        .testTag("chat_jump_to_latest"),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tonalElevation = 5.dp,
+                    shadowElevation = 8.dp,
+                    enabled = showJumpToLatest
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Go to latest message",
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
                 }
             }
@@ -1255,7 +1358,33 @@ private fun MicroProviderChip(
 }
 
 @Composable
-private fun ChatBubble(message: ChatMessage, onSpeak: () -> Unit, onPlayVoice: () -> Unit) {
+private fun GeneratingPulse(provider: String) {
+    val animation = rememberInfiniteTransition(label = "generation")
+    val opacity by animation.animateFloat(
+        initialValue = 0.25f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(820, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "thinking_alpha"
+    )
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        repeat(3) { index ->
+            Box(Modifier.size((6 + index * 2).dp).graphicsLayer(alpha = opacity)
+                .background(MaterialTheme.colorScheme.primary, CircleShape))
+        }
+        Text("Generating with $provider…", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun ChatBubble(
+    message: ChatMessage,
+    sessionId: String,
+    feedbackStore: ChatFeedbackStore,
+    copied: Boolean,
+    onCopy: () -> Unit,
+    onDownload: () -> Unit,
+    onSpeak: () -> Unit,
+    onPlayVoice: () -> Unit
+) {
     val isUser = message.role == "user"
     val background = if (message.isError) MaterialTheme.colorScheme.errorContainer
     else if (isUser) MaterialTheme.colorScheme.primaryContainer
@@ -1263,64 +1392,96 @@ private fun ChatBubble(message: ChatMessage, onSpeak: () -> Unit, onPlayVoice: (
     val textColor = if (message.isError) MaterialTheme.colorScheme.onErrorContainer
     else if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
     else MaterialTheme.colorScheme.onSurfaceVariant
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
-    ) {
+    val key = remember(sessionId, message.timestampMs, message.content) {
+        feedbackStore.key(sessionId, message.timestampMs, message.content)
+    }
+    var reaction by remember(key) { mutableStateOf(feedbackStore.get(key)) }
+    val draft = remember(message.content) { if (isUser) null else ChatPresentation.draft(message.content) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
         Surface(
             color = background,
             shape = RoundedCornerShape(
-                topStart = 14.dp,
-                topEnd = 14.dp,
-                bottomStart = if (isUser) 14.dp else 2.dp,
-                bottomEnd = if (isUser) 2.dp else 14.dp
+                topStart = 16.dp, topEnd = 16.dp,
+                bottomStart = if (isUser) 16.dp else 3.dp,
+                bottomEnd = if (isUser) 3.dp else 16.dp
             ),
-            modifier = Modifier.widthIn(max = 300.dp)
+            modifier = Modifier.widthIn(max = 334.dp)
         ) {
-            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 message.attachment?.let { attachment ->
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                    Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(9.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 if (attachment.mimeType.startsWith("audio/")) Icons.Default.Mic
                                 else if (attachment.mimeType.startsWith("image/")) Icons.Default.Image
-                                else Icons.Default.AttachFile,
-                                null,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                attachment.name + (if (attachment.durationMs > 0) " · " + attachment.durationMs / 1_000 + "s" else ""),
-                                fontSize = 10.sp,
-                                maxLines = 1,
-                                modifier = Modifier.weight(1f)
-                            )
+                                else Icons.Default.AttachFile, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(7.dp))
+                            Text(attachment.name, fontSize = 11.sp, maxLines = 1, modifier = Modifier.weight(1f))
                             if (attachment.mimeType.startsWith("audio/")) {
-                                IconButton(onClick = onPlayVoice, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.PlayArrow, "Play voice message", modifier = Modifier.size(16.dp))
+                                IconButton(onClick = onPlayVoice, modifier = Modifier.size(28.dp)) {
+                                    Icon(Icons.Default.PlayArrow, "Play voice message", modifier = Modifier.size(17.dp))
                                 }
                             }
                         }
                     }
                 }
-                Text(message.content, color = textColor, fontSize = 13.sp, lineHeight = 18.sp)
-                if (!isUser && !message.isError) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                if (draft == null) {
+                    Text(message.content, color = textColor, fontSize = 13.sp, lineHeight = 19.sp)
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.65f))
                     ) {
-                        IconButton(onClick = onSpeak, modifier = Modifier.size(20.dp)) {
-                            Icon(Icons.Default.VolumeUp, "Speak message", modifier = Modifier.size(12.dp))
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Proposed tool action", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                            Text(draft.tool + (draft.path?.let { " · $it" } ?: ""),
+                                fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                            Text(draft.description, fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Copy or download the suggested content; no file was created by this response.",
+                                fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
+                }
+                if (!isUser && !message.isError) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        @Composable fun action(
+                            icon: androidx.compose.ui.graphics.vector.ImageVector,
+                            name: String, selected: Boolean = false, clicked: () -> Unit
+                        ) {
+                            IconButton(onClick = clicked, modifier = Modifier.size(33.dp)) {
+                                Icon(icon, contentDescription = name, modifier = Modifier.size(18.dp),
+                                    tint = if (selected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        action(if (copied) Icons.Default.CheckCircle else Icons.Default.ContentCopy,
+                            if (copied) "Copied" else "Copy", copied, onCopy)
+                        action(Icons.Default.FileDownload, "Download", false, onDownload)
+                        action(Icons.Default.ThumbUp, "Helpful", reaction == "like") {
+                            reaction = if (reaction == "like") "" else "like"; feedbackStore.set(key, reaction)
+                        }
+                        action(Icons.Default.ThumbDown, "Not helpful", reaction == "dislike") {
+                            reaction = if (reaction == "dislike") "" else "dislike"; feedbackStore.set(key, reaction)
+                        }
+                        action(Icons.Default.Favorite, "Love", reaction == "love") {
+                            reaction = if (reaction == "love") "" else "love"; feedbackStore.set(key, reaction)
+                        }
+                        action(Icons.Default.VolumeUp, "Speak response", false, onSpeak)
+                    }
+                    if (copied) Text("Copied to clipboard", fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -1364,6 +1525,12 @@ private fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
         if (cursor.moveToFirst() && nameIndex >= 0) {
             name = cursor.getString(nameIndex) ?: "attachment"
         }
+    }
+    if (mimeType.startsWith("image/") || name.lowercase().endsWith(".heic") ||
+        name.lowercase().endsWith(".heif") || name.lowercase().endsWith(".bmp")) {
+        val prepared = ImageInputPipeline.prepare(context, uri, name)
+        return ChatAttachment(name = prepared.name, mimeType = "image/jpeg",
+            data = Base64.encodeToString(prepared.jpeg, Base64.NO_WRAP), isText = false)
     }
     require(isText || mimeType in setOf("image/png", "image/jpeg", "image/webp", "application/pdf")) {
         "Unsupported file type. Select PNG, JPEG, WebP, PDF or UTF-8 text."

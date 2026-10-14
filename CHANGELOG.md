@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.0 (build 10010)
+
+- Added a floating animated jump-to-latest message control, visible when the reader scrolls away from newest chat messages; automatic following pauses during history browsing.
+- Added Copy and user-initiated Download for assistant text and suggested files, private local reactions, and a generating pulse. Raw model tool markup is labeled as an **unexecuted proposal**, never falsely shown as a successful operation.
+- Enhanced verified publisher News with an additional BIS RSS source, Atom parsing, publisher-supplied HTTPS images with safe origin/size rules, category illustrations when no photo exists, and retry when no verified articles are available.
+- Added size-bounded image sampling and normalization for Vision uploads (JPEG/PNG/WebP/GIF first frame/BMP and HEIC/HEIF on compatible Android decoders). Unavailable TIFF/SVG decoders and provider vision support are **not** misrepresented.
+- Added regression coverage for tool drafts, feed parsing, authentic media and Android image processing. Preserve all build 10009 Smart Combo and checkpoint work.
+- Public versionName remains 1.0.0; versionCode increments to 10010.
+
 ## v1.0.0 (build 10009)
 
 - Added an opt-in Smart Combo free-text routing mode. Authenticated model discovery must explicitly report zero prompt/completion fees and a published context window before a route can be selected.
