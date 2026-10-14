@@ -58,8 +58,17 @@ internal class HindsightMemoryClient {
         CancellableHttp.execute {
             require(shareable(content)) { "Possible secret or oversized content. Remote memory upload blocked." }
             require(context in setOf("project-checkpoint", "model-progress")) { "Unsupported memory context." }
+            val documentId = if (context == "project-checkpoint") {
+                "maximus-checkpoint-" + projectId
+            } else {
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(content.toByteArray(Charsets.UTF_8))
+                    .joinToString("") { "%02x".format(it) }
+                "maximus-progress-" + digest.take(32)
+            }
             val request = JSONObject().put("items", JSONArray().put(
-                JSONObject().put("content", safeMemo(content)).put("context", context)
+                JSONObject().put("content", safeMemo(content))
+                    .put("context", context).put("document_id", documentId)
             )).put("async", false)
             call(origin, key, projectId, "memories", request)
         }
