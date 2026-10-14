@@ -30,12 +30,14 @@ fun ControlHubScreen(
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.tab_api_usage)) })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.tab_modules)) })
             Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.tab_telemetry)) })
-            Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text(stringResource(R.string.tab_language)) })
+            Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text("ElevenLabs Voice") })
+            Tab(selected = tab == 4, onClick = { tab = 4 }, text = { Text(stringResource(R.string.tab_language)) })
         }
         when (tab) {
             0 -> ApiControlScreen(viewModel, Modifier.weight(1f))
             1 -> ModulesScreen(Modifier.weight(1f))
             2 -> DiagnosticsScreen(viewModel, themeMode, onThemeModeChange, Modifier.weight(1f))
+            3 -> ElevenLabsPanel(Modifier.weight(1f))
             else -> LanguageSettingsScreen(
                 selected = selectedLanguage,
                 onChange = onLanguageChange,
