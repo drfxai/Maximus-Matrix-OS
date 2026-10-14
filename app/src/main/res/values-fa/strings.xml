@@ -376,4 +376,18 @@
     <string name="dev_confirm_branch">این شاخه ساخته شود؟</string>
     <string name="dev_commit_done">تغییر ثبت شد:</string>
     <string name="dev_branch_done">شاخه توسعه ساخته شد.</string>
+    <string name="brain_node_mission">کنترل مأموریت</string>
+    <string name="brain_node_genome">هسته معاملات</string>
+    <string name="brain_node_pine">کتابخانه Pine</string>
+    <string name="brain_node_quant">آزمایشگاه کوانت</string>
+    <string name="brain_node_validation">آزمایشگاه اعتبارسنجی</string>
+    <string name="brain_node_research">موتور پژوهش</string>
+    <string name="brain_node_gateway">درگاه هوش مصنوعی</string>
+    <string name="brain_node_finops">مالی و کنترل</string>
+    <string name="brain_node_alerts">هشدارهای بازار</string>
+    <string name="brain_node_vision">تحلیل تصویری نمودار</string>
+    <string name="brain_graph_count">%1$d ماژول · %2$d ارتباط</string>
+    <string name="brain_graph_inspector">بازرس ماتریکس</string>
+    <string name="brain_graph_filters">فیلتر گره‌ها</string>
+    <string name="brain_graph_explore_help">برای بررسی وضعیت واقعی و ورود به بخش موردنظر، روی گره بزنید. برای چرخش بکشید یا بزرگ‌نمایی کنید.</string>
 </resources>
