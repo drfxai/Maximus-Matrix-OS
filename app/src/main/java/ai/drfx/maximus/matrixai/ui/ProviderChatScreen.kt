@@ -109,10 +109,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     val pendingAction by viewModel.pendingAgentConfirmation.collectAsState()
     pendingAction?.let { request ->
         AlertDialog(onDismissRequest = { viewModel.approveAgentAction(request.id, false) },
-            title = { Text("Approve runtime action") },
+            title = { Text(stringResource(R.string.chat_approve_action)) },
             text = { Text(request.action.tool + "\n" + request.action.arguments.entries.joinToString("\n") { "${it.key}: ${it.value}" }) },
-            confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text("Approve") } },
-            dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text("Reject") } })
+            confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text(stringResource(R.string.graph_approve)) } },
+            dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text(stringResource(R.string.graph_reject)) } })
     }
     val messages by viewModel.chatMessages.collectAsState()
     val sessions by viewModel.chatSessions.collectAsState()
@@ -546,7 +546,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Smart Combo · no verified free route",
+                    Text(stringResource(R.string.chat_combo_unavailable),
                         style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     Text(
                         if (state.smartComboRefreshing)
@@ -558,12 +558,12 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = viewModel::refreshSmartCombo,
                             enabled = !state.smartComboRefreshing && !state.isGenerating) {
-                            Text("Refresh", fontSize = 12.sp)
+                            Text(stringResource(R.string.api_refresh), fontSize = 12.sp)
                         }
                         Button(onClick = { confirmDirectProvider = true },
                             enabled = !state.isGenerating && state.hasSavedKey &&
                                 state.selectedModel.isNotBlank()) {
-                            Text("Use selected provider", fontSize = 12.sp)
+                            Text(stringResource(R.string.chat_manual), fontSize = 12.sp)
                         }
                     }
                     Text("Context tokens shown above are NOT a verified free API balance.",
@@ -759,7 +759,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         }
 
         if (state.isGenerating) {
-            TextButton(onClick = { viewModel.cancelChat() }) { Text("Stop generation") }
+            TextButton(onClick = { viewModel.cancelChat() }) { Text(stringResource(R.string.chat_stop)) }
         }
         if (attachment != null) {
             AssistChip(
@@ -803,7 +803,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 Text("Recording voice message · " + recordingSeconds + "s / 60s",
                     color = MaterialTheme.colorScheme.error, fontSize = 11.sp,
                     modifier = Modifier.weight(1f))
-                TextButton(onClick = { recorder.cancel(); recording = false }) { Text("Discard", fontSize = 11.sp) }
+                TextButton(onClick = { recorder.cancel(); recording = false }) { Text(stringResource(R.string.chat_discard), fontSize = 11.sp) }
             }
         }
         if (attachmentError != null) {
@@ -933,14 +933,14 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         )
     }
     if (renameOpen) {
-        AlertDialog(onDismissRequest = { renameOpen = false }, title = { Text("Rename conversation") },
+        AlertDialog(onDismissRequest = { renameOpen = false }, title = { Text(stringResource(R.string.chat_rename)) },
             text = { OutlinedTextField(value = sessionTitle, onValueChange = { sessionTitle = it }, singleLine = true) },
-            confirmButton = { TextButton(onClick = { viewModel.renameChatSession(activeSessionId, sessionTitle); renameOpen = false }) { Text("Save") } },
+            confirmButton = { TextButton(onClick = { viewModel.renameChatSession(activeSessionId, sessionTitle); renameOpen = false }) { Text(stringResource(R.string.chat_save)) } },
             dismissButton = { TextButton(onClick = { renameOpen = false }) { Text("Cancel") } })
     }
     if (deleteOpen) {
-        AlertDialog(onDismissRequest = { deleteOpen = false }, title = { Text("Delete conversation?") },
-            text = { Text("This removes its locally saved messages.") },
+        AlertDialog(onDismissRequest = { deleteOpen = false }, title = { Text(stringResource(R.string.chat_delete_confirm)) },
+            text = { Text(stringResource(R.string.chat_delete_confirm_desc)) },
             confirmButton = { TextButton(onClick = { viewModel.deleteChatSession(activeSessionId); deleteOpen = false }) { Text(stringResource(R.string.speech_delete)) } },
             dismissButton = { TextButton(onClick = { deleteOpen = false }) { Text("Cancel") } })
     }
@@ -975,7 +975,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     OutlinedTextField(
                         value = quickKeyInput,
                         onValueChange = { quickKeyInput = it },
-                        label = { Text("API Key") },
+                        label = { Text(stringResource(R.string.chat_api_key)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
@@ -1034,7 +1034,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DataUsage, null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(8.dp))
-                        Text("Token & Context Inspector", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.chat_token_inspector), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
                     Text(
                         "${(metrics.contextUsagePercent * 100).toInt()}% Used",
@@ -1102,7 +1102,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     onClick = { tokenDetailsOpen = false },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                 ) {
-                    Text("Close Inspector")
+                    Text(stringResource(R.string.chat_close_inspector))
                 }
             }
         }
@@ -1118,7 +1118,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     .padding(horizontal = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("AI Engine & Provider Setup", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.chat_provider_settings), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(
                     "Select engine preset or enter custom OpenAI-compatible endpoint.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1194,7 +1194,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 OutlinedTextField(
                                     value = baseUrl,
                                     onValueChange = { baseUrl = it },
-                                    label = { Text("Base URL") },
+                                    label = { Text(stringResource(R.string.chat_baseurl)) },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
