@@ -13,6 +13,11 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Narrow Android package visibility for explicit user-requested launches. -->
+    <queries>
+        <package android:name="org.telegram.messenger" />
+        <package android:name="com.android.chrome" />
+    </queries>
 
     <application
         android:allowBackup="false"

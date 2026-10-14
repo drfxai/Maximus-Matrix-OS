@@ -31,11 +31,11 @@ class KeyboardLayoutTest {
         device.executeShellCommand("settings put secure show_ime_with_hard_keyboard 1")
         withLaunchedActivity {
             phase("mission composer lookup")
-            val closed = objectWithDescription("Mission composer").visibleBounds
+            val closed = objectWithDescription("MAXIMUS assistant composer").visibleBounds
             assertTrue("Home header must be visible", device.hasObject(By.text("MAXIMUS AI")))
             repeat(2) { cycle ->
                 phase("mission input click cycle=$cycle")
-                objectWithDescription("Mission input").click()
+                objectWithDescription("Assistant question").click()
                 awaitCondition("Mission keyboard did not open") { isImeVisible() }
                 phase("mission IME visible cycle=$cycle")
                 val expected = if (cycle == 0) "Keyboard test" else "Keyboard test again"
@@ -43,14 +43,14 @@ class KeyboardLayoutTest {
                 awaitCondition("Mission test text was not entered") { device.hasObject(By.text(expected)) }
 
 
-                assertComposerAboveIme("Mission composer")
+                assertComposerAboveIme("MAXIMUS assistant composer")
                 assertTrue("Home header moved off screen", device.hasObject(By.text("MAXIMUS AI")))
                 assertFalse("Navigation should hide while typing", device.hasObject(By.desc("Neural Brain")))
                 device.pressBack()
                 awaitCondition("Keyboard did not close") { !isImeVisible() }
                 awaitCondition("Navigation did not return") { device.hasObject(By.desc("Neural Brain")) }
                 awaitCondition("Mission composer did not return to the bottom") {
-                    val restored = objectWithDescription("Mission composer").visibleBounds
+                    val restored = objectWithDescription("MAXIMUS assistant composer").visibleBounds
                     kotlin.math.abs(restored.bottom - closed.bottom) <= 8
                 }
                 assertTrue("Mission text was lost", device.hasObject(By.text(expected)))

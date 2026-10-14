@@ -51,6 +51,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import ai.drfx.maximus.matrixai.llm.ConnectionStatus
+import ai.drfx.maximus.matrixai.agent.BrainRequestRouter
+import ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore
 import kotlinx.coroutines.isActive
 import java.util.Locale
 import kotlin.math.*
@@ -155,6 +157,7 @@ fun MatrixGraphScreen(
     val events by viewModel.events.collectAsState()
     val status by viewModel.status.collectAsState()
     val llm by viewModel.llmState.collectAsState()
+    val brainMessages by viewModel.chatMessages.collectAsState()
     val dataCenter by viewModel.dataCenter.collectAsState()
     val recentAlerts by viewModel.notificationService.recentAlerts.collectAsState()
     val watchlist by viewModel.notificationService.activeWatchlist.collectAsState()
@@ -172,7 +175,27 @@ fun MatrixGraphScreen(
             visionReady = true
         )
     }
-    val nodes = topology.first
+    // Live state remains identical; only user-visible anatomical labels are localized.
+    val localizedHubNames = mapOf(
+        "signals_hub" to stringResource(R.string.brain_quick_signals),
+        "vision_hub" to stringResource(R.string.brain_node_vision),
+        "news_hub" to stringResource(R.string.brain_quick_news),
+        "alerts_hub" to stringResource(R.string.brain_node_alerts),
+        "agents" to stringResource(R.string.brain_quick_agents),
+        "mission" to stringResource(R.string.brain_node_mission),
+        "chat_hub" to stringResource(R.string.brain_quick_chat),
+        "genome" to stringResource(R.string.brain_node_genome),
+        "pine" to stringResource(R.string.brain_node_pine),
+        "quant" to stringResource(R.string.brain_node_quant),
+        "validation" to stringResource(R.string.brain_node_validation),
+        "research" to stringResource(R.string.brain_node_research),
+        "company" to stringResource(R.string.brain_quick_data),
+        "models" to stringResource(R.string.brain_node_gateway),
+        "api" to stringResource(R.string.brain_node_finops)
+    )
+    val nodes = topology.first.map { node ->
+        node.copy(label = localizedHubNames[node.id] ?: node.label)
+    }
     val edges = topology.second
     var selectedId by remember { mutableStateOf<String?>(null) }
     val selected = nodes.find { it.id == selectedId }
@@ -190,13 +213,25 @@ fun MatrixGraphScreen(
     var spread by remember { mutableFloatStateOf(1f) }
     var linkOpacity by remember { mutableFloatStateOf(.28f) }
     var mission by remember { mutableStateOf("") }
-    var pendingVoice by remember { mutableStateOf<String?>(null) }
     var voiceError by remember { mutableStateOf<String?>(null) }
+    val speechTag = SpeechLanguagePreferenceStore(appContext).selected().tag
+    fun submitBrain(raw: String) {
+        if (raw.isBlank() || llm.isGenerating) return
+        when (val req = BrainRequestRouter.route(raw)) {
+            is BrainRequestRouter.Request.DeviceAction -> {
+                viewModel.runMission(req.canonicalObjective)
+                mission = ""
+            }
+            is BrainRequestRouter.Request.Conversation -> {
+                if (viewModel.sendChat(req.text)) mission = ""
+            }
+        }
+    }
     val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val words = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-            if (!words.isNullOrBlank()) { mission = words; pendingVoice = words; voiceError = null }
-            else voiceError = "No command was recognized. Please try again."
+            if (!words.isNullOrBlank()) { mission = words; voiceError = null }
+            else voiceError = appContext.getString(R.string.brain_voice_empty)
         }
     }
     fun reset() {
@@ -222,11 +257,7 @@ fun MatrixGraphScreen(
             }
         }
     }
-    if (pendingVoice != null) AlertDialog(onDismissRequest = { pendingVoice = null },
-        title = { Text(stringResource(R.string.graph_voice_command)) }, text = { Text(pendingVoice.orEmpty()) },
-        confirmButton = { TextButton(onClick = { pendingVoice?.let(viewModel::runMission); mission = ""; pendingVoice = null },
-            enabled = status != "EXECUTING" && status != "PLANNING") { Text(stringResource(R.string.graph_execute)) } },
-        dismissButton = { TextButton(onClick = { pendingVoice = null }) { Text(stringResource(R.string.graph_edit_cancel)) } })
+    // Dictation fills editable text; it never automatically sends or executes a command.
 
     fun getActionForNode(node: LiveNode): Pair<String, () -> Unit>? {
         return when {
@@ -262,7 +293,7 @@ fun MatrixGraphScreen(
     val inspector: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("MAXIMUS MATRIX OS", color = ink, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            Text("${nodes.size} modules · ${edges.size} neural connections", color = muted, fontSize = 10.sp)
+            Text(stringResource(R.string.brain_graph_count, nodes.size, edges.size), color = muted, fontSize = 10.sp)
             OutlinedTextField(
                 value = search,
                 onValueChange = { search = it },
@@ -346,7 +377,7 @@ fun MatrixGraphScreen(
                         }
                     } else {
                         Text(stringResource(R.string.graph_explore), color = ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text("Tap any module node to inspect its live state, trigger actions, or explore connections. Orbit with one finger, pinch to zoom, or search below.",
+                        Text(stringResource(R.string.brain_graph_explore_help),
                             color = muted, fontSize = 10.5.sp, lineHeight = 15.sp)
                     }
                 }
@@ -415,7 +446,7 @@ fun MatrixGraphScreen(
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
-                            "CEREBRAL CORTEX",
+                            stringResource(R.string.brain_cortex),
                             color = graphTone(GraphAccent, light),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
@@ -424,24 +455,22 @@ fun MatrixGraphScreen(
                         )
                     }
                 }
-                Text("DUAL-HEMISPHERE 3D GRAPH · 48.2 Hz BIO-PULSE", color = muted, fontSize = 8.5.sp, letterSpacing = .6.sp)
+                Text(stringResource(R.string.brain_subtitle), color = muted, fontSize = 8.5.sp, letterSpacing = .6.sp)
             }
             Box(Modifier.size(7.dp).background(if (status == "READY") GraphAccent else GraphGold, CircleShape))
-            Text(status, Modifier.padding(start = 6.dp), color = graphTone(GraphAccent, light), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(if (status == "READY") stringResource(R.string.brain_status_ready) else status, Modifier.padding(start = 6.dp), color = graphTone(GraphAccent, light), fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
 
         // Horizontal Anatomical Lobe Filter Chips
-        val lobeFilters = remember {
-            listOf(
-                "ALL" to "All Lobes",
-                "FRONTAL LOBE" to "🧠 Frontal",
-                "PARIETAL LOBE" to "⚡ Parietal",
-                "OCCIPITAL LOBE" to "👁️ Occipital",
-                "TEMPORAL LOBE" to "🌐 Temporal",
-                "LIMBIC SYSTEM" to "🧬 Limbic",
-                "CEREBELLAR" to "⚙️ Cerebellar"
-            )
-        }
+        val lobeFilters = listOf(
+            "ALL" to stringResource(R.string.brain_lobes_all),
+            "FRONTAL LOBE" to stringResource(R.string.brain_lobe_frontal),
+            "PARIETAL LOBE" to stringResource(R.string.brain_lobe_parietal),
+            "OCCIPITAL LOBE" to stringResource(R.string.brain_lobe_occipital),
+            "TEMPORAL LOBE" to stringResource(R.string.brain_lobe_temporal),
+            "LIMBIC SYSTEM" to stringResource(R.string.brain_lobe_limbic),
+            "CEREBELLAR" to stringResource(R.string.brain_lobe_cerebellar)
+        )
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
@@ -590,14 +619,18 @@ fun MatrixGraphScreen(
                     if (!isCompact) {
                         Column(Modifier.align(Alignment.BottomStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(
-                                "${nodes.count { it.group !in effectiveHidden }} NEURONS · ${edges.count { edge -> nodes.none { it.group in effectiveHidden && (it.id == edge.from || it.id == edge.to) } }} AXONS",
+                                stringResource(R.string.brain_graph_count,
+                                    nodes.count { it.group !in effectiveHidden },
+                                    edges.count { edge -> nodes.none { it.group in effectiveHidden && (it.id == edge.from || it.id == edge.to) } }),
                                 color = muted,
                                 fontSize = 8.sp,
                                 letterSpacing = .6.sp
                             )
-                            Text("Drag X/Y · Twist Z · Pinch zoom", color = muted, fontSize = 10.sp)
+                            Text(stringResource(R.string.brain_graph_guide), color = muted, fontSize = 10.sp)
                             Text(
-                                if (selected != null) "NEURON LOCKED" else if (autoRotate) "AUTO BIO-ORBIT" else "MANUAL ORBIT",
+                                if (selected != null) stringResource(R.string.graph_inspector)
+                                else if (autoRotate) stringResource(R.string.brain_graph_auto)
+                                else stringResource(R.string.brain_graph_guide),
                                 color = graphTone(GraphAccent, light),
                                 fontSize = 8.sp,
                                 letterSpacing = 1.sp
@@ -681,132 +714,183 @@ fun MatrixGraphScreen(
                     }
                     Spacer(Modifier.height(20.dp))
                     IntelligenceRing(status, light, Modifier.fillMaxWidth().aspectRatio(1f))
-                    Text(if (llm.status == ConnectionStatus.CONNECTED) "MODEL CONNECTED" else "MODEL OFFLINE", Modifier.align(Alignment.CenterHorizontally),
+                    Text(if (llm.status == ConnectionStatus.CONNECTED) stringResource(R.string.brain_model_connected) else stringResource(R.string.brain_model_offline), Modifier.align(Alignment.CenterHorizontally),
                         color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
                 }
             }
             if (openPanel != null) AlertDialog(onDismissRequest = { openPanel = null }, containerColor = panelColor,
-                title = { Text(if (openPanel == GraphPanel.INSPECTOR) "Matrix inspector" else "Node filters", color = ink) },
+                title = { Text(if (openPanel == GraphPanel.INSPECTOR)
+                    stringResource(R.string.brain_graph_inspector) else stringResource(R.string.brain_graph_filters),
+                    color = ink) },
                 text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { if (openPanel == GraphPanel.INSPECTOR) inspector() else filters() } },
                 confirmButton = { TextButton(onClick = { openPanel = null }) { Text(stringResource(R.string.graph_done)) } })
         }
         Surface(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)
-            .semantics { contentDescription = "Mission composer" }, color = panelColor,
-            shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, border)) {
-            Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-                if (mission.isBlank()) {
-                    Text(events.firstOrNull()?.message ?: "Your matrix is ready. Explore a node or describe a mission.",
-                        color = muted, fontSize = 11.sp, maxLines = 1, lineHeight = 15.sp)
+            .semantics { contentDescription = "MAXIMUS assistant composer" }, color = panelColor,
+            shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, border)) {
+            Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.brain_chat_heading),
+                        modifier = Modifier.weight(1f), fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold, color = ink)
+                    TextButton(onClick = onNavigateToChat) {
+                        Text(stringResource(R.string.brain_open_full_chat), fontSize = 10.sp)
+                    }
+                }
+                if (brainMessages.isEmpty()) {
+                    Text(if (llm.selectedModel.isBlank()) stringResource(R.string.brain_offline)
+                         else stringResource(R.string.brain_chat_intro),
+                        color = muted, fontSize = 11.sp, maxLines = 2)
+                } else {
+                    brainMessages.takeLast(3).forEach { item ->
+                        Surface(color = if (item.role == "user")
+                            graphTone(GraphAccent, light).copy(alpha = .10f)
+                            else if (item.isError) MaterialTheme.colorScheme.errorContainer
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(9.dp)) {
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)) {
+                                Text(if (item.role == "user") stringResource(R.string.brain_you)
+                                     else "MAXIMUS",
+                                    fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                                    color = if (item.isError) MaterialTheme.colorScheme.error else muted)
+                                Text(item.content, fontSize = 11.sp, color = ink,
+                                    lineHeight = 15.sp, maxLines = 4)
+                            }
+                        }
+                    }
+                }
+                if (llm.isGenerating) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(stringResource(R.string.brain_wait), fontSize = 10.sp, color = muted)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(mission, { mission = it },
-                        Modifier.weight(1f).semantics { contentDescription = "Mission input" }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { keyboard?.hide(); focusManager.clearFocus() }),
-                        placeholder = { Text("Ask MAXIMUS…", fontSize = 12.sp) }, shape = RoundedCornerShape(25.dp))
+                    OutlinedTextField(
+                        mission, { mission = it },
+                        Modifier.weight(1f).semantics { contentDescription = "Assistant question" },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = {
+                            submitBrain(mission)
+                            keyboard?.hide()
+                            focusManager.clearFocus()
+                        }),
+                        placeholder = { Text(stringResource(R.string.brain_prompt), fontSize = 12.sp) },
+                        shape = RoundedCornerShape(25.dp)
+                    )
                     IconButton(onClick = {
-                        try { voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
-                            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Describe the mission to execute")) }
-                        catch (e: Exception) { voiceError = "Voice recognition is unavailable on this device." }
-                    }) { Icon(Icons.Default.Mic, "Speak a mission command", tint = graphTone(GraphPurple, light)) }
-                    IconButton(onClick = { viewModel.runMission(mission); mission = "" },
-                        enabled = mission.isNotBlank() && status != "EXECUTING" && status != "PLANNING") {
-                        Icon(Icons.Default.ArrowUpward, "Run mission", tint = if (mission.isBlank()) muted else graphTone(GraphAccent, light))
+                        try {
+                            voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, speechTag)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, speechTag)
+                                .putExtra(RecognizerIntent.EXTRA_PROMPT,
+                                    appContext.getString(R.string.brain_voice_hint)))
+                        } catch (_: Exception) {
+                            voiceError = appContext.getString(R.string.brain_voice_unavailable)
+                        }
+                    }) {
+                        Icon(Icons.Default.Mic, stringResource(R.string.brain_speak),
+                            tint = graphTone(GraphPurple, light))
+                    }
+                    IconButton(onClick = { submitBrain(mission) },
+                        enabled = mission.isNotBlank() && !llm.isGenerating &&
+                            status != "EXECUTING" && status != "PLANNING") {
+                        Icon(Icons.Default.ArrowUpward, stringResource(R.string.brain_send),
+                            tint = if (mission.isBlank()) muted else graphTone(GraphAccent, light))
                     }
                 }
                 voiceError?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
+                Text(stringResource(R.string.brain_action_approval),
+                    color = muted, fontSize = 9.sp, maxLines = 2)
 
-                val quickActions = remember {
-                    listOf(
+                val quickActions = listOf(
                         QuickActionItem(
-                            titleLine1 = "Live",
-                            titleLine2 = "Signals",
+                            titleLine1 = stringResource(R.string.brain_quick_signals),
+                            titleLine2 = "",
                             icon = Icons.Default.Bolt,
                             accentColor = Color(0xFF00E676),
                             promptText = "Review active high-probability live trading signals, order blocks, win rates, and TP/SL levels stored in Room.",
                             isSignals = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Analyze",
-                            titleLine2 = "Chart",
+                            titleLine1 = stringResource(R.string.brain_quick_chart),
+                            titleLine2 = "",
                             icon = Icons.Default.BarChart,
                             accentColor = Color(0xFF00E5FF),
                             promptText = "Analyze trading chart price action, identify market structure, detect dynamic trendlines and patterns, and construct an actionable trade plan.",
                             isVision = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "News",
-                            titleLine2 = "Intelligence",
+                            titleLine1 = stringResource(R.string.brain_quick_news),
+                            titleLine2 = "",
                             icon = Icons.Default.Article,
                             accentColor = Color(0xFFFF9100),
                             promptText = "Summarize today's financial markets news, macroeconomic catalysts, and economic calendar releases.",
                             isNews = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Market",
-                            titleLine2 = "Alerts",
+                            titleLine1 = stringResource(R.string.brain_quick_alerts),
+                            titleLine2 = "",
                             icon = Icons.Default.NotificationsActive,
                             accentColor = Color(0xFFFF1744),
                             promptText = "Check real-time market-moving catalysts and breaking volatility alerts for watched asset pairs.",
                             isAlerts = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Maximus",
-                            titleLine2 = "Chat",
+                            titleLine1 = stringResource(R.string.brain_quick_chat),
+                            titleLine2 = "",
                             icon = Icons.AutoMirrored.Filled.Chat,
                             accentColor = Color(0xFFB388FF),
                             promptText = "Chat with Maximus AI for conversational market analysis and risk management guidance.",
                             isChat = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Agent",
-                            titleLine2 = "Factory",
+                            titleLine1 = stringResource(R.string.brain_quick_agents),
+                            titleLine2 = "",
                             icon = Icons.Default.Person,
                             accentColor = Color(0xFF38C79B),
                             promptText = "Open Agent Factory to configure autonomous trading, vision, news, and research agents.",
                             isAgents = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Data",
-                            titleLine2 = "Center",
+                            titleLine1 = stringResource(R.string.brain_quick_data),
+                            titleLine2 = "",
                             icon = Icons.Default.Storage,
                             accentColor = Color(0xFFAAC56A),
                             promptText = "Access Data Center storage, documents, and Matrix Graph knowledge memory.",
                             isData = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Control",
-                            titleLine2 = "Hub",
+                            titleLine1 = stringResource(R.string.brain_quick_control),
+                            titleLine2 = "",
                             icon = Icons.Default.Settings,
                             accentColor = Color(0xFFD664A2),
                             promptText = "Configure AI Gateway models, API keys, and FinOps token usage parameters.",
                             isControl = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Build",
-                            titleLine2 = "Strategy",
+                            titleLine1 = stringResource(R.string.brain_quick_strategy),
+                            titleLine2 = "",
                             icon = Icons.Default.Science,
                             accentColor = Color(0xFF6ABCC9),
                             promptText = "Build an algorithmic trading strategy with clear entry rules, risk management, stop loss, and take profit targets."
                         ),
                         QuickActionItem(
-                            titleLine1 = "Generate",
-                            titleLine2 = "Pine",
+                            titleLine1 = stringResource(R.string.brain_quick_pine),
+                            titleLine2 = "",
                             icon = Icons.Default.Code,
                             accentColor = Color(0xFF00E676),
                             promptText = "Generate a TradingView Pine Script v5 strategy with entry signals, trailing stop, and position sizing."
                         ),
                         QuickActionItem(
-                            titleLine1 = "Generate",
-                            titleLine2 = "MQL5",
+                            titleLine1 = stringResource(R.string.brain_quick_mql),
+                            titleLine2 = "",
                             icon = Icons.Default.Description,
                             accentColor = Color(0xFFFFD54F),
                             promptText = "Generate a MetaTrader 5 MQL5 Expert Advisor with automated order execution, stop loss, and risk parameters."
                         )
                     )
-                }
 
                 Spacer(Modifier.height(8.dp))
                 LazyRow(
@@ -864,7 +948,7 @@ fun MatrixGraphScreen(
                                         color = ink,
                                         lineHeight = 13.sp
                                     )
-                                    Text(
+                                    if (action.titleLine2.isNotBlank()) Text(
                                         text = action.titleLine2,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
@@ -944,7 +1028,7 @@ private fun IntelligenceRing(status: String, light: Boolean, modifier: Modifier)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("M.A.X.", color = if (light) Color(0xFF40365F) else Color(0xFFD9CBF7), fontSize = 9.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
-            Text("48 Hz", color = graphTone(GraphAccent, light), fontSize = 7.5.sp, fontWeight = FontWeight.SemiBold)
+            Text("AI", color = graphTone(GraphAccent, light), fontSize = 7.5.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }

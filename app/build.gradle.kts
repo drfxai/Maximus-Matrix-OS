@@ -12,7 +12,7 @@ android {
         applicationId = "ai.drfx.maximus.matrixai"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10017
+        versionCode = 10018
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -89,6 +89,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("androidx.work:work-runtime-ktx:2.10.5")
 
     // Optional Android ARM64 PRoot runtime installer: verified zstd/tar release bundles.
     implementation("org.apache.commons:commons-compress:1.27.1")
