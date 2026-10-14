@@ -376,4 +376,18 @@
     <string name="dev_confirm_branch">Dal oluşturulsun mu?</string>
     <string name="dev_commit_done">Değişiklik kaydedildi:</string>
     <string name="dev_branch_done">Özellik dalı oluşturuldu.</string>
+    <string name="brain_node_mission">Görev Kontrolü</string>
+    <string name="brain_node_genome">Alım Satım Genomu</string>
+    <string name="brain_node_pine">Pine Kütüphanesi</string>
+    <string name="brain_node_quant">Quant Laboratuvarı</string>
+    <string name="brain_node_validation">Doğrulama Laboratuvarı</string>
+    <string name="brain_node_research">Araştırma Motoru</string>
+    <string name="brain_node_gateway">YZ Geçidi</string>
+    <string name="brain_node_finops">Finans ve Kontrol</string>
+    <string name="brain_node_alerts">Piyasa Uyarıları</string>
+    <string name="brain_node_vision">Grafik Analizi</string>
+    <string name="brain_graph_count">%1$d modül · %2$d bağlantı</string>
+    <string name="brain_graph_inspector">Matrix inceleyicisi</string>
+    <string name="brain_graph_filters">Düğüm filtreleri</string>
+    <string name="brain_graph_explore_help">Gerçek durumu incelemek için bir modüle dokunun. Döndürmek için sürükleyin, yakınlaştırmak için iki parmağınızı kullanın.</string>
 </resources>
