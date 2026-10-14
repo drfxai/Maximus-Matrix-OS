@@ -380,6 +380,7 @@ fun ProjectStudioScreen(
                 if (files.size > 80) Text(stringResource(R.string.studio_show_files), fontSize = 11.sp)
             }
         }
+        item { PhoneHarnessPanel(projectId = activeId) }
         item { RemoteWorkerPanel(projectId = activeId) }
         item {
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
