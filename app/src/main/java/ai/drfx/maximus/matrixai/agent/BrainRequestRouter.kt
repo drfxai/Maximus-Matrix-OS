@@ -20,7 +20,14 @@ internal object BrainRequestRouter {
             .replace('ي', 'ی').replace('ك', 'ک').replace('‌', ' ')
             .replace(Regex("\\s+"), " ").trim()
 
-        val explicitOpen = Regex("(باز کن|بازش کن|اجرا کن|راه اندازی کن|open|launch|start)").containsMatchIn(lower)
+        // "برنامه بنویس که تلگرام را باز کند" is a request for an explanation,
+        // not an imperative. Do not match the "باز کن" prefix of "باز کند".
+        val explicitOpen = (
+            Regex("(^|\\s)(باز کن|بازش کن|اجرا کن|راه اندازی کن)(\\s|$)").containsMatchIn(lower) ||
+                lower.startsWith("open ") || lower.startsWith("launch ") ||
+                lower.startsWith("start ")
+        ) && !lower.contains("بنویس") && !lower.startsWith("چگونه ") &&
+            !lower.startsWith("how ") && !lower.startsWith("explain ")
         val photography = lower.startsWith("عکس بگیر") || lower.startsWith("عکس گرفتن") ||
             lower.startsWith("take a photo") || lower.startsWith("take photo") ||
             lower.startsWith("open camera") || lower.startsWith("camera open")
