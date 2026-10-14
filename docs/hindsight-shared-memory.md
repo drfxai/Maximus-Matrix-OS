@@ -25,7 +25,7 @@ The open-source Hindsight service can be self-hosted behind authenticated HTTPS,
 - Memory source is user-specific; do not embed a global Hindsight credential in APK or source.
 - The current Android build cannot guarantee multi-device same-project synchronization from independently generated workspace UUIDs. The identical bank ID, authorization and workspace content must be shared deliberately before devices can collaborate. Do not claim cross-device project mirroring.
 - Retain/Recall is available; automatic Reflect is excluded from the low-latency request path to avoid additional costs and non-deterministic decisions.
-- Removing local settings does not delete already stored remote facts; deletion requires the appropriate authenticated remote memory action.
+- Disconnecting removes the cloud credential and disables remote sync but intentionally preserves encrypted local project progress. Explicit full local clearing is separate. Deleting previously stored remote facts requires the appropriate authenticated remote memory action.
 
 ## Tests / release gates
 - JVM: HTTPS endpoint hardening, project bank determinism/isolation, unsafe text filters.
