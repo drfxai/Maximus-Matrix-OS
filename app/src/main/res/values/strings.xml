@@ -390,4 +390,13 @@
     <string name="brain_graph_inspector">Matrix inspector</string>
     <string name="brain_graph_filters">Node filters</string>
     <string name="brain_graph_explore_help">Tap a module to inspect real state and open its screen. Drag the graph or pinch to zoom.</string>
+    <string name="speech_follow_app_language">Follow app language (recommended)</string>
+    <string name="speech_follow_app_short">App language</string>
+    <string name="speech_wrong_script_review">The Android recognizer returned text in a different script than %1$s. It may have ignored the requested language. Check the installed speech language and correct this text before sending. No message was sent automatically.</string>
+    <string name="speech_microphone_permission_required">Microphone permission is needed to record a voice message.</string>
+    <string name="speech_attachment_read_error">Could not read the attachment.</string>
+    <string name="speech_conversation_default">Conversation</string>
+    <string name="speech_recording_status">Recording voice message · %1$d s / 60 s</string>
+    <string name="speech_recorded_audio_requires_model">Raw audio requires Gemini or OpenAI. Use Dictate with this provider.</string>
+    <string name="speech_clear_conversation">Clear conversation</string>
 </resources>
