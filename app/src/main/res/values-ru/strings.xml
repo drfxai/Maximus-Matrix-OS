@@ -399,4 +399,9 @@
     <string name="speech_recording_status">Запись голосового сообщения · %1$d с / 60 с</string>
     <string name="speech_recorded_audio_requires_model">Для исходного аудио нужен Gemini или OpenAI. Для этого провайдера используйте диктовку.</string>
     <string name="speech_clear_conversation">Очистить беседу</string>
+    <string name="brain_enable_spoken_replies">Включить голосовые ответы Brain</string>
+    <string name="brain_disable_spoken_replies">Выключить голосовые ответы Brain</string>
+    <string name="brain_voice_playback_failed">Не удалось озвучить ответ. Проверьте синтезатор речи и установленный голос.</string>
+    <string name="brain_action_tool_label">Инструмент: %1$s</string>
+    <string name="brain_action_approval_scope">Разрешение относится только к этому действию. Другие приложения могут потребовать дополнительное подтверждение.</string>
 </resources>
