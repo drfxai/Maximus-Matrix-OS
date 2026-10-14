@@ -136,4 +136,6 @@
     <string name="phone_apk_builds">Сборка APK</string>
     <string name="phone_build_log">Показать журнал Gradle</string>
     <string name="phone_hide_log">Скрыть журнал сборки</string>
+    <string name="speech_install_tts">Установить голосовой язык</string>
+    <string name="speech_tts_setup_unavailable">Настройка голоса недоступна. Установите речевой движок и голос в настройках Android.</string>
 </resources>
