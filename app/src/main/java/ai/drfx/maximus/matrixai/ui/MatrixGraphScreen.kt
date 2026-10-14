@@ -219,6 +219,7 @@ fun MatrixGraphScreen(
     var linkOpacity by remember { mutableFloatStateOf(.28f) }
     var mission by remember { mutableStateOf("") }
     var voiceError by remember { mutableStateOf<String?>(null) }
+    var brainInputFromVoice by remember { mutableStateOf(false) }
     var brainSpokenReplies by remember { mutableStateOf(false) }
     var brainVoiceSetupNeeded by remember { mutableStateOf(false) }
     var brainTtsReady by remember { mutableStateOf(false) }
@@ -239,9 +240,14 @@ fun MatrixGraphScreen(
             is BrainRequestRouter.Request.DeviceAction -> {
                 viewModel.runMission(req.canonicalObjective)
                 mission = ""
+                brainInputFromVoice = false
             }
             is BrainRequestRouter.Request.Conversation -> {
-                if (viewModel.sendChat(req.text)) mission = ""
+                if (viewModel.sendChat(req.text,
+                        fromVoice = brainInputFromVoice || brainSpokenReplies)) {
+                    mission = ""
+                    brainInputFromVoice = false
+                }
             }
         }
     }
@@ -253,6 +259,7 @@ fun MatrixGraphScreen(
             )
             if (selection.text != null) {
                 mission = selection.text
+                brainInputFromVoice = selection.scriptMatchesLanguage
                 voiceError = if (selection.scriptMatchesLanguage) null
                     else appContext.getString(R.string.speech_wrong_script_review,
                         recordingSpeechLanguage.label)
@@ -826,7 +833,10 @@ fun MatrixGraphScreen(
                 // Give the text field the full width in RTL and on compact phones.
                 // Icon buttons on a separate row prevent squeezed or overlapping input.
                 OutlinedTextField(
-                    mission, { mission = it.take(4000) },
+                    mission, {
+                        mission = it.take(4000)
+                        brainInputFromVoice = false
+                    },
                     Modifier.fillMaxWidth().semantics { contentDescription = "Assistant question" },
                     minLines = 1,
                     maxLines = 3,
