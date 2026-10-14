@@ -10,7 +10,7 @@ The open-source Hindsight service can be self-hosted behind authenticated HTTPS,
 
 ## Architecture
 - One isolated `maximus-project-{UUID}` bank per local Project Studio project. Inference model names are not part of bank identity. All models working on that project see the same memories.
-- Keep app-private **signed-by-context** local continuity checkpoints with SHA-256 workspace-file hashes. Never treat memory text as evidence of successful source edits or CI jobs.
+- Keep app-private local continuity checkpoints with SHA-256 workspace-file hashes, plus short AES-GCM-encrypted on-device progress notes recorded after successful chats when shared memory is enabled. These remain accessible without the remote service. Never treat memory text as evidence of successful source edits or CI jobs.
 - Project Studio has an explicit opt-in Hindsight panel: authenticated endpoint, separately encrypted API token, active project, manual checkpoint sync, recall, and optional automatic progress sharing.
 - Retain uses a stable `document_id` for checkpoint upsert and content-hash-derived IDs for duplicate-safe short model progress records.
 - Android Keystore encrypts the user-owned token; the app never embeds a shared/admin/cloud token.
