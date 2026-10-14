@@ -74,14 +74,13 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
             }) { Text("Save connection") }
 
             OutlinedButton(enabled = !busy, onClick = {
-                settings.clear()
-                settings.setActiveProject(projectId.orEmpty())
+                settings.disconnect()
                 bridge.forgetCache()
                 enabled = false
                 autoShare = false
                 url = settings.endpoint()
                 keyInput = ""
-                status = "Connection and access key removed; remote memories must be deleted separately."
+                status = "Access key removed. Local encrypted history remains; cloud memories require separate deletion."
             }) { Text("Disconnect") }
         }
         Row {
