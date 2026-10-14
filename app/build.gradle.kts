@@ -82,6 +82,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // Verified optional on-device Linux/Android toolchain extraction (not bundled model weights).
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    implementation("com.github.luben:zstd-jni:1.5.7-12@aar")
 
     // Room persistence
     implementation("androidx.room:room-runtime:2.8.4")
