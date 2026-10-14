@@ -147,6 +147,9 @@ class BuildCoordinator:
 
     def _execute(self, job, files):
         root = pathlib.Path(tempfile.mkdtemp(prefix="maximus-debug-"))
+        # The unprivileged container UID must traverse the bind-mount parent;
+        # no secrets reside under this temporary directory.
+        root.chmod(0o755)
         job["root"] = str(root)
         try:
             source, output = root / "source", root / "output"
