@@ -1,5 +1,9 @@
 package ai.drfx.maximus.matrixai.ui
 
+import androidx.compose.ui.res.stringResource
+
+import ai.drfx.maximus.matrixai.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -42,22 +46,22 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
     }
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("HINDSIGHT · SHARED PROJECT MEMORY",
+        Text(stringResource(R.string.hindsight_title),
             style = MaterialTheme.typography.titleMedium)
-        Text("Retain / Recall across different LLM models. Each project uses an isolated memory bank. Models never receive your Hindsight key.",
+        Text(stringResource(R.string.hindsight_summary),
             style = MaterialTheme.typography.bodySmall)
         Text("Bank: " + (projectId?.let(HindsightMemoryClient::bankFor) ?: "Select a project"),
             style = MaterialTheme.typography.labelSmall)
 
         OutlinedTextField(
             value = url, onValueChange = { url = it.take(200) },
-            label = { Text("Hindsight HTTPS endpoint") },
+            label = { Text(stringResource(R.string.hindsight_endpoint)) },
             modifier = Modifier.fillMaxWidth().testTag("hindsight_endpoint"),
             singleLine = true, enabled = !busy
         )
         OutlinedTextField(
             value = keyInput, onValueChange = { keyInput = it.take(512) },
-            label = { Text("Your Hindsight API key (optional for private edge)") },
+            label = { Text(stringResource(R.string.hindsight_key)) },
             placeholder = { Text(if (settings.hasKey()) "Saved securely — enter to replace" else "hsk_...") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth().testTag("hindsight_key"),
@@ -71,7 +75,7 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                     bridge.forgetCache()
                     status = "Connection configuration encrypted and saved. Verify recall before use."
                 } catch (error: Exception) { status = error.message ?: "Invalid configuration." }
-            }) { Text("Save connection") }
+            }) { Text(stringResource(R.string.hindsight_save)) }
 
             OutlinedButton(enabled = !busy, onClick = {
                 settings.disconnect()
@@ -81,11 +85,11 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                 url = settings.endpoint()
                 keyInput = ""
                 status = "Access key removed. Local encrypted history remains; cloud memories require separate deletion."
-            }) { Text("Disconnect") }
+            }) { Text(stringResource(R.string.data_disconnect)) }
         }
         Row {
             Column(Modifier.weight(1f)) {
-                Text("Enable Hindsight memory", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.hindsight_enable), style = MaterialTheme.typography.titleSmall)
                 Text("Keeps encrypted short progress locally; only approved checkpoints sync remotely unless auto-share is separately enabled.",
                     style = MaterialTheme.typography.bodySmall)
             }
@@ -115,7 +119,7 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
 
         Row {
             Column(Modifier.weight(1f)) {
-                Text("Automatically share model progress", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.hindsight_share), style = MaterialTheme.typography.titleSmall)
                 Text("Optional: sends short task/response excerpts after successful chats. These may contain private information. Leave off for sensitive projects.",
                     style = MaterialTheme.typography.bodySmall)
             }
@@ -138,7 +142,7 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                     catch (e: Exception) { status = e.message ?: "Recall failed." }
                     finally { busy = false }
                 }
-            }) { Text("Recall now") }
+            }) { Text(stringResource(R.string.hindsight_recall)) }
             OutlinedButton(enabled = enabled && projectId != null && !busy, onClick = {
                 busy = true
                 scope.launch {
@@ -150,7 +154,7 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                     catch (e: Exception) { status = e.message ?: "Checkpoint sync unavailable." }
                     finally { busy = false }
                 }
-            }) { Text("Sync checkpoint") }
+            }) { Text(stringResource(R.string.hindsight_sync)) }
         }
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         Text(status, style = MaterialTheme.typography.bodySmall)
