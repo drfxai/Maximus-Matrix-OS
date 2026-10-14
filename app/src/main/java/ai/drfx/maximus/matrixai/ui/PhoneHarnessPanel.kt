@@ -116,9 +116,9 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                             modifier = Modifier.padding(11.dp).size(25.dp))
                     }
                     Column(Modifier.weight(1f)) {
-                        Text("MOBILE HARNESS", color = Color.White, fontWeight = FontWeight.ExtraBold,
+                        Text(stringResource(R.string.phone_harness_title), color = Color.White, fontWeight = FontWeight.ExtraBold,
                             style = MaterialTheme.typography.titleMedium)
-                        Text("YOUR PHONE · YOUR SERVER", color = harnessAqua,
+                        Text(stringResource(R.string.phone_harness_subtitle), color = harnessAqua,
                             style = MaterialTheme.typography.labelSmall)
                     }
                     Surface(shape = RoundedCornerShape(100.dp),
@@ -154,7 +154,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     ) {
                         Icon(Icons.Default.PlayArrow, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Start server")
+                        Text(stringResource(R.string.phone_start_server))
                     }
                     OutlinedButton(
                         enabled = running, onClick = { confirmStop = true },
@@ -164,7 +164,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     ) {
                         Icon(Icons.Default.Stop, null, Modifier.size(17.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Stop")
+                        Text(stringResource(R.string.phone_stop_server))
                     }
                 }
             }
@@ -323,7 +323,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     Icon(Icons.Default.Shield, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(9.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Private access", style = MaterialTheme.typography.titleSmall,
+                        Text(stringResource(R.string.phone_private), style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold)
                         Text("One-time session key · never saved", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -386,12 +386,12 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Memory, null, tint = harnessIndigo)
                     Spacer(Modifier.width(8.dp))
-                    Text("Runtime readiness", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                    Text(stringResource(R.string.phone_readiness), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f))
                     TextButton(onClick = { diagnostics = PhoneRuntimeInspector.inspect(context) }) {
                         Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Scan")
+                        Text(stringResource(R.string.phone_scan))
                     }
                 }
                 Text(diagnostics.headline, style = MaterialTheme.typography.bodyMedium,
@@ -456,7 +456,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                 } catch (e: Exception) {
                     status = e.message ?: "Could not launch local APK build."
                 }
-            }) { Text("Approve local build") }
+            }) { Text(stringResource(R.string.phone_approve_build)) }
         },
         dismissButton = { TextButton(onClick = { confirmBuild = false }) { Text("Cancel") } }
     )
@@ -498,7 +498,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                 }
             }) { Text("Stop and revoke") }
         },
-        dismissButton = { TextButton(onClick = { confirmStop = false }) { Text("Keep running") } }
+        dismissButton = { TextButton(onClick = { confirmStop = false }) { Text(stringResource(R.string.phone_keep_running)) } }
     )
 }
 
