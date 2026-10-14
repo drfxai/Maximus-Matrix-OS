@@ -257,4 +257,27 @@
     <string name="chat_baseurl">العنوان الأساسي</string>
     <string name="chat_token_inspector">مراقبة الرموز والسياق</string>
     <string name="chat_close_inspector">إغلاق المراقب</string>
+    <string name="phone_harness_title">موبايل هارنس</string>
+    <string name="phone_harness_subtitle">هاتفك · خادمك</string>
+    <string name="phone_workspace_desc">بيئة تطوير خاصة تعمل على هاتف أندرويد الخاص بك.</string>
+    <string name="phone_start_server">تشغيل الخادم</string>
+    <string name="phone_stop_server">إيقاف</string>
+    <string name="phone_private">وصول خاص</string>
+    <string name="phone_one_time">مفتاح جلسة مؤقت · لا يُحفظ</string>
+    <string name="phone_no_share">تشغيل الخادم لا يشارك الملفات. يجب الموافقة على مشاركة مشروع واحد بشكل مستقل.</string>
+    <string name="phone_copy_token">نسخ رمز الوصول المحلي المؤقت</string>
+    <string name="phone_shared_project">المشروع المسموح</string>
+    <string name="phone_approve">موافقة</string>
+    <string name="phone_revoke">سحب الإذن</string>
+    <string name="phone_offline_desc">شغّل الخادم للربط المحلي أو لتصدير كل مشروع.</string>
+    <string name="phone_readiness">جاهزية بيئة التشغيل</string>
+    <string name="phone_scan">فحص</string>
+    <string name="phone_build_confirm">إنشاء هذا المشروع الموثوق محليا؟</string>
+    <string name="phone_approve_build">الموافقة على البناء المحلي</string>
+    <string name="phone_share_confirm">مشاركة المشروع المحدد محليا؟</string>
+    <string name="phone_share_approve">الموافقة على مشروع واحد</string>
+    <string name="phone_stop_confirm">إيقاف خادم الهاتف الخاص؟</string>
+    <string name="phone_stop_revoke">إيقاف وسحب الأذونات</string>
+    <string name="phone_keep_running">متابعة التشغيل</string>
+    <string name="phone_runtime_note">وجود ملفات لينكس لا يثبت نجاح التشغيل. تحقق من الأدوات على الهاتف.</string>
 </resources>
