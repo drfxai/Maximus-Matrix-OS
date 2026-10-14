@@ -1,5 +1,9 @@
 package ai.drfx.maximus.matrixai.ui
 
+import androidx.compose.ui.res.stringResource
+
+import ai.drfx.maximus.matrixai.R
+
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Paint
@@ -138,14 +142,14 @@ fun MatrixGraphScreen(
     pendingApproval?.let { request ->
         AlertDialog(
             onDismissRequest = { viewModel.approveAgentAction(request.id, false) },
-            title = { Text("Authorize device action?") },
+            title = { Text(stringResource(R.string.graph_authorize)) },
             text = { Column {
                 Text("Tool: " + request.action.tool)
                 request.action.arguments.forEach { (name, value) -> Text(name + ": " + value.take(500)) }
                 Text("Approval applies only to this action. External apps may require another confirmation.")
             } },
-            confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text("Approve") } },
-            dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text("Reject") } }
+            confirmButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, true) }) { Text(stringResource(R.string.graph_approve)) } },
+            dismissButton = { TextButton(onClick = { viewModel.approveAgentAction(request.id, false) }) { Text(stringResource(R.string.graph_reject)) } }
         )
     }
     val events by viewModel.events.collectAsState()
@@ -219,10 +223,10 @@ fun MatrixGraphScreen(
         }
     }
     if (pendingVoice != null) AlertDialog(onDismissRequest = { pendingVoice = null },
-        title = { Text("Execute voice command?") }, text = { Text(pendingVoice.orEmpty()) },
+        title = { Text(stringResource(R.string.graph_voice_command)) }, text = { Text(pendingVoice.orEmpty()) },
         confirmButton = { TextButton(onClick = { pendingVoice?.let(viewModel::runMission); mission = ""; pendingVoice = null },
-            enabled = status != "EXECUTING" && status != "PLANNING") { Text("Execute") } },
-        dismissButton = { TextButton(onClick = { pendingVoice = null }) { Text("Edit or cancel") } })
+            enabled = status != "EXECUTING" && status != "PLANNING") { Text(stringResource(R.string.graph_execute)) } },
+        dismissButton = { TextButton(onClick = { pendingVoice = null }) { Text(stringResource(R.string.graph_edit_cancel)) } })
 
     fun getActionForNode(node: LiveNode): Pair<String, () -> Unit>? {
         return when {
@@ -264,7 +268,7 @@ fun MatrixGraphScreen(
                 onValueChange = { search = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text("Search matrix nodes…", fontSize = 11.sp) },
+                placeholder = { Text(stringResource(R.string.graph_search), fontSize = 11.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(16.dp)) },
                 trailingIcon = {
                     if (search.isNotBlank()) {
@@ -274,7 +278,7 @@ fun MatrixGraphScreen(
                     }
                 }
             )
-            Text("INSPECTOR", color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
+            Text(stringResource(R.string.graph_inspector), color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
             Surface(color = bg, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, border)) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (selected != null) {
@@ -338,10 +342,10 @@ fun MatrixGraphScreen(
                         }
 
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            TextButton(onClick = { selectedId = null }) { Text("Clear focus", fontSize = 10.sp) }
+                            TextButton(onClick = { selectedId = null }) { Text(stringResource(R.string.graph_clear), fontSize = 10.sp) }
                         }
                     } else {
-                        Text("Explore the Matrix", color = ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.graph_explore), color = ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         Text("Tap any module node to inspect its live state, trigger actions, or explore connections. Orbit with one finger, pinch to zoom, or search below.",
                             color = muted, fontSize = 10.5.sp, lineHeight = 15.sp)
                     }
@@ -359,21 +363,21 @@ fun MatrixGraphScreen(
                     Text(edges.count { it.from == node.id || it.to == node.id }.toString(), color = muted, fontSize = 10.sp)
                 }
             }
-            if (search.isNotBlank() && nodes.none { it.label.contains(search, true) || it.group.contains(search, true) }) Text("No matching modules", color = muted, fontSize = 11.sp)
+            if (search.isNotBlank() && nodes.none { it.label.contains(search, true) || it.group.contains(search, true) }) Text(stringResource(R.string.graph_none), color = muted, fontSize = 11.sp)
             HorizontalDivider(color = border)
-            Text("DISPLAY & RENDERING", color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
-            Text("Cluster spread", color = muted, fontSize = 11.sp)
+            Text(stringResource(R.string.graph_display), color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
+            Text(stringResource(R.string.graph_spread), color = muted, fontSize = 11.sp)
             Slider(spread, { spread = it }, valueRange = .65f..1.5f)
-            Text("Link visibility", color = muted, fontSize = 11.sp)
+            Text(stringResource(R.string.graph_links), color = muted, fontSize = 11.sp)
             Slider(linkOpacity, { linkOpacity = it }, valueRange = .12f.. .7f)
-            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(labels, { labels = it }); Text("Node labels", color = ink, fontSize = 11.sp) }
-            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(mesh, { mesh = it }); Text("Ambient neural mesh", color = ink, fontSize = 11.sp) }
+            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(labels, { labels = it }); Text(stringResource(R.string.graph_labels), color = ink, fontSize = 11.sp) }
+            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(mesh, { mesh = it }); Text(stringResource(R.string.graph_mesh), color = ink, fontSize = 11.sp) }
             Text("Mesh particles are visual depth detail; node spheres represent actual live application modules.", color = muted, fontSize = 9.5.sp)
         }
     }
     val filters: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("FILTER", color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
+            Text(stringResource(R.string.graph_filter), color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
             nodes.groupBy { it.group }.forEach { (group, members) ->
                 Row(Modifier.fillMaxWidth().clickable {
                     hiddenGroups = if (group in hiddenGroups) hiddenGroups - group else hiddenGroups + group
@@ -385,7 +389,7 @@ fun MatrixGraphScreen(
                     Text(members.size.toString(), color = muted, fontSize = 9.sp)
                 }
             }
-            TextButton(onClick = { hiddenGroups = emptySet(); search = "" }) { Text("Show all", fontSize = 11.sp) }
+            TextButton(onClick = { hiddenGroups = emptySet(); search = "" }) { Text(stringResource(R.string.graph_all), fontSize = 11.sp) }
         }
     }
 
@@ -559,7 +563,7 @@ fun MatrixGraphScreen(
                                 onClick = { reset() },
                                 contentPadding = PaddingValues(horizontal = 7.dp, vertical = 2.dp)
                             ) {
-                                Text("Reset", color = graphTone(GraphAccent, light), fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.graph_reset), color = graphTone(GraphAccent, light), fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
                             }
                             IconButton(
                                 onClick = { autoRotate = !autoRotate },
@@ -684,7 +688,7 @@ fun MatrixGraphScreen(
             if (openPanel != null) AlertDialog(onDismissRequest = { openPanel = null }, containerColor = panelColor,
                 title = { Text(if (openPanel == GraphPanel.INSPECTOR) "Matrix inspector" else "Node filters", color = ink) },
                 text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { if (openPanel == GraphPanel.INSPECTOR) inspector() else filters() } },
-                confirmButton = { TextButton(onClick = { openPanel = null }) { Text("Done") } })
+                confirmButton = { TextButton(onClick = { openPanel = null }) { Text(stringResource(R.string.graph_done)) } })
         }
         Surface(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)
             .semantics { contentDescription = "Mission composer" }, color = panelColor,
