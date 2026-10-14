@@ -21,6 +21,7 @@ import ai.drfx.maximus.matrixai.data.SecureDataCenterStore
 import ai.drfx.maximus.matrixai.database.entities.ChatMessageEntity
 import ai.drfx.maximus.matrixai.database.entities.MatrixNodeEntity
 import ai.drfx.maximus.matrixai.llm.*
+import ai.drfx.maximus.matrixai.memory.SharedProjectMemory
 import ai.drfx.maximus.matrixai.logging.AppLogStore
 import ai.drfx.maximus.matrixai.news.*
 import ai.drfx.maximus.matrixai.vision.*
@@ -35,6 +36,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val usageStore = ApiUsageStore(application)
     private val freeCatalog = SmartComboFreeCatalog(discovery, apiStore)
     private val freeExecutor = SmartComboFreeExecutor()
+    private val sharedProjectMemory = SharedProjectMemory(application)
     private var freeOffers: List<SmartComboFreeCatalog.Offer> = emptyList()
     private val dataClient = CompanyDataClient()
     private val dataStore = SecureDataCenterStore(application)
@@ -144,6 +146,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch { chatRepository.sessions.collect { sessions -> _chatSessions.value = sessions.map { if (it.id == "default_session") it.copy(title = "Legacy history (read only)", provider = "UNKNOWN") else it } } }
         restoreChatSession(_activeChatSessionId.value)
         if (apiStore.smartComboEnabled()) scheduleSmartComboRefresh()
+        refreshProjectMemoriesInBackground()
 
 
         // Load persisted Matrix events from Room
@@ -437,7 +440,16 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private fun refreshProjectMemoriesInBackground() {
+        if (!sharedProjectMemory.enabled() || sharedProjectMemory.activeProject().isBlank()) return
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try { sharedProjectMemory.refresh() } catch (_: Exception) { /* Local continuity is the fallback. */ }
+        }
+    }
+
     fun selectModel(modelId: String) {
+        // New-model recall starts before the next user input, without blocking UI.
+        refreshProjectMemoriesInBackground()
         if (_llmState.value.selectedModel != modelId) { cancelChat(); createChatSession(modelId) }
         val current = _llmState.value
         val model = current.models.firstOrNull { it.id == modelId }
@@ -542,6 +554,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
         val current = _llmState.value
+        val memoryProjectAtRequest = sharedProjectMemory.activeProject()
         if (!historyReady || current.status !in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED) || current.selectedModel.isBlank()) {
             appendAssistantError("Connect an API and select a supported model before sending a message.")
             return false
@@ -590,7 +603,18 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         val requestSessionId = _activeChatSessionId.value
         val userMessage = ChatMessage(role = "user", content = prompt, attachment = attachment, fromVoice = fromVoice)
         _chatMessages.value = _chatMessages.value + userMessage
-        val selectedContext = ChatContextPolicy.bounded(_chatMessages.value, ModelLimitsResolver.contextWindow(current.provider, current.selectedModel))
+        // Capture the project at user-send time: a workspace switch must never inject
+        // another project's history into a request that is already in flight.
+        val memoryEvidenceAtRequest = sharedProjectMemory.cachedContext()
+        val memoryAndSystemBudget = ChatContextPolicy.estimateTokens(memoryEvidenceAtRequest) +
+            ChatContextPolicy.estimateTokens(selectedAgent.systemPrompt)
+        val modelContext = ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
+        val smallestFreeContext = if (current.smartComboEnabled)
+            freeOffers.mapNotNull { it.route.contextWindowTokens }.minOrNull() ?: modelContext
+        else modelContext
+        val effectiveWindow = (minOf(modelContext, smallestFreeContext) -
+            memoryAndSystemBudget).coerceAtLeast(1024)
+        val selectedContext = ChatContextPolicy.bounded(_chatMessages.value, effectiveWindow)
         if (selectedContext.messages.lastOrNull() != userMessage) {
             appendAssistantError("This request exceeds the estimated model context limit. Reduce its size.")
             return false
@@ -656,7 +680,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val streamTime = System.currentTimeMillis()
                 val streamedText = StringBuilder()
                 var lastStreamUiAtMs = Long.MIN_VALUE
-                val result = chatClient.send(config, requestHistory, selectedAgent, onQuota = { windows ->
+                val equippedAgent = if (memoryEvidenceAtRequest.isBlank()) selectedAgent else selectedAgent.copy(
+                    systemPrompt = selectedAgent.systemPrompt + "\n\n" + memoryEvidenceAtRequest
+                )
+                val result = chatClient.send(config, requestHistory, equippedAgent, onQuota = { windows ->
                     if (windows.isNotEmpty()) {
                         autoPrepared?.let { freeExecutor.observeProviderQuota(it, windows) }
                         viewModelScope.launch {
@@ -731,6 +758,15 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 usageStore.record(config.provider, config.selectedModel, result.usage)
+                if (sharedProjectMemory.enabled()) {
+                    val modelName = config.selectedModel
+                    val userTask = prompt
+                    val output = result.text
+                    viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try { sharedProjectMemory.storeModelProgress(memoryProjectAtRequest, modelName, userTask, output) }
+                        catch (_: Exception) { /* No generated content or credentials are logged. */ }
+                    }
+                }
                 val summary = usageStore.summary()
                 _usage.value = summary
 

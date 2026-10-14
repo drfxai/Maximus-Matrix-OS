@@ -28,6 +28,7 @@ import ai.drfx.maximus.matrixai.R
 import androidx.compose.ui.res.stringResource
 import ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore
 import ai.drfx.maximus.matrixai.studio.ProjectContinuityStore
+import ai.drfx.maximus.matrixai.memory.SharedProjectMemory
 import ai.drfx.maximus.matrixai.studio.StudioProject
 import ai.drfx.maximus.matrixai.studio.StudioFile
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +53,7 @@ fun ProjectStudioScreen(
     val context = LocalContext.current
     val store = remember(context) { ProjectWorkspaceStore(context.applicationContext) }
     val continuity = remember(context) { ProjectContinuityStore(context.applicationContext, store) }
+    val sharedMemory = remember(context) { SharedProjectMemory(context.applicationContext) }
     val scope = rememberCoroutineScope()
     var projects by remember { mutableStateOf(store.projects()) }
     var activeId by remember { mutableStateOf(projects.firstOrNull()?.id) }
@@ -232,6 +234,11 @@ fun ProjectStudioScreen(
         }
         item {
             StudioPanel {
+                HindsightMemoryPanel(activeId)
+            }
+        }
+        item {
+            StudioPanel {
                 Text("PROJECT CONTINUITY · LOCAL CHECKPOINT", fontWeight = FontWeight.Bold, color = studioCyan)
                 Text("Save hashes and task state privately; no project files or keys are uploaded. Handoff requires verified files and explicit user approval.",
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -268,7 +275,9 @@ fun ProjectStudioScreen(
                         scope.launch {
                             try {
                                 val prompt = withContext(Dispatchers.IO) { continuity.resumePrompt(id) }
-                                val sent = onPlanWithAi(prompt)
+                                val relevantMemory = sharedMemory.cachedContext()
+                                val handoff = if (relevantMemory.isNotBlank()) prompt + "\n\n" + relevantMemory else prompt
+                                val sent = onPlanWithAi(handoff)
                                 message = if (sent) "Verified checkpoint sent for planning (source contents not attached)."
                                 else "Connect a suitable model to continue."
                             } catch (e: Exception) {
