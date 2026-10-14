@@ -53,6 +53,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import ai.drfx.maximus.matrixai.llm.ConnectionStatus
 import ai.drfx.maximus.matrixai.agent.BrainRequestRouter
 import ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore
+import ai.drfx.maximus.matrixai.voice.SpeechLanguage
+import ai.drfx.maximus.matrixai.voice.SpeechTranscriptGuard
 import kotlinx.coroutines.isActive
 import java.util.Locale
 import kotlin.math.*
@@ -214,7 +216,8 @@ fun MatrixGraphScreen(
     var linkOpacity by remember { mutableFloatStateOf(.28f) }
     var mission by remember { mutableStateOf("") }
     var voiceError by remember { mutableStateOf<String?>(null) }
-    val speechTag = SpeechLanguagePreferenceStore(appContext).selected().tag
+    val speechLanguage = remember(appContext) { SpeechLanguagePreferenceStore(appContext).selected() }
+    var recordingSpeechLanguage by remember { mutableStateOf(speechLanguage) }
     fun submitBrain(raw: String) {
         if (raw.isBlank() || llm.isGenerating) return
         when (val req = BrainRequestRouter.route(raw)) {
@@ -229,9 +232,16 @@ fun MatrixGraphScreen(
     }
     val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val words = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-            if (!words.isNullOrBlank()) { mission = words; voiceError = null }
-            else voiceError = appContext.getString(R.string.brain_voice_empty)
+            val selection = SpeechTranscriptGuard.choose(
+                result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS),
+                recordingSpeechLanguage
+            )
+            if (selection.text != null) {
+                mission = selection.text
+                voiceError = if (selection.scriptMatchesLanguage) null
+                    else appContext.getString(R.string.speech_wrong_script_review,
+                        recordingSpeechLanguage.label)
+            } else voiceError = appContext.getString(R.string.brain_voice_empty)
         }
     }
     fun reset() {
@@ -789,10 +799,12 @@ fun MatrixGraphScreen(
                 ) {
                     IconButton(onClick = {
                         try {
+                            recordingSpeechLanguage = speechLanguage
+                            voiceError = null
                             voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, speechTag)
-                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, speechTag)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, recordingSpeechLanguage.tag)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, recordingSpeechLanguage.tag)
                                 .putExtra(RecognizerIntent.EXTRA_PROMPT,
                                     appContext.getString(R.string.brain_voice_hint)))
                         } catch (_: Exception) {
