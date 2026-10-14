@@ -26,7 +26,10 @@ internal class SmartComboFreeExecutor(
         agentId: String,
         nowMs: Long = System.currentTimeMillis()
     ): Prepared? {
-        val map = offers.associateBy { it.route.id }
+        // Ambiguous route IDs could bind a credential to a different endpoint.
+        // Treat all duplicates as untrusted instead of allowing last-write wins.
+        val ambiguousIds = offers.groupingBy { it.route.id }.eachCount()
+            .filterValues { it > 1 }.keys
         val task = SmartComboPlanner.Task(
             requiredCapabilities = requiredCapabilities,
             estimatedInputTokens = estimatedInput,
@@ -41,7 +44,8 @@ internal class SmartComboFreeExecutor(
         // A local credential lookup does not send a model request or spend provider quota.
         val usableCredentials = linkedMapOf<String, String>()
         val filtered = offers.filter { offer ->
-            if (offer.route.price?.isFree != true || nowMs < offer.checkedAtEpochMs ||
+            if (offer.route.id in ambiguousIds || offer.route.price?.isFree != true ||
+                nowMs < offer.checkedAtEpochMs ||
                 nowMs - offer.checkedAtEpochMs > 10 * 60_000L) return@filter false
             val credential = runCatching {
                 resolveCredential(offer.route.provider, offer.endpoint)
@@ -50,6 +54,7 @@ internal class SmartComboFreeExecutor(
             usableCredentials[offer.route.id] = credential
             true
         }
+        val map = filtered.associateBy { it.route.id }
         val admission = SmartComboAdmissionController(ledger).prepare(
             requestId, task, filtered.map { it.route },
             filtered.associate { it.route.id to it.quotaScope }
