@@ -290,7 +290,7 @@
     <string name="brain_lobe_temporal">🌐 Temporal</string>
     <string name="brain_lobe_limbic">🧬 Limbik</string>
     <string name="brain_lobe_cerebellar">⚙️ Beyincik</string>
-    <string name="brain_prompt">MAXIMUS'a sor…</string>
+    <string name="brain_prompt">MAXIMUS\'a sor…</string>
     <string name="brain_speak">Soruyu veya telefon komutunu söyle</string>
     <string name="brain_voice_hint">Konuşun ve göndermeden önce metni kontrol edin.</string>
     <string name="brain_voice_empty">Konuşma algılanmadı. Dil ayarını kontrol edin.</string>
@@ -298,7 +298,7 @@
     <string name="brain_chat_heading">Asistan sohbeti</string>
     <string name="brain_chat_intro">Bir soru sorun veya telefon işlemi isteyin. İşlemler onay gerektirir.</string>
     <string name="brain_open_full_chat">Tüm sohbet</string>
-    <string name="brain_offline">Yanıtlar için Kontrol Merkezi'nden bir yapay zekâ modeli bağlayın.</string>
+    <string name="brain_offline">Yanıtlar için Kontrol Merkezi\'nden bir yapay zekâ modeli bağlayın.</string>
     <string name="brain_action_approval">Onayınızdan sonra Android uygulaması veya ayarları açılır. Korunan ayarlar sessizce değiştirilmez.</string>
     <string name="brain_action_description">Telefon işlemi (onay gerekli)</string>
     <string name="brain_send">Mesaj gönder</string>
