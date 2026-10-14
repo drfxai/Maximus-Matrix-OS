@@ -12,7 +12,7 @@ args = sys.argv[1:]
 with open('gh-calls.jsonl', 'a') as f: f.write(json.dumps(args)+'\\n')
 if args[:2] == ['release','upload'] and any(a.startswith('dist/') for a in args) and os.environ.get('FAIL_UPLOAD') == '1': sys.exit(1)
 if args[:2] == ['release','download']:
-    for name in (os.environ['ARM64_APK'],os.environ['UNIVERSAL_APK'],'SHA256SUMS'):
+    for name in (os.environ['ARM64_APK'],os.environ['UNIVERSAL_APK'],'SHA256SUMS',\n                 'MAXIMUS-MATRIX-OS-PRoot-Source-V1.0.0.tar.gz','NATIVE-SOURCE-SHA256SUMS'):
         shutil.copyfile('dist/'+name,'published/'+name)
 if args[:2] == ['release','view']: print(json.dumps({'isDraft':False,'isPrerelease':False}))
 '''
