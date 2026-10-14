@@ -175,7 +175,27 @@ fun MatrixGraphScreen(
             visionReady = true
         )
     }
-    val nodes = topology.first
+    // Live state remains identical; only user-visible anatomical labels are localized.
+    val localizedHubNames = mapOf(
+        "signals_hub" to stringResource(R.string.brain_quick_signals),
+        "vision_hub" to stringResource(R.string.brain_node_vision),
+        "news_hub" to stringResource(R.string.brain_quick_news),
+        "alerts_hub" to stringResource(R.string.brain_node_alerts),
+        "agents" to stringResource(R.string.brain_quick_agents),
+        "mission" to stringResource(R.string.brain_node_mission),
+        "chat_hub" to stringResource(R.string.brain_quick_chat),
+        "genome" to stringResource(R.string.brain_node_genome),
+        "pine" to stringResource(R.string.brain_node_pine),
+        "quant" to stringResource(R.string.brain_node_quant),
+        "validation" to stringResource(R.string.brain_node_validation),
+        "research" to stringResource(R.string.brain_node_research),
+        "company" to stringResource(R.string.brain_quick_data),
+        "models" to stringResource(R.string.brain_node_gateway),
+        "api" to stringResource(R.string.brain_node_finops)
+    )
+    val nodes = topology.first.map { node ->
+        node.copy(label = localizedHubNames[node.id] ?: node.label)
+    }
     val edges = topology.second
     var selectedId by remember { mutableStateOf<String?>(null) }
     val selected = nodes.find { it.id == selectedId }
@@ -273,7 +293,7 @@ fun MatrixGraphScreen(
     val inspector: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("MAXIMUS MATRIX OS", color = ink, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            Text("${nodes.size} modules · ${edges.size} neural connections", color = muted, fontSize = 10.sp)
+            Text(stringResource(R.string.brain_graph_count, nodes.size, edges.size), color = muted, fontSize = 10.sp)
             OutlinedTextField(
                 value = search,
                 onValueChange = { search = it },
@@ -357,7 +377,7 @@ fun MatrixGraphScreen(
                         }
                     } else {
                         Text(stringResource(R.string.graph_explore), color = ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text("Tap any module node to inspect its live state, trigger actions, or explore connections. Orbit with one finger, pinch to zoom, or search below.",
+                        Text(stringResource(R.string.brain_graph_explore_help),
                             color = muted, fontSize = 10.5.sp, lineHeight = 15.sp)
                     }
                 }
@@ -599,7 +619,9 @@ fun MatrixGraphScreen(
                     if (!isCompact) {
                         Column(Modifier.align(Alignment.BottomStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(
-                                "${nodes.count { it.group !in effectiveHidden }} NEURONS · ${edges.count { edge -> nodes.none { it.group in effectiveHidden && (it.id == edge.from || it.id == edge.to) } }} AXONS",
+                                stringResource(R.string.brain_graph_count,
+                                    nodes.count { it.group !in effectiveHidden },
+                                    edges.count { edge -> nodes.none { it.group in effectiveHidden && (it.id == edge.from || it.id == edge.to) } }),
                                 color = muted,
                                 fontSize = 8.sp,
                                 letterSpacing = .6.sp
@@ -697,7 +719,9 @@ fun MatrixGraphScreen(
                 }
             }
             if (openPanel != null) AlertDialog(onDismissRequest = { openPanel = null }, containerColor = panelColor,
-                title = { Text(if (openPanel == GraphPanel.INSPECTOR) "Matrix inspector" else "Node filters", color = ink) },
+                title = { Text(if (openPanel == GraphPanel.INSPECTOR)
+                    stringResource(R.string.brain_graph_inspector) else stringResource(R.string.brain_graph_filters),
+                    color = ink) },
                 text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { if (openPanel == GraphPanel.INSPECTOR) inspector() else filters() } },
                 confirmButton = { TextButton(onClick = { openPanel = null }) { Text(stringResource(R.string.graph_done)) } })
         }
