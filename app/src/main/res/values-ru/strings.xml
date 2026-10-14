@@ -257,4 +257,27 @@
     <string name="chat_baseurl">Базовый адрес</string>
     <string name="chat_token_inspector">Инспектор токенов и контекста</string>
     <string name="chat_close_inspector">Закрыть инспектор</string>
+    <string name="phone_harness_title">MOBILE HARNESS</string>
+    <string name="phone_harness_subtitle">ВАШ ТЕЛЕФОН · ВАШ СЕРВЕР</string>
+    <string name="phone_workspace_desc">Частная среда разработки на вашем Android-устройстве.</string>
+    <string name="phone_start_server">Запустить сервер</string>
+    <string name="phone_stop_server">Остановить</string>
+    <string name="phone_private">Частный доступ</string>
+    <string name="phone_one_time">Одноразовый ключ сеанса · не сохраняется</string>
+    <string name="phone_no_share">Запуск сервера не передаёт исходники. Разрешайте доступ к одному проекту отдельно.</string>
+    <string name="phone_copy_token">Копировать временный локальный токен</string>
+    <string name="phone_shared_project">Разрешённый проект</string>
+    <string name="phone_approve">Подтвердить</string>
+    <string name="phone_revoke">Отозвать доступ</string>
+    <string name="phone_offline_desc">Запустите сервер для локального подключения и экспорта проекта.</string>
+    <string name="phone_readiness">Готовность среды</string>
+    <string name="phone_scan">Проверить</string>
+    <string name="phone_build_confirm">Собрать доверенный проект на телефоне?</string>
+    <string name="phone_approve_build">Разрешить локальную сборку</string>
+    <string name="phone_share_confirm">Открыть локальный доступ к выбранному проекту?</string>
+    <string name="phone_share_approve">Разрешить один проект</string>
+    <string name="phone_stop_confirm">Остановить частный сервер телефона?</string>
+    <string name="phone_stop_revoke">Остановить и отозвать доступ</string>
+    <string name="phone_keep_running">Оставить работающим</string>
+    <string name="phone_runtime_note">Наличие файлов Linux не доказывает запуск. Проверьте инструменты на устройстве.</string>
 </resources>
