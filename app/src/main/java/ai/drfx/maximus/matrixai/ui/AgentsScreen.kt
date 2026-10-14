@@ -32,12 +32,14 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
         item {
             Text(stringResource(R.string.agents_title), style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Personas are available when the selected model supports their required conversation features.",
+                stringResource(R.string.agents_description),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 lineHeight = 17.sp
             )
         }
+        item { AgentTeamPanel() }
+        item { HorizontalDivider() }
         items(AgentRegistry.agents) { agent ->
             val supported = agent.id in supportedIds
             Surface(
