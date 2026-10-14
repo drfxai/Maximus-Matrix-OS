@@ -10,12 +10,12 @@ This is an inventory and triage of public repositories. Names/categories are not
 | USB-Uncensored-LLM | Offline LLM binaries | P2 | Archived; do not bundle binaries |
 | ClaudeCode-Portable | Portable desktop developer tools | P2 | Study execution interoperability |
 | Portable-Local-Studio | Local multimodal AI and model management | **P1** | Evaluate GGUF, image, STT and TTS server interfaces |
-| Uncensored-Local-AI-Multiplatform | Cross-platform local inference | **P1** | Evaluate local model UX and capabilities |
+| Uncensored-Local-AI-Multiplatform | Cross-platform local inference | **P1** | No top-level LICENSE found; no source reuse until rights verified |
 | termux-hacklab | Android terminal environment | P2 | Research only; do not run installers |
 | Mobile-Harness | Mobile Android development workspace | **P0** | Audited snapshot; selectively adopt design patterns |
 | Hermes-USB-Portable | Portable local assistant | P2 | Future local runtime review |
 | Linux-on-Samsung | Android/Linux userspace | P2 | Document phone-specific limitations |
-| mobile-server | Mobile/remote networking | P1 | Separate security and authentication review |
+| mobile-server | Android OpenAI-compatible local model server | **P1** | Apache-2.0 fork; verify API authentication and private TLS/tunnel policy |
 | Openclaw-Termux-NoRoot | Android terminal automation | P2 | Experimental trusted-device research |
 | Portable-Diffusion | Offline image generation | P2 | Archived; model metadata research |
 | OpenClaw-USB-Portable | Portable assistant tools | P2 | Research, do not ingest binaries |
@@ -37,8 +37,8 @@ This is an inventory and triage of public repositories. Names/categories are not
 | Repository | Category | Priority | License and integration decision |
 |---|---|---|---|
 | Brahma-Echo | Desktop tool orchestration | P1 architecture | Source-available, no rebranding; do not reuse files |
-| Brahma-AI---Lite | Desktop assistant | P3 | License and code not yet audited |
-| Brahma-AI | Desktop assistant | P3 | License and code not yet audited |
+| Brahma-AI---Lite | Windows desktop assistant | P2 | Source-Available v1; redistribution restrictions |
+| Brahma-AI | MIT desktop assistant (Electron/Python) | P2 | Candidate for deeper independent architecture review |
 | Brahma-Ai-Evo | Desktop multimodal/dynamic skills | P1 research | Personal/non-commercial; no distribution; do not reuse files |
 | Brahma-AI---Modular-Chrome-OS | Browser workspace UX | P1 design | MIT; use ideas, exclude invasive extension permissions |
 
