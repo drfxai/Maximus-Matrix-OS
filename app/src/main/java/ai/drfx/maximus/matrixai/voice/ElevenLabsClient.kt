@@ -69,8 +69,11 @@ internal class ElevenLabsClient {
             check(inFlight.compareAndSet(0, 1)) { "Another voice request is still active." }
             try {
                 val available = subscription(key)
-                check(available.remaining >= text.length) {
-                    "Insufficient reported allowance: ${available.remaining} remaining. No overages allowed."
+                // Credits per character can vary by model/plan. Keep a conservative
+                // 2x preflight buffer; upstream account spending limits remain authoritative.
+                val preflight = text.length.toLong() * 2L
+                check(available.remaining >= preflight) {
+                    "Insufficient reported allowance for a conservative 2x preflight: ${available.remaining} remaining. Set an account spending limit to prohibit overages."
                 }
                 val payload = JSONObject().put("text", text).put("model_id", model).toString()
                     .toByteArray(Charsets.UTF_8)
