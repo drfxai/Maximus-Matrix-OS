@@ -43,6 +43,8 @@ jobs:
           gradle-version: "9.3.1"
       - name: Verify and package pinned native PRoot files
         run: python3 .github/scripts/prepare-phone-native.py
+      - name: Test ARM64 runtime provenance checks
+        run: python3 -m unittest discover -s .github/scripts/tests -p "test_*.py" -v
       - run: python3 .github/scripts/test-release-identity.py
       - run: python3 .github/scripts/test-release-publication.py
       - name: Test remote Worker discovery gateway
