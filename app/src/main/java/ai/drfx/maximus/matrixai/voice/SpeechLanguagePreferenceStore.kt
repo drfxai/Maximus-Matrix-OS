@@ -35,7 +35,11 @@ internal object SpeechLanguagePolicy {
             // If the user picked Persian/Arabic use it for both recognition and TTS.
             return selected
         }
-        if (text.any { it in "پچژگکیۀ" }) return SpeechLanguage.PERSIAN
+        // Most Persian words use letters shared with Arabic and do not contain
+        // distinctive Persian code points (e.g. "خوشحالم"). For audio playback,
+        // prefer Persian over an unrelated Latin/Cyrillic voice for Arabic-script text.
+        // An explicit Arabic selection above still wins.
+        if (text.any { it in '\\u0600'..'\\u06ff' }) return SpeechLanguage.PERSIAN
         return selected
     }
 }
