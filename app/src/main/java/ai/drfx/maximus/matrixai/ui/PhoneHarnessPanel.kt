@@ -4,6 +4,16 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import ai.drfx.maximus.matrixai.studio.phonehost.PhoneBuildSession
+import ai.drfx.maximus.matrixai.studio.phonehost.PhoneRuntimeInstallSession
+import ai.drfx.maximus.matrixai.studio.phonehost.PhoneRuntimeSetupService
+import ai.drfx.maximus.matrixai.studio.phonehost.PhoneLocalBuildService
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -48,6 +58,31 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
     var status by remember { mutableStateOf("") }
     var confirmShare by remember { mutableStateOf(false) }
     var confirmStop by remember { mutableStateOf(false) }
+    var confirmBuild by remember { mutableStateOf(false) }
+    var showBuildLog by remember { mutableStateOf(false) }
+    val installer = remember(context) { PhoneRuntimeInstallSession.forContext(context) }
+    val builder = remember(context) { PhoneBuildSession.forContext(context) }
+    val installState by installer.state.collectAsState()
+    val buildState by builder.state.collectAsState()
+    val uiScope = rememberCoroutineScope()
+    val saveApk = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/vnd.android.package-archive")
+    ) { uri: Uri? ->
+        if (uri != null && buildState.phase == "succeeded") {
+            uiScope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { output ->
+                            builder.exportVerifiedApk(output)
+                        } ?: error("Selected APK destination cannot be written.")
+                    }
+                    status = "Verified on-device Debug APK exported successfully."
+                } catch (e: Exception) {
+                    status = e.message ?: "APK export failed."
+                }
+            }
+        }
+    }
     var diagnostics by remember { mutableStateOf(PhoneRuntimeInspector.inspect(context)) }
 
     LaunchedEffect(Unit) {
@@ -144,7 +179,129 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
             HarnessCapabilityTile(
                 "LINUX / PTY", "Not installed", Icons.Default.Terminal, false, Modifier.weight(1f))
             HarnessCapabilityTile(
-                "APK BUILDS", "Unavailable", Icons.Default.Build, false, Modifier.weight(1f))
+                "APK BUILDS", if (buildState.verifiedTools) "Tools verified" else "Needs setup",
+                Icons.Default.Build, buildState.verifiedTools, Modifier.weight(1f))
+        }
+
+        ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Build, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Build Android APK on this phone",
+                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("No PC or VPS · ARM64 Android 9+ · Debug APK",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                val ready = installer.installed()
+                Text(if (ready) "Android toolchain files installed"
+                    else "Linux, JDK, Gradle, Android SDK and ARM64 AAPT2 need installation.",
+                    style = MaterialTheme.typography.bodySmall)
+                if (installState.phase != "idle") {
+                    Text(installState.message, style = MaterialTheme.typography.bodySmall)
+                }
+                if (installState.busy) {
+                    LinearProgressIndicator(
+                        progress = { installState.fraction.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth())
+                    val total = installState.total
+                    if (total > 0) {
+                        val transferred = installState.transferred / (1024L * 1024L)
+                        Text(transferred.toString() + " / " +
+                            (total / (1024L * 1024L)).toString() + " MiB transferred",
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                    OutlinedButton(onClick = {
+                        context.startService(Intent(context, PhoneRuntimeSetupService::class.java).apply {
+                            action = PhoneRuntimeSetupService.CANCEL
+                        })
+                    }) { Text("Cancel installation") }
+                }
+                if (!ready && !installState.busy) {
+                    Button(
+                        onClick = {
+                            try {
+                                context.startForegroundService(
+                                    Intent(context, PhoneRuntimeSetupService::class.java).apply {
+                                        action = PhoneRuntimeSetupService.START
+                                    }
+                                )
+                                status = "Preparing verified runtime download on this phone…"
+                            } catch (e: Exception) {
+                                status = e.message ?: "Could not begin toolchain setup."
+                            }
+                        }, modifier = Modifier.fillMaxWidth().testTag("phone_build_install")
+                    ) {
+                        Icon(Icons.Default.Download, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Install Android build tools")
+                    }
+                    Text("Requires about 612 MiB network download and at least 3 GiB available storage. " +
+                        "Only pinned SHA-256 checked archives are accepted.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (ready) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { builder.verifyTools() },
+                            enabled = !buildState.busy && !installState.busy,
+                            modifier = Modifier.weight(1f).testTag("phone_build_verify")
+                        ) { Text("Verify tools") }
+                        Button(
+                            onClick = { confirmBuild = true },
+                            enabled = projectId != null && buildState.verifiedTools &&
+                                !buildState.busy && !installState.busy,
+                            modifier = Modifier.weight(1f).testTag("phone_build_start")
+                        ) { Text("Build Debug APK") }
+                    }
+                }
+                Text(buildState.message, style = MaterialTheme.typography.bodySmall,
+                    color = if (buildState.phase == "failed" || buildState.phase == "unavailable")
+                        MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant)
+                if (buildState.busy) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    OutlinedButton(onClick = {
+                        context.startService(Intent(context, PhoneLocalBuildService::class.java).apply {
+                            action = PhoneLocalBuildService.CANCEL
+                        })
+                    }) { Text("Cancel Gradle build") }
+                }
+                if (buildState.logTail.isNotBlank()) {
+                    TextButton(onClick = { showBuildLog = !showBuildLog }) {
+                        Text(if (showBuildLog) "Hide build log" else "View Gradle log")
+                    }
+                    if (showBuildLog) {
+                        Surface(color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            shape = RoundedCornerShape(10.dp)) {
+                            Text(buildState.logTail.takeLast(8000),
+                                Modifier.padding(10.dp).testTag("phone_build_log"),
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                if (buildState.phase == "succeeded") {
+                    Text("Verified SHA-256: " + buildState.apkSha256.orEmpty(),
+                        style = MaterialTheme.typography.labelSmall)
+                    Button(
+                        onClick = { saveApk.launch("Maximus-Project-debug.apk") },
+                        modifier = Modifier.fillMaxWidth().testTag("phone_build_export")
+                    ) {
+                        Icon(Icons.Default.SaveAlt, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Save verified APK")
+                    }
+                }
+                Text("Security: Gradle build scripts run native code under this app UID. " +
+                    "PRoot is not a sandbox: only compile projects you created or thoroughly trust. " +
+                    "No production signing key is used.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
 
         ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -266,6 +423,30 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 
+    if (confirmBuild) AlertDialog(
+        onDismissRequest = { confirmBuild = false },
+        title = { Text("Build this trusted project locally?") },
+        text = { Text("Gradle scripts can execute arbitrary code with this Android app's " +
+            "privileges. Do not build unknown or downloaded third-party projects here. " +
+            "The toolchain runs offline; building may use battery, RAM and storage.") },
+        confirmButton = {
+            Button(onClick = {
+                confirmBuild = false
+                try {
+                    context.startForegroundService(
+                        Intent(context, PhoneLocalBuildService::class.java).apply {
+                            action = PhoneLocalBuildService.BUILD
+                            putExtra(PhoneLocalBuildService.PROJECT_ID, requireNotNull(projectId))
+                        }
+                    )
+                    status = "Compiling selected project on this phone…"
+                } catch (e: Exception) {
+                    status = e.message ?: "Could not launch local APK build."
+                }
+            }) { Text("Approve local build") }
+        },
+        dismissButton = { TextButton(onClick = { confirmBuild = false }) { Text("Cancel") } }
+    )
     if (confirmShare) AlertDialog(
         onDismissRequest = { confirmShare = false },
         icon = { Icon(Icons.Default.FolderZip, null) },
