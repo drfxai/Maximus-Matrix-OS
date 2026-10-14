@@ -136,4 +136,6 @@
     <string name="phone_apk_builds">APK derlemeleri</string>
     <string name="phone_build_log">Gradle günlüğünü göster</string>
     <string name="phone_hide_log">Derleme günlüğünü gizle</string>
+    <string name="speech_install_tts">Konuşma dilini yükle</string>
+    <string name="speech_tts_setup_unavailable">Ses kurulumu kullanılamıyor. Android ayarlarından bir konuşma motoru ve ses paketi yükleyin.</string>
 </resources>
