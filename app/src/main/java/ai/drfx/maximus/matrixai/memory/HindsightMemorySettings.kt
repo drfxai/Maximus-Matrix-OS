@@ -38,6 +38,9 @@ internal class HindsightMemorySettings(context: Context) {
 
     fun configure(url: String, apiToken: String?) {
         val normalized = HindsightMemoryClient.normalizedEndpoint(url)
+        require(normalized == endpoint() || apiToken?.isNotBlank() == true || !hasKey()) {
+            "To change Hindsight host, enter a new key or disconnect the old account first."
+        }
         val encrypted = apiToken?.takeIf { it.isNotBlank() }?.let {
             require(it.length in 12..512 && it.none { ch -> ch.isWhitespace() || ch.code < 32 || ch.code == 127 })
             encrypt(it)
