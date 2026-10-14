@@ -75,6 +75,7 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
 
             OutlinedButton(enabled = !busy, onClick = {
                 settings.clear()
+                settings.setActiveProject(projectId.orEmpty())
                 bridge.forgetCache()
                 enabled = false
                 autoShare = false
