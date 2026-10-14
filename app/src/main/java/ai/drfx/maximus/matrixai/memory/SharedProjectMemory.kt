@@ -79,7 +79,10 @@ internal class SharedProjectMemory(context: Context) {
             local[project] = LocalSnapshot(System.currentTimeMillis(), combined)
     }
 
-    suspend fun refresh(query: String = "Project requirements, verified decisions, changes, unfinished tasks and next steps"): Int {
+    suspend fun refresh(
+        query: String = "Project requirements, verified decisions, changes, unfinished tasks and next steps",
+        force: Boolean = false
+    ): Int {
         warmLocalCheckpoint()
         require(settings.enabled()) { "Enable shared memory to recall project history." }
         val project = settings.activeProject().takeIf { it.isNotBlank() }
@@ -87,6 +90,9 @@ internal class SharedProjectMemory(context: Context) {
         val origin = settings.endpoint()
         val key = settings.token()
         val stamp = connectionId(origin, key)
+        val existing = cache[project]
+        if (!force && existing != null && existing.connectionId == stamp &&
+            System.currentTimeMillis() - existing.loadedAt <= 300_000L) return existing.facts.size
         val memories = remote.recall(origin, key, project, query)
         // Reject a late result after an account/project change or revoked consent.
         if (settings.enabled() && settings.activeProject() == project &&
