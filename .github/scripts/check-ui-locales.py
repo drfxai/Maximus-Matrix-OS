@@ -50,7 +50,7 @@ stats = {}
 for file in sorted(roots.glob("*.kt")):
     source = file.read_text(encoding="utf-8")
     # This is an inventory, not a full Kotlin syntax parser.
-    labels = re.findall(r'\\bText\\s*\\(\\s*"([^"\\n]{2,180})"', source)
+    labels = re.findall(r'\bText\s*\(\s*"([^"\n]{2,180})"', source)
     hardcoded = [label for label in labels if not label.startswith("https://")]
     if hardcoded:
         stats[file.name] = len(hardcoded)
