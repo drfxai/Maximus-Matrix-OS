@@ -545,6 +545,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                     val key = elevenSettings.key()
                                     if (!ElevenLabsClient.validVoiceId(voiceId) || key.isBlank()) {
                                         attachmentError = "Set an ElevenLabs voice and API key in Control Hub > ElevenLabs Voice."
+                                    } else if (message.content.any { it in '\u0600'..'\u06ff' } &&
+                                        modelId != ElevenLabsClient.PERSIAN_MODEL) {
+                                        attachmentError = "For Persian responses choose eleven_v3 in ElevenLabs Voice Studio."
                                     } else if (message.content.length > ElevenLabsClient.MAX_SPOKEN_CHARACTERS) {
                                         attachmentError = "ElevenLabs speech limit is ${ElevenLabsClient.MAX_SPOKEN_CHARACTERS} characters. Speak a shorter response."
                                     } else {
