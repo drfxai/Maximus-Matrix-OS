@@ -100,9 +100,10 @@ internal class SharedProjectMemory(context: Context) {
      * It can still contain sensitive natural language; UI discloses that risk before enabling.
      * Do not ever upload attachments, tool arguments or full project source files.
      */
-    suspend fun storeModelProgress(model: String, userTask: String, modelResponse: String) {
-        if (!settings.autoShare()) return
-        val project = settings.activeProject()
+    suspend fun storeModelProgress(
+        project: String, model: String, userTask: String, modelResponse: String
+    ) {
+        if (!settings.autoShare() || project != settings.activeProject()) return
         if (project.isBlank() || !workspace.projects().any { it.id == project }) return
         val memo = """
             PROJECT PROGRESS from model ${model.take(80)}
