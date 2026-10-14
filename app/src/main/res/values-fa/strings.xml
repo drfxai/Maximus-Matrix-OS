@@ -257,4 +257,27 @@
     <string name="chat_baseurl">آدرس پایه</string>
     <string name="chat_token_inspector">بازرس توکن و زمینه</string>
     <string name="chat_close_inspector">بستن بازرس</string>
+    <string name="phone_harness_title">موبایل هارنس</string>
+    <string name="phone_harness_subtitle">گوشی شما · سرور شما</string>
+    <string name="phone_workspace_desc">فضای خصوصی توسعه که روی گوشی اندرویدی شما اجرا می‌شود.</string>
+    <string name="phone_start_server">روشن‌کردن سرور</string>
+    <string name="phone_stop_server">توقف</string>
+    <string name="phone_private">دسترسی خصوصی</string>
+    <string name="phone_one_time">کلید یک‌بارمصرف نشست · ذخیره نمی‌شود</string>
+    <string name="phone_no_share">شروع سرور به معنی اشتراک کد نیست. دسترسی به هر پروژه باید جداگانه تأیید شود.</string>
+    <string name="phone_copy_token">کپی کلید موقت محلی</string>
+    <string name="phone_shared_project">پروژه تأییدشده</string>
+    <string name="phone_approve">تأیید</string>
+    <string name="phone_revoke">لغو مجوز</string>
+    <string name="phone_offline_desc">برای اتصال داخلی یا خروجی پروژه، ابتدا سرور را روشن کنید.</string>
+    <string name="phone_readiness">آمادگی موتور اجرا</string>
+    <string name="phone_scan">بررسی</string>
+    <string name="phone_build_confirm">این پروژه مورداعتماد روی گوشی ساخته شود؟</string>
+    <string name="phone_approve_build">تأیید ساخت محلی</string>
+    <string name="phone_share_confirm">پروژه انتخاب‌شده در گوشی به اشتراک گذاشته شود؟</string>
+    <string name="phone_share_approve">تأیید فقط این پروژه</string>
+    <string name="phone_stop_confirm">سرور خصوصی گوشی متوقف شود؟</string>
+    <string name="phone_stop_revoke">توقف و لغو مجوزها</string>
+    <string name="phone_keep_running">ادامه اجرا</string>
+    <string name="phone_runtime_note">وجود فایل‌های لینوکس به معنی اجرای موفق نیست. ابزارها را روی گوشی واقعی بررسی کنید.</string>
 </resources>
