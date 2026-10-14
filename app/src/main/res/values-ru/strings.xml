@@ -376,4 +376,18 @@
     <string name="dev_confirm_branch">Создать ветку?</string>
     <string name="dev_commit_done">Коммит создан:</string>
     <string name="dev_branch_done">Ветка создана.</string>
+    <string name="brain_node_mission">Управление задачами</string>
+    <string name="brain_node_genome">Торговый геном</string>
+    <string name="brain_node_pine">Библиотека Pine</string>
+    <string name="brain_node_quant">Квант-лаборатория</string>
+    <string name="brain_node_validation">Проверка</string>
+    <string name="brain_node_research">Исследовательский модуль</string>
+    <string name="brain_node_gateway">Шлюз ИИ</string>
+    <string name="brain_node_finops">Финансы и управление</string>
+    <string name="brain_node_alerts">Рыночные оповещения</string>
+    <string name="brain_node_vision">Анализ графика</string>
+    <string name="brain_graph_count">%1$d модулей · %2$d связей</string>
+    <string name="brain_graph_inspector">Инспектор Matrix</string>
+    <string name="brain_graph_filters">Фильтры узлов</string>
+    <string name="brain_graph_explore_help">Нажмите на модуль для проверки состояния и открытия экрана. Перетаскивайте для поворота и масштабируйте двумя пальцами.</string>
 </resources>
