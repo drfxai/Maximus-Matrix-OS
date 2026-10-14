@@ -136,4 +136,6 @@
     <string name="phone_apk_builds">إنشاء APK</string>
     <string name="phone_build_log">عرض سجل Gradle</string>
     <string name="phone_hide_log">إخفاء سجل البناء</string>
+    <string name="speech_install_tts">تثبيت لغة الصوت</string>
+    <string name="speech_tts_setup_unavailable">إعداد الصوت غير متاح. ثبّت محرك النطق أو صوت اللغة من إعدادات أندرويد.</string>
 </resources>
