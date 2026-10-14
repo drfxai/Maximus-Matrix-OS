@@ -610,7 +610,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             ChatContextPolicy.estimateTokens(selectedAgent.systemPrompt)
         val modelContext = ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
         val smallestFreeContext = if (current.smartComboEnabled)
-            freeOffers.minOfOrNull { it.route.contextWindowTokens } ?: modelContext
+            freeOffers.mapNotNull { it.route.contextWindowTokens }.minOrNull() ?: modelContext
         else modelContext
         val effectiveWindow = (minOf(modelContext, smallestFreeContext) -
             memoryAndSystemBudget).coerceAtLeast(1024)
