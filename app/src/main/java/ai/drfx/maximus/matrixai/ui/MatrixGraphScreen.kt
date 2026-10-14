@@ -702,122 +702,171 @@ fun MatrixGraphScreen(
                 confirmButton = { TextButton(onClick = { openPanel = null }) { Text(stringResource(R.string.graph_done)) } })
         }
         Surface(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)
-            .semantics { contentDescription = "Mission composer" }, color = panelColor,
-            shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, border)) {
-            Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-                if (mission.isBlank()) {
-                    Text(events.firstOrNull()?.message ?: "Your matrix is ready. Explore a node or describe a mission.",
-                        color = muted, fontSize = 11.sp, maxLines = 1, lineHeight = 15.sp)
+            .semantics { contentDescription = "MAXIMUS assistant composer" }, color = panelColor,
+            shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, border)) {
+            Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.brain_chat_heading),
+                        modifier = Modifier.weight(1f), fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold, color = ink)
+                    TextButton(onClick = onNavigateToChat) {
+                        Text(stringResource(R.string.brain_open_full_chat), fontSize = 10.sp)
+                    }
+                }
+                if (brainMessages.isEmpty()) {
+                    Text(if (llm.selectedModel.isBlank()) stringResource(R.string.brain_offline)
+                         else stringResource(R.string.brain_chat_intro),
+                        color = muted, fontSize = 11.sp, maxLines = 2)
+                } else {
+                    brainMessages.takeLast(3).forEach { item ->
+                        Surface(color = if (item.role == "user")
+                            graphTone(GraphAccent, light).copy(alpha = .10f)
+                            else if (item.isError) MaterialTheme.colorScheme.errorContainer
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(9.dp)) {
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)) {
+                                Text(if (item.role == "user") stringResource(R.string.brain_you)
+                                     else "MAXIMUS",
+                                    fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                                    color = if (item.isError) MaterialTheme.colorScheme.error else muted)
+                                Text(item.content, fontSize = 11.sp, color = ink,
+                                    lineHeight = 15.sp, maxLines = 4)
+                            }
+                        }
+                    }
+                }
+                if (llm.isGenerating) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(stringResource(R.string.brain_wait), fontSize = 10.sp, color = muted)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(mission, { mission = it },
-                        Modifier.weight(1f).semantics { contentDescription = "Mission input" }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { keyboard?.hide(); focusManager.clearFocus() }),
-                        placeholder = { Text("Ask MAXIMUS…", fontSize = 12.sp) }, shape = RoundedCornerShape(25.dp))
+                    OutlinedTextField(
+                        mission, { mission = it },
+                        Modifier.weight(1f).semantics { contentDescription = "Assistant question" },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = {
+                            submitBrain(mission)
+                            keyboard?.hide()
+                            focusManager.clearFocus()
+                        }),
+                        placeholder = { Text(stringResource(R.string.brain_prompt), fontSize = 12.sp) },
+                        shape = RoundedCornerShape(25.dp)
+                    )
                     IconButton(onClick = {
-                        try { voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
-                            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Describe the mission to execute")) }
-                        catch (e: Exception) { voiceError = "Voice recognition is unavailable on this device." }
-                    }) { Icon(Icons.Default.Mic, "Speak a mission command", tint = graphTone(GraphPurple, light)) }
-                    IconButton(onClick = { viewModel.runMission(mission); mission = "" },
-                        enabled = mission.isNotBlank() && status != "EXECUTING" && status != "PLANNING") {
-                        Icon(Icons.Default.ArrowUpward, "Run mission", tint = if (mission.isBlank()) muted else graphTone(GraphAccent, light))
+                        try {
+                            voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, speechTag)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, speechTag)
+                                .putExtra(RecognizerIntent.EXTRA_PROMPT,
+                                    appContext.getString(R.string.brain_voice_hint)))
+                        } catch (_: Exception) {
+                            voiceError = appContext.getString(R.string.brain_voice_unavailable)
+                        }
+                    }) {
+                        Icon(Icons.Default.Mic, stringResource(R.string.brain_speak),
+                            tint = graphTone(GraphPurple, light))
+                    }
+                    IconButton(onClick = { submitBrain(mission) },
+                        enabled = mission.isNotBlank() && !llm.isGenerating &&
+                            status != "EXECUTING" && status != "PLANNING") {
+                        Icon(Icons.Default.ArrowUpward, stringResource(R.string.brain_send),
+                            tint = if (mission.isBlank()) muted else graphTone(GraphAccent, light))
                     }
                 }
                 voiceError?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
+                Text(stringResource(R.string.brain_action_approval),
+                    color = muted, fontSize = 9.sp, maxLines = 2)
 
-                val quickActions = remember {
-                    listOf(
+                val quickActions = listOf(
                         QuickActionItem(
-                            titleLine1 = "Live",
-                            titleLine2 = "Signals",
+                            titleLine1 = stringResource(R.string.brain_quick_signals),
+                            titleLine2 = "",
                             icon = Icons.Default.Bolt,
                             accentColor = Color(0xFF00E676),
                             promptText = "Review active high-probability live trading signals, order blocks, win rates, and TP/SL levels stored in Room.",
                             isSignals = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Analyze",
-                            titleLine2 = "Chart",
+                            titleLine1 = stringResource(R.string.brain_quick_chart),
+                            titleLine2 = "",
                             icon = Icons.Default.BarChart,
                             accentColor = Color(0xFF00E5FF),
                             promptText = "Analyze trading chart price action, identify market structure, detect dynamic trendlines and patterns, and construct an actionable trade plan.",
                             isVision = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "News",
-                            titleLine2 = "Intelligence",
+                            titleLine1 = stringResource(R.string.brain_quick_news),
+                            titleLine2 = "",
                             icon = Icons.Default.Article,
                             accentColor = Color(0xFFFF9100),
                             promptText = "Summarize today's financial markets news, macroeconomic catalysts, and economic calendar releases.",
                             isNews = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Market",
-                            titleLine2 = "Alerts",
+                            titleLine1 = stringResource(R.string.brain_quick_alerts),
+                            titleLine2 = "",
                             icon = Icons.Default.NotificationsActive,
                             accentColor = Color(0xFFFF1744),
                             promptText = "Check real-time market-moving catalysts and breaking volatility alerts for watched asset pairs.",
                             isAlerts = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Maximus",
-                            titleLine2 = "Chat",
+                            titleLine1 = stringResource(R.string.brain_quick_chat),
+                            titleLine2 = "",
                             icon = Icons.AutoMirrored.Filled.Chat,
                             accentColor = Color(0xFFB388FF),
                             promptText = "Chat with Maximus AI for conversational market analysis and risk management guidance.",
                             isChat = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Agent",
-                            titleLine2 = "Factory",
+                            titleLine1 = stringResource(R.string.brain_quick_agents),
+                            titleLine2 = "",
                             icon = Icons.Default.Person,
                             accentColor = Color(0xFF38C79B),
                             promptText = "Open Agent Factory to configure autonomous trading, vision, news, and research agents.",
                             isAgents = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Data",
-                            titleLine2 = "Center",
+                            titleLine1 = stringResource(R.string.brain_quick_data),
+                            titleLine2 = "",
                             icon = Icons.Default.Storage,
                             accentColor = Color(0xFFAAC56A),
                             promptText = "Access Data Center storage, documents, and Matrix Graph knowledge memory.",
                             isData = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Control",
-                            titleLine2 = "Hub",
+                            titleLine1 = stringResource(R.string.brain_quick_control),
+                            titleLine2 = "",
                             icon = Icons.Default.Settings,
                             accentColor = Color(0xFFD664A2),
                             promptText = "Configure AI Gateway models, API keys, and FinOps token usage parameters.",
                             isControl = true
                         ),
                         QuickActionItem(
-                            titleLine1 = "Build",
-                            titleLine2 = "Strategy",
+                            titleLine1 = stringResource(R.string.brain_quick_strategy),
+                            titleLine2 = "",
                             icon = Icons.Default.Science,
                             accentColor = Color(0xFF6ABCC9),
                             promptText = "Build an algorithmic trading strategy with clear entry rules, risk management, stop loss, and take profit targets."
                         ),
                         QuickActionItem(
-                            titleLine1 = "Generate",
-                            titleLine2 = "Pine",
+                            titleLine1 = stringResource(R.string.brain_quick_pine),
+                            titleLine2 = "",
                             icon = Icons.Default.Code,
                             accentColor = Color(0xFF00E676),
                             promptText = "Generate a TradingView Pine Script v5 strategy with entry signals, trailing stop, and position sizing."
                         ),
                         QuickActionItem(
-                            titleLine1 = "Generate",
-                            titleLine2 = "MQL5",
+                            titleLine1 = stringResource(R.string.brain_quick_mql),
+                            titleLine2 = "",
                             icon = Icons.Default.Description,
                             accentColor = Color(0xFFFFD54F),
                             promptText = "Generate a MetaTrader 5 MQL5 Expert Advisor with automated order execution, stop loss, and risk parameters."
                         )
                     )
-                }
 
                 Spacer(Modifier.height(8.dp))
                 LazyRow(
@@ -875,7 +924,7 @@ fun MatrixGraphScreen(
                                         color = ink,
                                         lineHeight = 13.sp
                                     )
-                                    Text(
+                                    if (action.titleLine2.isNotBlank()) Text(
                                         text = action.titleLine2,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
