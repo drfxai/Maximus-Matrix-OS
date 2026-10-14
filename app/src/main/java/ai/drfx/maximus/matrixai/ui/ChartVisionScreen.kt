@@ -1,5 +1,9 @@
 package ai.drfx.maximus.matrixai.ui
 
+import androidx.compose.ui.res.stringResource
+
+import ai.drfx.maximus.matrixai.R
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -372,7 +376,7 @@ fun ChartVisionScreen(
                         ) {
                             Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(5.dp))
-                            Text("Choose File", fontSize = 11.5.sp, maxLines = 1)
+                            Text(stringResource(R.string.vision_choose), fontSize = 11.5.sp, maxLines = 1)
                         }
 
                         // Take Photo
@@ -388,7 +392,7 @@ fun ChartVisionScreen(
                         ) {
                             Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(5.dp))
-                            Text("Take Photo", fontSize = 11.5.sp, maxLines = 1)
+                            Text(stringResource(R.string.vision_photo), fontSize = 11.5.sp, maxLines = 1)
                         }
 
                         // Sample Charts Dropdown Button
@@ -405,7 +409,7 @@ fun ChartVisionScreen(
                             ) {
                                 Icon(Icons.Default.BarChart, contentDescription = null, modifier = Modifier.size(15.dp))
                                 Spacer(Modifier.width(5.dp))
-                                Text("DEMO / SAMPLE", fontSize = 11.5.sp, maxLines = 1)
+                                Text(stringResource(R.string.vision_sample), fontSize = 11.5.sp, maxLines = 1)
                                 Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(15.dp))
                             }
 
@@ -596,7 +600,7 @@ fun ChartVisionScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
-                                Text("PRIMARY TREND", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = textSecondary)
+                                Text(stringResource(R.string.vision_trend), fontSize = 9.sp, fontWeight = FontWeight.Bold, color = textSecondary)
                                 Spacer(Modifier.height(2.dp))
                                 Text(
                                     "${analysis.direction.symbol} ${analysis.direction.displayName}",
@@ -615,7 +619,7 @@ fun ChartVisionScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
-                                Text("STRENGTH", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = textSecondary)
+                                Text(stringResource(R.string.vision_strength), fontSize = 9.sp, fontWeight = FontWeight.Bold, color = textSecondary)
                                 Spacer(Modifier.height(2.dp))
                                 Text(
                                     "${analysis.trendStrength.name}",
@@ -963,7 +967,7 @@ fun ChartVisionScreen(
                         ) {
                             Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Ask Maximus AI about this chart", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(stringResource(R.string.vision_ask), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
 
                         // Secondary Row: Export Report + Copy Setup
@@ -1004,7 +1008,7 @@ fun ChartVisionScreen(
                             ) {
                                 Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(15.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Copy Text", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.vision_copy), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -1063,7 +1067,7 @@ fun ChartVisionScreen(
                         ) {
                             Icon(Icons.Default.Save, contentDescription = null, tint = primaryGreen, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Save Note", color = primaryGreen, fontSize = 12.sp)
+                            Text(stringResource(R.string.vision_save_note), color = primaryGreen, fontSize = 12.sp)
                         }
                     }
                 }
@@ -1165,7 +1169,7 @@ fun ChartVisionScreen(
                 ) {
                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Share via Apps", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(stringResource(R.string.vision_share), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             },
             dismissButton = {
@@ -1181,7 +1185,7 @@ fun ChartVisionScreen(
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(15.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Copy", fontSize = 12.sp)
+                    Text(stringResource(R.string.vision_copy_short), fontSize = 12.sp)
                 }
             },
             title = {
@@ -1191,7 +1195,7 @@ fun ChartVisionScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Assessment, contentDescription = null, tint = primaryGreen, modifier = Modifier.size(22.dp))
-                    Text("Export Summary Report", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                    Text(stringResource(R.string.vision_export), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                 }
             },
             text = {
