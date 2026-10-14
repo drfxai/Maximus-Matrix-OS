@@ -37,7 +37,7 @@ Do NOT copy PRoot distributions or prepacked toolchains into the production app 
 |---|---|---|
 | https://github.com/techjarves/Portable-Local-Studio | Desktop/local model hub: GGUF via llama.cpp, image generation via stable-diffusion.cpp, Whisper speech-to-text, Kokoro text-to-speech | High priority protocol/licensing review |
 | https://github.com/techjarves/Uncensored-Local-AI-Multiplatform | Cross-platform local-model user experience | Research |
-| https://github.com/techjarves/mobile-server | Mobile-to-host runtime networking approaches | Security audit required |
+| https://github.com/techjarves/mobile-server | Android local LLM server exposing OpenAI-compatible API | Apache-2.0, fork and network security audit required |
 | https://github.com/techjarves/Linux-on-Samsung | Linux runtime on mobile and ARM64 limits | Research, trusted code only |
 | https://github.com/techjarves/Openclaw-Termux-NoRoot | Local terminal/bootstrap workflows | Research, never auto-run installers |
 | https://github.com/techjarves/Local-Browser-AI | Local/browser inference concepts | Permission audit required |
@@ -70,9 +70,11 @@ Risk findings: the browser manifest requests content-script and host access on A
 
 Independently implemented adaptation in this review: per-project Develop / Research / Study / Review task modes. These affect planning prompts only, not tools, credentials, files or execution. No browser source, visual assets or risky extension permissions were copied.
 
-Other account repositories identified but not source-audited:
-- https://github.com/titechprabhasolutions/Brahma-AI
-- https://github.com/titechprabhasolutions/Brahma-AI---Lite
+Other account repositories screened at README/license level:
+- https://github.com/titechprabhasolutions/Brahma-AI — MIT-licensed Electron/Python desktop workflow app; independent design review possible.
+- https://github.com/titechprabhasolutions/Brahma-AI---Lite — Brahma Source-Available v1; public branded derivatives not authorized.
+
+Additional local-inference finding: https://github.com/techjarves/mobile-server is an Apache-2.0 fork of Google AI Edge Gallery and advertises OpenAI-compatible endpoints plus optional tunnels. It is a strong candidate for a local Smart Combo route if and only if the endpoint is authenticated and the origin is verified. No unauthenticated open Internet ports, embedded shared tokens or provider quota claims are acceptable; fork dependencies and license notices also need review. A separate local-network/live device test is required. The repository https://github.com/techjarves/Uncensored-Local-AI-Multiplatform has no top-level LICENSE file visible in this review and must not be imported until redistribution rights are established.
 
 ## 3. Capability classification and integration mapping
 
