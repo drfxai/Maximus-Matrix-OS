@@ -100,6 +100,7 @@ internal class PhoneRuntimeInstaller(context: Context) {
                 check(File(staging, "usr/bin/bash").isFile)
                 check(File(staging, "opt/gradle/gradle-8.14.3/bin/gradle").isFile)
                 check(File(staging, "root/android-sdk/build-tools/35.0.0/aapt2").isFile)
+                prepareGradleEnvironment(staging)
                 File(staging, ".maximus-verified-android-bundles").writeText(
                     bundles.joinToString("\n") { it.name + " " + it.hash })
                 stateValue.value = PhoneToolchainProgress("activating",
@@ -216,6 +217,57 @@ internal class PhoneRuntimeInstaller(context: Context) {
                 }
             } finally { connection.disconnect() }
         }
+    }
+
+    /** Configure the archive's pinned local Maven mirror, AAPT2 and low-memory Gradle. */
+    private fun prepareGradleEnvironment(root: File) {
+        val maven = File(root, "root/maven/localMvnRepository")
+        check(maven.isDirectory && !maven.list().isNullOrEmpty()) {
+            "Pinned Android bundle lacks the offline Maven dependency repository."
+        }
+        val initDir = File(root, "root/.gradle/init.d")
+        check(initDir.isDirectory || initDir.mkdirs())
+        File(initDir, "maximus-android.gradle").writeText(
+            """
+            def localMaven = uri('/root/maven/localMvnRepository')
+            beforeSettings { settings ->
+                settings.pluginManagement.repositories {
+                    maven { url = localMaven }
+                    google()
+                    mavenCentral()
+                    gradlePluginPortal()
+                }
+            }
+            settingsEvaluated { settings ->
+                settings.dependencyResolutionManagement.repositories {
+                    maven { url = localMaven }
+                }
+            }
+            gradle.beforeProject { project ->
+                project.extensions.extraProperties.set(
+                    'android.aapt2FromMavenOverride',
+                    '/root/android-sdk/build-tools/35.0.0/aapt2'
+                )
+                project.buildscript.repositories {
+                    maven { url = localMaven }
+                }
+            }
+            """.trimIndent() + "\n"
+        )
+        val gradleHome = File(root, "root/.gradle")
+        File(gradleHome, "gradle.properties").writeText(
+            "org.gradle.jvmargs=-Xmx768m -XX:MaxMetaspaceSize=256m -Dfile.encoding=UTF-8\n" +
+                "org.gradle.workers.max=1\norg.gradle.parallel=false\n" +
+                "kotlin.compiler.execution.strategy=in-process\n" +
+                "android.aapt2FromMavenOverride=/root/android-sdk/build-tools/35.0.0/aapt2\n"
+        )
+        val tools = File(root, "root/android-sdk/build-tools/35.0.0")
+        listOf("aapt", "aapt2", "aidl", "apksigner", "d8",
+            "dexdump", "zipalign", "split-select").forEach { name ->
+            val tool = File(tools, name)
+            if (tool.isFile) Os.chmod(tool.absolutePath, 493)
+        }
+        Os.chmod(File(root, "opt/gradle/gradle-8.14.3/bin/gradle").absolutePath, 493)
     }
 
     private fun tar(file: File, process: (TarArchiveInputStream) -> Unit) {
