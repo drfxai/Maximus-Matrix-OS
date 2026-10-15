@@ -609,4 +609,20 @@
     <string name="hindsight_status_checkpoint_retained">Проверенная контрольная точка сохранена; готово связанных записей: %1$d.</string>
     <string name="hindsight_status_checkpoint_failed">Синхронизация контрольной точки недоступна. Локальная копия сохранена.</string>
     <string name="hindsight_safety_notice">Память — недоверенные справочные данные, а не разрешение запускать инструменты. Локальные точки работают без сервера. Отключение не удаляет данные облака.</string>
+    <string name="runtime_export_verified">Debug APK проверен по SHA-256 и сохранён. Ключ подписи релиза не использовался.</string>
+    <string name="runtime_export_failed">Не удалось экспортировать Debug APK. Проверьте подключение и папку. Непроверенный файл не принят.</string>
+    <string name="runtime_job_ready">Debug APK готов. Перед загрузкой будет проверена контрольная сумма.</string>
+    <string name="runtime_job_failed">Изолированная Debug-сборка завершилась ошибкой. Релиз не подписывался.</string>
+    <string name="runtime_job_status_failed">Не удалось проверить состояние сборки Worker. Проверьте подключение и повторите попытку.</string>
+    <string name="runtime_debug_safety">Явно запрошенные Debug-сборки выполняются в проверенном изолированном Worker без сети. Ключи подписи релизов не передаются.</string>
+    <string name="runtime_state_queued">В очереди</string>
+    <string name="runtime_state_running">Выполняется</string>
+    <string name="runtime_state_succeeded">Успешно</string>
+    <string name="runtime_state_failed">Ошибка</string>
+    <string name="runtime_debug_job">Debug-сборка: %1$s · %2$s</string>
+    <string name="runtime_approval_title">Разрешить изолированную сборку Debug APK?</string>
+    <string name="runtime_approval_description">ZIP выбранного проекта будет отправлен проверенному Worker для офлайн-сборки в контейнере без root. Не передавайте секретные ключи и конфиденциальные проекты неподконтрольному Worker. Релизный APK не подписывается.</string>
+    <string name="runtime_build_accepted">Проверенная Debug-сборка принята. Ожидание статуса задания.</string>
+    <string name="runtime_build_failed">Не удалось отправить Debug-сборку. Проверьте Worker и учётные данные.</string>
+    <string name="runtime_build_cancel">Отмена</string>
 </resources>
