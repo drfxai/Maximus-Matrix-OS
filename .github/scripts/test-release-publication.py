@@ -66,4 +66,13 @@ class PublicationTests(unittest.TestCase):
         self.assertLess(download,patch)
         self.assertFalse(any('delete' in c or 'create' in c for c in calls))
 
+    def test_stable_release_requires_explicit_manual_publish_from_main(self):
+        workflow = Path('.github/workflows/android-release.yml').read_text()
+        step = workflow.split('      - name: Update existing Stable V1.0.0 assets', 1)[1]
+        step = step.split('\n      - name:', 1)[0]
+        self.assertIn("github.event_name == 'workflow_dispatch'", step)
+        self.assertIn('inputs.publish', step)
+        self.assertIn("github.ref == 'refs/heads/main'", step)
+        self.assertNotIn("github.event_name == 'push'", step)
+
 unittest.main()
