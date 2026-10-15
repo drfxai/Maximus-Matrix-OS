@@ -171,11 +171,28 @@ fun MatrixGraphScreen(
     val watchlist by viewModel.notificationService.activeWatchlist.collectAsState()
     val activeSignalsCount by viewModel.signalRepository.observeActiveSignalCount().collectAsState(initial = 8)
     val chartVisionState by viewModel.chartVisionState.collectAsState()
-    val topology = remember(llm.status, llm.provider, llm.selectedModel, dataCenter.status.connected, recentAlerts.size, watchlist.size, activeSignalsCount, chartVisionState) {
+    // A configured default is not necessarily the route dispatched by Smart Combo.
+    val dispatchedRoute = llm.activeRequest?.takeIf { llm.isGenerating }
+    val displayedProvider = dispatchedRoute?.provider ?: llm.provider
+    val displayedModel = dispatchedRoute?.modelId ?: llm.selectedModel
+    val routeStage = stringResource(if (dispatchedRoute != null)
+        R.string.focus_provider_active else R.string.focus_provider_configured) + " · " +
+        stringResource(when {
+            dispatchedRoute != null -> R.string.focus_running
+            llm.isGenerating -> R.string.focus_preparing
+            else -> R.string.focus_idle
+        })
+    val providerDescription = routeStage + " · " + displayedProvider.displayName
+    val modelDescription = routeStage + " · " +
+        displayedModel.ifBlank { stringResource(R.string.focus_unknown) }
+    val routeDescription = providerDescription + " / " +
+        displayedModel.ifBlank { stringResource(R.string.focus_unknown) }
+    val topology = remember(routeDescription, providerDescription, modelDescription,
+        dataCenter.status.connected, recentAlerts.size, watchlist.size, activeSignalsCount, chartVisionState) {
         buildTopology(
-            llmConnected = llm.status == ConnectionStatus.CONNECTED,
-            provider = llm.provider.name.replace('_', ' '),
-            model = llm.selectedModel,
+            routeDescription = routeDescription,
+            providerDescription = providerDescription,
+            modelDescription = modelDescription,
             dataConnected = dataCenter.status.connected,
             alertsCount = recentAlerts.size,
             watchlistCount = watchlist.size,
@@ -222,15 +239,9 @@ fun MatrixGraphScreen(
         "embedding_engine" to stringResource(R.string.graph_node_embedding_engine_description),
         "maximus" to stringResource(R.string.graph_node_maximus_description),
         "chat_hub" to stringResource(R.string.graph_node_chat_hub_description),
-        "models" to if (llm.status == ConnectionStatus.CONNECTED)
-            stringResource(R.string.graph_node_models_connected,
-                llm.provider.name.replace('_', ' '), llm.selectedModel)
-            else stringResource(R.string.graph_node_models_disconnected),
-        "provider" to if (llm.status == ConnectionStatus.CONNECTED)
-            llm.provider.name.replace('_', ' ')
-            else stringResource(R.string.graph_node_provider_offline),
-        "model" to if (llm.status == ConnectionStatus.CONNECTED) llm.selectedModel
-            else stringResource(R.string.graph_node_model_none)
+        "models" to routeDescription,
+        "provider" to providerDescription,
+        "model" to modelDescription
     )
     val localizedAnatomicalRegions = mapOf(
         "maximus" to stringResource(R.string.graph_node_maximus_region),
@@ -885,7 +896,7 @@ fun MatrixGraphScreen(
                     }
                     Spacer(Modifier.height(20.dp))
                     IntelligenceRing(status, light, Modifier.fillMaxWidth().aspectRatio(1f))
-                    Text(if (llm.status == ConnectionStatus.CONNECTED) stringResource(R.string.brain_model_connected) else stringResource(R.string.brain_model_offline), Modifier.align(Alignment.CenterHorizontally),
+                    Text(routeStage, Modifier.align(Alignment.CenterHorizontally),
                         color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
                 }
             }
@@ -1905,9 +1916,9 @@ private fun graphTone(color: Color, light: Boolean): Color {
 }
 
 private fun buildTopology(
-    llmConnected: Boolean,
-    provider: String,
-    model: String,
+    routeDescription: String,
+    providerDescription: String,
+    modelDescription: String,
     dataConnected: Boolean,
     alertsCount: Int = 0,
     watchlistCount: Int = 4,
@@ -2087,11 +2098,11 @@ private fun buildTopology(
     child("company", "local_cache", "Offline Cache", -18f, 16f, -16f, GraphLime, "Local cache for historical charts, news articles, and offline setups", "Collateral Sulcus")
 
     hub("models", "AI Gateway", "MODEL ROUTING", 60f, 68f, -60f, GraphCyan,
-        if (llmConnected) "Connected to $provider using $model." else "LLM API disconnected.",
+        routeDescription,
         "Provider · Model · Embeddings · FinOps · Maximus",
         "CEREBELLAR", "Right Cerebellar Hemisphere")
-    child("models", "provider", "Provider", -20f, 18f, -14f, GraphCyan, if (llmConnected) provider else "Offline", "Cerebellar Peduncle")
-    child("models", "model", "Active Model", 20f, 16f, -6f, GraphCyan, if (llmConnected) model else "None selected", "Interposed Nucleus")
+    child("models", "provider", "Provider", -20f, 18f, -14f, GraphCyan, providerDescription, "Cerebellar Peduncle")
+    child("models", "model", "Active Model", 20f, 16f, -6f, GraphCyan, modelDescription, "Interposed Nucleus")
     child("models", "embedding_engine", "Embedding Engine", 4f, -18f, -22f, GraphCyan, "Semantic vector representations for neural retrieval", "Fastigial Relay")
 
     hub("api", "FinOps & Control", "FINOPS & CONTROL", 24f, 82f, -38f, GraphRed,

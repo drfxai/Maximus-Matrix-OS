@@ -16,10 +16,13 @@ internal object ChatTokenTelemetry {
         lifetimeTokens: Long,
         contextCapacity: Int,
         contextTokensEstimate: Int,
-        monthlyTokenBudget: Long
+        monthlyTokenBudget: Long,
+        // The bounded conversation estimate excludes the captured system/memory budget.
+        contextOverheadEstimate: Int = 0
     ): TokenMetrics {
         val capacity = contextCapacity.coerceAtLeast(0)
-        val context = contextTokensEstimate.coerceIn(0, capacity)
+        val context = (contextTokensEstimate.coerceAtLeast(0).toLong() +
+            contextOverheadEstimate.coerceAtLeast(0).toLong()).coerceAtMost(capacity.toLong()).toInt()
         return current.copy(
             consumedTurnInputTokens = usage.inputTokens,
             consumedTurnOutputTokens = usage.outputTokens,

@@ -1,5 +1,6 @@
 package ai.drfx.maximus.matrixai.llm
 
+import ai.drfx.maximus.matrixai.ui.ChatContextPolicy
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -44,4 +45,31 @@ class ChatTokenTelemetryTest {
         assertEquals(0, unknown.remainingContextTokens)
         assertEquals(0f, unknown.contextUsagePercent, .0001f)
     }
+    @Test fun completedContextIncludesCapturedMemoryAndSystemBudgetExactlyOnce() {
+        val capacity = 4096
+        val overhead = 512
+        val messages = listOf(ChatMessage("user", "old".repeat(2000)),
+            ChatMessage("assistant", "old reply"), ChatMessage("user", "latest request"),
+            ChatMessage("assistant", "latest reply"))
+        val latest = ChatContextPolicy.bounded(messages, capacity - overhead)
+        assertEquals(2, latest.omittedMessages)
+        val expected = latest.estimatedTokens + overhead
+        val dispatched = ChatTokenTelemetry.dispatched(TokenMetrics(), capacity, expected)
+        val done = ChatTokenTelemetry.completed(dispatched, ChatUsage(0, 0, 0, true),
+            0, capacity, latest.estimatedTokens, 0, contextOverheadEstimate = overhead)
+        assertEquals(capacity - expected, done.remainingContextTokens)
+        assertEquals(dispatched.remainingContextTokens, done.remainingContextTokens)
+        assertEquals(expected.toFloat() / capacity, done.contextUsagePercent, .0001f)
+    }
+
+    @Test fun completedContextClampsCombinedEstimatesWithoutOverflowOrNegativeCredits() {
+        val full = ChatTokenTelemetry.completed(TokenMetrics(), ChatUsage(0, 0, 0, true),
+            0, 4096, Int.MAX_VALUE, 0, contextOverheadEstimate = Int.MAX_VALUE)
+        assertEquals(0, full.remainingContextTokens)
+        assertEquals(1f, full.contextUsagePercent, .0001f)
+        val empty = ChatTokenTelemetry.completed(TokenMetrics(), ChatUsage(0, 0, 0, true),
+            0, 4096, -1, 0, contextOverheadEstimate = -10)
+        assertEquals(4096, empty.remainingContextTokens)
+    }
+
 }
