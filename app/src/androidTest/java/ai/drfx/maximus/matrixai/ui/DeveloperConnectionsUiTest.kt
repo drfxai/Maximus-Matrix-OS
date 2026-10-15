@@ -128,6 +128,16 @@ class DeveloperConnectionsUiTest {
             }
             assertFalse(button(R.string.dev_verify).isEnabled)
             assertTrue(preferences.all.isEmpty())
+        } catch (failure: Throwable) {
+            runCatching {
+                val hierarchy = java.io.ByteArrayOutputStream()
+                device.dumpWindowHierarchy(hierarchy)
+                hierarchy.toString("UTF-8").take(180_000).chunked(2800).forEachIndexed { index, part ->
+                    android.util.Log.i("DeveloperConnectionsUiTest", "Failure hierarchy[$index]: $part")
+                }
+                device.takeScreenshot(java.io.File(context.getExternalFilesDir(null), "failure-state.png"))
+            }
+            throw failure
         } finally {
             runCatching { onActivity { it.finish() } }
             try {
@@ -168,7 +178,14 @@ class DeveloperConnectionsUiTest {
     private fun button(id: Int): UiObject2 {
         scroll().scrollToBeginning(12)
         scroll().scrollIntoView(UiSelector().text(text(id)))
-        return checkNotNull(device.findObject(By.text(text(id)))) { "Missing panel button: ${text(id)}" }
+        var node = checkNotNull(device.findObject(By.text(text(id)))) { "Missing panel button: ${text(id)}" }
+        // Compose may expose the label as an enabled child of a disabled Button.
+        // Assert the actionable semantic node, never the text child's enabled flag.
+        repeat(8) {
+            if (node.className == "android.widget.Button") return node
+            node = checkNotNull(node.parent) { "Missing button ancestor: ${text(id)}" }
+        }
+        error("Missing button semantic node: ${text(id)}")
     }
 
     private fun onActivity(block: (MainActivity) -> Unit) {
