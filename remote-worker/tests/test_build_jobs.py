@@ -2,13 +2,17 @@ import hashlib
 import http.client
 import io
 import json
+import pathlib
+import subprocess
+import tempfile
 import threading
 import time
 import unittest
 import uuid
 import zipfile
+from unittest.mock import patch
 
-from build_jobs import BuildCoordinator, RootlessBuilder, validate_zip
+from build_jobs import BuildCoordinator, RootlessBuilder, validate_zip, read_artifact
 from worker import make_server
 
 TOKEN = "private-worker-test-token-that-is-long-enough"
@@ -43,6 +47,27 @@ class FakeIsolatedRunner:
 
 
 class ArchiveTests(unittest.TestCase):
+    def test_artifact_symlink_cannot_read_a_gateway_host_file(self):
+        with tempfile.TemporaryDirectory() as root:
+            private = pathlib.Path(root) / 'private'
+            private.write_bytes(b'private host bytes' * 200)
+            artifact = pathlib.Path(root) / 'project-debug.apk'
+            artifact.symlink_to(private)
+            with self.assertRaises(OSError):
+                read_artifact(artifact)
+
+    def test_timed_out_docker_cli_removes_only_its_named_container(self):
+        builder = RootlessBuilder('example/sdk@sha256:' + 'a' * 64)
+        with tempfile.TemporaryDirectory() as root, patch('build_jobs.subprocess.run') as run:
+            run.side_effect = [subprocess.TimeoutExpired('docker', 600),
+                               subprocess.CompletedProcess([], 0)]
+            with self.assertRaises(subprocess.TimeoutExpired):
+                builder.run(pathlib.Path(root), pathlib.Path(root))
+            invocation = run.call_args_list[0].args[0]
+            name = next(arg.split('=', 1)[1] for arg in invocation if arg.startswith('--name='))
+            self.assertRegex(name, r'^maximus-debug-[a-f0-9]{32}$')
+            self.assertEqual(['docker', 'rm', '--force', name], run.call_args_list[1].args[0])
+
     def test_only_bounded_android_sources_accepted(self):
         self.assertEqual(3, len(validate_zip(project_zip())))
         for path in ("../../private.txt", "/etc/passwd", "a/../b", "folder\\escape.kt"):

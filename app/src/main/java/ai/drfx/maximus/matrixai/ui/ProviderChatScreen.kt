@@ -240,6 +240,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var voiceLanguageMenuOpen by remember { mutableStateOf(false) }
     var voiceConversation by remember { mutableStateOf(false) }
     var voiceReplies by remember { mutableStateOf(false) }
+    var spokenReplyTimestamp by remember { mutableLongStateOf(-1L) }
     var speechReady by remember { mutableStateOf(false) }
     var speechVoiceInstallNeeded by remember { mutableStateOf(false) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
@@ -266,19 +267,23 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     LaunchedEffect(messages.lastOrNull()?.timestampMs, voiceReplies, speechReady,
         state.isGenerating, selectedSpeechLanguage) {
         val last = messages.lastOrNull()
-        if (!state.isGenerating && voiceReplies && speechReady && last?.role == "assistant" && !last.isError) {
+        if (!state.isGenerating && voiceReplies && speechReady && last?.role == "assistant" &&
+            !last.isError && last.content.isNotBlank() && last.timestampMs != spokenReplyTimestamp) {
             val language = SpeechLanguagePolicy.preferredTtsLanguage(
                 last.content, selectedSpeechLanguage
             ).locale()
             val engine = tts
-            if (engine == null || engine.isLanguageAvailable(language) < TextToSpeech.LANG_AVAILABLE) {
+            if (engine == null || engine.isLanguageAvailable(language) < TextToSpeech.LANG_AVAILABLE ||
+                engine.setLanguage(language) < TextToSpeech.LANG_AVAILABLE) {
                 speechVoiceInstallNeeded = true
                 attachmentError = context.getString(R.string.speech_tts_missing, language.toLanguageTag())
                 return@LaunchedEffect
             }
             speechVoiceInstallNeeded = false
-            engine.language = language
-            engine.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "reply-" + last.timestampMs)
+            if (engine.speak(last.content, TextToSpeech.QUEUE_FLUSH, null,
+                    "reply-" + last.timestampMs) == TextToSpeech.SUCCESS) {
+                spokenReplyTimestamp = last.timestampMs
+            } else attachmentError = context.getString(R.string.brain_voice_playback_failed)
         }
     }
     fun send(text: String = prompt, fromVoice: Boolean = false) {
@@ -448,6 +453,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 IconButton(onClick = { tts?.stop(); voicePlayback.stop(); elevenJob?.cancel(); elevenPlayback.stop() }) { Icon(Icons.Default.Stop, stringResource(R.string.speech_stop_audio)) }
                 IconButton(
                     onClick = {
+                        if (!voiceReplies) spokenReplyTimestamp = messages.lastOrNull()?.timestampMs ?: -1L
                         voiceReplies = !voiceReplies
                         if (!voiceReplies) {
                             voiceConversation = false
@@ -538,7 +544,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     checked = voiceConversation,
                     onCheckedChange = {
                         voiceConversation = it
-                        if (it) voiceReplies = true
+                        if (it && !voiceReplies) {
+                            spokenReplyTimestamp = messages.lastOrNull()?.timestampMs ?: -1L
+                            voiceReplies = true
+                        }
                     },
                     modifier = Modifier.height(36.dp).testTag("voice_conversation_toggle")
                 )
@@ -662,7 +671,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             ) {
                                 Icon(Icons.Default.Key, null, modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Enter ${state.provider.displayName} Key", fontSize = 11.sp)
+                                Text(stringResource(R.string.chat_enter_provider_key, state.provider.displayName), fontSize = 11.sp)
                             }
                         }
                     }
@@ -889,6 +898,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         Icon(Icons.Default.AttachFile, stringResource(R.string.speech_attach_document), modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = {
+                        tts?.stop()
+                        voicePlayback.stop()
+                        elevenJob?.cancel()
+                        elevenPlayback.stop()
                         recordingSpeechLanguage = selectedSpeechLanguage
                         attachmentError = null
                         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -976,13 +989,13 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         AlertDialog(onDismissRequest = { renameOpen = false }, title = { Text(stringResource(R.string.chat_rename)) },
             text = { OutlinedTextField(value = sessionTitle, onValueChange = { sessionTitle = it }, singleLine = true) },
             confirmButton = { TextButton(onClick = { viewModel.renameChatSession(activeSessionId, sessionTitle); renameOpen = false }) { Text(stringResource(R.string.chat_save)) } },
-            dismissButton = { TextButton(onClick = { renameOpen = false }) { Text("Cancel") } })
+            dismissButton = { TextButton(onClick = { renameOpen = false }) { Text(stringResource(R.string.studio_cancel)) } })
     }
     if (deleteOpen) {
         AlertDialog(onDismissRequest = { deleteOpen = false }, title = { Text(stringResource(R.string.chat_delete_confirm)) },
             text = { Text(stringResource(R.string.chat_delete_confirm_desc)) },
             confirmButton = { TextButton(onClick = { viewModel.deleteChatSession(activeSessionId); deleteOpen = false }) { Text(stringResource(R.string.speech_delete)) } },
-            dismissButton = { TextButton(onClick = { deleteOpen = false }) { Text("Cancel") } })
+            dismissButton = { TextButton(onClick = { deleteOpen = false }) { Text(stringResource(R.string.studio_cancel)) } })
     }
     // Quick In-Chat API Key Entry Dialog
     if (quickKeyDialogOpen) {
@@ -992,7 +1005,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Key, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
-                    Text("Connect ${quickKeyTargetProvider.displayName}", fontSize = 16.sp)
+                    Text(stringResource(R.string.chat_connect_provider, quickKeyTargetProvider.displayName), fontSize = 16.sp)
                 }
             },
             text = {
@@ -1003,14 +1016,14 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             LlmProvider.NVIDIA -> "Enter your NVIDIA NIM API key (starts with nvapi-). Direct access to Llama 3.3 70B and DeepSeek R1."
                             LlmProvider.ROUTER_9_SMART -> "Enter your deployment endpoint and key. Select a model returned by its catalog."
                             LlmProvider.ROUTER_9_COMBO -> "Combo names must exist in your server catalog. Routing behavior is managed by that server."
-                            else -> "Enter the API key for ${quickKeyTargetProvider.displayName}."
+                            else -> stringResource(R.string.chat_enter_provider_key, quickKeyTargetProvider.displayName)
                         },
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 16.sp
                     )
                     if (quickKeyTargetProvider.isNineRouter || quickKeyTargetProvider == LlmProvider.OPENAI_COMPATIBLE) {
-                        OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it }, label = { Text("Trusted HTTPS deployment endpoint") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it }, label = { Text(stringResource(R.string.chat_trusted_endpoint)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     }
                     OutlinedTextField(
                         value = quickKeyInput,
@@ -1030,7 +1043,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 if (clip.isNotBlank()) quickKeyInput = clip.trim()
                             }
                         ) {
-                            Text("Paste from clipboard", fontSize = 11.sp)
+                            Text(stringResource(R.string.chat_paste), fontSize = 11.sp)
                         }
                     }
                 }
@@ -1046,12 +1059,12 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     },
                     enabled = quickKeyInput.isNotBlank()
                 ) {
-                    Text("Save & Connect")
+                    Text(stringResource(R.string.chat_save_connect))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { quickKeyDialogOpen = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.studio_cancel))
                 }
             }
         )
@@ -1077,7 +1090,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         Text(stringResource(R.string.chat_token_inspector), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
                     Text(
-                        "${(metrics.contextUsagePercent * 100).toInt()}% Used",
+                        stringResource(R.string.chat_context_percent, (metrics.contextUsagePercent * 100).toInt()),
                         color = if (metrics.contextUsagePercent > 0.85f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
@@ -1101,37 +1114,37 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Active Engine", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.api_provider_label), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(state.provider.displayName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Model", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.api_model_label), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(state.selectedModel, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Max Context Window", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("${numberFormat.format(metrics.contextCapacity)} tokens", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(R.string.api_model_limit), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.api_token_count, numberFormat.format(metrics.contextCapacity)), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                         Divider(color = MaterialTheme.colorScheme.outlineVariant)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Consumed (Last Turn)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("${numberFormat.format(metrics.consumedTurnTotalTokens)} tokens (Prompt: ${numberFormat.format(metrics.consumedTurnInputTokens)} · Response: ${numberFormat.format(metrics.consumedTurnOutputTokens)})", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.api_stat_turn), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.chat_turn_tokens, numberFormat.format(metrics.consumedTurnTotalTokens), numberFormat.format(metrics.consumedTurnInputTokens), numberFormat.format(metrics.consumedTurnOutputTokens)), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Remaining in Context", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("${numberFormat.format(metrics.remainingContextTokens)} tokens", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E676))
+                            Text(stringResource(R.string.api_stat_context_left), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.api_token_count, numberFormat.format(metrics.remainingContextTokens)), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E676))
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Session Consumed", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("${numberFormat.format(metrics.consumedSessionTokens)} tokens", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.api_stat_session), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.api_token_count, numberFormat.format(metrics.consumedSessionTokens)), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Lifetime Consumed", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("${numberFormat.format(metrics.consumedLifetimeTokens)} tokens", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.api_stat_lifetime), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.api_token_count, numberFormat.format(metrics.consumedLifetimeTokens)), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                         if (metrics.remainingBudgetTokens != null) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Local Lifetime Budget Remaining (not provider quota)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.api_local_budget_remaining), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text("${numberFormat.format(metrics.remainingBudgetTokens)} / ${numberFormat.format(metrics.monthlyTokenBudget)}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E676))
                             }
                         }
@@ -1194,7 +1207,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             viewModel.applyProviderPreset(LlmProvider.ROUTER_9_COMBO)
                             baseUrl = viewModel.llmState.value.baseUrl
                         },
-                        label = { Text("9Router (server combo)", fontSize = 11.sp) }
+                        label = { Text(stringResource(R.string.chat_server_combo), fontSize = 11.sp) }
                     )
                     FilterChip(
                         selected = state.provider == LlmProvider.NVIDIA,
@@ -1230,7 +1243,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             shape = RoundedCornerShape(14.dp)
                         ) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Endpoint & Credentials", fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.chat_endpoint_credentials), fontWeight = FontWeight.SemiBold)
                                 OutlinedTextField(
                                     value = baseUrl,
                                     onValueChange = { baseUrl = it },
@@ -1291,13 +1304,13 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Model & Persona Selection", fontWeight = FontWeight.SemiBold)
+                                    Text(stringResource(R.string.chat_model_persona), fontWeight = FontWeight.SemiBold)
                                     Box(Modifier.fillMaxWidth()) {
                                         OutlinedButton(
                                             onClick = { modelExpanded = true },
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Text(state.selectedModel.ifBlank { "Select model" }, maxLines = 1)
+                                            Text(state.selectedModel.ifBlank { stringResource(R.string.chat_select_model) }, maxLines = 1)
                                         }
                                         DropdownMenu(
                                             expanded = modelExpanded,
@@ -1331,7 +1344,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                         ) {
                                             Text(
                                                 state.supportedAgents.firstOrNull { it.id == state.selectedAgentId }?.name
-                                                    ?: "Select agent",
+                                                    ?: stringResource(R.string.chat_select_agent),
                                                 maxLines = 1
                                             )
                                         }
@@ -1363,7 +1376,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Disconnect & clear API key")
+                            Text(stringResource(R.string.chat_disconnect_key))
                         }
                     }
                 }
@@ -1444,7 +1457,7 @@ private fun ChatProviderSwitcherBar(
 
                 // 4. 9Router (server combo)
                 MicroProviderChip(
-                    name = "9Router (server combo)",
+                    name = stringResource(R.string.chat_server_combo),
                     modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_COMBO) currentModel.take(10) else null,
                     icon = Icons.Default.AltRoute,
                     brandColor = Color(0xFF7C4DFF),
@@ -1610,7 +1623,7 @@ private fun GeneratingPulse(provider: String) {
             Box(Modifier.size((6 + index * 2).dp).graphicsLayer(alpha = opacity)
                 .background(MaterialTheme.colorScheme.primary, CircleShape))
         }
-        Text("Generating with $provider…", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+        Text(stringResource(R.string.chat_generating_provider, provider), color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
     }
 }
 
@@ -1660,7 +1673,7 @@ private fun ChatBubble(
                             Text(attachment.name, fontSize = 11.sp, maxLines = 1, modifier = Modifier.weight(1f))
                             if (attachment.mimeType.startsWith("audio/")) {
                                 IconButton(onClick = onPlayVoice, modifier = Modifier.size(28.dp)) {
-                                    Icon(Icons.Default.PlayArrow, "Play voice message", modifier = Modifier.size(17.dp))
+                                    Icon(Icons.Default.PlayArrow, stringResource(R.string.chat_play_voice), modifier = Modifier.size(17.dp))
                                 }
                             }
                         }
@@ -1679,13 +1692,13 @@ private fun ChatBubble(
                                 Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.tertiary,
                                     modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Proposed tool action", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(stringResource(R.string.chat_tool_proposal), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                             Text(draft.tool + (draft.path?.let { " · $it" } ?: ""),
                                 fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                             Text(draft.description, fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Copy or download the suggested content; no file was created by this response.",
+                            Text(stringResource(R.string.chat_tool_no_file),
                                 fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -1707,20 +1720,20 @@ private fun ChatBubble(
                             }
                         }
                         action(if (copied) Icons.Default.CheckCircle else Icons.Default.ContentCopy,
-                            if (copied) "Copied" else "Copy", copied, onCopy)
-                        action(Icons.Default.FileDownload, "Download", false, onDownload)
-                        action(Icons.Default.ThumbUp, "Helpful", reaction == "like") {
+                            if (copied) stringResource(R.string.chat_copied) else stringResource(R.string.chat_copy), copied, onCopy)
+                        action(Icons.Default.FileDownload, stringResource(R.string.chat_download), false, onDownload)
+                        action(Icons.Default.ThumbUp, stringResource(R.string.chat_helpful), reaction == "like") {
                             reaction = if (reaction == "like") "" else "like"; feedbackStore.set(key, reaction)
                         }
-                        action(Icons.Default.ThumbDown, "Not helpful", reaction == "dislike") {
+                        action(Icons.Default.ThumbDown, stringResource(R.string.chat_not_helpful), reaction == "dislike") {
                             reaction = if (reaction == "dislike") "" else "dislike"; feedbackStore.set(key, reaction)
                         }
-                        action(Icons.Default.Favorite, "Love", reaction == "love") {
+                        action(Icons.Default.Favorite, stringResource(R.string.chat_love), reaction == "love") {
                             reaction = if (reaction == "love") "" else "love"; feedbackStore.set(key, reaction)
                         }
-                        action(Icons.Default.VolumeUp, "Speak response", false, onSpeak)
+                        action(Icons.Default.VolumeUp, stringResource(R.string.chat_speak_response), false, onSpeak)
                     }
-                    if (copied) Text("Copied to clipboard", fontSize = 10.sp,
+                    if (copied) Text(stringResource(R.string.chat_copied_clipboard), fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.primary)
                 }
             }

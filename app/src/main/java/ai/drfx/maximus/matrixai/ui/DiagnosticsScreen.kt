@@ -77,7 +77,7 @@ fun DiagnosticsScreen(
         confirmButton = { TextButton(onClick = {
             AppLogStore.clear(); confirmClear = false; copied = false
         }) { Text(stringResource(R.string.diag_clear)) } },
-        dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } })
+        dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.studio_cancel)) } })
 
     androidx.compose.foundation.lazy.LazyColumn(
         modifier.fillMaxSize(),

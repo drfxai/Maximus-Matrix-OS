@@ -182,7 +182,7 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
                 }) { Text(stringResource(R.string.models_forget_action)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingForget = null }) { Text("Cancel") }
+                TextButton(onClick = { pendingForget = null }) { Text(stringResource(R.string.studio_cancel)) }
             }
         )
     }

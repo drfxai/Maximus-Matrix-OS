@@ -987,7 +987,7 @@ fun ChartVisionScreen(
                             ) {
                                 Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(15.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Export Report", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.vision_export), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
 
                             FilledTonalButton(
@@ -1043,7 +1043,7 @@ fun ChartVisionScreen(
                         onValueChange = { userNotes = it },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
-                            Text("Add notes, asset symbol or timeframe context...", fontSize = 12.sp, color = textSecondary)
+                            Text(stringResource(R.string.vision_note_hint), fontSize = 12.sp, color = textSecondary)
                         },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = primaryGreen,
