@@ -19,7 +19,9 @@ internal class SmartComboFreeCatalog(
     data class ProviderStatus(
         val provider: LlmProvider,
         /** Intentionally excludes key material, custom URLs and response bodies. */
-        val message: String
+        val message: String,
+        val kind: FreeCatalogCheckKind = FreeCatalogCheckKind.NO_ELIGIBLE_MODEL,
+        val matchingCount: Int = 0
     )
 
     data class ScanResult(
@@ -64,7 +66,8 @@ internal class SmartComboFreeCatalog(
                 throw cancelled
             } catch (_: Exception) {
                 checks.add(ProviderStatus(provider,
-                    "Catalog unavailable or authentication failed; no free-pricing claim."))
+                    "Catalog unavailable or authentication failed; no free-pricing claim.",
+                    FreeCatalogCheckKind.CATALOG_UNAVAILABLE))
                 continue
             }
             val scope = (if (provider.isNineRouter) "nine-router" else provider.name) +
@@ -104,13 +107,25 @@ internal class SmartComboFreeCatalog(
                     )
                 )
             }
-            checks.add(ProviderStatus(provider, when {
-                qualified > 0 -> "$qualified verified free text route(s); live quota unknown."
-                chat == 0 -> "Catalog contains no verified chat-capable model."
-                free == 0 -> "No published zero-price text pricing; free tier not proven."
-                missingContext > 0 -> "$free free-price model(s), but context length is not verified."
+            val (outcome, count) = when {
+                qualified > 0 -> FreeCatalogCheckKind.VERIFIED_FREE to qualified
+                chat == 0 -> FreeCatalogCheckKind.NO_CHAT_MODEL to 0
+                free == 0 -> FreeCatalogCheckKind.NO_ZERO_PRICE to 0
+                missingContext > 0 -> FreeCatalogCheckKind.MISSING_CONTEXT to free
+                else -> FreeCatalogCheckKind.NO_ELIGIBLE_MODEL to 0
+            }
+            val description = when (outcome) {
+                FreeCatalogCheckKind.VERIFIED_FREE ->
+                    "$qualified verified free text route(s); live quota unknown."
+                FreeCatalogCheckKind.NO_CHAT_MODEL ->
+                    "Catalog contains no verified chat-capable model."
+                FreeCatalogCheckKind.NO_ZERO_PRICE ->
+                    "No published zero-price text pricing; free tier not proven."
+                FreeCatalogCheckKind.MISSING_CONTEXT ->
+                    "$free free-price model(s), but context length is not verified."
                 else -> "No eligible free model."
-            }))
+            }
+            checks.add(ProviderStatus(provider, description, outcome, count))
         }
         return ScanResult(offers.distinctBy { it.route.id }, checks, configured)
     }

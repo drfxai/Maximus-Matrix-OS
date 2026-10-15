@@ -1,6 +1,8 @@
 package ai.drfx.maximus.matrixai.ui
 
 import android.app.Application
+import ai.drfx.maximus.matrixai.R
+import ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -187,6 +189,14 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /** User-facing policy messages follow the app locale, not the system-wide locale. */
+    private fun localizedUiString(resourceId: Int): String {
+        val app = getApplication<Application>()
+        val preference = LanguagePreferenceStore(app)
+        return LanguagePreferenceStore.localizedContext(app, preference.load())
+            .getString(resourceId)
+    }
+
     private fun scheduleSmartComboRefresh() {
         if (freeRefreshLoop?.isActive == true) return
         freeRefreshLoop = viewModelScope.launch {
@@ -211,6 +221,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             smartComboOffers = if (enabled) freeOffers.size else 0,
             smartComboRouteLabels = if (enabled) _llmState.value.smartComboRouteLabels else emptyList(),
             smartComboProviderChecks = if (enabled) _llmState.value.smartComboProviderChecks else emptyList(),
+            smartComboCatalogChecks = if (enabled) _llmState.value.smartComboCatalogChecks else emptyList(),
+            smartComboConfiguredProviders = if (enabled) _llmState.value.smartComboConfiguredProviders else 0,
+            smartComboUiPhase = if (enabled) FreeCatalogUiPhase.CHECKING else FreeCatalogUiPhase.OFF,
             smartComboCheckedAtEpochMs = if (enabled) _llmState.value.smartComboCheckedAtEpochMs else null,
             smartComboMessage = if (enabled) "Checking free model catalogues…" else "Free-only routing is off."
         )
@@ -220,7 +233,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     fun refreshSmartCombo() {
         if (!_llmState.value.smartComboEnabled || _llmState.value.smartComboRefreshing) return
         viewModelScope.launch {
-            _llmState.value = _llmState.value.copy(smartComboRefreshing = true, smartComboMessage = "Verifying free model offers…")
+            _llmState.value = _llmState.value.copy(
+                smartComboRefreshing = true,
+                smartComboUiPhase = FreeCatalogUiPhase.CHECKING,
+                smartComboMessage = "Verifying free model offers…"
+            )
             try {
                 val report = freeCatalog.refreshDetailed()
                 if (!_llmState.value.smartComboEnabled) return@launch
@@ -238,6 +255,15 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     smartComboProviderChecks = report.checks.take(8).map { status ->
                         status.provider.displayName + ": " + status.message
                     },
+                    smartComboCatalogChecks = report.checks.take(8).map { check ->
+                        FreeCatalogCheckUi(check.provider, check.kind, check.matchingCount)
+                    },
+                    smartComboConfiguredProviders = report.configuredProviders,
+                    smartComboUiPhase = when {
+                        refreshed.isNotEmpty() -> FreeCatalogUiPhase.READY
+                        report.configuredProviders == 0 -> FreeCatalogUiPhase.NO_ACCOUNTS
+                        else -> FreeCatalogUiPhase.NONE_VERIFIED
+                    },
                     smartComboCheckedAtEpochMs = checkedAt,
                     smartComboMessage = report.diagnosis
                 )
@@ -246,7 +272,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 if (!_llmState.value.smartComboEnabled) return@launch
                 freeOffers = emptyList()
                 _llmState.value = _llmState.value.copy(smartComboOffers = 0,
-                    smartComboRouteLabels = emptyList(), smartComboProviderChecks = emptyList(),
+                    smartComboRouteLabels = emptyList(),
+                    smartComboProviderChecks = emptyList(),
+                    smartComboCatalogChecks = emptyList(),
+                    smartComboConfiguredProviders = 0,
+                    smartComboUiPhase = FreeCatalogUiPhase.UNAVAILABLE,
                     smartComboCheckedAtEpochMs = null,
                     smartComboMessage = "Free catalogue unavailable. No automatic paid fallback.")
             } finally {
@@ -587,12 +617,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 return false
             }
             if (freeOffers.isEmpty()) {
-                appendAssistantError(
+                appendAssistantError(localizedUiString(
                     if (current.smartComboRefreshing)
-                        "Smart Combo is still checking provider catalogs. Wait for verification or explicitly switch to your selected provider."
-                    else
-                        "No catalog-confirmed free route. Refresh Smart Combo or choose 'Use selected provider' to disable free-only routing; the provider may charge."
-                )
+                        R.string.chat_combo_refresh_status
+                    else R.string.chat_combo_no_free_status
+                ))
                 return false
             }
         }
