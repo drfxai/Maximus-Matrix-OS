@@ -19,3 +19,11 @@ CREATE TABLE IF NOT EXISTS agent_reports (
   PRIMARY KEY (team_id, slot)
 );
 CREATE INDEX IF NOT EXISTS idx_agent_reports_latest ON agent_reports(observed_at DESC);
+
+-- Enforce the eight-team cap transactionally even under concurrent API requests.
+CREATE TRIGGER IF NOT EXISTS max_agent_teams
+BEFORE INSERT ON agent_teams
+WHEN (SELECT COUNT(*) FROM agent_teams) >= 8
+BEGIN
+  SELECT RAISE(ABORT, 'team_limit');
+END;
