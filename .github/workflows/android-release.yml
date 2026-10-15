@@ -3,9 +3,13 @@ name: Build and Release MAXIMUS MATRIX OS V1.0.0
 on:
   pull_request:
   push:
-    branches: [main, release/validated-v1]
+    branches: [main, release/validated-v1, release/verify-v1]
   workflow_dispatch:
     inputs:
+      verify_signed:
+        description: Build and verify the permanent-key upgrade without publishing
+        type: boolean
+        default: false
       publish:
         description: Replace validated assets in the existing Stable v1.0.0 release
         type: boolean
@@ -117,7 +121,7 @@ jobs:
             keyboard-check/
   build-release:
     needs: [validate, emulator-smoke]
-    if: (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/release/validated-v1')
+    if: (github.event_name == 'workflow_dispatch' && (inputs.verify_signed || inputs.publish) && github.ref == 'refs/heads/main') || (github.event_name == 'push' && (github.ref == 'refs/heads/release/validated-v1' || github.ref == 'refs/heads/release/verify-v1'))
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -293,7 +297,9 @@ jobs:
           if-no-files-found: error
 
       - name: Update existing Stable V1.0.0 assets
+        if: (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/release/validated-v1')
         env:
+          RELEASE_PUBLICATION_APPROVED: 'true'
           GH_TOKEN: ${{ github.token }}
         run: bash .github/scripts/publish-release.sh
 

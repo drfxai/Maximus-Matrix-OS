@@ -19,7 +19,7 @@ if args[:2] == ['release','view']: print(json.dumps({'isDraft':False,'isPrerelea
 '''
 
 class PublicationTests(unittest.TestCase):
-    def run_case(self, verified=True, fail=False):
+    def run_case(self, verified=True, fail=False, approved=True):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             for folder in ('bin','dist','previous'): (root/folder).mkdir()
@@ -42,11 +42,14 @@ class PublicationTests(unittest.TestCase):
             if verified:
                 (root/'dist/upgrade-verified').touch()
                 (root/'dist/android-upgrade-verified').touch()
-            env=dict(os.environ, PATH=str(root/'bin')+os.pathsep+os.environ['PATH'], RELEASE_TAG='v1.0.0',ARM64_APK=names[0],UNIVERSAL_APK=names[1],GITHUB_SHA='tested-commit',GITHUB_REPOSITORY='owner/repo',GITHUB_STEP_SUMMARY=str(root/'summary'),FAIL_UPLOAD=str(int(fail)))
+            env=dict(os.environ, RELEASE_PUBLICATION_APPROVED=str(approved).lower(), PATH=str(root/'bin')+os.pathsep+os.environ['PATH'], RELEASE_TAG='v1.0.0',ARM64_APK=names[0],UNIVERSAL_APK=names[1],GITHUB_SHA='tested-commit',GITHUB_REPOSITORY='owner/repo',GITHUB_STEP_SUMMARY=str(root/'summary'),FAIL_UPLOAD=str(int(fail)))
             result=subprocess.run(['bash',str(SCRIPT)],cwd=root,env=env,capture_output=True,text=True)
             import json
             calls=[json.loads(s) for s in (root/'gh-calls.jsonl').read_text().splitlines()] if (root/'gh-calls.jsonl').exists() else []
             return result,calls
+    def test_signed_verification_alone_never_publishes(self):
+        result,calls=self.run_case(approved=False)
+        self.assertNotEqual(result.returncode,0); self.assertEqual(calls,[])
     def test_unverified_build_never_writes_release(self):
         result,calls=self.run_case(verified=False)
         self.assertNotEqual(result.returncode,0); self.assertEqual(calls,[])

@@ -33,3 +33,14 @@ successful test compilation, or emulator run is not a substitute for these gates
 
 Internal candidate build 10021 keeps public V1.0.0. No release should be published
 until all required acceptance and signed-upgrade gates have actually passed.
+
+## Signed upgrade verification without publication
+
+The release workflow supports `verify_signed=true` with `publish=false` on main,
+plus a dedicated `release/verify-v1` branch trigger. Both run the normal Android
+validation suites before building with the permanent signing key, comparing the
+published certificate identity and performing the emulator in-place upgrade.
+The release publication step is excluded in this mode; the publication script
+also requires a separate authorization environment flag. Use the signed APK and
+upgrade evidence artifacts for acceptance. Never move `release/validated-v1`
+merely to obtain a test build: that branch remains a publication trigger.
