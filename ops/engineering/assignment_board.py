@@ -135,9 +135,9 @@ def build_board(
     remaining = max(0, cap - active_count)
     per_owner: set[str] = set()
     items: list[dict[str, Any]] = []
-    ordered = sorted(orders["orders"], key=lambda x: (
-        ISSUE_PRIORITY[x["priority"]], x["issue"]
-    ))
+    # Preserve the explicit security-reviewed order within each priority tier.
+    # Sorting solely by issue number would incorrectly prioritize older issue IDs.
+    ordered = sorted(orders["orders"], key=lambda x: ISSUE_PRIORITY[x["priority"]])
     for item in ordered:
         number = item["issue"]
         owner = item["owner"]
