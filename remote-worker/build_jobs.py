@@ -11,6 +11,7 @@ import os
 import pathlib
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import threading
@@ -22,6 +23,20 @@ MAX_ZIP = 8 * 1024 * 1024
 MAX_APK = 64 * 1024 * 1024
 PROJECT_ID = re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
 IMAGE = re.compile(r"^[a-zA-Z0-9._/-]+(?::[a-zA-Z0-9._-]+)?@sha256:[a-f0-9]{64}$")
+
+
+def read_artifact(path: pathlib.Path) -> bytes:
+    # Build scripts control output bytes. Never follow an output symlink into
+    # the gateway host, and bound reads using the opened descriptor itself.
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, 'rb') as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or not 1024 <= info.st_size <= MAX_APK:
+            raise RuntimeError('No bounded regular APK produced.')
+        data = stream.read(MAX_APK + 1)
+    if not 1024 <= len(data) <= MAX_APK:
+        raise RuntimeError('Invalid artifact size.')
+    return data
 
 
 def validate_zip(data: bytes) -> list[tuple[str, bytes]]:
@@ -83,9 +98,11 @@ class RootlessBuilder:
                   ':app:assembleDebug --project-cache-dir /tmp/gradle-project '
                   '>/tmp/gradle.log 2>&1 && '
                   'find app/build/outputs/apk/debug -type f -name "*.apk" '
-                  '-exec cp {} /out/project-debug.apk \;')
+                  r'-exec cp {} /out/project-debug.apk \;')
+        container_name = 'maximus-debug-' + uuid.uuid4().hex
         argv = [
             "docker", "run", "--rm", "--pull=never", "--network=none",
+            "--name=" + container_name,
             "--pids-limit=128", "--memory=4g", "--cpus=2", "--read-only",
             "--cap-drop=ALL", "--security-opt=no-new-privileges",
             "--user=65534:65534", "--env=HOME=/tmp",
@@ -96,10 +113,18 @@ class RootlessBuilder:
             f"--mount=type=bind,src={output},dst=/out",
             self.image, "/bin/sh", "-c", script
         ]
-        subprocess.run(argv, capture_output=True, timeout=600, check=True)
+        try:
+            subprocess.run(argv, capture_output=True, timeout=600, check=True)
+        finally:
+            # Killing a timed-out Docker CLI does not stop its container.
+            # Remove only this invocation's unpredictable, explicitly named job.
+            try:
+                subprocess.run(['docker', 'rm', '--force', container_name],
+                               capture_output=True, timeout=15, check=False)
+            except (OSError, subprocess.TimeoutExpired):
+                raise RuntimeError('Build container cleanup was not confirmed.') from None
         apk = output / "project-debug.apk"
-        if not apk.is_file() or not (1024 <= apk.stat().st_size <= MAX_APK):
-            raise RuntimeError("No bounded APK produced.")
+        read_artifact(apk)
         return apk
 
 
@@ -166,7 +191,9 @@ class BuildCoordinator:
                 job["state"] = "running"
             apk = self.runner.run(source, output)
             shutil.rmtree(source, ignore_errors=True)
-            digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+            if apk != output / 'project-debug.apk':
+                raise RuntimeError('Unexpected artifact path.')
+            digest = hashlib.sha256(read_artifact(apk)).hexdigest()
             with self.lock:
                 job["apk_path"] = str(apk)
                 job["apk_sha256"] = digest
@@ -204,8 +231,7 @@ class BuildCoordinator:
             if not item or item["state"] != "succeeded":
                 return None
             path, digest = item["apk_path"], item["apk_sha256"]
-        with open(path, "rb") as f:
-            data = f.read(MAX_APK + 1)
+        data = read_artifact(pathlib.Path(path))
         if len(data) > MAX_APK or hashlib.sha256(data).hexdigest() != digest:
             raise RuntimeError("Debug APK checksum mismatch.")
         return data

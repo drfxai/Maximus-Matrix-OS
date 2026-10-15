@@ -895,12 +895,14 @@ fun MatrixGraphScreen(
                 ) {
                     IconButton(onClick = {
                         try {
+                            brainTts?.stop()
                             recordingSpeechLanguage = speechLanguage
                             voiceError = null
                             voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE, recordingSpeechLanguage.tag)
                                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, recordingSpeechLanguage.tag)
+                                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
                                 .putExtra(RecognizerIntent.EXTRA_PROMPT,
                                     appContext.getString(R.string.brain_voice_hint)))
                         } catch (_: Exception) {

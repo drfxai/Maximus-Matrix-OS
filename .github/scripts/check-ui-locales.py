@@ -35,6 +35,14 @@ for language in ("fa", "ar", "tr", "ru"):
     if missing or unexpected:
         sys.exit(language + " resource catalog mismatch. Missing=" +
                  repr(missing[:15]) + "; unexpected=" + repr(unexpected[:15]))
+    # A translated key can exist yet crash getString/String.format at runtime.
+    # Compare argument positions and types; literal %% is not an argument.
+    def arguments(text):
+        return sorted(re.findall(r'%(\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?([a-zA-Z])',
+                                 text.replace('%%', '')))
+    for key in base:
+        if arguments(catalog[''][key]) != arguments(catalog[language][key]):
+            sys.exit(language + ' format arguments mismatch: ' + key)
 
 for key in ("speech_language_label", "speech_conversation_label",
             "speech_tts_missing", "phone_install", "phone_resume",
