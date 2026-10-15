@@ -586,4 +586,18 @@
     <string name="phone_host_linux_not_installed">Linux runtime is not installed</string>
     <string name="phone_host_rootfs_unverified">Linux filesystem is not verified</string>
     <string name="phone_host_execution_unverified">Files found; executable launch has not been verified</string>
+    <string name="models_inventory_notice">Register your own model files from Android storage without uploading them. This is a file inventory only: native inference and Hugging Face downloads are not enabled.</string>
+    <string name="models_registered_count">Registered files: %1$d</string>
+    <string name="models_import_success">Model reference indexed: %1$s. This does not verify inference capability.</string>
+    <string name="models_import_failed">Could not import the model file. Check its format, size, and document access.</string>
+    <string name="models_format_size">%1$s · %2$s GiB</string>
+    <string name="models_gguf_verified">GGUF header recognized. Model weights, hardware and execution remain unverified.</string>
+    <string name="models_litert_unverified">LiteRT-LM extension recognized only. Package integrity and runtime support remain unverified.</string>
+    <string name="models_offline_notice">A selected document can be cloud-backed. Registration does not guarantee offline access. Forgetting a reference never deletes the original file.</string>
+    <string name="models_forget_detail">Remove the saved reference to %1$s? The original model file will not be deleted.</string>
+    <string name="models_forget_success">Model reference forgotten. Original file unchanged.</string>
+    <string name="models_forget_failed">Could not remove this model reference. Try again.</string>
+    <string name="models_file_name_missing">The document has no readable file name.</string>
+    <string name="models_file_open_failed">The selected document cannot be opened.</string>
+    <string name="models_unverified_runtime">Not runnable yet · inference, vision and audio support not verified.</string>
 </resources>
