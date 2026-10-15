@@ -586,6 +586,14 @@
     <string name="phone_host_linux_not_installed">محیط اجرایی لینوکس نصب نشده است</string>
     <string name="phone_host_rootfs_unverified">فایل‌سیستم لینوکس تأیید نشده است</string>
     <string name="phone_host_execution_unverified">فایل‌ها پیدا شدند؛ اجرای واقعی هنوز تأیید نشده است</string>
+    <string name="team_supervisor_title">ناظر تیم · فعالیت تأییدشده</string>
+    <string name="team_supervisor_counts">سالم: %1$d از %2$d فعال · نیازمند بررسی: %3$d</string>
+    <string name="team_supervisor_disclaimer">تیم‌های محلی فقط وظایف مجاز اخبار و سلامت دستگاه را در زمان مجاز اندروید اجرا می‌کنند. این به معنی اجرای پیوسته مدل‌های هوش مصنوعی در تمام ۲۴ ساعت نیست؛ کارهای توسعه در GitHub جداگانه پایش می‌شوند.</string>
+    <string name="team_supervisor_healthy">آخرین اجرا تأیید شده</string>
+    <string name="team_supervisor_stale">اجرای وظیفه به تأخیر افتاده؛ محدودیت باتری را بررسی کنید</string>
+    <string name="team_supervisor_unavailable">آخرین تلاش ناموفق یا ناموجود بود؛ گزارش را بررسی کنید</string>
+    <string name="team_supervisor_clock">زمان گزارش نامعتبر است؛ ساعت دستگاه را بررسی کنید</string>
+    <string name="team_supervisor_waiting">در انتظار نخستین اجرای تأییدشده</string>
     <string name="hindsight_status_optional">حافظه ابری پروژه اختیاری است و به‌صورت پیش‌فرض خاموش است.</string>
     <string name="hindsight_status_model_handoff">%1$d واقعیت پیشین برای ادامه کار مدل بعدی آماده است.</string>
     <string name="hindsight_status_remote_unavailable">نقطه بازیابی محلی موجود است؛ یادآوری ابری در دسترس نیست یا پیکربندی نشده است.</string>

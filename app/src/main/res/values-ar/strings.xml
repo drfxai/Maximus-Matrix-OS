@@ -586,6 +586,14 @@
     <string name="phone_host_linux_not_installed">بيئة تشغيل Linux غير مثبتة</string>
     <string name="phone_host_rootfs_unverified">نظام ملفات Linux غير متحقق منه</string>
     <string name="phone_host_execution_unverified">تم العثور على الملفات، لكن التشغيل الفعلي لم يُتحقق منه</string>
+    <string name="team_supervisor_title">مشرف الفريق · نشاط متحقق</string>
+    <string name="team_supervisor_counts">سليم: %1$d من %2$d نشط · يحتاج فحصاً: %3$d</string>
+    <string name="team_supervisor_disclaimer">تنفذ الفرق المحلية فقط مهام الأخبار وصحة الجهاز المسموح بها عند سماح أندرويد. هذا ليس تشغيل نماذج مستمراً على مدار الساعة؛ تتم مراقبة أعمال التطوير في GitHub منفصلة.</string>
+    <string name="team_supervisor_healthy">تم التحقق من آخر تشغيل</string>
+    <string name="team_supervisor_stale">المهمة متأخرة؛ راجع قيود البطارية</string>
+    <string name="team_supervisor_unavailable">آخر محاولة غير متاحة؛ راجع النتيجة</string>
+    <string name="team_supervisor_clock">وقت التقرير غير متسق؛ تحقق من ساعة الجهاز</string>
+    <string name="team_supervisor_waiting">بانتظار أول تشغيل متحقق</string>
     <string name="hindsight_status_optional">ذاكرة المشروع السحابية اختيارية ومعطلة افتراضياً.</string>
     <string name="hindsight_status_model_handoff">تتوفر %1$d معلومة سابقة لاستكمال العمل بالنموذج التالي.</string>
     <string name="hindsight_status_remote_unavailable">نقطة الحفظ المحلية متاحة؛ الاسترجاع السحابي غير متصل أو غير مهيأ.</string>
