@@ -475,4 +475,17 @@
     <string name="api_usd_planning">Планируемый бюджет в USD (не ограничивает расходы)</string>
     <string name="api_token_count">%1$s токенов</string>
     <string name="api_estimated_output">≈%1$s токенов (оценка)</string>
+    <string name="combo_diag_verifying">Проверяем предложения бесплатных моделей…</string>
+    <string name="combo_diag_checking">Проверяем каталоги бесплатных моделей…</string>
+    <string name="combo_diag_disabled">Маршрутизация только бесплатных моделей отключена.</string>
+    <string name="combo_diag_unavailable">Каталог бесплатных моделей недоступен. Автоперехода на платные модели нет.</string>
+    <string name="combo_diag_no_account">Аккаунт провайдера не настроен. Добавьте API-ключ или отключите режим только бесплатных моделей.</string>
+    <string name="combo_diag_no_free">Бесплатный текстовый маршрут не подтверждён. API-ключ и пробные кредиты не доказывают нулевую цену.</string>
+    <string name="combo_diag_verified">Нулевая цена подтверждена для %1$d маршрутов. Квота аккаунта неизвестна.</string>
+    <string name="combo_diag_provider_unavailable">Каталог недоступен или ошибка авторизации; бесплатная цена не подтверждена.</string>
+    <string name="combo_diag_no_chat">В каталоге нет проверенной модели для чата.</string>
+    <string name="combo_diag_no_price">Опубликованной нулевой цены для текста нет; бесплатный уровень не подтверждён.</string>
+    <string name="combo_diag_no_context">Для %1$d моделей с нулевой ценой размер контекста не подтверждён.</string>
+    <string name="combo_diag_provider_ready">Подтверждено бесплатных текстовых маршрутов: %1$d; квота неизвестна.</string>
+    <string name="combo_diag_no_eligible">Нет подходящей подтверждённой бесплатной модели.</string>
 </resources>
