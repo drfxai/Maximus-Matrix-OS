@@ -582,4 +582,8 @@
     <string name="phone_host_stopping">Остановка сервера и отзыв доступа к сеансу…</string>
     <string name="phone_host_stop_failed">Не удалось остановить сервер телефона.</string>
     <string name="phone_host_cancel">Отмена</string>
+    <string name="phone_host_linux_unavailable">Локальный Linux недоступен на этом устройстве</string>
+    <string name="phone_host_linux_not_installed">Среда Linux не установлена</string>
+    <string name="phone_host_rootfs_unverified">Файловая система Linux не проверена</string>
+    <string name="phone_host_execution_unverified">Файлы найдены; запуск исполняемых файлов ещё не проверен</string>
 </resources>
