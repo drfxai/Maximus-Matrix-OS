@@ -587,9 +587,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Text(stringResource(R.string.chat_combo_unavailable),
                         style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     Text(
-                        if (state.smartComboRefreshing)
-                            "Checking configured provider catalogs for explicit zero-cost pricing and context length…"
-                        else state.smartComboMessage,
+                        smartComboStatusLabel(state),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -604,7 +602,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             Text(stringResource(R.string.chat_manual), fontSize = 12.sp)
                         }
                     }
-                    Text("Context tokens shown above are NOT a verified free API balance.",
+                    Text(stringResource(R.string.chat_combo_not_quota),
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -955,20 +953,22 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     if (confirmDirectProvider) {
         AlertDialog(
             onDismissRequest = { confirmDirectProvider = false },
-            title = { Text("Use ${state.provider.displayName} directly?") },
+            title = { Text(stringResource(R.string.chat_combo_confirm_title,
+                state.provider.displayName)) },
             text = {
-                Text("This disables Smart Combo's verified-free-only requirement for future messages. " +
-                    "The selected ${state.selectedModel} account may charge or consume credits. " +
-                    "No message is sent or automatically retried by switching modes.")
+                Text(stringResource(R.string.chat_combo_confirm_body,
+                    state.provider.displayName, state.selectedModel))
             },
             confirmButton = {
                 Button(onClick = {
                     confirmDirectProvider = false
                     viewModel.setSmartComboEnabled(false)
-                }) { Text("Switch to selected provider") }
+                }) { Text(stringResource(R.string.chat_combo_confirm_action)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDirectProvider = false }) { Text("Keep free-only") }
+                TextButton(onClick = { confirmDirectProvider = false }) {
+                    Text(stringResource(R.string.chat_combo_keep_free))
+                }
             }
         )
     }
