@@ -72,7 +72,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Switch(checked = state.smartComboEnabled, onCheckedChange = viewModel::setSmartComboEnabled,
                         enabled = !state.isGenerating)
                 }
-                Text(state.smartComboMessage, fontSize = 12.sp,
+                Text(localizedSmartComboDiagnostic(state.smartComboMessage), fontSize = 12.sp,
                     color = if (state.smartComboEnabled && state.smartComboOffers > 0) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -89,7 +89,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     state.smartComboProviderChecks.forEach { check ->
-                        Text("• " + check, fontSize = 11.sp,
+                        Text("• " + localizedSmartComboDiagnostic(check), fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text(stringResource(R.string.api_pricing_warning),
