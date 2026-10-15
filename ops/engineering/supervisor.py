@@ -225,8 +225,8 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines = [
         "# Engineering Supervisor — read-only audit",
         "",
-        "- Repository: \`" + report["repository"] + "\`",
-        "- Main SHA: \`" + report["main_sha"][:12] + "\`",
+        "- Repository: `" + report["repository"] + "`",
+        "- Main SHA: `" + report["main_sha"][:12] + "`",
         "- Latest main CI: **" + report["main_ci"] + "**",
         "- Published build: **" +
         str(report["release"]["published_internal_version"] or "UNKNOWN") + "**",
