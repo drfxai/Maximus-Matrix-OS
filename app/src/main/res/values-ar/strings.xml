@@ -586,4 +586,18 @@
     <string name="phone_host_linux_not_installed">بيئة تشغيل Linux غير مثبتة</string>
     <string name="phone_host_rootfs_unverified">نظام ملفات Linux غير متحقق منه</string>
     <string name="phone_host_execution_unverified">تم العثور على الملفات، لكن التشغيل الفعلي لم يُتحقق منه</string>
+    <string name="models_inventory_notice">سجّل ملفات النماذج من تخزين Android دون رفعها. هذا فهرس ملفات فقط؛ تشغيل النماذج والتنزيل من Hugging Face غير متاحين بعد.</string>
+    <string name="models_registered_count">الملفات المسجلة: %1$d</string>
+    <string name="models_import_success">سُجّل مرجع النموذج %1$s. هذا لا يؤكد إمكانية تشغيل النموذج.</string>
+    <string name="models_import_failed">تعذّر استيراد ملف النموذج. تحقق من النوع والحجم وإذن الوصول إلى المستند.</string>
+    <string name="models_format_size">%1$s · %2$s غيغابايت</string>
+    <string name="models_gguf_verified">تم التعرف على ترويسة GGUF. الأوزان والعتاد وإمكانية التشغيل لم تُتحقق بعد.</string>
+    <string name="models_litert_unverified">تم التعرف على امتداد LiteRT-LM فقط. سلامة الحزمة ودعم المحرك غير مؤكدين.</string>
+    <string name="models_offline_notice">قد يكون الملف المختار في السحابة. التسجيل لا يضمن الوصول دون إنترنت. حذف المرجع لا يحذف الملف الأصلي.</string>
+    <string name="models_forget_detail">حذف المرجع المحفوظ إلى %1$s؟ لن يُحذف ملف النموذج الأصلي.</string>
+    <string name="models_forget_success">حُذف مرجع النموذج دون تغيير الملف الأصلي.</string>
+    <string name="models_forget_failed">تعذّر حذف مرجع النموذج. حاول مرة أخرى.</string>
+    <string name="models_file_name_missing">اسم الملف غير قابل للقراءة.</string>
+    <string name="models_file_open_failed">تعذّر فتح المستند المختار.</string>
+    <string name="models_unverified_runtime">غير قابل للتشغيل بعد · لم تُتحقق قدرات الاستدلال والصورة والصوت.</string>
 </resources>
