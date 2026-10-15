@@ -139,7 +139,8 @@ internal class PhoneHarnessHttpServer(
                         if (!buildReady()) {
                             respond(conn, 409, "application/json", error("TOOLS_NOT_VERIFIED")); return
                         }
-                        val match = Regex("^\\s*\\{\\s*\"project_id\"\\s*:\\s*\"([a-f0-9-]{36})\"\\s*}\\s*$")
+                        // Android regex parsers require the closing JSON brace to be escaped.
+                        val match = Regex("^\\s*\\{\\s*\"project_id\"\\s*:\\s*\"([a-f0-9-]{36})\"\\s*\\}\\s*$")
                             .matchEntire(request.body)
                         val project = match?.groupValues?.get(1)
                         if (project == null || !PhoneBuildJobs.UUID_PATTERN.matches(project)) {
