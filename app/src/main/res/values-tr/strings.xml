@@ -561,7 +561,7 @@
     <string name="phone_host_device_stats">Android API %1$d · %2$s · uygulama belleği %3$d MiB · boş alan %4$s GiB</string>
     <string name="phone_host_arm64_ready_hint">ARM64 donanım uygun; doğrulanmış Linux araçları ve başarılı yürütme testi hâlâ gerekli.</string>
     <string name="phone_host_arm64_unsupported">İsteğe bağlı ARM64 Linux, uyumlu bir cihaz ve Android 9+ gerektirir. Diğer özellikler kullanılabilir.</string>
-    <string name="phone_host_security_summary">Güvenlik: yerel salt-okunur API, sınırlı ZIP dışa aktarımı, herkese açık bağlantı noktası, kabuk API'si veya imzalama anahtarı yoktur. Linux ve yerel çıkarım ayrıdır.</string>
+    <string name="phone_host_security_summary">Güvenlik: yerel salt-okunur API, sınırlı ZIP dışa aktarımı, herkese açık bağlantı noktası, kabuk komut arayüzü veya imzalama anahtarı yoktur. Linux ve yerel çıkarım ayrıdır.</string>
     <string name="phone_host_build_warning">Gradle betikleri bu uygulamanın izinleriyle kod çalıştırabilir. Yalnızca güvenilir projeleri derleyin. Çevrimdışı derleme pil, RAM ve depolama tüketebilir.</string>
     <string name="phone_host_share_warning">Bu telefondaki güvenilir bir istemci geçici anahtarla proje bildirimini okuyabilir ve kaynak ZIP dosyasını indirebilir. Önce gizli dosyaları silin; diğer projeler gizli kalır.</string>
     <string name="phone_host_stop_warning">Durdurmak yerel bağlantıyı kapatır, kaynak paylaşımını iptal eder ve sonraki başlangıçta geçici anahtarı yeniler.</string>
