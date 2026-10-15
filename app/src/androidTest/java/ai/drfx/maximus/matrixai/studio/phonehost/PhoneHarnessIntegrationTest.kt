@@ -211,4 +211,13 @@ class PhoneHarnessIntegrationTest {
             } finally { conn.disconnect() }
         }
     }
+    @Test fun userCanStopAndRestartLoopbackHostWithoutLeakingClients() {
+        repeat(4) {
+            PhoneHarnessHttpServer(context).use { server ->
+                assertEquals(200, request("/v1/capabilities", server.bearerToken).first)
+                assertEquals(401, request("/v1/capabilities").first)
+            }
+        }
+    }
+
 }
