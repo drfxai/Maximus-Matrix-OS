@@ -155,4 +155,96 @@ class SmartComboQuotaLedgerTest {
             pool.shutdownNow()
         }
     }
+
+    @Test fun newerSnapshotCannotEraseAnOlderUndispatchedReservation() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        assertTrue(ledger.reserve(plan("reserved-before-snapshot")).accepted)
+        time += 100
+        ledger.observe("shared-account", listOf(quota(remaining = 4000, observed = time)))
+
+        val capacity = ledger.capacities("shared-account").single()
+        assertEquals(4000L, capacity.providerRemaining)
+        assertEquals(2000L, capacity.locallyReservedOrSpent)
+        assertEquals(2000L, capacity.safeAvailable)
+        assertEquals(SmartComboQuotaLedger.Source.LOCALLY_ADJUSTED, capacity.source)
+        assertFalse(ledger.reserve(plan("would-overbook")).accepted)
+        assertTrue(ledger.releaseUndispatched("reserved-before-snapshot"))
+        assertEquals(4000L, ledger.capacities("shared-account").single().safeAvailable)
+        assertTrue(ledger.reserve(plan("after-release")).accepted)
+    }
+
+    @Test fun newerSnapshotsCannotEraseDispatchedOrUncertainDemand() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        assertTrue(ledger.reserve(plan("in-flight")).accepted)
+        assertTrue(ledger.dispatch("in-flight"))
+        for (uncertain in listOf(false, true)) {
+            if (uncertain) assertTrue(ledger.markUncertain("in-flight"))
+            time += 100
+            ledger.observe("shared-account", listOf(quota(remaining = 4000, observed = time)))
+            assertEquals(2000L, ledger.capacities("shared-account").single().safeAvailable)
+            assertFalse(ledger.reserve(plan("blocked-" + uncertain)).accepted)
+        }
+    }
+
+    @Test fun completionAfterSnapshotRetainsConfirmedUsageUntilNewerEvidenceArrives() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        assertTrue(ledger.reserve(plan("old-request")).accepted)
+        assertTrue(ledger.dispatch("old-request"))
+        time += 100
+        ledger.observe("shared-account", listOf(quota(observed = time)))
+        time += 100
+        val usage = SmartComboQuotaLedger.Usage(1000, 500, 1500)
+        assertTrue(ledger.reconcile("old-request", usage))
+        val settledAt = time
+        assertEquals(settledAt, ledger.entry("old-request")?.settledAt)
+        assertEquals(8500L, ledger.capacities("shared-account").single().safeAvailable)
+
+        // Even a delayed snapshot received after completion can predate settlement.
+        time += 100
+        ledger.observe("shared-account", listOf(quota(remaining = 9000, observed = settledAt - 1)))
+        assertEquals(7500L, ledger.capacities("shared-account").single().safeAvailable)
+        // A duplicate callback must not move the original settlement timestamp.
+        assertTrue(ledger.reconcile("old-request", usage))
+        assertEquals(settledAt, ledger.entry("old-request")?.settledAt)
+        ledger.observe("shared-account", listOf(quota(remaining = 8500, observed = time)))
+        val caughtUp = ledger.capacities("shared-account").single()
+        assertEquals(8500L, caughtUp.safeAvailable)
+        assertEquals(0L, caughtUp.locallyReservedOrSpent)
+        assertEquals(SmartComboQuotaLedger.Source.PROVIDER_SNAPSHOT, caughtUp.source)
+    }
+
+    @Test fun completionWithoutUsageKeepsConservativeHoldAcrossEarlierSnapshots() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        assertTrue(ledger.reserve(plan("streamed-without-usage")).accepted)
+        assertTrue(ledger.dispatch("streamed-without-usage"))
+        time += 100
+        ledger.observe("shared-account", listOf(quota(observed = time)))
+        time += 100
+        assertTrue(ledger.completedWithoutUsage("streamed-without-usage"))
+        assertEquals(8000L, ledger.capacities("shared-account").single().safeAvailable)
+        time += 100
+        ledger.observe("shared-account", listOf(quota(remaining = 8000, observed = time)))
+        assertEquals(8000L, ledger.capacities("shared-account").single().safeAvailable)
+        assertEquals(0L, ledger.capacities("shared-account").single().locallyReservedOrSpent)
+    }
+
+    @Test fun expiredWindowsStayUnknownWhileOutstandingReservationsRemainHeld() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        assertTrue(ledger.reserve(plan("held")).accepted)
+        time += 100
+        ledger.observe("shared-account", listOf(quota(observed = time).copy(resetAtEpochMs = time + 100)))
+        time += 100
+        val expired = ledger.capacities("shared-account").single()
+        assertEquals(SmartComboQuotaLedger.Source.UNKNOWN, expired.source)
+        assertNull(expired.safeAvailable)
+        assertNull(expired.providerRemaining)
+        time += 100
+        ledger.observe("shared-account", listOf(quota(remaining = 6000, observed = time)))
+        assertEquals(4000L, ledger.capacities("shared-account").single().safeAvailable)
+    }
 }
