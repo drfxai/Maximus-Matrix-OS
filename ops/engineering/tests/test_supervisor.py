@@ -116,8 +116,20 @@ class EngineeringSupervisorTests(unittest.TestCase):
             'versionName = "1.0.0"\nversionCode = 10019'
         )
         voice = next(x for x in result["roles"] if x["id"] == "brain-voice-i18n")
-        self.assertEqual([36], voice["open_issues"])
+        # Only configured issue IDs which are also OPEN belong in this list.
+        # Voice owns both issue #36 and the cross-functional Brain issue #40.
+        self.assertEqual([36, 40], voice["open_issues"])
         self.assertEqual("UNASSIGNED_RUNTIME", voice["execution"])
+
+        modified = snapshot()
+        modified["issues"].append({"number": 9999})
+        verified = supervisor.summarize(
+            MANIFEST, modified, dt.datetime.now(dt.timezone.utc),
+            'versionName = "1.0.0"\nversionCode = 10020'
+        )
+        voice2 = next(x for x in verified["roles"] if x["id"] == "brain-voice-i18n")
+        self.assertEqual([36, 40], voice2["open_issues"])
+        self.assertNotIn(9999, voice2["open_issues"])
 
     def test_report_explicitly_discloses_not_live_agents(self):
         report = supervisor.summarize(
