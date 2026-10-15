@@ -586,4 +586,12 @@
     <string name="phone_host_linux_not_installed">Среда Linux не установлена</string>
     <string name="phone_host_rootfs_unverified">Файловая система Linux не проверена</string>
     <string name="phone_host_execution_unverified">Файлы найдены; запуск исполняемых файлов ещё не проверен</string>
+    <string name="team_supervisor_title">Контролёр команды · Проверенная активность</string>
+    <string name="team_supervisor_counts">Исправно: %1$d из %2$d активных · Требуют внимания: %3$d</string>
+    <string name="team_supervisor_disclaimer">Локальные команды выполняют только проверку новостей и состояния устройства, когда Android разрешает. Это не гарантирует работу моделей 24/7; разработка отдельно контролируется в GitHub.</string>
+    <string name="team_supervisor_healthy">Последний запуск подтверждён</string>
+    <string name="team_supervisor_stale">Задание задержано; проверьте ограничения батареи</string>
+    <string name="team_supervisor_unavailable">Последняя попытка не удалась; изучите результат</string>
+    <string name="team_supervisor_clock">Время отчёта неверно; проверьте часы телефона</string>
+    <string name="team_supervisor_waiting">Ожидание первого подтверждённого запуска</string>
 </resources>
