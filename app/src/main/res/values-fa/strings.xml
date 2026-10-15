@@ -544,4 +544,12 @@
     <string name="api_usage_estimate_info">اگر ارائه‌دهنده مصرف را گزارش نکند، مقدار مصرف هر نوبت تخمینی است. زمینه یک برآورد محلی است و اعتبار حساب نیست.</string>
     <string name="api_usd_planning">بودجه برنامه‌ریزی دلاری (اجباری نیست)</string>
     <string name="api_visible_offers">نمایش %1$d مسیر از %2$d مسیر کاتالوگ.</string>
+    <string name="team_supervisor_title">ناظر تیم · فعالیت تأییدشده</string>
+    <string name="team_supervisor_counts">سالم: %1$d از %2$d فعال · نیازمند بررسی: %3$d</string>
+    <string name="team_supervisor_disclaimer">تیم‌های محلی فقط وظایف مجاز اخبار و سلامت دستگاه را در زمان مجاز اندروید اجرا می‌کنند. این به معنی اجرای پیوسته مدل‌های هوش مصنوعی در تمام ۲۴ ساعت نیست؛ کارهای توسعه در GitHub جداگانه پایش می‌شوند.</string>
+    <string name="team_supervisor_healthy">آخرین اجرا تأیید شده</string>
+    <string name="team_supervisor_stale">اجرای وظیفه به تأخیر افتاده؛ محدودیت باتری را بررسی کنید</string>
+    <string name="team_supervisor_unavailable">آخرین تلاش ناموفق یا ناموجود بود؛ گزارش را بررسی کنید</string>
+    <string name="team_supervisor_clock">زمان گزارش نامعتبر است؛ ساعت دستگاه را بررسی کنید</string>
+    <string name="team_supervisor_waiting">در انتظار نخستین اجرای تأییدشده</string>
 </resources>
