@@ -475,4 +475,17 @@
     <string name="api_usd_planning">USD planning preference (not enforced)</string>
     <string name="api_token_count">%1$s tokens</string>
     <string name="api_estimated_output">≈%1$s estimated tokens</string>
+    <string name="combo_diag_verifying">Checking free model offers…</string>
+    <string name="combo_diag_checking">Checking free model catalogs…</string>
+    <string name="combo_diag_disabled">Free-only routing is off.</string>
+    <string name="combo_diag_unavailable">The free-model catalog is unavailable. No automatic paid fallback.</string>
+    <string name="combo_diag_no_account">No provider account configured. Add an API key or disable free-only routing.</string>
+    <string name="combo_diag_no_free">No zero-cost text route confirmed. An API key or promotional credit does not prove the model is free.</string>
+    <string name="combo_diag_verified">%1$d catalog routes have verified zero pricing. Account quota is unknown.</string>
+    <string name="combo_diag_provider_unavailable">Catalog unavailable or authentication failed; free pricing cannot be confirmed.</string>
+    <string name="combo_diag_no_chat">No verified chat-capable model in this catalog.</string>
+    <string name="combo_diag_no_price">Published zero-cost text pricing is unavailable; free tier not confirmed.</string>
+    <string name="combo_diag_no_context">%1$d zero-price model(s) have no verified context limit.</string>
+    <string name="combo_diag_provider_ready">%1$d verified free text route(s); live quota unknown.</string>
+    <string name="combo_diag_no_eligible">No eligible verified free model.</string>
 </resources>
