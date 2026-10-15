@@ -134,9 +134,17 @@ class KeyboardLayoutTest {
     }
 
     private fun captureWorkspace(name: String) {
+        // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
+        require(name == "home-graph.png" || name == "chat-focus.png")
         runCatching {
             val file = java.io.File(instrumentation.targetContext.getExternalFilesDir(null), name)
-            phase("Workspace screenshot $name saved=" + device.takeScreenshot(file))
+            check(device.takeScreenshot(file)) { "Unable to save workspace screenshot" }
+            val copyResult = device.executeShellCommand(
+                "cp /sdcard/Android/data/ai.drfx.maximus.matrixai/files/$name " +
+                    "/data/local/tmp/maximus-keyboard-$name"
+            )
+            check(copyResult.isBlank()) { "Unable to retain workspace screenshot after uninstall" }
+            phase("Workspace screenshot $name saved=true; retained outside app storage")
         }.onFailure { phase("Workspace screenshot unavailable: " + it.javaClass.simpleName) }
     }
 

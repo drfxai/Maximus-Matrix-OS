@@ -85,7 +85,7 @@ class EmulatorResultTest(unittest.TestCase):
 
 
 class KeyboardScriptEvidenceTest(unittest.TestCase):
-    def run_script(self, initial_state, final_state):
+    def run_script(self, initial_state, final_state, capture_mode="none"):
         import os
         import shutil
         with tempfile.TemporaryDirectory() as root:
@@ -98,13 +98,36 @@ class KeyboardScriptEvidenceTest(unittest.TestCase):
             binaries.mkdir()
             commands = {
                 'adb': '''#!/bin/bash
+printf '%s\\n' "$*" >> adb-commands
 if [[ "$1" == get-state ]]; then
   if [[ -f adb-state-called ]]; then printf '%s\\n' "$FINAL_STATE"; else touch adb-state-called; printf '%s\\n' "$INITIAL_STATE"; fi
   exit 0
 fi
+if [[ "$1" == shell && "$2" == rm ]]; then
+  for source_path in "${@:4}"; do
+    capture="${source_path##*/}"
+    if [[ "$source_path" == /data/local/tmp/* ]]; then rm -f "retained/$capture"; else rm -f "external/$capture"; fi
+  done
+fi
+if [[ "$1" == pull ]]; then
+  capture="${2##*/}"
+  if [[ "$2" == /data/local/tmp/* ]]; then source="retained/$capture"; else source="external/$capture"; fi
+  [[ -f "$source" ]] || exit 1
+  cp "$source" "$3"
+fi
 exit 0
 ''',
-                'gradle': '#!/bin/bash\ntouch gradle-called\nexit 0\n',
+                'gradle': '''#!/bin/bash
+touch gradle-called
+mkdir -p retained external
+for capture in home-graph.png chat-focus.png; do
+  if [[ "$CAPTURE_MODE" == retained ]]; then printf captured > "retained/maximus-keyboard-$capture"; fi
+  if [[ "$CAPTURE_MODE" == external ]]; then printf fallback > "external/$capture"; fi
+done
+# The retained case models a Gradle uninstall that removed app-owned screenshots.
+if [[ "$CAPTURE_MODE" == retained ]]; then rm -rf external; fi
+exit 0
+''',
                 'sudo': '#!/bin/bash\nexit 1\n',
             }
             for name, code in commands.items():
@@ -115,23 +138,49 @@ exit 0
             emulator.parent.mkdir(parents=True)
             emulator.write_text('#!/bin/bash\nprintf fake-emulator\n')
             emulator.chmod(0o755)
+            # Seed both storage locations to prove cleanup cannot leak a previous run.
+            for storage, prefix in (('retained', 'maximus-keyboard-'), ('external', '')):
+                (path / storage).mkdir()
+                for capture in ('home-graph.png', 'chat-focus.png'):
+                    (path / storage / (prefix + capture)).write_text('stale previous run')
             env = dict(os.environ, PATH=str(binaries) + ':' + os.environ['PATH'],
-                       ANDROID_HOME=str(path / 'sdk'), INITIAL_STATE=initial_state, FINAL_STATE=final_state)
+                       ANDROID_HOME=str(path / 'sdk'), INITIAL_STATE=initial_state, FINAL_STATE=final_state,
+                       ANDROID_TEST_CLASSES='ai.drfx.maximus.matrixai.ui.KeyboardLayoutTest',
+                       CAPTURE_MODE=capture_mode)
             script = Path('.github/scripts/verify-keyboard.sh').resolve()
             completed = subprocess.run(['bash', str(script)], cwd=path, env=env,
                                        capture_output=True, text=True, timeout=15)
             report = json.loads((path / 'keyboard-check/result.json').read_text())
-            return completed.returncode, report, (path / 'gradle-called').exists()
+            captures = {name: (path / 'keyboard-check' / name).read_text()
+                        for name in ('home-graph.png', 'chat-focus.png')
+                        if (path / 'keyboard-check' / name).exists()}
+            return completed.returncode, report, (path / 'gradle-called').exists(), captures
 
     def test_initial_adb_failure_still_emits_evidence_without_running_gradle(self):
-        status, report, ran_gradle = self.run_script('offline', 'offline')
+        status, report, ran_gradle, _ = self.run_script('offline', 'offline')
         self.assertNotEqual(status, 0)
         self.assertFalse(ran_gradle)
         self.assertFalse(report['release_gate_passed'])
         self.assertEqual(report['classification'], 'infrastructure-device-lost')
 
     def test_device_loss_after_gradle_success_fails_script_gate(self):
-        status, report, ran_gradle = self.run_script('device', 'offline')
+        status, report, ran_gradle, _ = self.run_script('device', 'offline')
         self.assertNotEqual(status, 0)
         self.assertTrue(ran_gradle)
         self.assertFalse(report['release_gate_passed'])
+
+    def test_workspace_captures_survive_gradle_uninstall(self):
+        status, _, ran_gradle, captures = self.run_script('device', 'device', 'retained')
+        self.assertEqual(status, 0)
+        self.assertTrue(ran_gradle)
+        self.assertEqual(captures, {'home-graph.png': 'captured', 'chat-focus.png': 'captured'})
+
+    def test_workspace_captures_fall_back_to_app_storage(self):
+        status, _, _, captures = self.run_script('device', 'device', 'external')
+        self.assertEqual(status, 0)
+        self.assertEqual(captures, {'home-graph.png': 'fallback', 'chat-focus.png': 'fallback'})
+
+    def test_previous_workspace_captures_are_cleared_from_both_locations(self):
+        status, _, _, captures = self.run_script('device', 'device')
+        self.assertEqual(status, 0)
+        self.assertEqual(captures, {})

@@ -863,11 +863,15 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
                 val capacity = autoPrepared?.offer?.route?.contextWindowTokens
                     ?: ModelLimitsResolver.contextWindow(config.provider, config.selectedModel)
-                val activeContextTokens = ChatContextPolicy.bounded(_chatMessages.value, capacity).estimatedTokens
+                // Use the latest bounded conversation with the same captured overhead as dispatch.
+                // Neither full-history tokens nor the system/memory budget may be counted twice.
+                val activeContextTokens = ChatContextPolicy.bounded(_chatMessages.value,
+                    (capacity - memoryAndSystemBudget).coerceAtLeast(0)).estimatedTokens
                 // Preserve the response's live rate snapshot and the latest user budget.
                 val visible = _llmState.value
                 val updatedMetrics = ChatTokenTelemetry.completed(visible.tokenMetrics, result.usage,
-                    summary.totalTokens, capacity, activeContextTokens, visible.monthlyTokenBudget)
+                    summary.totalTokens, capacity, activeContextTokens, visible.monthlyTokenBudget,
+                    contextOverheadEstimate = memoryAndSystemBudget)
                 val remainingCtx = updatedMetrics.remainingContextTokens
 
                 _llmState.value = _llmState.value.copy(
