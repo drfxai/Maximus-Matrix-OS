@@ -433,4 +433,27 @@
     <string name="eleven_status_sample">Ses örneği oynatılıyor; hesap kredisi kullanılabilir.</string>
     <string name="eleven_status_stopped">Ses oynatma durdu.</string>
     <string name="eleven_sample_text">Merhaba! Ben Maximus asistanıyım.</string>
+    <string name="brain_graph_action_signals">Canlı sinyalleri aç</string>
+    <string name="brain_graph_action_vision">Grafik analizini aç</string>
+    <string name="brain_graph_action_news">Haber analizini aç</string>
+    <string name="brain_graph_action_alerts">Piyasa uyarılarını göster</string>
+    <string name="brain_graph_action_chat">Yapay zekâ sohbetini aç</string>
+    <string name="brain_graph_action_agents">Ajan merkezini aç</string>
+    <string name="brain_graph_action_data">Veri merkezini aç</string>
+    <string name="brain_graph_action_control">Kontrol merkezini aç</string>
+    <string name="brain_graph_action_gateway">Yapay zekâ ağ geçidini yapılandır</string>
+    <string name="brain_graph_clear_search">Aramayı temizle</string>
+    <string name="brain_graph_axons">%1$d bağlantı</string>
+    <string name="brain_graph_connected_modules">Bağlı modüller (%1$d)</string>
+    <string name="brain_graph_top_hubs">Ana uygulama merkezleri</string>
+    <string name="brain_graph_search_results">Arama sonuçları</string>
+    <string name="brain_graph_mesh_explanation">Ağ parçacıkları görsel ayrıntıdır; düğüm küreleri gerçek uygulama modüllerini temsil eder.</string>
+    <string name="brain_graph_search_nodes">Düğümleri ara ve incele</string>
+    <string name="brain_graph_view_superior">Üst</string>
+    <string name="brain_graph_view_frontal">Ön</string>
+    <string name="brain_graph_view_lateral">Yan</string>
+    <string name="brain_graph_pause_rotation">Dönüşü duraklat</string>
+    <string name="brain_graph_start_rotation">Dönüşü başlat</string>
+    <string name="brain_graph_filter_nodes">Düğüm gruplarını filtrele</string>
+    <string name="brain_graph_clear_focus">Seçimi temizle</string>
 </resources>
