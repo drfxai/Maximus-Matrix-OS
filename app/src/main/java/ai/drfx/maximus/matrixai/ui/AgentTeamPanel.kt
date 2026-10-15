@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import ai.drfx.maximus.matrixai.R
 import ai.drfx.maximus.matrixai.agent.teams.AgentTeamJob
 import ai.drfx.maximus.matrixai.agent.teams.AgentTeamScheduler
+import ai.drfx.maximus.matrixai.agent.teams.AgentTeamSupervisor
 import ai.drfx.maximus.matrixai.agent.teams.AgentTeamSpec
 import ai.drfx.maximus.matrixai.agent.teams.AgentTeamStore
 import kotlinx.coroutines.delay
@@ -49,8 +50,25 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
         }
     }
 
+    val supervisor = remember(teams, refreshTick) {
+        AgentTeamSupervisor.observe(teams, System.currentTimeMillis(), store::report)
+    }
     Column(modifier.fillMaxWidth().testTag("agent_team_dashboard"),
         verticalArrangement = Arrangement.spacedBy(11.dp)) {
+        ElevatedCard(shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.fillMaxWidth().testTag("agent_team_supervisor")) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(R.string.team_supervisor_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.team_supervisor_counts,
+                    supervisor.healthy, supervisor.active, supervisor.attention),
+                    style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.team_supervisor_disclaimer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         ElevatedCard(shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -127,6 +145,7 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
         teams.forEach { team ->
             key(team.id) {
                 val report = remember(team.id, refreshTick) { store.report(team.id) }
+                val observedHealth = supervisor.items.firstOrNull { it.teamId == team.id }?.health
                 Surface(shape = RoundedCornerShape(15.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -150,6 +169,27 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
                                     else -> stringResource(R.string.team_day)
                                 },
                             style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            when (observedHealth) {
+                                AgentTeamSupervisor.Health.HEALTHY ->
+                                    stringResource(R.string.team_supervisor_healthy)
+                                AgentTeamSupervisor.Health.STALE ->
+                                    stringResource(R.string.team_supervisor_stale)
+                                AgentTeamSupervisor.Health.UNAVAILABLE ->
+                                    stringResource(R.string.team_supervisor_unavailable)
+                                AgentTeamSupervisor.Health.CLOCK_ANOMALY ->
+                                    stringResource(R.string.team_supervisor_clock)
+                                AgentTeamSupervisor.Health.PAUSED ->
+                                    stringResource(R.string.team_paused)
+                                else -> stringResource(R.string.team_supervisor_waiting)
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (observedHealth == AgentTeamSupervisor.Health.STALE ||
+                                observedHealth == AgentTeamSupervisor.Health.UNAVAILABLE ||
+                                observedHealth == AgentTeamSupervisor.Health.CLOCK_ANOMALY)
+                                MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(stringResource(R.string.team_roles),
                             style = MaterialTheme.typography.labelSmall,

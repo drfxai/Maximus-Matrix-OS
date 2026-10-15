@@ -586,4 +586,12 @@
     <string name="phone_host_linux_not_installed">Linux runtime is not installed</string>
     <string name="phone_host_rootfs_unverified">Linux filesystem is not verified</string>
     <string name="phone_host_execution_unverified">Files found; executable launch has not been verified</string>
+    <string name="team_supervisor_title">Team Supervisor · Verified activity</string>
+    <string name="team_supervisor_counts">Healthy: %1$d of %2$d active · Attention: %3$d</string>
+    <string name="team_supervisor_disclaimer">Local teams run only supported news/device-health jobs when Android permits. This is not continuous 24/7 model execution. Production coding workflows are monitored separately in GitHub.</string>
+    <string name="team_supervisor_healthy">Last run verified</string>
+    <string name="team_supervisor_stale">Run delayed · check battery or task restrictions</string>
+    <string name="team_supervisor_unavailable">Last attempt unavailable · inspect result</string>
+    <string name="team_supervisor_clock">Report time inconsistent · check device clock</string>
+    <string name="team_supervisor_waiting">Awaiting first verified run</string>
 </resources>
