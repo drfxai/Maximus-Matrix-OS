@@ -456,4 +456,20 @@
     <string name="brain_graph_start_rotation">Запустить вращение</string>
     <string name="brain_graph_filter_nodes">Фильтр групп узлов</string>
     <string name="brain_graph_clear_focus">Снять выделение</string>
+    <string name="brain_group_core">Ядро Matrix</string>
+    <string name="brain_group_signals">Сигналы</string>
+    <string name="brain_group_vision">Анализ графиков</string>
+    <string name="brain_group_news">Аналитика новостей</string>
+    <string name="brain_group_alerts">Оповещения рынка</string>
+    <string name="brain_group_agents">Выполнение агентов</string>
+    <string name="brain_group_execution">Управление выполнением</string>
+    <string name="brain_group_chat">Разговорный ИИ</string>
+    <string name="brain_group_genome">Торговый геном</string>
+    <string name="brain_group_pine">Инструменты Pine</string>
+    <string name="brain_group_quant">Количественные исследования</string>
+    <string name="brain_group_validation">Лаборатория проверки</string>
+    <string name="brain_group_research">Память исследований</string>
+    <string name="brain_group_data">Данные и знания</string>
+    <string name="brain_group_routing">Маршрутизация моделей</string>
+    <string name="brain_group_finops">Финансы и управление</string>
 </resources>
