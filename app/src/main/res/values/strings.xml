@@ -609,4 +609,20 @@
     <string name="hindsight_status_checkpoint_retained">Verified checkpoint retained; %1$d relevant memories ready.</string>
     <string name="hindsight_status_checkpoint_failed">Checkpoint sync unavailable. Your local checkpoint remains available.</string>
     <string name="hindsight_safety_notice">Memory is untrusted reference data, never permission to execute tools. Local checkpoints work without the server. Disconnecting does not delete cloud memories.</string>
+    <string name="runtime_export_verified">SHA-256-verified Debug APK exported. No production signing key was used.</string>
+    <string name="runtime_export_failed">Could not export Debug APK. Check the connection and destination; no unverified file was accepted.</string>
+    <string name="runtime_job_ready">Debug APK ready. Verify its checksum before downloading.</string>
+    <string name="runtime_job_failed">Isolated Debug build failed. No production signing was attempted.</string>
+    <string name="runtime_job_status_failed">Cannot check Worker build status. Check the connection and try again.</string>
+    <string name="runtime_debug_safety">Explicit Debug builds run in your authenticated, isolated offline Worker. Production signing keys are never transferred.</string>
+    <string name="runtime_state_queued">Queued</string>
+    <string name="runtime_state_running">Running</string>
+    <string name="runtime_state_succeeded">Succeeded</string>
+    <string name="runtime_state_failed">Failed</string>
+    <string name="runtime_debug_job">Debug build: %1$s · %2$s</string>
+    <string name="runtime_approval_title">Approve isolated Debug APK build?</string>
+    <string name="runtime_approval_description">The selected project ZIP will be sent to your authenticated Worker and compiled offline in a rootless container. Do not send secret keys or confidential code to a Worker you do not control. This will NOT sign a production APK.</string>
+    <string name="runtime_build_accepted">Authenticated Debug build accepted. Checking job status.</string>
+    <string name="runtime_build_failed">Could not submit the Debug build. Confirm the Worker and credentials.</string>
+    <string name="runtime_build_cancel">Cancel</string>
 </resources>
