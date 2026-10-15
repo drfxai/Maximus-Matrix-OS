@@ -475,4 +475,17 @@
     <string name="api_usd_planning">بودجه برنامه‌ریزی دلاری (اجباری نیست)</string>
     <string name="api_token_count">%1$s توکن</string>
     <string name="api_estimated_output">حدود %1$s توکن برآوردی</string>
+    <string name="combo_diag_verifying">در حال بررسی پیشنهادهای مدل رایگان…</string>
+    <string name="combo_diag_checking">در حال بررسی کاتالوگ مدل‌های رایگان…</string>
+    <string name="combo_diag_disabled">مسیریابی فقط‌رایگان خاموش است.</string>
+    <string name="combo_diag_unavailable">کاتالوگ مدل‌های رایگان در دسترس نیست. استفاده خودکار از مدل پولی انجام نمی‌شود.</string>
+    <string name="combo_diag_no_account">هیچ حساب ارائه‌دهنده‌ای تنظیم نشده است. کلید API وارد کنید یا حالت فقط‌رایگان را خاموش کنید.</string>
+    <string name="combo_diag_no_free">مسیر متنی با هزینه صفر تأیید نشده است. کلید API یا اعتبار تبلیغاتی رایگان‌بودن مدل را ثابت نمی‌کند.</string>
+    <string name="combo_diag_verified">قیمت صفر برای %1$d مسیر کاتالوگ تأیید شده؛ سهمیه حساب نامعلوم است.</string>
+    <string name="combo_diag_provider_unavailable">کاتالوگ در دسترس نیست یا احراز هویت ناموفق بود؛ قیمت رایگان قابل تأیید نیست.</string>
+    <string name="combo_diag_no_chat">مدل گفتگومحور تأییدشده در این کاتالوگ یافت نشد.</string>
+    <string name="combo_diag_no_price">قیمت متنی صفر در کاتالوگ منتشر نشده؛ سطح رایگان تأیید نمی‌شود.</string>
+    <string name="combo_diag_no_context">برای %1$d مدل با قیمت صفر، ظرفیت زمینه تأیید نشده است.</string>
+    <string name="combo_diag_provider_ready">%1$d مسیر متنی رایگان تأیید شد؛ سهمیه زنده نامعلوم است.</string>
+    <string name="combo_diag_no_eligible">مدل رایگان تأییدشده و مناسب یافت نشد.</string>
 </resources>
