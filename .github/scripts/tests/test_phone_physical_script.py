@@ -14,8 +14,8 @@ class PhysicalPhoneScriptTests(unittest.TestCase):
 
     def test_host_selects_exactly_one_arm64_split_and_instrumentation_apk(self):
         self.assertIn("'*arm64-v8a*debug*.apk'", self.source)
-        self.assertIn('"\${#app_apks[@]}" -ne 1', self.source)
-        self.assertIn('"\${#test_apks[@]}" -ne 1', self.source)
+        self.assertIn('"${#app_apks[@]}" -ne 1', self.source)
+        self.assertIn('"${#test_apks[@]}" -ne 1', self.source)
 
     def test_does_not_overwrite_existing_release_without_separate_approval(self):
         self.assertIn("MAXIMUS_APPROVE_TRUSTED_BUILD", self.source)
