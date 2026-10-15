@@ -586,4 +586,27 @@
     <string name="phone_host_linux_not_installed">Linux çalışma ortamı kurulu değil</string>
     <string name="phone_host_rootfs_unverified">Linux dosya sistemi doğrulanmadı</string>
     <string name="phone_host_execution_unverified">Dosyalar bulundu; çalıştırma henüz doğrulanmadı</string>
+    <string name="hindsight_status_optional">Uzak proje belleği isteğe bağlıdır ve varsayılan olarak kapalıdır.</string>
+    <string name="hindsight_status_model_handoff">Sonraki modele devretmek için %1$d geçmiş bilgi hazır.</string>
+    <string name="hindsight_status_remote_unavailable">Yerel kontrol noktası hazır; uzak hatırlama çevrimdışı veya yapılandırılmamış.</string>
+    <string name="hindsight_bank">Bellek bankası: %1$s</string>
+    <string name="hindsight_select_project">Proje seçin</string>
+    <string name="hindsight_key_saved_hint">Güvenle kaydedildi; değiştirmek için yeni anahtar girin</string>
+    <string name="hindsight_status_config_saved">Bağlantı ayarları şifrelenip kaydedildi. Kullanmadan önce hatırlamayı doğrulayın.</string>
+    <string name="hindsight_status_invalid_config">Ayarlar kaydedilemedi. HTTPS adresini ve anahtarı kontrol edin.</string>
+    <string name="hindsight_status_disconnected">Erişim anahtarı kaldırıldı. Şifreli yerel geçmiş kalır; bulut belleği ayrıca silinmelidir.</string>
+    <string name="hindsight_privacy_local_only">Kısa ilerleme notları yerelde şifrelenir. Otomatik paylaşım ayrıca açılmadıkça yalnızca onaylı kontrol noktaları uzak sunucuyla eşitlenir.</string>
+    <string name="hindsight_status_enabled">Paylaşılan proje belleği etkin. Önceki bilgiler yükleniyor…</string>
+    <string name="hindsight_status_disabled">Paylaşılan bellek kapatıldı.</string>
+    <string name="hindsight_status_next_model">Sonraki model için %1$d geçmiş bilgi mevcut.</string>
+    <string name="hindsight_status_none_loaded">Henüz uzak bellek yüklenmedi. Yerel kontrol noktası duruyor.</string>
+    <string name="hindsight_status_enable_failed">Bellek etkinleştirilemedi. Proje ve bağlantı ayarlarını kontrol edin.</string>
+    <string name="hindsight_autoshare_privacy">İsteğe bağlı paylaşım, başarılı sohbetlerden sonra kısa görev ve yanıt parçaları gönderir. Özel bilgiler içerebilir; hassas projelerde kapalı tutun.</string>
+    <string name="hindsight_status_share_enabled">Seçilen proje için ilerleme paylaşımı etkin.</string>
+    <string name="hindsight_status_share_manual">Yalnızca elle onaylanan kontrol noktaları yüklenecek.</string>
+    <string name="hindsight_status_recalled">Model değiştirmek için %1$d proje anısı geri getirildi.</string>
+    <string name="hindsight_status_recall_failed">Hatırlama kullanılamıyor. Bağlantıyı kontrol edin. Yerel kontrol noktaları değişmedi.</string>
+    <string name="hindsight_status_checkpoint_retained">Doğrulanmış kontrol noktası saklandı; %1$d ilgili anı hazır.</string>
+    <string name="hindsight_status_checkpoint_failed">Kontrol noktası eşitlemesi kullanılamıyor. Yerel kopya duruyor.</string>
+    <string name="hindsight_safety_notice">Bellek güvenilmeyen başvuru verisidir; araç çalıştırma yetkisi vermez. Yerel kontrol noktaları sunucusuz çalışır. Bağlantıyı kesmek bulut belleğini silmez.</string>
 </resources>
