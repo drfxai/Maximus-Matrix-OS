@@ -433,4 +433,27 @@
     <string name="eleven_status_sample">نمونه صدا در حال پخش است؛ ممکن است اعتبار مصرف شود.</string>
     <string name="eleven_status_stopped">پخش صدا متوقف شد.</string>
     <string name="eleven_sample_text">سلام! من دستیار مکسیموس هستم.</string>
+    <string name="brain_graph_action_signals">بازکردن سیگنال‌های زنده</string>
+    <string name="brain_graph_action_vision">بازکردن تحلیل تصویری نمودار</string>
+    <string name="brain_graph_action_news">بازکردن اخبار هوشمند</string>
+    <string name="brain_graph_action_alerts">مشاهده هشدارهای بازار</string>
+    <string name="brain_graph_action_chat">بازکردن گفتگوی هوش مصنوعی</string>
+    <string name="brain_graph_action_agents">بازکردن مرکز ایجنت‌ها</string>
+    <string name="brain_graph_action_data">بازکردن مرکز داده</string>
+    <string name="brain_graph_action_control">بازکردن مرکز کنترل</string>
+    <string name="brain_graph_action_gateway">تنظیم درگاه هوش مصنوعی</string>
+    <string name="brain_graph_clear_search">پاک‌کردن جستجو</string>
+    <string name="brain_graph_axons">%1$d اتصال</string>
+    <string name="brain_graph_connected_modules">ماژول‌های متصل (%1$d)</string>
+    <string name="brain_graph_top_hubs">مراکز اصلی برنامه</string>
+    <string name="brain_graph_search_results">نتایج جستجو</string>
+    <string name="brain_graph_mesh_explanation">ذرات شبکه فقط جلوه بصری هستند؛ کره‌های گره، ماژول‌های واقعی برنامه را نشان می‌دهند.</string>
+    <string name="brain_graph_search_nodes">جستجو و بررسی گره‌ها</string>
+    <string name="brain_graph_view_superior">بالا</string>
+    <string name="brain_graph_view_frontal">روبرو</string>
+    <string name="brain_graph_view_lateral">کنار</string>
+    <string name="brain_graph_pause_rotation">توقف چرخش</string>
+    <string name="brain_graph_start_rotation">شروع چرخش</string>
+    <string name="brain_graph_filter_nodes">فیلتر گروه‌های گره</string>
+    <string name="brain_graph_clear_focus">لغو انتخاب</string>
 </resources>
