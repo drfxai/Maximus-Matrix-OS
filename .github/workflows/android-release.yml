@@ -102,7 +102,9 @@ jobs:
           cores: 2
           ram-size: 3072M
           heap-size: 384M
-          emulator-options: -no-window -gpu swiftshader -feature -Vulkan -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          # Avoid the SwiftShader host renderer used by the disconnected 37.2.12 run.
+          # Keep real IME reopen assertions and both instrumentation suites mandatory.
+          emulator-options: -no-window -gpu lavapipe -feature -Vulkan -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           disable-animations: true
           script: bash .github/scripts/verify-keyboard.sh
       - uses: actions/upload-artifact@v4
@@ -269,7 +271,9 @@ jobs:
           cores: 2
           ram-size: 3072M
           heap-size: 384M
-          emulator-options: -no-window -gpu swiftshader -feature -Vulkan -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          # Avoid the SwiftShader host renderer used by the disconnected 37.2.12 run.
+          # Keep real IME reopen assertions and both instrumentation suites mandatory.
+          emulator-options: -no-window -gpu lavapipe -feature -Vulkan -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           disable-animations: true
           script: bash .github/scripts/verify-signed-upgrade.sh
 

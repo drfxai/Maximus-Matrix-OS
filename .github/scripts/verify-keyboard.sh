@@ -5,6 +5,10 @@ mkdir -p keyboard-check
 timeout --kill-after=5s 16m adb logcat -v threadtime > keyboard-check/live-device.log 2>&1 &
 log_pid=$!
 trap 'kill "$log_pid" 2>/dev/null || true; wait "$log_pid" 2>/dev/null || true' EXIT
+# Keep the original transport outcome. A lost emulator must fail the gate,
+# rather than being retried until an application assertion happens to pass.
+timeout --kill-after=2s 10s adb get-state > keyboard-check/initial-device-state.txt 2>&1 || exit 1
+"${ANDROID_HOME}/emulator/emulator" -version > keyboard-check/emulator-version.txt 2>&1 || true
 # The CI matrix runs every instrumentation class, but isolates memory/IME
 # interactions by running each selected suite on a fresh emulator.
 # The full keyboard reopen cycle remains mandatory; no test is excluded.
@@ -24,6 +28,7 @@ timeout --kill-after=2s 10s sudo -n dmesg --ctime > keyboard-check/host-kernel.l
 timeout --kill-after=2s 15s python3 .github/scripts/collect-emulator-diagnostics.py keyboard-check || true
 free -m > keyboard-check/host-memory.txt
 ps -eo pid,ppid,rss,comm > keyboard-check/host-processes.txt
+python3 .github/scripts/classify-emulator-result.py keyboard-check "$test_status"
 if [[ "$test_status" -ne 0 ]]; then
   # Emit bounded test-only hierarchy/inset diagnostics for remote investigation.
   grep -E "KeyboardLayoutTest|FATAL EXCEPTION" keyboard-check/live-device.log | tail -n 90 || true
