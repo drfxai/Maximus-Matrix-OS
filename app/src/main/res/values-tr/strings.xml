@@ -586,4 +586,12 @@
     <string name="phone_host_linux_not_installed">Linux çalışma ortamı kurulu değil</string>
     <string name="phone_host_rootfs_unverified">Linux dosya sistemi doğrulanmadı</string>
     <string name="phone_host_execution_unverified">Dosyalar bulundu; çalıştırma henüz doğrulanmadı</string>
+    <string name="team_supervisor_title">Takım Denetleyicisi · Doğrulanmış etkinlik</string>
+    <string name="team_supervisor_counts">Sağlıklı: %1$d / %2$d etkin · İlgi gerektiren: %3$d</string>
+    <string name="team_supervisor_disclaimer">Yerel takımlar yalnızca Android izin verdiğinde haber ve cihaz sağlığı görevlerini yürütür. Bu kesintisiz 7/24 model çalışması değildir; geliştirme işleri GitHub üzerinden ayrıca izlenir.</string>
+    <string name="team_supervisor_healthy">Son çalışma doğrulandı</string>
+    <string name="team_supervisor_stale">Görev gecikti; pil kısıtlamalarını kontrol edin</string>
+    <string name="team_supervisor_unavailable">Son girişim kullanılamadı; sonucu inceleyin</string>
+    <string name="team_supervisor_clock">Rapor saati tutarsız; cihaz saatini kontrol edin</string>
+    <string name="team_supervisor_waiting">İlk doğrulanmış çalışma bekleniyor</string>
 </resources>
