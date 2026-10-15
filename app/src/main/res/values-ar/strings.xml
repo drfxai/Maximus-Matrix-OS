@@ -475,4 +475,17 @@
     <string name="api_usd_planning">تقدير الميزانية بالدولار (غير ملزم)</string>
     <string name="api_token_count">%1$s رمز</string>
     <string name="api_estimated_output">نحو %1$s رمز مقدر</string>
+    <string name="combo_diag_verifying">جارٍ التحقق من عروض النماذج المجانية…</string>
+    <string name="combo_diag_checking">جارٍ فحص قوائم النماذج المجانية…</string>
+    <string name="combo_diag_disabled">توجيه النماذج المجانية فقط معطل.</string>
+    <string name="combo_diag_unavailable">قائمة النماذج المجانية غير متاحة. لا انتقال تلقائي إلى خدمة مدفوعة.</string>
+    <string name="combo_diag_no_account">لم يتم إعداد حساب مزود. أضف مفتاح API أو أوقف وضع المجاني فقط.</string>
+    <string name="combo_diag_no_free">لم يتم تأكيد مسار نصي مجاني. وجود مفتاح API أو رصيد ترويجي لا يثبت مجانية النموذج.</string>
+    <string name="combo_diag_verified">تم التحقق من السعر الصفري لـ %1$d مسار. حصة الحساب مجهولة.</string>
+    <string name="combo_diag_provider_unavailable">القائمة غير متاحة أو فشلت المصادقة؛ لا يمكن تأكيد الأسعار المجانية.</string>
+    <string name="combo_diag_no_chat">لا يوجد نموذج محادثة موثق في هذه القائمة.</string>
+    <string name="combo_diag_no_price">لا توجد أسعار نصية مجانية منشورة؛ لم يتم تأكيد الطبقة المجانية.</string>
+    <string name="combo_diag_no_context">عدد %1$d من النماذج المجانية ليس لها حد سياق موثق.</string>
+    <string name="combo_diag_provider_ready">تم التحقق من %1$d مسار نصي مجاني؛ الحصة الحالية مجهولة.</string>
+    <string name="combo_diag_no_eligible">لا يوجد نموذج مجاني موثق ومؤهل.</string>
 </resources>
