@@ -456,4 +456,20 @@
     <string name="brain_graph_start_rotation">Start rotation</string>
     <string name="brain_graph_filter_nodes">Filter node groups</string>
     <string name="brain_graph_clear_focus">Clear selection</string>
+    <string name="brain_group_core">Matrix core</string>
+    <string name="brain_group_signals">Live signals</string>
+    <string name="brain_group_vision">Chart vision</string>
+    <string name="brain_group_news">News intelligence</string>
+    <string name="brain_group_alerts">Market alerts</string>
+    <string name="brain_group_agents">Agent runtime</string>
+    <string name="brain_group_execution">Execution control</string>
+    <string name="brain_group_chat">Conversational AI</string>
+    <string name="brain_group_genome">Trading genome</string>
+    <string name="brain_group_pine">Pine assets</string>
+    <string name="brain_group_quant">Quant research</string>
+    <string name="brain_group_validation">Validation lab</string>
+    <string name="brain_group_research">Research memory</string>
+    <string name="brain_group_data">Data and knowledge</string>
+    <string name="brain_group_routing">Model routing</string>
+    <string name="brain_group_finops">FinOps and control</string>
 </resources>
