@@ -544,4 +544,12 @@
     <string name="api_usage_estimate_info">قد يكون استهلاك الجولة تقديرياً إن لم يبلغ المزود عنه. السياق تقدير محلي وليس رصيد الحساب.</string>
     <string name="api_usd_planning">تقدير الميزانية بالدولار (غير ملزم)</string>
     <string name="api_visible_offers">عرض %1$d من أصل %2$d مسارات في القائمة.</string>
+    <string name="team_supervisor_title">مشرف الفريق · نشاط متحقق</string>
+    <string name="team_supervisor_counts">سليم: %1$d من %2$d نشط · يحتاج فحصاً: %3$d</string>
+    <string name="team_supervisor_disclaimer">تنفذ الفرق المحلية فقط مهام الأخبار وصحة الجهاز المسموح بها عند سماح أندرويد. هذا ليس تشغيل نماذج مستمراً على مدار الساعة؛ تتم مراقبة أعمال التطوير في GitHub منفصلة.</string>
+    <string name="team_supervisor_healthy">تم التحقق من آخر تشغيل</string>
+    <string name="team_supervisor_stale">المهمة متأخرة؛ راجع قيود البطارية</string>
+    <string name="team_supervisor_unavailable">آخر محاولة غير متاحة؛ راجع النتيجة</string>
+    <string name="team_supervisor_clock">وقت التقرير غير متسق؛ تحقق من ساعة الجهاز</string>
+    <string name="team_supervisor_waiting">بانتظار أول تشغيل متحقق</string>
 </resources>
