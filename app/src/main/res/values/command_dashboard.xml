@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dash_combo_title">Maximus Smart Combo</string>
+    <string name="dash_request_in_use">Request in progress</string>
+    <string name="dash_request_idle">Ready for your next request</string>
+    <string name="dash_free_first">Verified free only</string>
+    <string name="dash_manual_route">Manual route</string>
+    <string name="dash_session_tokens">Session tokens</string>
+    <string name="dash_reported_or_estimated">Provider usage or local estimate</string>
+    <string name="dash_context_left">Context remaining</string>
+    <string name="dash_context_estimate">Estimated model context</string>
+    <string name="dash_provider_tokens">Provider tokens remaining</string>
+    <string name="dash_rate_snapshot">Last rate-window snapshot</string>
+    <string name="dash_local_budget">Local budget remaining</string>
+    <string name="dash_not_set">Not set</string>
+    <string name="dash_user_budget">Your limit, not account credit</string>
+    <string name="dash_snapshot_at">Snapshot: %1$s</string>
+    <string name="dash_configured_route">Configured provider · model</string>
+    <string name="dash_selected_agent">Selected agent: %1$s</string>
+    <string name="dash_verified_routes">Verified free routes</string>
+    <string name="dash_catalog_not_quota">Catalog evidence; not quota</string>
+    <string name="dash_provider_accounts">Provider accounts</string>
+    <string name="dash_configured_count">Configured for routing</string>
+    <string name="dash_usage_scope_note">Context is not account quota. Rate snapshots may be stale; unknown limits stay unknown.</string>
+    <string name="dash_team_title">Agent team command center</string>
+    <string name="dash_android_scheduler">Android scheduled tasks</string>
+    <string name="dash_running_jobs">Running now</string>
+    <string name="dash_observed_workmanager">Observed Android jobs</string>
+    <string name="dash_enabled_schedules">Enabled schedules</string>
+    <string name="dash_of_teams">Of %1$d configured teams</string>
+    <string name="dash_verified_reports">Healthy reports</string>
+    <string name="dash_last_report_evidence">Recent verified evidence</string>
+    <string name="dash_attention">Needs attention</string>
+    <string name="dash_attention_detail">Stale, unavailable or clock issue</string>
+    <string name="dash_hide_setup">Hide team setup</string>
+    <string name="dash_new_team">Create a scheduled team</string>
+    <string name="dash_scheduled">Scheduled</string>
+    <string name="dash_create_failed">Unable to create the team.</string>
+    <string name="dash_schedule_failed">Scheduling is unavailable.</string>
+    <string name="dash_active_route">In use · provider and model</string>
+    <string name="dash_executing_agent">Executing agent: %1$s</string>
+    <string name="dash_last_turn_usage">Last turn: %1$s tokens · %2$s</string>
+    <string name="dash_usage_estimated">Local estimate</string>
+    <string name="dash_usage_reported">Provider reported</string>
+    <string name="dash_request_preparing">Preparing request</string>
+</resources>

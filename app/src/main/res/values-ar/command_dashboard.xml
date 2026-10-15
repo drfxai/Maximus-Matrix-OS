@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dash_combo_title">ماكسيموس سمارت كومبو</string>
+    <string name="dash_request_in_use">طلب قيد التنفيذ</string>
+    <string name="dash_request_idle">جاهز لطلبك التالي</string>
+    <string name="dash_free_first">مجاني موثّق فقط</string>
+    <string name="dash_manual_route">مسار يدوي</string>
+    <string name="dash_session_tokens">رموز الجلسة</string>
+    <string name="dash_reported_or_estimated">استخدام المزوّد أو تقدير محلي</string>
+    <string name="dash_context_left">السياق المتبقي</string>
+    <string name="dash_context_estimate">سياق النموذج التقديري</string>
+    <string name="dash_provider_tokens">رموز المزوّد المتبقية</string>
+    <string name="dash_rate_snapshot">آخر لقطة لنافذة الحد</string>
+    <string name="dash_local_budget">الميزانية المحلية المتبقية</string>
+    <string name="dash_not_set">غير محدد</string>
+    <string name="dash_user_budget">حدك، وليس رصيد الحساب</string>
+    <string name="dash_snapshot_at">وقت اللقطة: %1$s</string>
+    <string name="dash_configured_route">المزوّد والنموذج المحددان</string>
+    <string name="dash_selected_agent">الوكيل المحدد: %1$s</string>
+    <string name="dash_verified_routes">المسارات المجانية الموثّقة</string>
+    <string name="dash_catalog_not_quota">دليل الفهرس؛ وليس حصة</string>
+    <string name="dash_provider_accounts">حسابات المزوّدين</string>
+    <string name="dash_configured_count">مهيأة للتوجيه</string>
+    <string name="dash_usage_scope_note">السياق ليس حصة الحساب. قد تكون لقطات الحد قديمة؛ وتبقى الحدود المجهولة مجهولة.</string>
+    <string name="dash_team_title">مركز قيادة فريق الوكلاء</string>
+    <string name="dash_android_scheduler">مهام أندرويد المجدولة</string>
+    <string name="dash_running_jobs">تعمل الآن</string>
+    <string name="dash_observed_workmanager">مهام أندرويد المرصودة</string>
+    <string name="dash_enabled_schedules">الجداول المفعّلة</string>
+    <string name="dash_of_teams">من %1$d فرق مهيأة</string>
+    <string name="dash_verified_reports">تقارير سليمة</string>
+    <string name="dash_last_report_evidence">أدلة موثّقة حديثة</string>
+    <string name="dash_attention">يحتاج إلى متابعة</string>
+    <string name="dash_attention_detail">قديم أو غير متاح أو خلل بالساعة</string>
+    <string name="dash_hide_setup">إخفاء إعداد الفريق</string>
+    <string name="dash_new_team">إنشاء فريق مجدول</string>
+    <string name="dash_scheduled">مجدول</string>
+    <string name="dash_create_failed">تعذر إنشاء الفريق.</string>
+    <string name="dash_schedule_failed">الجدولة غير متاحة.</string>
+    <string name="dash_active_route">قيد الاستخدام · المزوّد والنموذج</string>
+    <string name="dash_executing_agent">الوكيل المنفذ: %1$s</string>
+    <string name="dash_last_turn_usage">آخر طلب: %1$s رمز · %2$s</string>
+    <string name="dash_usage_estimated">تقدير محلي</string>
+    <string name="dash_usage_reported">أبلغ عنه المزوّد</string>
+    <string name="dash_request_preparing">جارٍ إعداد الطلب</string>
+</resources>
