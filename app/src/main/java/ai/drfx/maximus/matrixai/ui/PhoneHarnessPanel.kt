@@ -18,6 +18,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ai.drfx.maximus.matrixai.studio.phonehost.PhoneHarnessService
@@ -61,6 +63,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
     var confirmShare by remember { mutableStateOf(false) }
     var confirmStop by remember { mutableStateOf(false) }
     var confirmBuild by remember { mutableStateOf(false) }
+    var exportHash by remember { mutableStateOf<String?>(null) }
     var showBuildLog by remember { mutableStateOf(false) }
     val installer = remember(context) { PhoneRuntimeInstallSession.forContext(context) }
     val builder = remember(context) { PhoneBuildSession.forContext(context) }
@@ -70,12 +73,14 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
     val saveApk = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/vnd.android.package-archive")
     ) { uri: Uri? ->
-        if (uri != null && buildState.phase == "succeeded") {
+        if (uri != null && !buildState.busy && buildState.apkSha256 != null) {
+            val selectedHash = exportHash
             uiScope.launch {
                 try {
+                    require(selectedHash != null) { context.getString(R.string.phone_host_export_failed) }
                     withContext(Dispatchers.IO) {
                         context.contentResolver.openOutputStream(uri)?.use { output ->
-                            builder.exportVerifiedApk(output)
+                            builder.exportVerifiedApk(output, selectedHash)
                         } ?: error(context.getString(R.string.phone_host_export_unwritable))
                     }
                     status = context.getString(R.string.phone_host_export_success)
@@ -85,10 +90,12 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
             }
         }
     }
+    var clock by remember { mutableStateOf(System.currentTimeMillis()) }
     var diagnostics by remember { mutableStateOf(PhoneRuntimeInspector.inspect(context)) }
 
     LaunchedEffect(Unit) {
         while (true) {
+            clock = System.currentTimeMillis()
             running = PhoneHostSession.active != null
             shared = PhoneHostSession.sharedProject()
             if (!running && PhoneHostSession.lastError.isNotBlank()) {
@@ -184,7 +191,9 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
             HarnessCapabilityTile(
-                stringResource(R.string.phone_linux_pty), stringResource(R.string.phone_offline), Icons.Default.Terminal, false, Modifier.weight(1f))
+                stringResource(R.string.phone_console_linux),
+                stringResource(if (buildState.verifiedTools) R.string.phone_console_probed else R.string.phone_console_unverified),
+                Icons.Default.Terminal, buildState.verifiedTools, Modifier.weight(1f))
             HarnessCapabilityTile(
                 stringResource(R.string.phone_apk_builds), if (buildState.verifiedTools) stringResource(R.string.phone_available) else stringResource(R.string.phone_needs_setup),
                 Icons.Default.Build, buildState.verifiedTools, Modifier.weight(1f))
@@ -279,6 +288,44 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                         ) { Text(stringResource(R.string.phone_build)) }
                     }
                 }
+                Surface(
+                    color = harnessNight, shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("phone_build_console")
+                ) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Terminal, null, tint = harnessAqua, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.phone_console_title), color = Color.White,
+                                style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                            if (buildState.busy && buildState.startedAtMs > 0L) {
+                                Text(stringResource(R.string.phone_console_elapsed,
+                                    ((clock - buildState.startedAtMs).coerceAtLeast(0L) / 1000L)),
+                                    color = harnessAqua, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        val phaseLabel = when (buildState.phase) {
+                            "restoring" -> R.string.phone_console_restoring
+                            "verifying" -> R.string.phone_console_verifying
+                            "building" -> R.string.phone_console_building
+                            "succeeded" -> R.string.phone_console_artifact
+                            "ready" -> R.string.phone_console_probed
+                            "failed", "unavailable" -> R.string.phone_console_failed
+                            "cancelled" -> R.string.phone_console_cancelled
+                            else -> R.string.phone_console_unverified
+                        }
+                        Text(stringResource(phaseLabel), color = harnessAqua,
+                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        if (buildState.projectId != null) {
+                            Text(stringResource(R.string.phone_console_project, buildState.projectId!!.take(8)),
+                                color = Color.White.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
+                        }
+                        if (buildState.apkBytes > 0L) {
+                            Text(stringResource(R.string.phone_console_artifact_bytes, buildState.apkBytes),
+                                color = Color.White.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
                 Text(buildState.message, style = MaterialTheme.typography.bodySmall,
                     color = if (buildState.phase == "failed" || buildState.phase == "unavailable")
                         MaterialTheme.colorScheme.error
@@ -298,17 +345,23 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     if (showBuildLog) {
                         Surface(color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             shape = RoundedCornerShape(10.dp)) {
-                            Text(buildState.logTail.takeLast(8000),
-                                Modifier.padding(10.dp).testTag("phone_build_log"),
-                                style = MaterialTheme.typography.bodySmall)
+                            SelectionContainer {
+                                Text(buildState.logTail.takeLast(8000),
+                                    Modifier.padding(10.dp).testTag("phone_build_log"),
+                                    fontFamily = FontFamily.Monospace,
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                     }
                 }
-                if (buildState.phase == "succeeded") {
+                if (!buildState.busy && buildState.apkSha256 != null) {
                     Text(stringResource(R.string.phone_host_sha_label, buildState.apkSha256.orEmpty()),
                         style = MaterialTheme.typography.labelSmall)
                     Button(
-                        onClick = { saveApk.launch("Maximus-Project-debug.apk") },
+                        onClick = {
+                            exportHash = buildState.apkSha256
+                            saveApk.launch("Maximus-Project-debug.apk")
+                        },
                         modifier = Modifier.fillMaxWidth().testTag("phone_build_export")
                     ) {
                         Icon(Icons.Default.SaveAlt, null, Modifier.size(18.dp))
@@ -407,12 +460,16 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                         R.string.phone_host_linux_not_installed
                     !diagnostics.verifiedRootfsPresent ->
                         R.string.phone_host_rootfs_unverified
+                    buildState.verifiedTools -> R.string.phone_console_probed
                     else -> R.string.phone_host_execution_unverified
                 }
                 Text(stringResource(readinessLabel), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface)
+                Text(stringResource(R.string.phone_console_boundary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val storageGiB = (diagnostics.availableStorageBytes / 1073741824.0)
-                val readiness = if (diagnostics.nativeRuntimeReady) 1f else if (
+                val readiness = if (buildState.verifiedTools) 1f else if (
                     diagnostics.supportedForOptionalArm64Runtime
                 ) 0.25f else 0f
                 LinearProgressIndicator(

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_console_linux">Linux userspace</string>
+    <string name="phone_console_probed">Execution verified</string>
+    <string name="phone_console_unverified">Probe required</string>
+    <string name="phone_console_title">BUILD CONSOLE</string>
+    <string name="phone_console_elapsed">%1$d s</string>
+    <string name="phone_console_restoring">Checking saved APK</string>
+    <string name="phone_console_verifying">Probing build tools</string>
+    <string name="phone_console_building">Compiling on this phone</string>
+    <string name="phone_console_artifact">Verified Debug APK</string>
+    <string name="phone_console_failed">Operation failed</string>
+    <string name="phone_console_cancelled">Stopped by user</string>
+    <string name="phone_console_project">Project %1$s</string>
+    <string name="phone_console_artifact_bytes">APK · %1$d bytes</string>
+    <string name="phone_console_boundary">PRoot runs Linux userspace on the Android kernel, with this app’s permissions. It provides neither a separate kernel nor root access. The local server exposes authenticated project metadata and approved source; no remote terminal is enabled.</string>
+</resources>

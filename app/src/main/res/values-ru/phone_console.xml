@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_console_linux">Среда Linux</string>
+    <string name="phone_console_probed">Запуск проверен</string>
+    <string name="phone_console_unverified">Нужна проверка инструментов</string>
+    <string name="phone_console_title">КОНСОЛЬ СБОРКИ</string>
+    <string name="phone_console_elapsed">%1$d с</string>
+    <string name="phone_console_restoring">Проверка сохранённого APK</string>
+    <string name="phone_console_verifying">Проверка инструментов</string>
+    <string name="phone_console_building">Сборка на этом телефоне</string>
+    <string name="phone_console_artifact">Проверенный отладочный APK</string>
+    <string name="phone_console_failed">Операция не удалась</string>
+    <string name="phone_console_cancelled">Остановлено пользователем</string>
+    <string name="phone_console_project">Проект %1$s</string>
+    <string name="phone_console_artifact_bytes">APK · %1$d байт</string>
+    <string name="phone_console_boundary">PRoot запускает пользовательскую среду Linux на ядре Android с разрешениями этого приложения. Отдельное ядро и root-доступ не предоставляются. Локальный сервер выдаёт данные проектов и одобренные исходники после аутентификации; удалённый терминал не включён.</string>
+</resources>

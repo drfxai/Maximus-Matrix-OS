@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_console_linux">محیط کاربری لینوکس</string>
+    <string name="phone_console_probed">اجرا تأیید شد</string>
+    <string name="phone_console_unverified">نیازمند آزمون ابزار</string>
+    <string name="phone_console_title">کنسول ساخت</string>
+    <string name="phone_console_elapsed">%1$d ثانیه</string>
+    <string name="phone_console_restoring">بررسی APK ذخیره‌شده</string>
+    <string name="phone_console_verifying">آزمون ابزارهای ساخت</string>
+    <string name="phone_console_building">در حال ساخت روی این گوشی</string>
+    <string name="phone_console_artifact">APK دیباگ تأییدشده</string>
+    <string name="phone_console_failed">عملیات ناموفق</string>
+    <string name="phone_console_cancelled">توقف توسط کاربر</string>
+    <string name="phone_console_project">پروژه %1$s</string>
+    <string name="phone_console_artifact_bytes">APK · %1$d بایت</string>
+    <string name="phone_console_boundary">PRoot محیط کاربری لینوکس را روی کرنل اندروید و با مجوزهای همین برنامه اجرا می‌کند؛ کرنل جداگانه یا دسترسی روت فراهم نمی‌کند. سرور محلی فقط اطلاعات پروژه و سورس تأییدشده را با احراز هویت ارائه می‌دهد؛ ترمینال راه دور فعال نیست.</string>
+</resources>

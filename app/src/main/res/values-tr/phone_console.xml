@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_console_linux">Linux kullanıcı alanı</string>
+    <string name="phone_console_probed">Çalıştırma doğrulandı</string>
+    <string name="phone_console_unverified">Araç testi gerekli</string>
+    <string name="phone_console_title">DERLEME KONSOLU</string>
+    <string name="phone_console_elapsed">%1$d sn</string>
+    <string name="phone_console_restoring">Kayıtlı APK denetleniyor</string>
+    <string name="phone_console_verifying">Derleme araçları sınanıyor</string>
+    <string name="phone_console_building">Bu telefonda derleniyor</string>
+    <string name="phone_console_artifact">Doğrulanmış hata ayıklama APK’sı</string>
+    <string name="phone_console_failed">İşlem başarısız</string>
+    <string name="phone_console_cancelled">Kullanıcı durdurdu</string>
+    <string name="phone_console_project">Proje %1$s</string>
+    <string name="phone_console_artifact_bytes">APK · %1$d bayt</string>
+    <string name="phone_console_boundary">PRoot, Linux kullanıcı alanını Android çekirdeğinde bu uygulamanın izinleriyle çalıştırır. Ayrı çekirdek veya root erişimi sağlamaz. Yerel sunucu kimlik doğrulamasıyla proje bilgilerini ve onaylı kaynakları sunar; uzak terminal etkin değildir.</string>
+</resources>

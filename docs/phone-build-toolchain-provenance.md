@@ -51,3 +51,11 @@ The app does not place provider, Hindsight, gateway or production APK signing ke
 ## Release quality gates
 
 Android unit/lint and emulator tests, supply-chain import tests, stable source code and signature identity, in-place signed upgrade and release SHA checks must pass. The real Android 15 ARM64 execution proof and applicable GPL/LGPL source delivery must be completed before describing the runtime as tested for production use.
+
+## Build console and retained artifact
+
+The build console distinguishes installed files, executed tool probes, an active Gradle job, and a verified artifact. A restored APK is not evidence that tools executed in the current process: another build still requires a new tool probe. The console displays actual job time, project identity, bounded selectable logs, and artifact bytes/hash. A 15-minute Gradle timeout is reported separately from a normal nonzero Gradle exit.
+
+One successful Debug APK is retained in app-private persistent storage, outside the disposable source/build cache. Its small versioned manifest names only a UUID generation and contains project, package, and SHA-256 metadata. On process restart the app verifies size, digest and Android package identity before enabling export. A replacement is published atomically before the previous artifact is removed; failed builds do not delete the previous persisted success, which is restored on the next app process start (it is not exposed as the failed job’s output). Export verifies the hash again. Missing, truncated or tampered artifacts are not advertised. Source snapshots are deleted after every build.
+
+This is Linux **userspace on the Android kernel**, under the application's UID. It does not turn the phone into a separately isolated Linux kernel/VM or provide Android root access. The existing authenticated loopback HTTP gateway remains read-only. A remote build-job or interactive terminal protocol still needs explicit per-project code-execution consent, revocable capabilities, lifecycle supervision, bounded output, and authenticated job/artifact APIs before it can be enabled. Physical ARM64 build/export/install acceptance remains required; these changes do not supply that device evidence.

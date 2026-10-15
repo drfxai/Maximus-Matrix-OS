@@ -52,7 +52,19 @@ class PhoneLocalBuildService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        // A duplicate start must not stop/cancel a build already owned by this service.
+        if (builder.state.value.busy) {
+            if (!observing) stopSelf()
+            return START_NOT_STICKY
+        }
         startForeground(NOTIFICATION, notification("Preparing Gradle Debug APK build…"))
+        // Accept the new job before subscribing: a restored previous success is not
+        // the terminal event of this start request (Main.immediate emits synchronously).
+        if (runCatching { builder.build(project) }.isFailure) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (!observing) {
             observing = true
             scope.launch {
@@ -67,10 +79,6 @@ class PhoneLocalBuildService : Service() {
                     }
                 }
             }
-        }
-        runCatching { builder.build(project) }.onFailure {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
         }
         return START_NOT_STICKY
     }
@@ -95,7 +103,7 @@ class PhoneLocalBuildService : Service() {
 
     override fun onDestroy() {
         val builder = PhoneBuildSession.forContext(applicationContext)
-        if (builder.state.value.busy) builder.cancel()
+        if (observing && builder.state.value.busy) builder.cancel()
         scope.cancel()
         super.onDestroy()
     }
