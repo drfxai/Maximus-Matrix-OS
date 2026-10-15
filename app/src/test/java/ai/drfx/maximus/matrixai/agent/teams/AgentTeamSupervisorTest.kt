@@ -62,5 +62,6 @@ class AgentTeamSupervisorTest {
         }.items.single()
         assertEquals(0, observed.evidenceCount)
         assertEquals("VERIFIED", observed.lastStatus)
+        assertEquals(AgentTeamSupervisor.Health.UNAVAILABLE, observed.health)
     }
 }
