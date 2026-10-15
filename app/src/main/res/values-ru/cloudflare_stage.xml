@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cf_stage_title">Обновление существующего Worker</string>
+    <string name="cf_stage_scope">Проверка → подготовка → активация. Только модульные Worker без состояния. Привязки и секреты сохраняются; маршруты не меняются.</string>
+    <string name="cf_stage_inspect">Проверить и подготовить обзор</string>
+    <string name="cf_stage_active">Активная версия: %1$s</string>
+    <string name="cf_stage_bindings">Сохранённые привязки: %1$s</string>
+    <string name="cf_stage_upload">Проверить загрузку версии</string>
+    <string name="cf_stage_receipt">Подготовленная версия: %1$s</string>
+    <string name="cf_stage_deployment">Квитанция активации: %1$s</string>
+    <string name="cf_stage_rollback_receipt">Квитанция отката: %1$s</string>
+    <string name="cf_stage_unverified">Операция записана; удалённое состояние не подтверждено. Проверьте Cloudflare перед следующим действием.</string>
+    <string name="cf_stage_activate">Проверить активацию · весь трафик</string>
+    <string name="cf_stage_rollback">Проверить откат</string>
+    <string name="cf_stage_failed">Операция не подтверждена. Возможно, изменились аккаунт, развёртывание или неподдерживаемые настройки. Проверьте перед повтором.</string>
+    <string name="cf_stage_upload_warning">Загрузить именно этот код как неактивную версию. Рабочий трафик останется на текущей версии. Возможна плата за использование Cloudflare.</string>
+    <string name="cf_stage_traffic_warning">Все текущие запросы будут направлены на указанную версию. Маршруты сохранятся. Принудительный откат и автоматические повторы не выполняются.</string>
+    <string name="cf_stage_partial_creation">Worker создан, но развёртывание не подтверждено. Ресурс: %1$s · версия: %2$s. Проверьте Cloudflare перед повтором.</string>
+</resources>

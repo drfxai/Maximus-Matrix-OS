@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cf_stage_title">تحديث Worker موجود</string>
+    <string name="cf_stage_scope">فحص ← تجهيز ← تفعيل. وحدات Worker عديمة الحالة فقط. تُحفظ الارتباطات والأسرار الحالية؛ لا تتغير المسارات.</string>
+    <string name="cf_stage_inspect">فحص وإعداد المراجعة</string>
+    <string name="cf_stage_active">الإصدار النشط: %1$s</string>
+    <string name="cf_stage_bindings">الارتباطات المحفوظة: %1$s</string>
+    <string name="cf_stage_upload">مراجعة رفع الإصدار</string>
+    <string name="cf_stage_receipt">الإصدار المجهز: %1$s</string>
+    <string name="cf_stage_deployment">إيصال التفعيل: %1$s</string>
+    <string name="cf_stage_rollback_receipt">إيصال التراجع: %1$s</string>
+    <string name="cf_stage_unverified">تم تسجيل العملية؛ تعذر التحقق من الحالة البعيدة. افحص Cloudflare قبل عملية أخرى.</string>
+    <string name="cf_stage_activate">مراجعة التفعيل · كل الزيارات</string>
+    <string name="cf_stage_rollback">مراجعة التراجع</string>
+    <string name="cf_stage_failed">تعذر تأكيد العملية. ربما تغير الحساب أو النشر أو إعداد غير مدعوم. افحص مجدداً قبل المحاولة.</string>
+    <string name="cf_stage_upload_warning">ارفع هذا الكود بعينه كإصدار غير نشط. تبقى الزيارات على الإصدار الحالي. قد تُطبق رسوم استخدام Cloudflare.</string>
+    <string name="cf_stage_traffic_warning">ينقل هذا الإجراء كل الزيارات الحالية إلى الإصدار أدناه. تُحفظ المسارات. لا تراجع قسري أو إعادة محاولة تلقائية.</string>
+    <string name="cf_stage_partial_creation">تم إنشاء Worker، لكن النشر غير مؤكد. المعرّف: %1$s · الإصدار: %2$s. افحص Cloudflare قبل إعادة المحاولة.</string>
+</resources>

@@ -10,7 +10,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.util.UUID
 
 /**
  * The only supported origins are first-party GitHub and Cloudflare HTTPS APIs.
@@ -83,14 +82,15 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         path: String,
         method: String = "GET",
         body: ByteArray? = null,
-        contentType: String = "application/json; charset=utf-8"
+        expectedCloudflareRevision: String? = null
     ): ByteArray = withContext(Dispatchers.IO) {
         require(path.startsWith("/") && !path.startsWith("//") && '#' !in path)
         require(method in setOf("GET", "POST", "PUT"))
         require(body == null || body.size <= 512 * 1024)
-        require(contentType == "application/json; charset=utf-8" ||
-            contentType.matches(Regex("multipart/form-data; boundary=maximus-[a-f0-9-]{36}")))
-        val token = vault.resolve(service)
+        val credentials = vault.snapshot(service)
+        if (expectedCloudflareRevision != null) check(service == DevelopmentService.CLOUDFLARE &&
+            credentials.revision == expectedCloudflareRevision) { "Connection changed." }
+        val token = credentials.token
         check(token.isNotBlank()) { "Connect this service with a restricted API token first." }
         val base = if (service == DevelopmentService.GITHUB) GH else CF
         val url = URL(base + path)
@@ -109,9 +109,12 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
             connection.setRequestProperty("User-Agent", "Maximus-Matrix-Mobile/1.0")
             if (service == DevelopmentService.GITHUB)
                 connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+            // Last check before either outputStream or responseCode can dispatch HTTP.
+            if (expectedCloudflareRevision != null)
+                check(vault.revision(service) == expectedCloudflareRevision) { "Connection changed." }
             if (body != null) {
                 connection.doOutput = true
-                connection.setRequestProperty("Content-Type", contentType)
+                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 connection.setFixedLengthStreamingMode(body.size)
                 connection.outputStream.use { it.write(body) }
             }
@@ -322,47 +325,19 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         }
     }
 
-    /** Creates or replaces only the exact approved script; no route or domain is configured. */
+    fun cloudflareDeployments(): CloudflareDeploymentClient = CloudflareDeploymentClient(
+        revision = { vault.revision(DevelopmentService.CLOUDFLARE) },
+        request = { path, method, body, revision -> call(DevelopmentService.CLOUDFLARE,
+            path, method, body, expectedCloudflareRevision = revision) },
+        recordReceipt = vault::recordCloudflareReceipt,
+        recordCreation = vault::recordCloudflareCreation)
+
+    /** The create endpoint cannot replace an existing Worker; code upload uses its immutable ID. */
     suspend fun deployCloudflareAgent(
         accountId: String, workerName: String, purpose: CloudAgentPurpose,
         accessToken: String, approved: Boolean
-    ): String {
-        check(approved) { "Explicit approval is required before creating or replacing a Worker." }
-        val account = DeveloperConnectionPolicy.cloudflareAccountId(accountId)
-        val name = DeveloperConnectionPolicy.workerName(workerName)
-        require(accessToken.matches(Regex("[A-Za-z0-9_-]{32,128}"))) {
-            "Agent access token must contain 32 to 128 URL-safe characters."
-        }
-        val metadata = JSONObject()
-            .put("main_module", "agent.js")
-            .put("compatibility_date", "2026-10-15")
-            .put("bindings", JSONArray()
-                .put(JSONObject().put("type", "ai").put("name", "AI"))
-                .put(JSONObject().put("type", "secret_text")
-                    .put("name", "MAXIMUS_AGENT_TOKEN").put("text", accessToken)))
-        val boundary = "maximus-" + UUID.randomUUID().toString()
-        val source = DeveloperSetupPolicy.workerSource(purpose)
-        // The secret belongs only to upload metadata, never to the executable module.
-        val upload = buildString {
-            append("--$boundary\r\n")
-            append("Content-Disposition: form-data; name=\"metadata\"\r\n")
-            append("Content-Type: application/json\r\n\r\n")
-            append(metadata.toString()).append("\r\n")
-            append("--$boundary\r\n")
-            append("Content-Disposition: form-data; name=\"agent.js\"; filename=\"agent.js\"\r\n")
-            append("Content-Type: application/javascript+module\r\n\r\n")
-            append(source).append("\r\n--$boundary--\r\n")
-        }.toByteArray(Charsets.UTF_8)
-        val response = call(DevelopmentService.CLOUDFLARE,
-            "/accounts/$account/workers/scripts/$name", "PUT", upload,
-            "multipart/form-data; boundary=$boundary")
-        // Do not forward Cloudflare's error body or metadata into UI feedback.
-        val succeeded = runCatching {
-            JSONObject(response.toString(StandardCharsets.UTF_8)).optBoolean("success")
-        }.getOrDefault(false)
-        check(succeeded) { "Cloudflare did not confirm Worker deployment." }
-        return name
-    }
+    ): CloudflareCreationReceipt = cloudflareDeployments().create(accountId, workerName, purpose,
+        accessToken, approved)
 
     suspend fun listCloudflareWorkers(accountId: String): List<String> {
         val account = DeveloperConnectionPolicy.cloudflareAccountId(accountId)

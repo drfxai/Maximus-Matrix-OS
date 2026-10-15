@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cf_stage_title">Mevcut Worker güncellemesi</string>
+    <string name="cf_stage_scope">İncele → hazırla → etkinleştir. Yalnızca durumsuz modül Worker. Mevcut bağlamalar ve sırlar korunur; yollar değişmez.</string>
+    <string name="cf_stage_inspect">İncele ve değerlendirmeyi hazırla</string>
+    <string name="cf_stage_active">Etkin sürüm: %1$s</string>
+    <string name="cf_stage_bindings">Korunan bağlamalar: %1$s</string>
+    <string name="cf_stage_upload">Hazırlama yüklemesini incele</string>
+    <string name="cf_stage_receipt">Hazırlanan sürüm: %1$s</string>
+    <string name="cf_stage_deployment">Etkinleştirme kaydı: %1$s</string>
+    <string name="cf_stage_rollback_receipt">Geri alma kaydı: %1$s</string>
+    <string name="cf_stage_unverified">İşlem kaydedildi; uzak durum doğrulanamadı. Başka işlemden önce Cloudflare durumunu inceleyin.</string>
+    <string name="cf_stage_activate">Etkinleştirmeyi incele · tüm trafik</string>
+    <string name="cf_stage_rollback">Geri almayı incele</string>
+    <string name="cf_stage_failed">İşlem doğrulanamadı. Hesap, dağıtım veya desteklenmeyen yapılandırma değişmiş olabilir. Tekrar denemeden önce inceleyin.</string>
+    <string name="cf_stage_upload_warning">Bu kodu aynen etkin olmayan bir sürüm olarak yükleyin. Üretim trafiği mevcut sürümde kalır. Cloudflare kullanım ücretleri uygulanabilir.</string>
+    <string name="cf_stage_traffic_warning">Bu işlem mevcut trafiğin tamamını aşağıdaki sürüme taşır. Mevcut yollar korunur. Zorla geri alma veya otomatik yeniden deneme yapılmaz.</string>
+    <string name="cf_stage_partial_creation">Worker oluşturuldu ancak dağıtım doğrulanmadı. Kaynak: %1$s · sürüm: %2$s. Yeniden denemeden önce Cloudflare durumunu inceleyin.</string>
+</resources>

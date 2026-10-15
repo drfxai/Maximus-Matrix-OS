@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cf_stage_title">Update an existing Worker</string>
+    <string name="cf_stage_scope">Inspect → stage → activate. Stateless module Workers only. Existing bindings and secrets are inherited; routes remain unchanged.</string>
+    <string name="cf_stage_inspect">Inspect and prepare review</string>
+    <string name="cf_stage_active">Active version: %1$s</string>
+    <string name="cf_stage_bindings">Preserved bindings: %1$s</string>
+    <string name="cf_stage_upload">Review staged upload</string>
+    <string name="cf_stage_receipt">Staged version: %1$s</string>
+    <string name="cf_stage_deployment">Activation receipt: %1$s</string>
+    <string name="cf_stage_rollback_receipt">Rollback receipt: %1$s</string>
+    <string name="cf_stage_unverified">Write recorded; remote state could not be verified. Inspect Cloudflare before another operation.</string>
+    <string name="cf_stage_activate">Review activation · all traffic</string>
+    <string name="cf_stage_rollback">Review rollback</string>
+    <string name="cf_stage_failed">Operation could not be verified. Account, deployment or unsupported configuration may have changed. Inspect again before retrying.</string>
+    <string name="cf_stage_upload_warning">Upload this exact source as an inactive version. Production traffic stays on the current version. Cloudflare usage charges may apply.</string>
+    <string name="cf_stage_traffic_warning">This explicitly changes all existing traffic to the version below. Existing routes are preserved. No forced rollback or automatic retry.</string>
+    <string name="cf_stage_partial_creation">Worker created, but deployment is not verified. Resource: %1$s · version: %2$s. Inspect Cloudflare before retrying.</string>
+</resources>

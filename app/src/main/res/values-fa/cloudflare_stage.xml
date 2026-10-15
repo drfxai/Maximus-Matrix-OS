@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cf_stage_title">به‌روزرسانی ورکر موجود</string>
+    <string name="cf_stage_scope">بررسی ← آماده‌سازی ← فعال‌سازی. فقط ورکر ماژولی بدون حالت. اتصال‌ها و کلیدهای موجود حفظ می‌شوند؛ مسیرها تغییر نمی‌کنند.</string>
+    <string name="cf_stage_inspect">بررسی و آماده‌سازی بازبینی</string>
+    <string name="cf_stage_active">نسخهٔ فعال: %1$s</string>
+    <string name="cf_stage_bindings">اتصال‌های حفظ‌شده: %1$s</string>
+    <string name="cf_stage_upload">بازبینی بارگذاری مرحله‌ای</string>
+    <string name="cf_stage_receipt">نسخهٔ آماده‌شده: %1$s</string>
+    <string name="cf_stage_deployment">رسید فعال‌سازی: %1$s</string>
+    <string name="cf_stage_rollback_receipt">رسید بازگشت: %1$s</string>
+    <string name="cf_stage_unverified">عملیات ثبت شد؛ وضعیت سرویس تأیید نشد. پیش از عملیات بعدی کلودفلر را بررسی کنید.</string>
+    <string name="cf_stage_activate">بازبینی فعال‌سازی · تمام ترافیک</string>
+    <string name="cf_stage_rollback">بازبینی بازگشت نسخه</string>
+    <string name="cf_stage_failed">عملیات تأیید نشد. ممکن است حساب، استقرار یا تنظیمات پشتیبانی‌نشده تغییر کرده باشد. پیش از تلاش دوباره بررسی کنید.</string>
+    <string name="cf_stage_upload_warning">این کد دقیقاً به‌صورت نسخهٔ غیرفعال بارگذاری می‌شود. ترافیک روی نسخهٔ فعلی می‌ماند. ممکن است هزینهٔ مصرف کلودفلر اعمال شود.</string>
+    <string name="cf_stage_traffic_warning">تمام ترافیک موجود به نسخهٔ زیر منتقل می‌شود. مسیرهای موجود حفظ می‌شوند. بازگشت اجباری یا تلاش مجدد خودکار انجام نمی‌شود.</string>
+    <string name="cf_stage_partial_creation">ورکر ساخته شد، اما استقرار تأیید نشد. شناسه: %1$s · نسخه: %2$s. پیش از تلاش دوباره کلودفلر را بررسی کنید.</string>
+</resources>

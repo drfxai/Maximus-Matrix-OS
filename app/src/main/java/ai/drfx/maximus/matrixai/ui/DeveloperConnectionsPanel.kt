@@ -12,6 +12,9 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import ai.drfx.maximus.matrixai.studio.connections.CloudAgentPurpose
+import ai.drfx.maximus.matrixai.studio.connections.CloudflareDeploymentClient
+import ai.drfx.maximus.matrixai.studio.connections.CloudflareDeploymentReview
+import ai.drfx.maximus.matrixai.studio.connections.CloudflareDeploymentReceipt
 import ai.drfx.maximus.matrixai.studio.connections.CloudflareAccount
 import ai.drfx.maximus.matrixai.studio.connections.DeveloperSetupPolicy
 import androidx.compose.foundation.layout.*
@@ -376,6 +379,12 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                     Text(name, style = MaterialTheme.typography.bodySmall)
                 }
                 HorizontalDivider()
+                key(accountId, connection.revision, purpose) {
+                    CloudflareStagedDeploymentPanel(client.cloudflareDeployments(), accountId, purpose,
+                        enabled = credentialSaved && verified && rawToken.isBlank() && !isBusy,
+                        onBusyChanged = { isBusy = it })
+                }
+                HorizontalDivider()
                 Text(stringResource(R.string.dev_step_deploy), style = MaterialTheme.typography.titleSmall)
                 Text(stringResource(R.string.dev_cloud_limits), style = MaterialTheme.typography.bodySmall)
                 Text(DeveloperSetupPolicy.WORKER_MODEL, style = MaterialTheme.typography.labelSmall)
@@ -490,9 +499,10 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                 val key = review.accessKey
                 deployReview = null
                 perform {
-                    client.deployCloudflareAgent(review.accountId, review.workerName, review.purpose, key, approved = true)
-                    deploymentDone = true
-                    context.getString(R.string.dev_deployed_no_route)
+                    val created = client.deployCloudflareAgent(review.accountId, review.workerName, review.purpose, key, approved = true)
+                    deploymentDone = created.verified
+                    if (created.verified) context.getString(R.string.dev_deployed_no_route)
+                    else context.getString(R.string.cf_stage_partial_creation, created.workerId, created.version ?: "—")
                 }
             }) { Text(stringResource(R.string.graph_approve)) } },
             dismissButton = { TextButton(onClick = { deployReview = null }) {
@@ -541,4 +551,110 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
             }
         )
     }
+}
+
+
+/** Existing Workers are never routed through the create-and-deploy shortcut. */
+@Composable
+private fun CloudflareStagedDeploymentPanel(
+    client: CloudflareDeploymentClient, accountId: String, purpose: CloudAgentPurpose, enabled: Boolean,
+    onBusyChanged: (Boolean) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var name by remember { mutableStateOf("") }
+    var review by remember { mutableStateOf<CloudflareDeploymentReview?>(null) }
+    var receipt by remember { mutableStateOf<CloudflareDeploymentReceipt?>(null) }
+    var confirmation by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    var sourceVisible by remember { mutableStateOf(false) }
+    fun perform(action: suspend () -> Unit) {
+        if (busy) return
+        busy = true; failed = false; onBusyChanged(true)
+        scope.launch {
+            try { action() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { failed = true }
+            finally { busy = false; onBusyChanged(false) }
+        }
+    }
+    ElevatedCard(Modifier.fillMaxWidth().testTag("cloudflare_staged_panel"), shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.padding(12.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.cf_stage_title), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.cf_stage_scope), style = MaterialTheme.typography.bodySmall)
+            OutlinedTextField(name, { name = it.take(63); review = null; receipt = null; failed = false },
+                enabled = enabled && !busy, singleLine = true,
+                label = { Text(stringResource(R.string.dev_worker_name)) }, modifier = Modifier.fillMaxWidth())
+            OutlinedButton(enabled = enabled && !busy && Regex("[A-Za-z0-9_-]{1,63}").matches(name) &&
+                Regex("[a-fA-F0-9]{32}").matches(accountId), onClick = { perform {
+                    review = null; receipt = null
+                    review = client.inspect(accountId, name, DeveloperSetupPolicy.workerSource(purpose))
+                } }, modifier = Modifier.fillMaxWidth().testTag("cloudflare_inspect")) {
+                Text(stringResource(R.string.cf_stage_inspect))
+            }
+            review?.let { snapshot ->
+                Text("${snapshot.accountId} / ${snapshot.workerName}", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.cf_stage_active, snapshot.activeVersion), style = MaterialTheme.typography.bodySmall)
+                Text("SHA-256 · ${snapshot.sourceSha256}", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.cf_stage_bindings, snapshot.inheritedBindings.joinToString(", ")),
+                    style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { sourceVisible = !sourceVisible }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.dev_source_preview))
+                }
+                AnimatedVisibility(sourceVisible) {
+                    OutlinedTextField(snapshot.source, {}, readOnly = true,
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp), maxLines = 10)
+                }
+                Button(enabled = enabled && !busy && receipt == null, onClick = { confirmation = "stage" },
+                    modifier = Modifier.fillMaxWidth().testTag("cloudflare_review_stage")) {
+                    Text(stringResource(R.string.cf_stage_upload))
+                }
+            }
+            receipt?.let { result ->
+                Text(stringResource(R.string.cf_stage_receipt, result.stagedVersion), style = MaterialTheme.typography.bodySmall)
+                result.activatedDeployment?.let { Text(stringResource(R.string.cf_stage_deployment, it), style = MaterialTheme.typography.bodySmall) }
+                result.rolledBackDeployment?.let { Text(stringResource(R.string.cf_stage_rollback_receipt, it), style = MaterialTheme.typography.bodySmall) }
+                if (!result.verified) Text(stringResource(R.string.cf_stage_unverified), color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall)
+                if (result.activatedDeployment == null) {
+                    Button(enabled = enabled && !busy && result.verified, onClick = { confirmation = "activate" },
+                        modifier = Modifier.fillMaxWidth().testTag("cloudflare_review_activate")) {
+                        Text(stringResource(R.string.cf_stage_activate))
+                    }
+                } else if (result.rolledBackDeployment == null) {
+                    OutlinedButton(enabled = enabled && !busy && result.verified, onClick = { confirmation = "rollback" },
+                        modifier = Modifier.fillMaxWidth().testTag("cloudflare_review_rollback")) {
+                        Text(stringResource(R.string.cf_stage_rollback))
+                    }
+                }
+            }
+            if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (failed) Text(stringResource(R.string.cf_stage_failed), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error)
+        }
+    }
+    val action = confirmation
+    val snapshot = review
+    if (action != null && snapshot != null) AlertDialog(onDismissRequest = { confirmation = null },
+        title = { Text(stringResource(when (action) {
+            "stage" -> R.string.cf_stage_upload
+            "activate" -> R.string.cf_stage_activate
+            else -> R.string.cf_stage_rollback
+        })) },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("${snapshot.accountId} / ${snapshot.workerName}")
+            Text(if (action == "stage") stringResource(R.string.cf_stage_upload_warning)
+                else stringResource(R.string.cf_stage_traffic_warning))
+            Text(if (action == "rollback") snapshot.activeVersion else receipt?.stagedVersion ?: snapshot.sourceSha256,
+                style = MaterialTheme.typography.labelSmall)
+        } },
+        confirmButton = { Button(enabled = enabled && !busy, onClick = {
+            val confirmedReceipt = receipt
+            confirmation = null
+            perform {
+                receipt = if (action == "stage") client.stage(snapshot, approved = true)
+                else client.activate(checkNotNull(confirmedReceipt), approved = true, rollback = action == "rollback")
+            }
+        }) { Text(stringResource(R.string.graph_approve)) } },
+        dismissButton = { TextButton(onClick = { confirmation = null }) { Text(stringResource(R.string.graph_reject)) } })
 }
