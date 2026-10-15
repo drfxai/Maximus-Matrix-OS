@@ -32,6 +32,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -81,10 +82,12 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -122,11 +125,13 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     val sessions by viewModel.chatSessions.collectAsState()
     val activeSessionId by viewModel.activeChatSessionId.collectAsState()
     var sessionsOpen by remember { mutableStateOf(false) }
+    var workspaceControlsOpen by remember { mutableStateOf(false) }
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
     var sessionTitle by remember { mutableStateOf("") }
     val sendable = state.status in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED)
     val context = LocalContext.current
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val metrics = state.tokenMetrics
     val numberFormat = remember { NumberFormat.getNumberInstance(Locale.US) }
     val clipboardManager = LocalClipboardManager.current
@@ -354,287 +359,343 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     }
 
     Column(
-        modifier = modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box {
-                TextButton(onClick = { sessionsOpen = true }) {
+        ConversationTelemetryRibbon(
+            state = state,
+            onProviderSettings = { settingsOpen = true },
+            onTokenDetails = { tokenDetailsOpen = true }
+        )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) {
+                TextButton(onClick = { sessionsOpen = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
                     Text(sessions.firstOrNull { it.id == activeSessionId }?.title
-                        ?: stringResource(R.string.speech_conversation_default))
+                        ?: stringResource(R.string.speech_conversation_default),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f), fontSize = 12.sp)
+                    Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(18.dp))
                 }
                 DropdownMenu(expanded = sessionsOpen, onDismissRequest = { sessionsOpen = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.speech_new)) },
+                        enabled = !state.isGenerating,
+                        onClick = { sessionsOpen = false; viewModel.createChatSession() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.speech_rename)) },
+                        enabled = sessions.any { it.id == activeSessionId },
+                        onClick = {
+                            sessionsOpen = false
+                            sessionTitle = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty()
+                            renameOpen = true
+                        })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.speech_delete)) },
+                        enabled = sessions.any { it.id == activeSessionId },
+                        onClick = { sessionsOpen = false; deleteOpen = true })
+                    if (sessions.isNotEmpty()) HorizontalDivider()
                     sessions.forEach { session ->
                         DropdownMenuItem(text = { Text(session.title + " · " + session.provider) },
                             onClick = { viewModel.switchChatSession(session.id); sessionsOpen = false })
                     }
                 }
             }
-            TextButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) { Text(stringResource(R.string.speech_new)) }
-            TextButton(onClick = {
-                sessionTitle = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty()
-                renameOpen = true
-            }, enabled = sessions.any { it.id == activeSessionId }) { Text(stringResource(R.string.speech_rename)) }
-            TextButton(onClick = { deleteOpen = true }, enabled = sessions.any { it.id == activeSessionId }) { Text(stringResource(R.string.speech_delete)) }
+            TextButton(onClick = { workspaceControlsOpen = !workspaceControlsOpen },
+                modifier = Modifier.testTag("chat_workspace_controls_toggle"),
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                Icon(Icons.Default.Tune, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide
+                    else R.string.focus_controls_show), fontSize = 12.sp)
+            }
         }
         if (messages.lastOrNull()?.isError == true && !state.isGenerating && sendable) {
             TextButton(onClick = {
                 messages.lastOrNull { it.role == "user" }?.let { viewModel.sendChat(it.content, it.attachment, false) }
             }) { Text(stringResource(R.string.speech_retry)) }
         }
-        // Compact unified header: Model info, Token telemetry badge, settings trigger, voice toggle
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.weight(1f).clickable { settingsOpen = true }
+        // Optional controls share a bounded viewport so the conversation retains space.
+        AnimatedVisibility(visible = workspaceControlsOpen && !keyboardVisible, enter = fadeIn(), exit = fadeOut()) {
+            Column(
+                Modifier.fillMaxWidth().heightIn(max = 240.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                // Compact unified header: Model info, Token telemetry badge, settings trigger, voice toggle
                 Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Surface(
-                        modifier = Modifier.size(8.dp),
-                        shape = CircleShape,
-                        color = if (sendable) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.tertiary
-                    ) {}
-                    Spacer(Modifier.width(8.dp))
-                    Column(Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = if (sendable) state.selectedModel
-                                else stringResource(R.string.chat_connect_provider, state.provider.displayName),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                        }
-                        Text(
-                            text = if (sendable)
-                                state.supportedAgents.firstOrNull { it.id == state.selectedAgentId }?.name.orEmpty()
-                            else state.statusMessage,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 10.sp,
-                            maxLines = 1
-                        )
-                    }
-                    Icon(Icons.Default.Tune, stringResource(R.string.chat_provider_settings), modifier = Modifier.size(16.dp))
-                }
-            }
-
-            Spacer(Modifier.width(6.dp))
-
-            // Token Telemetry Chip in Header
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.clickable { tokenDetailsOpen = true }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.DataUsage,
-                        null,
-                        tint = if (metrics.contextUsagePercent > 0.85f) MaterialTheme.colorScheme.error
-                        else if (metrics.contextUsagePercent > 0.6f) MaterialTheme.colorScheme.tertiary
-                        else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Column {
-                        Text(
-                            text = stringResource(R.string.conv_usage_used, numberFormat.format(metrics.consumedTurnTotalTokens)),
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = stringResource(R.string.conv_context_left, numberFormat.format(metrics.remainingContextTokens)),
-                            fontSize = 8.sp,
-                            color = Color(0xFF00E676),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.width(4.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { tts?.stop(); voicePlayback.stop(); elevenJob?.cancel(); elevenPlayback.stop() }) { Icon(Icons.Default.Stop, stringResource(R.string.speech_stop_audio)) }
-                IconButton(
-                    onClick = {
-                        if (!voiceReplies) speechPlaybackPolicy.skipExistingReply(messages.lastOrNull()?.timestampMs)
-                        voiceReplies = !voiceReplies
-                        if (!voiceReplies) {
-                            voiceConversation = false
-                            tts?.stop()
-                        }
-                    },
-                    modifier = Modifier.size(34.dp)
-                ) {
-                    Icon(
-                        if (voiceReplies) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                        if (voiceReplies) stringResource(R.string.speech_disable_replies) else stringResource(R.string.speech_enable_replies),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                if (messages.isNotEmpty()) {
-                    IconButton(
-                        onClick = viewModel::clearChat,
-                        modifier = Modifier.size(34.dp)
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.weight(1f).clickable { settingsOpen = true }
                     ) {
-                        Icon(Icons.Default.Delete, stringResource(R.string.speech_clear_conversation),
-                            modifier = Modifier.size(18.dp))
-                    }
-                }
-            }
-        }
-
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            modifier = Modifier.fillMaxWidth().testTag("speech_language_controls")
-        ) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Box(Modifier.weight(1f)) {
-                    TextButton(onClick = { voiceLanguageMenuOpen = true },
-                        modifier = Modifier.testTag("voice_language_picker")) {
-                        Icon(Icons.Default.KeyboardVoice, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            stringResource(R.string.speech_language_label) + ": " +
-                                selectedSpeechLanguage.label +
-                                (if (speechFollowsAppLanguage)
-                                    " · " + stringResource(R.string.speech_follow_app_short)
-                                 else ""),
-                            fontSize = 11.sp,
-                            maxLines = 1
-                        )
-                        Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(16.dp))
-                    }
-                    DropdownMenu(
-                        expanded = voiceLanguageMenuOpen,
-                        onDismissRequest = { voiceLanguageMenuOpen = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.speech_follow_app_language)) },
-                            onClick = {
-                                speechPreference.set(null)
-                                speechFollowsAppLanguage = true
-                                selectedSpeechLanguage = SpeechLanguage.fromApp(
-                                    LanguagePreferenceStore(context).load()
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(8.dp),
+                                shape = CircleShape,
+                                color = if (sendable) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.tertiary
+                            ) {}
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = if (sendable) state.selectedModel
+                                        else stringResource(R.string.chat_connect_provider, state.provider.displayName),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                }
+                                Text(
+                                    text = if (sendable)
+                                        state.supportedAgents.firstOrNull { it.id == state.selectedAgentId }?.name.orEmpty()
+                                    else state.statusMessage,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 12.sp,
+                                    maxLines = 1
                                 )
-                                speechVoiceInstallNeeded = false
-                                voiceLanguageMenuOpen = false
-                                tts?.stop()
                             }
-                        )
-                        HorizontalDivider()
-                        SpeechLanguage.entries.forEach { language ->
-                            DropdownMenuItem(
-                                text = { Text(language.label + " · " + language.tag) },
-                                onClick = {
-                                    speechPreference.set(language)
-                                    selectedSpeechLanguage = language
-                                    speechFollowsAppLanguage = false
-                                    speechVoiceInstallNeeded = false
-                                    voiceLanguageMenuOpen = false
+                            Icon(Icons.Default.Tune, stringResource(R.string.chat_provider_settings), modifier = Modifier.size(16.dp))
+                        }
+                    }
+
+                    Spacer(Modifier.width(6.dp))
+
+                    // Token Telemetry Chip in Header
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.clickable { tokenDetailsOpen = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.DataUsage,
+                                null,
+                                tint = if (metrics.contextUsagePercent > 0.85f) MaterialTheme.colorScheme.error
+                                else if (metrics.contextUsagePercent > 0.6f) MaterialTheme.colorScheme.tertiary
+                                else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.conv_usage_used, numberFormat.format(metrics.consumedTurnTotalTokens)),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = stringResource(R.string.conv_context_left, numberFormat.format(metrics.remainingContextTokens)),
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF00E676),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.width(4.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { tts?.stop(); voicePlayback.stop(); elevenJob?.cancel(); elevenPlayback.stop() }) { Icon(Icons.Default.Stop, stringResource(R.string.speech_stop_audio)) }
+                        IconButton(
+                            onClick = {
+                                if (!voiceReplies) speechPlaybackPolicy.skipExistingReply(messages.lastOrNull()?.timestampMs)
+                                voiceReplies = !voiceReplies
+                                if (!voiceReplies) {
+                                    voiceConversation = false
                                     tts?.stop()
                                 }
+                            },
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                if (voiceReplies) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                if (voiceReplies) stringResource(R.string.speech_disable_replies) else stringResource(R.string.speech_enable_replies),
+                                modifier = Modifier.size(18.dp)
                             )
+                        }
+                        if (messages.isNotEmpty()) {
+                            IconButton(
+                                onClick = viewModel::clearChat,
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, stringResource(R.string.speech_clear_conversation),
+                                    modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }
-                Text(stringResource(R.string.speech_conversation_label), fontSize = 10.sp)
-                Switch(
-                    checked = voiceConversation,
-                    onCheckedChange = {
-                        voiceConversation = it
-                        if (it && !voiceReplies) {
-                            speechPlaybackPolicy.skipExistingReply(messages.lastOrNull()?.timestampMs)
-                            voiceReplies = true
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth().testTag("speech_language_controls")
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            TextButton(onClick = { voiceLanguageMenuOpen = true },
+                                modifier = Modifier.testTag("voice_language_picker")) {
+                                Icon(Icons.Default.KeyboardVoice, null, Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    stringResource(R.string.speech_language_label) + ": " +
+                                        selectedSpeechLanguage.label +
+                                        (if (speechFollowsAppLanguage)
+                                            " · " + stringResource(R.string.speech_follow_app_short)
+                                         else ""),
+                                    fontSize = 12.sp,
+                                    maxLines = 1
+                                )
+                                Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(16.dp))
+                            }
+                            DropdownMenu(
+                                expanded = voiceLanguageMenuOpen,
+                                onDismissRequest = { voiceLanguageMenuOpen = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.speech_follow_app_language)) },
+                                    onClick = {
+                                        speechPreference.set(null)
+                                        speechFollowsAppLanguage = true
+                                        selectedSpeechLanguage = SpeechLanguage.fromApp(
+                                            LanguagePreferenceStore(context).load()
+                                        )
+                                        speechVoiceInstallNeeded = false
+                                        voiceLanguageMenuOpen = false
+                                        tts?.stop()
+                                    }
+                                )
+                                HorizontalDivider()
+                                SpeechLanguage.entries.forEach { language ->
+                                    DropdownMenuItem(
+                                        text = { Text(language.label + " · " + language.tag) },
+                                        onClick = {
+                                            speechPreference.set(language)
+                                            selectedSpeechLanguage = language
+                                            speechFollowsAppLanguage = false
+                                            speechVoiceInstallNeeded = false
+                                            voiceLanguageMenuOpen = false
+                                            tts?.stop()
+                                        }
+                                    )
+                                }
+                            }
                         }
-                    },
-                    modifier = Modifier.height(36.dp).testTag("voice_conversation_toggle")
-                )
-            }
-        }
-        if (voiceConversation) {
-            Text(
-                stringResource(R.string.speech_conversation_hint),
-                fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        // Dedicated In-Chat LLM Provider Switcher Bar
-        ChatProviderSwitcherBar(
-            currentProvider = state.provider,
-            currentModel = state.selectedModel,
-            models = state.models,
-            hasSavedKey = state.hasSavedKey,
-            onSelectProvider = { provider ->
-                viewModel.applyProviderPreset(provider)
-                baseUrl = viewModel.llmState.value.baseUrl
-            },
-            onSelectModel = { modelId ->
-                viewModel.selectModel(modelId)
-            },
-            onConfigureKey = { provider ->
-                if (state.provider != provider) viewModel.applyProviderPreset(provider)
-                baseUrl = viewModel.llmState.value.baseUrl
-                quickKeyTargetProvider = provider
-                quickKeyInput = ""
-                quickKeyDialogOpen = true
-            }
-        )
-
-        // A missing catalog-confirmed free route should never strand a configured
-        // user in an opaque error. Manual provider usage requires a separate tap
-        // and explicit cost warning; no previous prompt is replayed.
-        if (state.smartComboEnabled && state.smartComboOffers == 0) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(stringResource(R.string.chat_combo_unavailable),
-                        style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.speech_conversation_label), fontSize = 12.sp)
+                        Switch(
+                            checked = voiceConversation,
+                            onCheckedChange = {
+                                voiceConversation = it
+                                if (it && !voiceReplies) {
+                                    speechPlaybackPolicy.skipExistingReply(messages.lastOrNull()?.timestampMs)
+                                    voiceReplies = true
+                                }
+                            },
+                            modifier = Modifier.height(36.dp).testTag("voice_conversation_toggle")
+                        )
+                    }
+                }
+                if (voiceConversation) {
                     Text(
-                        smartComboStatusLabel(state),
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        stringResource(R.string.speech_conversation_hint),
+                        fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = viewModel::refreshSmartCombo,
-                            enabled = !state.smartComboRefreshing && !state.isGenerating) {
-                            Text(stringResource(R.string.api_refresh), fontSize = 12.sp)
-                        }
-                        Button(onClick = { confirmDirectProvider = true },
-                            enabled = !state.isGenerating && state.hasSavedKey &&
-                                state.selectedModel.isNotBlank()) {
-                            Text(stringResource(R.string.chat_manual), fontSize = 12.sp)
+                }
+
+                // Dedicated In-Chat LLM Provider Switcher Bar
+                ChatProviderSwitcherBar(
+                    currentProvider = state.provider,
+                    currentModel = state.selectedModel,
+                    models = state.models,
+                    hasSavedKey = state.hasSavedKey,
+                    onSelectProvider = { provider ->
+                        viewModel.applyProviderPreset(provider)
+                        baseUrl = viewModel.llmState.value.baseUrl
+                    },
+                    onSelectModel = { modelId ->
+                        viewModel.selectModel(modelId)
+                    },
+                    onConfigureKey = { provider ->
+                        if (state.provider != provider) viewModel.applyProviderPreset(provider)
+                        baseUrl = viewModel.llmState.value.baseUrl
+                        quickKeyTargetProvider = provider
+                        quickKeyInput = ""
+                        quickKeyDialogOpen = true
+                    }
+                )
+
+                // A missing catalog-confirmed free route should never strand a configured
+                // user in an opaque error. Manual provider usage requires a separate tap
+                // and explicit cost warning; no previous prompt is replayed.
+                if (state.smartComboEnabled && state.smartComboOffers == 0) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(stringResource(R.string.chat_combo_unavailable),
+                                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            Text(
+                                smartComboStatusLabel(state),
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = viewModel::refreshSmartCombo,
+                                    enabled = !state.smartComboRefreshing && !state.isGenerating) {
+                                    Text(stringResource(R.string.api_refresh), fontSize = 12.sp)
+                                }
+                                Button(onClick = { confirmDirectProvider = true },
+                                    enabled = !state.isGenerating && state.hasSavedKey &&
+                                        state.selectedModel.isNotBlank()) {
+                                    Text(stringResource(R.string.chat_manual), fontSize = 12.sp)
+                                }
+                            }
+                            Text(stringResource(R.string.chat_combo_not_quota),
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    Text(stringResource(R.string.chat_combo_not_quota),
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+            }
+        }
+        if (state.smartComboEnabled && state.smartComboOffers == 0 && (!workspaceControlsOpen || keyboardVisible)) {
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(Modifier.padding(start = 8.dp, end = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(stringResource(R.string.chat_combo_unavailable), fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold)
+                        Text(smartComboStatusLabel(state), fontSize = 12.sp,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    TextButton(onClick = { workspaceControlsOpen = true }) {
+                        Text(stringResource(R.string.focus_details), fontSize = 12.sp)
+                    }
                 }
             }
         }
@@ -702,8 +763,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    contentPadding = PaddingValues(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(messages) { message ->
                         ChatBubble(
@@ -897,7 +958,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                 OutlinedTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
@@ -955,23 +1016,6 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     }
 
                     Spacer(Modifier.weight(1f))
-
-                    // Live quick consumed / remaining pill
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.clickable { tokenDetailsOpen = true }
-                    ) {
-                        Text(
-                            text = "${numberFormat.format(metrics.consumedTurnTotalTokens)} / ${numberFormat.format(metrics.remainingContextTokens)}",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
-                        )
-                    }
-
-                    Spacer(Modifier.width(6.dp))
 
                     Button(
                         onClick = { send() },
@@ -1686,9 +1730,9 @@ private fun ChatBubble(
                 bottomStart = if (isUser) 16.dp else 3.dp,
                 bottomEnd = if (isUser) 3.dp else 16.dp
             ),
-            modifier = Modifier.widthIn(max = 334.dp)
+            modifier = Modifier.fillMaxWidth(if (isUser) 0.94f else 1f)
         ) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 message.attachment?.let { attachment ->
                     Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(9.dp)) {
@@ -1715,7 +1759,7 @@ private fun ChatBubble(
                         color = MaterialTheme.colorScheme.surface,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.65f))
                     ) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.tertiary,
                                     modifier = Modifier.size(18.dp))

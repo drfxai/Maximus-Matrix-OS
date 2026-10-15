@@ -165,6 +165,7 @@ fun MatrixGraphScreen(
     val status by viewModel.status.collectAsState()
     val llm by viewModel.llmState.collectAsState()
     val brainMessages by viewModel.chatMessages.collectAsState()
+    var brainExpanded by remember { mutableStateOf(false) }
     val dataCenter by viewModel.dataCenter.collectAsState()
     val recentAlerts by viewModel.notificationService.recentAlerts.collectAsState()
     val watchlist by viewModel.notificationService.activeWatchlist.collectAsState()
@@ -624,6 +625,8 @@ fun MatrixGraphScreen(
             )
         }
 
+        if (!keyboardVisible) ConversationTelemetryRibbon(llm, onNavigateToControl, onNavigateToControl)
+
         // Horizontal Anatomical Lobe Filter Chips
         val lobeFilters = listOf(
             "ALL" to stringResource(R.string.brain_lobes_all),
@@ -634,7 +637,7 @@ fun MatrixGraphScreen(
             "LIMBIC SYSTEM" to stringResource(R.string.brain_lobe_limbic),
             "CEREBELLAR" to stringResource(R.string.brain_lobe_cerebellar)
         )
-        LazyRow(
+        if (!keyboardVisible) LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 2.dp),
@@ -667,7 +670,9 @@ fun MatrixGraphScreen(
             }
         }
 
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().semantics {
+            contentDescription = appContext.getString(R.string.focus_graph_canvas)
+        }) {
             val wide = maxWidth >= 760.dp
             val isCompact = maxHeight < 300.dp
             Row(Modifier.fillMaxSize()) {
@@ -891,46 +896,66 @@ fun MatrixGraphScreen(
                 text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { if (openPanel == GraphPanel.INSPECTOR) inspector() else filters() } },
                 confirmButton = { TextButton(onClick = { openPanel = null }) { Text(stringResource(R.string.graph_done)) } })
         }
-        Surface(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)
+        Surface(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)
             .semantics { contentDescription = appContext.getString(R.string.conv_brain_composer) }, color = panelColor,
             shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, border)) {
-            Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(Modifier.heightIn(max = if (keyboardVisible) 240.dp else 480.dp)
+                .verticalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.brain_chat_heading),
                         modifier = Modifier.weight(1f), fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold, color = ink)
-                    TextButton(onClick = onNavigateToChat) {
-                        Text(stringResource(R.string.brain_open_full_chat), fontSize = 10.sp)
+                        fontWeight = FontWeight.Bold, color = ink, maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    IconButton(onClick = { brainExpanded = !brainExpanded }, enabled = !keyboardVisible,
+                        modifier = Modifier.size(48.dp)) {
+                        Icon(if (brainExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            stringResource(if (brainExpanded) R.string.focus_collapse_home else R.string.focus_expand_home),
+                            Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = onNavigateToChat, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Default.OpenInFull, stringResource(R.string.brain_open_full_chat), Modifier.size(18.dp))
                     }
                 }
-                if (brainMessages.isEmpty()) {
-                    Text(if (llm.selectedModel.isBlank()) stringResource(R.string.brain_offline)
-                         else stringResource(R.string.brain_chat_intro),
-                        color = muted, fontSize = 11.sp, maxLines = 2)
-                } else {
-                    // Keep the home-screen assistant compact; long chat history belongs
-                    // in the dedicated Chat screen. Show only the latest exchange.
-                    brainMessages.takeLast(2).forEach { item ->
-                        Surface(color = if (item.role == "user")
-                            graphTone(GraphAccent, light).copy(alpha = .10f)
-                            else if (item.isError) MaterialTheme.colorScheme.errorContainer
-                            else MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(9.dp)) {
-                            Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)) {
-                                Text(if (item.role == "user") stringResource(R.string.brain_you)
-                                     else "MAXIMUS",
-                                    fontSize = 9.sp, fontWeight = FontWeight.Bold,
-                                    color = if (item.isError) MaterialTheme.colorScheme.error else muted)
-                                Text(item.content, fontSize = 11.sp, color = ink,
-                                    lineHeight = 15.sp, maxLines = 4)
+                if (brainExpanded && !keyboardVisible) {
+                    Column(Modifier.heightIn(max = 130.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (brainMessages.isEmpty()) {
+                        Text(if (llm.selectedModel.isBlank()) stringResource(R.string.brain_offline)
+                             else stringResource(R.string.brain_chat_intro),
+                            color = muted, fontSize = 11.sp, maxLines = 2)
+                    } else {
+                        // Keep the home-screen assistant compact; long chat history belongs
+                        // in the dedicated Chat screen. Show only the latest exchange.
+                        brainMessages.takeLast(2).forEach { item ->
+                            Surface(color = if (item.role == "user")
+                                graphTone(GraphAccent, light).copy(alpha = .10f)
+                                else if (item.isError) MaterialTheme.colorScheme.errorContainer
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(9.dp)) {
+                                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)) {
+                                    Text(if (item.role == "user") stringResource(R.string.brain_you)
+                                         else "MAXIMUS",
+                                        fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                                        color = if (item.isError) MaterialTheme.colorScheme.error else muted)
+                                    Text(item.content, fontSize = 11.sp, color = ink,
+                                        lineHeight = 15.sp, maxLines = 4)
+                                }
                             }
                         }
                     }
+                    }
+                }
+                if (!brainExpanded && !keyboardVisible) {
+                    brainMessages.lastOrNull { it.role == "assistant" }?.let { reply ->
+                        Text(reply.content, Modifier.fillMaxWidth().clickable(onClick = onNavigateToChat),
+                            color = if (reply.isError) MaterialTheme.colorScheme.error else ink,
+                            fontSize = 12.sp, maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    }
                 }
                 if (llm.isGenerating) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
-                    Text(stringResource(R.string.brain_wait), fontSize = 10.sp, color = muted)
+                    LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
                 }
                 // Give the text field the full width in RTL and on compact phones.
                 // Icon buttons on a separate row prevent squeezed or overlapping input.
@@ -941,7 +966,7 @@ fun MatrixGraphScreen(
                     },
                     Modifier.fillMaxWidth().semantics { contentDescription = appContext.getString(R.string.conv_brain_question) },
                     minLines = 1,
-                    maxLines = 3,
+                    maxLines = 2,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = {
                         submitBrain(mission)
@@ -1012,8 +1037,8 @@ fun MatrixGraphScreen(
                         }
                     }) { Text(stringResource(R.string.speech_install_tts)) }
                 }
-                Text(stringResource(R.string.brain_action_approval),
-                    color = muted, fontSize = 9.sp, maxLines = 2)
+                if (brainExpanded && !keyboardVisible) Text(stringResource(R.string.brain_action_approval),
+                    color = muted, fontSize = 10.sp, maxLines = 2)
 
                 val quickActions = listOf(
                         QuickActionItem(
@@ -1103,7 +1128,8 @@ fun MatrixGraphScreen(
                         )
                     )
 
-                Spacer(Modifier.height(8.dp))
+                if (brainExpanded && !keyboardVisible) {
+                Spacer(Modifier.height(2.dp))
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1170,6 +1196,7 @@ fun MatrixGraphScreen(
                             }
                         }
                     }
+                }
                 }
             }
         }

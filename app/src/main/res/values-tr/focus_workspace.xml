@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_controls_show">Sohbet denetimleri</string>
+    <string name="focus_controls_hide">Denetimleri gizle</string>
+    <string name="focus_details">Ayrıntılar</string>
+    <string name="focus_provider_configured">Yapılandırılan sağlayıcı</string>
+    <string name="focus_provider_active">Bu isteği yanıtlıyor</string>
+    <string name="focus_agent">Ajan</string>
+    <string name="focus_preparing">Rota hazırlanıyor</string>
+    <string name="focus_idle">Hazır</string>
+    <string name="focus_running">Çalışıyor</string>
+    <string name="focus_tokens_reported">Son tur · bildirilen</string>
+    <string name="focus_tokens_estimated">Son tur · tahmini</string>
+    <string name="focus_used">%1$s kullanıldı</string>
+    <string name="focus_context_left">Kalan bağlam ≈ %1$s</string>
+    <string name="focus_unknown">Bilinmiyor</string>
+    <string name="focus_live_output">Çıktı ≈ %1$s</string>
+    <string name="focus_expand_home">Asistan ayrıntılarını aç</string>
+    <string name="focus_collapse_home">Asistan ayrıntılarını kapat</string>
+    <string name="focus_graph_canvas">Etkileşimli düğüm grafiği</string>
+    <string name="focus_tokens_live">Geçerli çıktı · tahmini</string>
+</resources>

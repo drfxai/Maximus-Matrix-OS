@@ -33,6 +33,17 @@ class KeyboardLayoutTest {
             phase("mission composer lookup")
             val closed = objectWithDescription("MAXIMUS assistant composer").visibleBounds
             assertTrue("Home header must be visible", device.hasObject(By.text("MAXIMUS AI")))
+            val graph = objectWithDescription("Interactive node graph").visibleBounds
+            assertTrue("The graph should dominate the collapsed home assistant", graph.height() > closed.height())
+            objectWithDescription("Expand assistant details").click()
+            awaitCondition("Assistant details did not expand") {
+                device.hasObject(By.desc("Collapse assistant details"))
+            }
+            objectWithDescription("Collapse assistant details").click()
+            awaitCondition("Assistant did not restore the compact layout") {
+                objectWithDescription("MAXIMUS assistant composer").visibleBounds.height() <= closed.height() + 8
+            }
+            captureWorkspace("home-graph.png")
             repeat(2) { cycle ->
                 phase("mission input click cycle=$cycle")
                 objectWithDescription("Assistant question").click()
@@ -67,6 +78,10 @@ class KeyboardLayoutTest {
             checkNotNull(device.wait(Until.findObject(By.desc("More")), 10_000)).click()
             phase("chat workspace selection")
             checkNotNull(device.wait(Until.findObject(By.text("Maximus AI Chat")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("Workspace controls")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("Hide controls")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("Workspace controls")), 10_000))
+            captureWorkspace("chat-focus.png")
             phase("chat input click")
             objectWithDescription("Chat input").click()
             awaitCondition("Chat keyboard did not open") { isImeVisible() }
@@ -116,6 +131,13 @@ class KeyboardLayoutTest {
             check(device.takeScreenshot(file)) { "Unable to save failure screenshot" }
             phase("Failure screenshot saved: ${file.absolutePath}")
         }.onFailure { phase("Failure diagnostics unavailable: " + it.javaClass.simpleName) }
+    }
+
+    private fun captureWorkspace(name: String) {
+        runCatching {
+            val file = java.io.File(instrumentation.targetContext.getExternalFilesDir(null), name)
+            phase("Workspace screenshot $name saved=" + device.takeScreenshot(file))
+        }.onFailure { phase("Workspace screenshot unavailable: " + it.javaClass.simpleName) }
     }
 
     private fun withResumedActivity(block: (MainActivity) -> Unit) {

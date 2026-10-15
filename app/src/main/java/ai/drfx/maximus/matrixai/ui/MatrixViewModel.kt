@@ -671,12 +671,14 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             appendAssistantError("This request exceeds the estimated model context limit. Reduce its size.")
             return false
         }
-        _llmState.value = current.copy(isGenerating = true, tokenMetrics = current.tokenMetrics.copy(
+        _llmState.value = current.copy(isGenerating = true, activeRequest = null, tokenMetrics = current.tokenMetrics.copy(
             streamingEstimateActive = false,
             streamingOutputTokensEstimate = 0,
             verifiedRateRequestsRemaining = null,
             verifiedRateTokensRemaining = null,
-            rateEvidenceAtEpochMs = null
+            rateEvidenceAtEpochMs = null,
+            rateProvider = null,
+            rateModelId = ""
         ), statusMessage = if (selectedContext.omittedMessages > 0) "Older context omitted to fit the estimated limit; no automatic summary." else current.statusMessage)
 
         chatJob = viewModelScope.launch {
@@ -694,6 +696,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
             )
 
+                if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 val requestHistory = selectedContext.messages
                 if (current.smartComboEnabled) {
                     autoPrepared = freeExecutor.prepare(
@@ -750,6 +753,13 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         (if (memoryEvidenceAtRequest.isBlank()) "" else "\n\n" + memoryEvidenceAtRequest) +
                         speechInstruction)
                 }
+                val dispatched = ChatRequestTelemetry(config.provider, config.selectedModel,
+                    selectedAgent.id, selectedAgent.name, streamTime, current.smartComboEnabled)
+                val dispatchedCapacity = autoPrepared?.offer?.route?.contextWindowTokens
+                    ?: ModelLimitsResolver.contextWindow(config.provider, config.selectedModel)
+                _llmState.value = _llmState.value.copy(activeRequest = dispatched, lastRequest = dispatched,
+                    tokenMetrics = ChatTokenTelemetry.dispatched(_llmState.value.tokenMetrics,
+                        dispatchedCapacity, selectedContext.estimatedTokens + memoryAndSystemBudget))
                 val result = chatClient.send(config, requestHistory, equippedAgent, onQuota = { windows ->
                     if (windows.isNotEmpty()) {
                         autoPrepared?.let { freeExecutor.observeProviderQuota(it, windows) }
@@ -768,7 +778,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                                 verifiedRateTokensRemaining = tokens?.remaining,
                                 verifiedRequestRateKind = if (requests?.kind ==
                                     SmartComboPlanner.LimitKind.REQUESTS_PER_DAY) "RPD" else "RPM",
-                                rateEvidenceAtEpochMs = System.currentTimeMillis()
+                                rateEvidenceAtEpochMs = System.currentTimeMillis(),
+                                rateProvider = config.provider,
+                                rateModelId = config.selectedModel
                             ))
                         }
                     }
@@ -850,33 +862,19 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 _usage.value = summary
 
                 val capacity = autoPrepared?.offer?.route?.contextWindowTokens
-                    ?: ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
+                    ?: ModelLimitsResolver.contextWindow(config.provider, config.selectedModel)
                 val activeContextTokens = ChatContextPolicy.bounded(_chatMessages.value, capacity).estimatedTokens
-                val remainingCtx = (capacity - activeContextTokens).coerceAtLeast(0)
-                val budget = current.monthlyTokenBudget
-                val remainingBudget = if (budget > 0) (budget - summary.totalTokens).coerceAtLeast(0L) else null
-                val percent = if (capacity > 0) (activeContextTokens.toFloat() / capacity.toFloat()).coerceIn(0f, 1f) else 0f
-
-                val updatedMetrics = current.tokenMetrics.copy(
-                    consumedTurnInputTokens = result.usage.inputTokens,
-                    consumedTurnOutputTokens = result.usage.outputTokens,
-                    consumedTurnTotalTokens = result.usage.totalTokens,
-                    consumedSessionTokens = current.tokenMetrics.consumedSessionTokens + result.usage.totalTokens,
-                    consumedLifetimeTokens = summary.totalTokens,
-                    contextCapacity = capacity,
-                    remainingContextTokens = remainingCtx,
-                    monthlyTokenBudget = budget,
-                    remainingBudgetTokens = remainingBudget,
-                    contextUsagePercent = percent,
-                    streamingEstimateActive = false,
-                    streamingOutputTokensEstimate = 0
-                )
+                // Preserve the response's live rate snapshot and the latest user budget.
+                val visible = _llmState.value
+                val updatedMetrics = ChatTokenTelemetry.completed(visible.tokenMetrics, result.usage,
+                    summary.totalTokens, capacity, activeContextTokens, visible.monthlyTokenBudget)
+                val remainingCtx = updatedMetrics.remainingContextTokens
 
                 _llmState.value = _llmState.value.copy(
                     status = ConnectionStatus.CONNECTED,
                     statusMessage = "Inference succeeded: " + config.provider.displayName + " / " + config.selectedModel +
                         if (autoPrepared != null) " (verified free-text offer; account quota unknown)." else ".",
-                    isGenerating = false,
+                    isGenerating = false, activeRequest = null,
                     tokenMetrics = updatedMetrics
                 )
                 AppLogStore.info("CHAT", "Response completed model=" + config.selectedModel + " inputTokens=" + result.usage.inputTokens + " outputTokens=" + result.usage.outputTokens + " remainingCtx=" + remainingCtx)
@@ -897,7 +895,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 if (error is CancellationException) {
-                    if (requestGeneration == chatGeneration) _llmState.value = _llmState.value.copy(isGenerating = false, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
+                    if (requestGeneration == chatGeneration) _llmState.value = _llmState.value.copy(isGenerating = false, activeRequest = null, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                     throw error
                 }
                 streamingTimestamp?.let { t -> _chatMessages.value = _chatMessages.value.filterNot { it.role == "assistant" && it.timestampMs == t } }
@@ -905,7 +903,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 AppLogStore.error("CHAT", error.message ?: "The model request failed.")
                 appendAssistantError(error.message ?: "The model request failed.")
-                _llmState.value = _llmState.value.copy(isGenerating = false, status = ConnectionStatus.DEGRADED, statusMessage = error.message ?: "Inference failed", tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
+                _llmState.value = _llmState.value.copy(isGenerating = false, activeRequest = null, status = ConnectionStatus.DEGRADED, statusMessage = error.message ?: "Inference failed", tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                 appendLlmEvent(
                     MatrixEventType.MODEL_FAILED,
                     "model:" + (autoPrepared?.config?.selectedModel ?: current.selectedModel),
@@ -923,7 +921,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         streamingTimestamp = null
         chatJob?.cancel()
         chatJob = null
-        _llmState.value = _llmState.value.copy(isGenerating = false, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
+        _llmState.value = _llmState.value.copy(isGenerating = false, activeRequest = null, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
     }
 
     private fun restoreChatSession(id: String) {
