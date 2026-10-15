@@ -701,4 +701,8 @@
     <string name="vision_uncalibrated_pattern">Интерпретация ИИ · без калибровки</string>
     <string name="vision_assistant_share">ИИ-помощник и отправка</string>
     <string name="vision_trader_notes">Заметки и предположения трейдера</string>
+    <string name="chat_go_to_latest_message">Перейти к последнему сообщению</string>
+    <string name="chat_composer_description">Редактор сообщения чата</string>
+    <string name="chat_input_description">Ввод сообщения чата</string>
+    <string name="chat_configure_key_description">Настроить API-ключ</string>
 </resources>

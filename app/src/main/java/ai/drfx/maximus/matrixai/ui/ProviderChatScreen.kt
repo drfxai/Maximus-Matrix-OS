@@ -796,7 +796,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = "Go to latest message",
+                            contentDescription = stringResource(R.string.chat_go_to_latest_message),
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -871,7 +871,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
 
         // Compact message input field; screen-level IME insets keep it above the keyboard.
         Surface(
-            modifier = Modifier.semantics { contentDescription = "Chat composer" },
+            modifier = Modifier.semantics { contentDescription = context.getString(R.string.chat_composer_description) },
             color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -880,7 +880,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 OutlinedTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Chat input" },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = context.getString(R.string.chat_input_description) },
                     maxLines = 3,
                     enabled = !recording,
                     placeholder = { Text(stringResource(R.string.speech_input_hint), fontSize = 13.sp) },
@@ -1506,7 +1506,7 @@ private fun ChatProviderSwitcherBar(
                 ) {
                     Icon(
                         if (hasSavedKey) Icons.Default.CheckCircle else Icons.Default.Key,
-                        contentDescription = "Configure Key",
+                        contentDescription = stringResource(R.string.chat_configure_key_description),
                         tint = if (hasSavedKey) Color(0xFF00E676) else MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(10.dp)
                     )
@@ -1601,7 +1601,7 @@ private fun MicroProviderChip(
                 Spacer(Modifier.width(2.dp))
                 Icon(
                     Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Select Model",
+                    contentDescription = stringResource(R.string.chat_select_model),
                     tint = brandColor,
                     modifier = Modifier
                         .size(11.dp)

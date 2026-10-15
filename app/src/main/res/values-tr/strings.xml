@@ -701,4 +701,8 @@
     <string name="vision_uncalibrated_pattern">AI yorumu · kalibre edilmedi</string>
     <string name="vision_assistant_share">AI asistanı ve paylaşım</string>
     <string name="vision_trader_notes">Yatırımcı notları ve varsayımlar</string>
+    <string name="chat_go_to_latest_message">Son mesaja git</string>
+    <string name="chat_composer_description">Sohbet mesajı düzenleyicisi</string>
+    <string name="chat_input_description">Sohbet girişi</string>
+    <string name="chat_configure_key_description">API anahtarını yapılandır</string>
 </resources>
