@@ -456,4 +456,20 @@
     <string name="brain_graph_start_rotation">بدء الدوران</string>
     <string name="brain_graph_filter_nodes">تصفية مجموعات العقد</string>
     <string name="brain_graph_clear_focus">إلغاء التحديد</string>
+    <string name="brain_group_core">نواة ماتريكس</string>
+    <string name="brain_group_signals">الإشارات المباشرة</string>
+    <string name="brain_group_vision">تحليل الرسوم البيانية</string>
+    <string name="brain_group_news">الأخبار الذكية</string>
+    <string name="brain_group_alerts">تنبيهات السوق</string>
+    <string name="brain_group_agents">تشغيل الوكلاء</string>
+    <string name="brain_group_execution">التحكم في التنفيذ</string>
+    <string name="brain_group_chat">المحادثة الذكية</string>
+    <string name="brain_group_genome">جينوم التداول</string>
+    <string name="brain_group_pine">أدوات باين</string>
+    <string name="brain_group_quant">البحث الكمي</string>
+    <string name="brain_group_validation">مختبر التحقق</string>
+    <string name="brain_group_research">ذاكرة البحث</string>
+    <string name="brain_group_data">البيانات والمعرفة</string>
+    <string name="brain_group_routing">توجيه النماذج</string>
+    <string name="brain_group_finops">إدارة التكاليف والتحكم</string>
 </resources>
