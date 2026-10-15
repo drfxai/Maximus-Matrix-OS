@@ -10,11 +10,35 @@ class BrainRequestRouterTest {
     @Test fun normalQuestionsAreModelConversations() {
         for (question in listOf("hi", "سلام، حالت چطوره؟",
             "How can I improve my camera?", "Explain Wi-Fi security",
+            "چگونه تنظیمات وای فای را تغییر بدهم؟", "عکس گرفتن با دوربین چگونه است؟",
+            "Как открыть камеру?", "Kamera nasıl açılır?", "كيف أفتح الكاميرا؟",
             "آیا میتوانی برای تلگرام ربات بسازی؟",
             "یک برنامه بنویس که تلگرام را باز کند")) {
             assertTrue(question, BrainRequestRouter.route(question) is
                 BrainRequestRouter.Request.Conversation)
         }
+    }
+
+    @Test fun explicitActionsWorkInTheOtherThreeUiLanguages() {
+        listOf("افتح الكاميرا", "kamerayı aç", "открой камеру").forEach {
+            assertEquals("camera", command(it))
+        }
+        listOf("افتح تلغرام", "telegram aç", "открой телеграм").forEach {
+            assertEquals("app org.telegram.messenger", command(it))
+        }
+        listOf("افتح كروم", "chrome aç", "открой хром").forEach {
+            assertEquals("app com.android.chrome", command(it))
+        }
+        listOf("شغل الواي فاي", "wifi kapat", "включи wi-fi").forEach {
+            assertEquals("settings wifi", command(it))
+        }
+        listOf("افتح الإعدادات", "ayarları aç", "открой настройки").forEach {
+            assertEquals("settings", command(it))
+        }
+        assertEquals("search kotlin", command("search google for Kotlin"))
+        assertEquals("search kotlin", command("ابحث عن Kotlin"))
+        assertEquals("search kotlin", command("ara Kotlin"))
+        assertEquals("search kotlin", command("найди Kotlin"))
     }
 
     @Test fun explicitPersianAndEnglishPhoneActionsAreAllowlisted() {
