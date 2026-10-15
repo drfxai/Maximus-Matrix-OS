@@ -472,4 +472,8 @@
     <string name="brain_group_data">داده و دانش</string>
     <string name="brain_group_routing">مسیریابی مدل‌ها</string>
     <string name="brain_group_finops">مدیریت هزینه و کنترل</string>
+    <string name="brain_status_planning">در حال برنامه‌ریزی</string>
+    <string name="brain_status_executing">در حال اجرا</string>
+    <string name="brain_status_attention">نیازمند بررسی</string>
+    <string name="brain_status_confirmation">منتظر تأیید</string>
 </resources>
