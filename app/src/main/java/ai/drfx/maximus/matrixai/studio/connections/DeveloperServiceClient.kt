@@ -235,6 +235,78 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         }
     }
 
+    private suspend fun githubBranch(owner: String, repo: String, branch: String): JSONObject =
+        JSONObject(call(DevelopmentService.GITHUB,
+            "/repos/$owner/$repo/branches/" + URLEncoder.encode(branch, "UTF-8"))
+            .toString(StandardCharsets.UTF_8))
+
+    /** Reads repository evidence only. Creating the draft requires a second, explicit action. */
+    suspend fun prepareGithubPullRequest(
+        owner: String, repository: String, head: String, title: String, body: String
+    ): GithubPullRequestReview {
+        val o = DeveloperConnectionPolicy.repoPart(owner)
+        val r = DeveloperConnectionPolicy.repoPart(repository)
+        val h = DeveloperConnectionPolicy.writableBranch(head)
+        val metadata = JSONObject(call(DevelopmentService.GITHUB, "/repos/$o/$r")
+            .toString(StandardCharsets.UTF_8))
+        val base = DeveloperConnectionPolicy.branch(metadata.getString("default_branch"))
+        require(h != base) { "Choose a feature branch instead of the default branch." }
+        val baseInfo = githubBranch(o, r, base)
+        val headInfo = githubBranch(o, r, h)
+        check(headInfo.optString("name") == h) { "The feature branch could not be verified." }
+        GithubPullRequestPolicy.requireUnprotectedHead(headInfo.opt("protected") as? Boolean)
+        val baseSha = baseInfo.getJSONObject("commit").getString("sha")
+        val headSha = headInfo.getJSONObject("commit").getString("sha")
+        require(baseSha.matches(Regex("[a-f0-9]{40}")) && headSha.matches(Regex("[a-f0-9]{40}")))
+        val comparison = JSONObject(call(DevelopmentService.GITHUB,
+            "/repos/$o/$r/compare/$baseSha...$headSha").toString(StandardCharsets.UTF_8))
+        check(comparison.optString("status") in setOf("ahead", "diverged")) {
+            "The feature branch has no changes ahead of the default branch."
+        }
+        val changed = comparison.getJSONArray("files")
+        require(changed.length() in 1..100) { "The review supports between 1 and 100 changed files." }
+        val names = (0 until changed.length()).map { changed.getJSONObject(it).getString("filename") }
+        return GithubPullRequestPolicy.review(o, r, base, h, baseSha, headSha,
+            title, body, comparison.getInt("ahead_by"), names)
+    }
+
+    /** Does not merge, approve, deploy or retry. A changed preview must be reviewed again. */
+    suspend fun createGithubPullRequest(review: GithubPullRequestReview, approved: Boolean): GithubPullRequestResult {
+        check(approved) { "Explicit approval is required to create a draft pull request." }
+        val admitted = GithubPullRequestPolicy.review(review.owner, review.repository,
+            review.base, review.head, review.baseSha, review.headSha, review.title,
+            review.body, review.aheadBy, review.files)
+        val o = admitted.owner
+        val r = admitted.repository
+        val metadata = JSONObject(call(DevelopmentService.GITHUB, "/repos/$o/$r")
+            .toString(StandardCharsets.UTF_8))
+        val currentBase = metadata.getString("default_branch")
+        val baseInfo = githubBranch(o, r, admitted.base)
+        val headInfo = githubBranch(o, r, admitted.head)
+        check(headInfo.optString("name") == admitted.head) { "The feature branch could not be verified." }
+        GithubPullRequestPolicy.requireUnprotectedHead(headInfo.opt("protected") as? Boolean)
+        GithubPullRequestPolicy.requireCurrent(admitted, currentBase,
+            baseInfo.getJSONObject("commit").getString("sha"),
+            headInfo.getJSONObject("commit").getString("sha"))
+        val body = JSONObject().put("title", admitted.title).put("body", admitted.body)
+            .put("head", admitted.head).put("base", admitted.base).put("draft", true)
+            .put("maintainer_can_modify", false).toString().toByteArray(Charsets.UTF_8)
+        val created = JSONObject(call(DevelopmentService.GITHUB, "/repos/$o/$r/pulls",
+            "POST", body).toString(StandardCharsets.UTF_8))
+        // Construct the known first-party URL instead of opening an arbitrary API html_url.
+        val url = GithubPullRequestPolicy.resultUrl(admitted, created.getInt("number"))
+        val actualBase = created.optJSONObject("base")
+        val actualHead = created.optJSONObject("head")
+        // GitHub cannot atomically freeze refs for this API. Preserve the created URL
+        // even if a concurrent push changed the snapshot after our last check.
+        val matches = GithubPullRequestPolicy.resultMatches(admitted,
+            actualBase?.optString("ref").orEmpty(), actualBase?.optString("sha").orEmpty(),
+            actualHead?.optString("ref").orEmpty(), actualHead?.optString("sha").orEmpty(),
+            actualHead?.optJSONObject("repo")?.optString("full_name").orEmpty(),
+            created.optBoolean("draft"))
+        return GithubPullRequestResult(url, matches)
+    }
+
     /** Discovery is restricted to accounts exposed by this user's scoped API token. */
     suspend fun listCloudflareAccounts(): List<CloudflareAccount> {
         val response = JSONObject(call(DevelopmentService.CLOUDFLARE,

@@ -31,6 +31,10 @@ import ai.drfx.maximus.matrixai.studio.connections.DeveloperCredentialVault
 import ai.drfx.maximus.matrixai.studio.connections.DeveloperServiceClient
 import ai.drfx.maximus.matrixai.studio.connections.DevelopmentService
 import ai.drfx.maximus.matrixai.studio.connections.GithubSourceFile
+import ai.drfx.maximus.matrixai.studio.connections.DeveloperConnectionState
+import ai.drfx.maximus.matrixai.studio.connections.GithubPullRequestReview
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -52,7 +56,18 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
     val vault = remember(context) { DeveloperCredentialVault(context) }
     val client = remember(context) { DeveloperServiceClient(vault) }
     val scope = rememberCoroutineScope()
-    var verified by remember { mutableStateOf(false) }
+    var connection by remember { mutableStateOf(DeveloperConnectionState(
+        credentialSaved = vault.configured(DevelopmentService.GITHUB))) }
+    val verified = connection.verified
+    val credentialSaved = connection.credentialSaved
+    val accountId = connection.accountId
+    val workerNames = connection.workerNames
+    var prTitle by remember { mutableStateOf("") }
+    var prBody by remember { mutableStateOf("") }
+    var prReview by remember { mutableStateOf<GithubPullRequestReview?>(null) }
+    var prRevision by remember { mutableStateOf(-1L) }
+    var prUrl by remember { mutableStateOf("") }
+    var prSnapshotMatches by remember { mutableStateOf(true) }
     var advanced by remember { mutableStateOf(false) }
     var repositoryUrl by remember { mutableStateOf("") }
     var accounts by remember { mutableStateOf(emptyList<CloudflareAccount>()) }
@@ -73,10 +88,7 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
     var filePath by remember { mutableStateOf("") }
     var loaded by remember { mutableStateOf<GithubSourceFile?>(null) }
     var proposedText by remember { mutableStateOf("") }
-    var accountId by remember { mutableStateOf("") }
-    var workerNames by remember { mutableStateOf(emptyList<String>()) }
     var confirmAction by remember { mutableStateOf<String?>(null) }
-    var credentialSaved by remember { mutableStateOf(vault.configured(selected)) }
 
     fun perform(action: suspend () -> String) {
         if (isBusy) return
@@ -109,23 +121,21 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected == DevelopmentService.GITHUB, onClick = {
                     selected = DevelopmentService.GITHUB
-                    credentialSaved = vault.configured(selected)
+                    connection = connection.reset(vault.configured(selected))
+                    prReview = null; prUrl = ""
                     rawToken = ""
                     feedback = ""
-                    verified = false
                     accounts = emptyList()
-                    accountId = ""
                     accessKey = ""
                     deploymentDone = false; feedback = ""
                 }, enabled = !isBusy, label = { Text("GitHub") })
                 FilterChip(selected == DevelopmentService.CLOUDFLARE, onClick = {
                     selected = DevelopmentService.CLOUDFLARE
-                    credentialSaved = vault.configured(selected)
+                    connection = connection.reset(vault.configured(selected))
+                    prReview = null; prUrl = ""
                     rawToken = ""
                     feedback = ""
-                    verified = false
                     accounts = emptyList()
-                    accountId = ""
                     accessKey = ""
                     deploymentDone = false; feedback = ""
                 }, enabled = !isBusy, label = { Text("Cloudflare") })
@@ -158,7 +168,7 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedTextField(
-                value = rawToken, onValueChange = { rawToken = it.take(512); verified = false },
+                value = rawToken, onValueChange = { rawToken = it.take(512); connection = connection.reset(credentialSaved); prReview = null; prUrl = "" },
                 enabled = !isBusy,
                 visualTransformation = PasswordVisualTransformation(),
                 label = { Text(stringResource(R.string.dev_token)) },
@@ -169,36 +179,34 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                     try {
                         vault.save(selected, rawToken)
                         rawToken = ""
-                        credentialSaved = true
-                        verified = false
+                        connection = connection.reset(true)
+                        prReview = null; prUrl = ""
                         accounts = emptyList()
-                        workerNames = emptyList()
                         deploymentDone = false; feedback = ""
                         feedback = context.getString(R.string.dev_saved)
                     } catch (e: Exception) { feedback = context.getString(R.string.dev_save_failed) }
                 }) { Text(stringResource(R.string.dev_save_token)) }
                 OutlinedButton(enabled = credentialSaved && rawToken.isBlank() && !isBusy, onClick = {
                     val serviceToVerify = selected
+                    val revisionToVerify = connection.revision
                     perform {
-                        verified = false
+                        connection = connection.copy(verified = false)
                         if (serviceToVerify == DevelopmentService.GITHUB) client.verifyGithub()
                         else client.verifyCloudflare()
-                        verified = true
+                        connection = connection.finishVerification(revisionToVerify)
                         context.getString(R.string.dev_verified)
                     }
                 }) { Text(stringResource(R.string.dev_verify)) }
                 TextButton(enabled = credentialSaved && !isBusy, onClick = {
                     try {
                         vault.clear(selected)
-                        credentialSaved = false
-                        verified = false
+                        connection = connection.reset(false)
+                        prReview = null; prUrl = ""
                         accessKey = ""
                         accounts = emptyList()
-                        accountId = ""
                         deploymentDone = false; feedback = ""
                         loaded = null
                         proposedText = ""
-                        workerNames = emptyList()
                         feedback = ""
                     } catch (e: Exception) {
                         feedback = context.getString(R.string.dev_clear_failed)
@@ -212,7 +220,7 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                     val parsed = runCatching { DeveloperSetupPolicy.parseGithubRepository(value) }.getOrNull()
                     owner = parsed?.first.orEmpty()
                     repo = parsed?.second.orEmpty()
-                    loaded = null
+                    loaded = null; prReview = null; prUrl = ""
                 }, label = { Text(stringResource(R.string.dev_repository_link)) },
                     enabled = !isBusy, singleLine = true,
                     isError = repositoryUrl.isNotBlank() && (owner.isBlank() || repo.isBlank()),
@@ -231,14 +239,14 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                         Text(stringResource(R.string.dev_git_editor),
                             style = MaterialTheme.typography.titleSmall)
                         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                            OutlinedTextField(owner, { owner = it.take(110); loaded = null },
+                            OutlinedTextField(owner, { owner = it.take(110); loaded = null; prReview = null; prUrl = "" },
                                 label = { Text(stringResource(R.string.dev_owner)) },
                                 singleLine = true, enabled = !isBusy, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(repo, { repo = it.take(110); loaded = null },
+                            OutlinedTextField(repo, { repo = it.take(110); loaded = null; prReview = null; prUrl = "" },
                                 label = { Text(stringResource(R.string.dev_repository)) },
                                 singleLine = true, enabled = !isBusy, modifier = Modifier.fillMaxWidth())
                         }
-                        OutlinedTextField(branch, { branch = it.take(180); loaded = null },
+                        OutlinedTextField(branch, { branch = it.take(180); loaded = null; prReview = null; prUrl = "" },
                             enabled = !isBusy, label = { Text(stringResource(R.string.dev_branch)) },
                             singleLine = true, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(filePath, { filePath = it.take(450); loaded = null },
@@ -290,6 +298,40 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                         }, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.dev_create_branch))
                         }
+                        HorizontalDivider()
+                        Text(stringResource(R.string.dev_pr_heading), style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.dev_pr_hint), style = MaterialTheme.typography.bodySmall)
+                        OutlinedTextField(prTitle, { prTitle = it.take(120); prReview = null; prUrl = "" },
+                            enabled = !isBusy, singleLine = true,
+                            label = { Text(stringResource(R.string.dev_pr_title)) }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(prBody, { prBody = it.take(20_000); prReview = null; prUrl = "" },
+                            enabled = !isBusy, maxLines = 6,
+                            label = { Text(stringResource(R.string.dev_pr_body)) }, modifier = Modifier.fillMaxWidth())
+                        OutlinedButton(enabled = credentialSaved && verified && rawToken.isBlank() && !isBusy &&
+                            owner.isNotBlank() && repo.isNotBlank() && branch.isNotBlank() && prTitle.isNotBlank(),
+                            onClick = {
+                                val o = owner; val r = repo; val h = branch
+                                val title = prTitle; val body = prBody
+                                val revision = connection.revision
+                                perform {
+                                    val review = client.prepareGithubPullRequest(o, r, h, title, body)
+                                    if (connection.revision == revision) {
+                                        prReview = review
+                                        prRevision = revision
+                                    }
+                                    context.getString(R.string.dev_pr_preview_ready)
+                                }
+                            }, modifier = Modifier.fillMaxWidth().testTag("developer_pr_prepare")) {
+                            Text(stringResource(R.string.dev_pr_prepare))
+                        }
+                        if (prUrl.isNotBlank()) {
+                            Text(stringResource(if (prSnapshotMatches) R.string.dev_pr_created
+                                else R.string.dev_pr_created_changed), style = MaterialTheme.typography.bodySmall)
+                            TextButton(onClick = {
+                                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(prUrl))) }
+                                    .onFailure { feedback = context.getString(R.string.dev_open_failed) }
+                            }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.dev_pr_open)) }
+                        }
                     }
                 }
             } else {
@@ -298,20 +340,23 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                 OutlinedButton(enabled = credentialSaved && !isBusy, onClick = {
                     perform {
                         accounts = client.listCloudflareAccounts()
-                        if (accounts.size == 1) accountId = accounts.first().id
+                        if (accounts.size == 1) {
+                            connection = connection.selectAccount(accounts.first().id)
+                            deploymentDone = false
+                        }
                         context.getString(R.string.dev_accounts_found, accounts.size)
                     }
                 }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.dev_choose_account)) }
                 accounts.forEach { account ->
                     FilterChip(selected = accountId == account.id, onClick = {
-                        accountId = account.id; deploymentDone = false; feedback = ""
+                        connection = connection.selectAccount(account.id); deploymentDone = false; feedback = ""
                     }, label = { Text(account.name + " · " + account.id.take(8)) },
                         enabled = !isBusy, modifier = Modifier.fillMaxWidth())
                 }
                 Text(stringResource(R.string.dev_worker_discovery_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedTextField(accountId, { accountId = it.take(32); workerNames = emptyList(); deploymentDone = false; feedback = "" },
+                OutlinedTextField(accountId, { connection = connection.selectAccount(it.take(32)); deploymentDone = false; feedback = "" },
                     enabled = !isBusy,
                     label = { Text(stringResource(R.string.dev_account)) },
                     singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -319,9 +364,11 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                     enabled = credentialSaved && !isBusy && Regex("[a-fA-F0-9]{32}").matches(accountId),
                     onClick = {
                         val accountToRead = accountId
+                        val revisionToRead = connection.revision
                         perform {
-                            workerNames = client.listCloudflareWorkers(accountToRead)
-                            context.getString(R.string.dev_workers_found, workerNames.size)
+                            val names = client.listCloudflareWorkers(accountToRead)
+                            connection = connection.receiveWorkers(revisionToRead, accountToRead, names)
+                            context.getString(R.string.dev_workers_found, connection.workerNames.size)
                         }
                     }, modifier = Modifier.fillMaxWidth()
                 ) { Text(stringResource(R.string.dev_list_workers)) }
@@ -401,6 +448,37 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
         }
     }
 
+    prReview?.let { review ->
+        AlertDialog(onDismissRequest = { prReview = null },
+            title = { Text(stringResource(R.string.dev_pr_confirm)) },
+            text = { Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${review.owner}/${review.repository}")
+                Text(stringResource(R.string.dev_pr_target, review.head, review.base))
+                Text(stringResource(R.string.dev_pr_changes, review.aheadBy, review.files.size))
+                Text(review.title, style = MaterialTheme.typography.titleSmall)
+                if (review.body.isNotBlank()) Text(review.body)
+                review.files.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                Text(stringResource(R.string.dev_pr_warning), style = MaterialTheme.typography.bodySmall)
+            } },
+            confirmButton = { Button(enabled = !isBusy && connection.verified &&
+                connection.revision == prRevision && rawToken.isBlank(), onClick = {
+                val revision = prRevision
+                prReview = null
+                perform {
+                    check(connection.revision == revision && connection.verified)
+                    val created = client.createGithubPullRequest(review, approved = true)
+                    prUrl = created.url
+                    prSnapshotMatches = created.reviewedSnapshotMatches
+                    context.getString(if (prSnapshotMatches) R.string.dev_pr_created
+                        else R.string.dev_pr_created_changed)
+                }
+            }) { Text(stringResource(R.string.dev_pr_create)) } },
+            dismissButton = { TextButton(onClick = { prReview = null }) {
+                Text(stringResource(R.string.graph_reject))
+            } })
+    }
+
     deployReview?.let { review ->
         AlertDialog(onDismissRequest = { deployReview = null },
             title = { Text(stringResource(R.string.dev_confirm_deploy)) },
@@ -442,7 +520,7 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                     if (requested == "commit" && change != null) {
                         perform {
                             val commit = client.commitGithubFile(change, proposedText, confirmed = true)
-                            loaded = null
+                            loaded = null; prReview = null; prUrl = ""
                             context.getString(R.string.dev_commit_done) + " " + commit.take(12)
                         }
                     } else if (requested == "branch") {
@@ -450,7 +528,7 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                             client.createGithubFeatureBranch(owner, repo, branch, newBranch,
                                 approved = true)
                             branch = newBranch
-                            loaded = null
+                            loaded = null; prReview = null; prUrl = ""
                             context.getString(R.string.dev_branch_done)
                         }
                     }

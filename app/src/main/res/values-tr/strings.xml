@@ -743,4 +743,18 @@
     <string name="dev_invalid_account">Cloudflare panelindeki 32 karakterli Account ID değerini girin veya genel token formu için alanı boşaltın.</string>
     <string name="dev_clear_failed">Kayıtlı token kaldırılamadı. Yeniden deneyin.</string>
     <string name="dev_working">İşleniyor…</string>
+    <string name="dev_pr_heading">Taslak çekme isteği</string>
+    <string name="dev_pr_hint">Geçerli özellik dalını deponun gerçek varsayılan dalıyla karşılaştırın. Belirtecin bu depo için Contents okuma ve Pull requests yazma izinleri olmalıdır.</string>
+    <string name="dev_pr_title">Çekme isteği başlığı</string>
+    <string name="dev_pr_body">Açıklama</string>
+    <string name="dev_pr_prepare">Önizlemeyi hazırla</string>
+    <string name="dev_pr_preview_ready">Önizleme hazır. Henüz çekme isteği oluşturulmadı.</string>
+    <string name="dev_pr_confirm">Bu taslak çekme isteği oluşturulsun mu?</string>
+    <string name="dev_pr_target">Kaynak: %1$s → Hedef: %2$s</string>
+    <string name="dev_pr_changes">%1$d kayıt önde · %2$d değişen dosya</string>
+    <string name="dev_pr_warning">Bu işlem depo ortaklarının görebileceği bir taslak oluşturur ve CI çalıştırabilir. Göndermeden önce dallar yeniden kontrol edilir. Sonraki kayıtlar isteği günceller. Birleştirme ayrı bir işlem gerektirir.</string>
+    <string name="dev_pr_create">Taslak çekme isteği oluştur</string>
+    <string name="dev_pr_created">Taslak oluşturuldu. Güncel değişiklikleri ve kontrolleri GitHub üzerinde inceleyin.</string>
+    <string name="dev_pr_open">Çekme isteğini aç</string>
+    <string name="dev_pr_created_changed">Çekme isteği oluşturuldu, ancak dönen dal veya taslak durumu onaylanan önizlemeden farklı. Başka işlem yapmadan önce açıp inceleyin.</string>
 </resources>

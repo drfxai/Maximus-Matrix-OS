@@ -743,4 +743,18 @@
     <string name="dev_invalid_account">أدخل Account ID المكوّن من ٣٢ حرفًا من لوحة Cloudflare، أو امسح الحقل لفتح نموذج الرمز العام.</string>
     <string name="dev_clear_failed">تعذر حذف الرمز المحفوظ. أعد المحاولة.</string>
     <string name="dev_working">جارٍ التنفيذ…</string>
+    <string name="dev_pr_heading">طلب سحب مسودة</string>
+    <string name="dev_pr_hint">عاين فرع التطوير الحالي مقابل الفرع الافتراضي الفعلي للمستودع. يحتاج الرمز إلى قراءة Contents وكتابة Pull requests لهذا المستودع.</string>
+    <string name="dev_pr_title">عنوان طلب السحب</string>
+    <string name="dev_pr_body">الوصف</string>
+    <string name="dev_pr_prepare">إعداد المعاينة</string>
+    <string name="dev_pr_preview_ready">المعاينة جاهزة. لم يتم إنشاء طلب سحب بعد.</string>
+    <string name="dev_pr_confirm">إنشاء طلب السحب هذا كمسودة؟</string>
+    <string name="dev_pr_target">الفرع المصدر: %1$s ← الفرع الأساسي: %2$s</string>
+    <string name="dev_pr_changes">%1$d من الالتزامات الإضافية · %2$d من الملفات المتغيرة</string>
+    <string name="dev_pr_warning">ينشئ هذا مسودة مرئية للمتعاونين في المستودع وقد يشغّل CI. تُفحص الفروع مجددًا قبل الإرسال. الالتزامات اللاحقة تحدّث الطلب. يتطلب الدمج إجراءً منفصلًا.</string>
+    <string name="dev_pr_create">إنشاء طلب سحب مسودة</string>
+    <string name="dev_pr_created">تم إنشاء طلب السحب كمسودة. راجع تغييراته الحالية وفحوصه على GitHub.</string>
+    <string name="dev_pr_open">فتح طلب السحب</string>
+    <string name="dev_pr_created_changed">تم إنشاء طلب سحب، لكن حالة الفرع أو المسودة المعادة تختلف عن المعاينة المعتمدة. افتحه وراجعه قبل أي إجراء آخر.</string>
 </resources>
