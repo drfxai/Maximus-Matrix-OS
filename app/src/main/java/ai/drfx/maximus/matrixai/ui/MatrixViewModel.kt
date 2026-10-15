@@ -211,6 +211,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             smartComboOffers = if (enabled) freeOffers.size else 0,
             smartComboRouteLabels = if (enabled) _llmState.value.smartComboRouteLabels else emptyList(),
             smartComboProviderChecks = if (enabled) _llmState.value.smartComboProviderChecks else emptyList(),
+            smartComboCatalogChecks = if (enabled) _llmState.value.smartComboCatalogChecks else emptyList(),
+            smartComboConfiguredProviders = if (enabled) _llmState.value.smartComboConfiguredProviders else 0,
+            smartComboUiPhase = if (enabled) FreeCatalogUiPhase.CHECKING else FreeCatalogUiPhase.OFF,
             smartComboCheckedAtEpochMs = if (enabled) _llmState.value.smartComboCheckedAtEpochMs else null,
             smartComboMessage = if (enabled) "Checking free model catalogues…" else "Free-only routing is off."
         )
@@ -220,7 +223,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     fun refreshSmartCombo() {
         if (!_llmState.value.smartComboEnabled || _llmState.value.smartComboRefreshing) return
         viewModelScope.launch {
-            _llmState.value = _llmState.value.copy(smartComboRefreshing = true, smartComboMessage = "Verifying free model offers…")
+            _llmState.value = _llmState.value.copy(
+                smartComboRefreshing = true,
+                smartComboUiPhase = FreeCatalogUiPhase.CHECKING,
+                smartComboMessage = "Verifying free model offers…"
+            )
             try {
                 val report = freeCatalog.refreshDetailed()
                 if (!_llmState.value.smartComboEnabled) return@launch
@@ -238,6 +245,15 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     smartComboProviderChecks = report.checks.take(8).map { status ->
                         status.provider.displayName + ": " + status.message
                     },
+                    smartComboCatalogChecks = report.checks.take(8).map { check ->
+                        FreeCatalogCheckUi(check.provider, check.kind, check.matchingCount)
+                    },
+                    smartComboConfiguredProviders = report.configuredProviders,
+                    smartComboUiPhase = when {
+                        refreshed.isNotEmpty() -> FreeCatalogUiPhase.READY
+                        report.configuredProviders == 0 -> FreeCatalogUiPhase.NO_ACCOUNTS
+                        else -> FreeCatalogUiPhase.NONE_VERIFIED
+                    },
                     smartComboCheckedAtEpochMs = checkedAt,
                     smartComboMessage = report.diagnosis
                 )
@@ -246,7 +262,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 if (!_llmState.value.smartComboEnabled) return@launch
                 freeOffers = emptyList()
                 _llmState.value = _llmState.value.copy(smartComboOffers = 0,
-                    smartComboRouteLabels = emptyList(), smartComboProviderChecks = emptyList(),
+                    smartComboRouteLabels = emptyList(),
+                    smartComboProviderChecks = emptyList(),
+                    smartComboCatalogChecks = emptyList(),
+                    smartComboConfiguredProviders = 0,
+                    smartComboUiPhase = FreeCatalogUiPhase.UNAVAILABLE,
                     smartComboCheckedAtEpochMs = null,
                     smartComboMessage = "Free catalogue unavailable. No automatic paid fallback.")
             } finally {
