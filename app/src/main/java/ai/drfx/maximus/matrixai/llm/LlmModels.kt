@@ -108,6 +108,22 @@ enum class ConnectionStatus {
     ERROR
 }
 
+/** Stable, non-secret identifiers for translating Smart Combo catalog outcomes. */
+enum class FreeCatalogCheckKind {
+    VERIFIED_FREE, CATALOG_UNAVAILABLE, NO_CHAT_MODEL, NO_ZERO_PRICE,
+    MISSING_CONTEXT, NO_ELIGIBLE_MODEL
+}
+
+data class FreeCatalogCheckUi(
+    val provider: LlmProvider,
+    val kind: FreeCatalogCheckKind,
+    val count: Int = 0
+)
+
+enum class FreeCatalogUiPhase {
+    OFF, CHECKING, NO_ACCOUNTS, NONE_VERIFIED, READY, UNAVAILABLE
+}
+
 data class LlmUiState(
     val status: ConnectionStatus = ConnectionStatus.DISCONNECTED,
     val provider: LlmProvider = LlmProvider.UNKNOWN,
@@ -130,6 +146,10 @@ data class LlmUiState(
     val smartComboRouteLabels: List<String> = emptyList(),
     /** Non-secret provider diagnostics: pricing evidence, missing context or failed catalog. */
     val smartComboProviderChecks: List<String> = emptyList(),
+    /** Structured evidence for genuinely localized UI; legacy strings remain diagnostics only. */
+    val smartComboCatalogChecks: List<FreeCatalogCheckUi> = emptyList(),
+    val smartComboUiPhase: FreeCatalogUiPhase = FreeCatalogUiPhase.OFF,
+    val smartComboConfiguredProviders: Int = 0,
     val smartComboCheckedAtEpochMs: Long? = null,
     val smartComboMessage: String = "Free-only routing is off."
 )

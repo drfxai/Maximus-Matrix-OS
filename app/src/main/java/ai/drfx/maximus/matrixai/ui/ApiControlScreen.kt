@@ -54,7 +54,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
         item {
             Text(stringResource(R.string.api_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                "Provider-specific connections with authenticated model discovery and explicitly estimated context metrics.",
+                stringResource(R.string.api_desc),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 lineHeight = 17.sp
@@ -72,28 +72,28 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Switch(checked = state.smartComboEnabled, onCheckedChange = viewModel::setSmartComboEnabled,
                         enabled = !state.isGenerating)
                 }
-                Text(state.smartComboMessage, fontSize = 12.sp,
+                Text(smartComboStatusLabel(state), fontSize = 12.sp,
                     color = if (state.smartComboEnabled && state.smartComboOffers > 0) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Verified offers: ${state.smartComboOffers}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.api_verified_offers, state.smartComboOffers),
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     OutlinedButton(
                         onClick = viewModel::refreshSmartCombo,
                         enabled = state.smartComboEnabled && !state.smartComboRefreshing && !state.isGenerating
                     ) { Text(stringResource(R.string.api_refresh), fontSize = 12.sp) }
                 }
                 if (state.smartComboRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (state.smartComboEnabled && state.smartComboProviderChecks.isNotEmpty()) {
+                if (state.smartComboEnabled && state.smartComboCatalogChecks.isNotEmpty()) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text(stringResource(R.string.api_provider_results), fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    state.smartComboProviderChecks.forEach { check ->
-                        Text("• " + check, fontSize = 11.sp,
+                    state.smartComboCatalogChecks.forEach { check ->
+                        Text("• " + smartComboProviderLabel(check), fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("A saved API key or free trial balance does not prove every model is free. " +
-                        "Unknown pricing never triggers an automatic request.",
+                    Text(stringResource(R.string.api_provider_warning),
                         fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (state.smartComboRouteLabels.isNotEmpty()) {
@@ -106,19 +106,21 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                             horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                             Icon(Icons.Default.Bolt, null, tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(15.dp))
-                            Text(label, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                            Text(label.removeSuffix(" · zero catalog price") + " · " +
+                                stringResource(R.string.combo_zero_price),
+                                fontSize = 11.sp, modifier = Modifier.weight(1f))
                         }
                     }
                     if (state.smartComboOffers > state.smartComboRouteLabels.size) {
-                        Text("Showing first ${state.smartComboRouteLabels.size} of ${state.smartComboOffers} catalog offers.",
+                        Text(stringResource(R.string.api_first_offers,
+                                state.smartComboRouteLabels.size, state.smartComboOffers),
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("Free pricing verified in catalog; live account quota and real latency may still be unknown. " +
-                        "Failing dispatched routes cool down for new requests; never replay a sent prompt.",
+                    Text(stringResource(R.string.api_catalog_note),
                         fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text("Text only. Provider account remaining quota may be unknown. Paid and unknown-price models are never selected automatically. No automatic replay after a dispatched request.",
+                Text(stringResource(R.string.api_auto_policy),
                     fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -132,7 +134,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Text(stringResource(R.string.api_presets), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 Text(
-                    "Select an isolated provider configuration; model availability requires authenticated discovery.",
+                    stringResource(R.string.api_presets_hint),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
@@ -200,7 +202,8 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                     ) {
                         Text(
-                            text = "${numberFormat.format(metrics.contextCapacity)} estimated limit",
+                            text = stringResource(R.string.api_estimated_limit,
+                                numberFormat.format(metrics.contextCapacity)),
                             color = MaterialTheme.colorScheme.primary,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -216,7 +219,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            "Estimated Active Context Used",
+                            stringResource(R.string.api_usage_context),
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -244,7 +247,8 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                Text("Turn usage may be estimated when the provider omits usage. Context is a local estimate; provider quota is unavailable.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.api_usage_note), fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (metrics.streamingEstimateActive) {
                     MetricLine(
                         "LIVE OUTPUT · ESTIMATE ONLY",
@@ -252,7 +256,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         MaterialTheme.colorScheme.tertiary
                     )
                     Text(
-                        "Streaming estimate is not billed usage. Provider totals reconcile after completion.",
+                        stringResource(R.string.api_stream_estimate),
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
