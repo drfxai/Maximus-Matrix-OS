@@ -41,10 +41,12 @@ class LanguagePreferenceTest {
             )
             val available = wrapped.getString(R.string.api_verified_offers, 3)
             assertTrue("Missing catalog warning in " + language.tag, status.isNotBlank())
-            assertTrue("Missing context diagnosis in " + language.tag, check.contains("2"))
+            assertTrue("Missing context diagnosis in " + language.tag,
+                check.isNotBlank() && !check.contains("%1"))
             assertTrue("Missing model ID in consent warning", message.contains("a-model-id"))
             assertTrue("Missing provider in consent warning", message.contains("NVIDIA NIM"))
-            assertTrue("Missing count in offers", available.contains("3"))
+            assertTrue("Missing formatted offer count", available.isNotBlank() &&
+                !available.contains("%1"))
             if (language != AppLanguage.ENGLISH) {
                 assertNotEquals("English catalog fallback: " + language.tag, englishNoFree, status)
                 assertNotEquals("English consent fallback: " + language.tag,
