@@ -26,6 +26,7 @@ import ai.drfx.maximus.matrixai.studio.remote.RemoteWorkerCapabilities
 import ai.drfx.maximus.matrixai.studio.remote.RemoteWorkerClient
 import ai.drfx.maximus.matrixai.studio.remote.RemoteWorkerProfileStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -58,9 +59,11 @@ fun RemoteWorkerPanel(projectId: String? = null, modifier: Modifier = Modifier) 
                             ?: error("Cannot write to selected destination.")
                         output.use { RemoteDebugBuildClient.download(endpoint, key, current, it) }
                     }
-                    status = "SHA-256 verified debug APK exported. No release signing used."
-                } catch (error: Exception) {
-                    status = error.message ?: "Debug APK download failed."
+                    status = context.getString(R.string.runtime_export_verified)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    status = context.getString(R.string.runtime_export_failed)
                 } finally { busy = false }
             }
         }
@@ -79,12 +82,14 @@ fun RemoteWorkerPanel(projectId: String? = null, modifier: Modifier = Modifier) 
                 debugJob = current
                 if (current.finished) {
                     status = if (current.state == "succeeded")
-                        "Debug APK ready. Download after checksum verification."
-                    else current.error.ifBlank { "Isolated debug build failed." }
+                        context.getString(R.string.runtime_job_ready)
+                    else context.getString(R.string.runtime_job_failed)
                     return@LaunchedEffect
                 }
-            } catch (error: Exception) {
-                status = error.message ?: "Cannot check debug build status."
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                status = context.getString(R.string.runtime_job_status_failed)
                 return@LaunchedEffect
             }
         }
@@ -139,8 +144,10 @@ fun RemoteWorkerPanel(projectId: String? = null, modifier: Modifier = Modifier) 
                                 capabilities = result
                                 token = ""
                                 status = context.getString(R.string.runtime_connected)
-                            } catch (error: Exception) {
-                                status = error.message ?: context.getString(R.string.runtime_failed)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                status = context.getString(R.string.runtime_failed)
                             } finally { busy = false }
                         }
                     },
@@ -176,8 +183,7 @@ fun RemoteWorkerPanel(projectId: String? = null, modifier: Modifier = Modifier) 
                     style = MaterialTheme.typography.labelSmall)
                 if (worker.executionEnabled && worker.operations.containsAll(
                     listOf("jobs.submit", "jobs.status", "jobs.artifact"))) {
-                    Text("Explicit debug builds run in the owner's isolated, offline Worker. " +
-                        "No production signing key is transferred.",
+                    Text(stringResource(R.string.runtime_debug_safety),
                         style = MaterialTheme.typography.bodySmall)
                     Button(
                         enabled = !busy && projectId != null,
@@ -185,7 +191,13 @@ fun RemoteWorkerPanel(projectId: String? = null, modifier: Modifier = Modifier) 
                         modifier = Modifier.testTag("runtime_build_debug_button")
                     ) { Text(stringResource(R.string.remote_build)) }
                     debugJob?.let { job ->
-                        Text("Debug build: " + job.state + " · " + job.id.take(10),
+                        val jobState = when (job.state) {
+                            "queued" -> stringResource(R.string.runtime_state_queued)
+                            "running" -> stringResource(R.string.runtime_state_running)
+                            "succeeded" -> stringResource(R.string.runtime_state_succeeded)
+                            else -> stringResource(R.string.runtime_state_failed)
+                        }
+                        Text(stringResource(R.string.runtime_debug_job, jobState, job.id.take(10)),
                             style = MaterialTheme.typography.bodySmall)
                         if (job.state == "succeeded") {
                             OutlinedButton(onClick = {
@@ -209,11 +221,8 @@ fun RemoteWorkerPanel(projectId: String? = null, modifier: Modifier = Modifier) 
     if (confirmDebugBuild) {
         AlertDialog(
             onDismissRequest = { confirmDebugBuild = false },
-            title = { Text("Approve isolated debug build?") },
-            text = { Text("The selected project's source ZIP will be sent to your authenticated " +
-                "remote Worker and built offline in a rootless container. Do not upload secret " +
-                "keys or confidential projects to a Worker you do not control. " +
-                "This operation never signs a production APK.") },
+            title = { Text(stringResource(R.string.runtime_approval_title)) },
+            text = { Text(stringResource(R.string.runtime_approval_description)) },
             confirmButton = {
                 Button(onClick = {
                     confirmDebugBuild = false
@@ -236,15 +245,19 @@ fun RemoteWorkerPanel(projectId: String? = null, modifier: Modifier = Modifier) 
                                 } finally { archive.delete() }
                             }
                             debugJob = result
-                            status = "Authenticated debug build accepted. Checking job status."
-                        } catch (error: Exception) {
-                            status = error.message ?: "Remote debug build could not start."
+                            status = context.getString(R.string.runtime_build_accepted)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            status = context.getString(R.string.runtime_build_failed)
                         } finally { busy = false }
                     }
                 }) { Text(stringResource(R.string.remote_approve)) }
             },
             dismissButton = {
-                OutlinedButton(onClick = { confirmDebugBuild = false }) { Text("Cancel") }
+                OutlinedButton(onClick = { confirmDebugBuild = false }) {
+                    Text(stringResource(R.string.runtime_build_cancel))
+                }
             }
         )
     }
