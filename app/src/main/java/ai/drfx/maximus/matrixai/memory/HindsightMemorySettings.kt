@@ -7,6 +7,7 @@ import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.KeyStore
+import java.util.UUID
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -19,6 +20,32 @@ import javax.crypto.spec.GCMParameterSpec
 internal class HindsightMemorySettings(context: Context) {
     private val prefs = context.getSharedPreferences("maximus_shared_memory_v1", Context.MODE_PRIVATE)
     private val alias = "maximus_hindsight_memory_aes_v1"
+
+    companion object {
+        // Shared across panel, chat and worker settings instances in this process.
+        // This lock only protects local preference edits/cache publication, never HTTP.
+        private val accessLock = Any()
+    }
+
+    fun accessScope(): HindsightAccessScope = HindsightAccessPolicy.scope(prefs.all)
+
+    fun accessSnapshot(): HindsightAccessSnapshot =
+        HindsightAccessPolicy.capture(prefs.all, ::decrypt)
+
+    fun requireCurrentAccess(snapshot: HindsightAccessSnapshot, automatic: Boolean = false) {
+        withCurrentAccess(snapshot, automatic) { }
+    }
+
+    fun <T> withCurrentAccess(
+        snapshot: HindsightAccessSnapshot,
+        automatic: Boolean = false,
+        block: () -> T
+    ): T = synchronized(accessLock) {
+        check(HindsightAccessPolicy.isCurrent(snapshot, prefs.all, automatic)) {
+            "Memory account, project or sharing consent changed; operation stopped."
+        }
+        block()
+    }
 
     fun endpoint(): String = prefs.getString("endpoint", HindsightMemoryClient.DEFAULT_ENDPOINT)
         .orEmpty().ifBlank { HindsightMemoryClient.DEFAULT_ENDPOINT }
@@ -35,36 +62,68 @@ internal class HindsightMemorySettings(context: Context) {
 
     fun setActiveProject(id: String) {
         require(id.isEmpty() || id.matches(Regex("[0-9a-f-]{36}")))
-        check(prefs.edit().putString("active_project", id).commit())
+        synchronized(accessLock) {
+            if (prefs.getString("active_project", "").orEmpty() == id) return
+            check(prefs.edit().putString("active_project", id)
+                .putString(HindsightAccessPolicy.REVISION_KEY, UUID.randomUUID().toString()).commit())
+        }
     }
 
     fun configure(url: String, apiToken: String?) {
         val normalized = HindsightMemoryClient.normalizedEndpoint(url)
-        require(normalized == endpoint() || apiToken?.isNotBlank() == true || !hasKey()) {
-            "To change Hindsight host, enter a new key or disconnect the old account first."
-        }
         val encrypted = apiToken?.takeIf { it.isNotBlank() }?.let {
             require(it.length in 12..512 && it.none { ch -> ch.isWhitespace() || ch.code < 32 || ch.code == 127 })
             encrypt(it)
         }
-        val edit = prefs.edit().putString("endpoint", normalized)
-        if (encrypted != null) edit.putString("token", encrypted)
-        check(edit.commit()) { "Unable to securely save memory configuration." }
+        synchronized(accessLock) {
+            val values = prefs.all
+            val oldEndpoint = HindsightAccessPolicy.scope(values).endpoint
+            require(normalized == oldEndpoint || encrypted != null || (values["token"] as? String).isNullOrBlank()) {
+                "To change Hindsight host, enter a new key or disconnect the old account first."
+            }
+            val edit = prefs.edit().putString("endpoint", normalized)
+            if (encrypted != null) edit.putString("token", encrypted)
+            if (HindsightAccessPolicy.configurationChangesAccess(oldEndpoint, normalized, encrypted != null)) {
+                edit.putBoolean("auto_share", false)
+                    .putString(HindsightAccessPolicy.REVISION_KEY, UUID.randomUUID().toString())
+            }
+            check(edit.commit()) { "Unable to securely save memory configuration." }
+        }
     }
 
     fun setEnabled(value: Boolean) {
-        // Hindsight Cloud requires a user-owned API token; private HTTPS deployments may
-        // authenticate at a separate edge. Account/bank permissions must be enforced there.
-        HindsightMemoryClient.normalizedEndpoint(endpoint())
-        if (value && endpoint() == HindsightMemoryClient.DEFAULT_ENDPOINT) {
-            require(token().isNotBlank()) { "Hindsight Cloud API key required." }
+        // Revoking consent must remain possible even if a saved credential or
+        // endpoint is unreadable. Disabling never needs to decrypt that key.
+        if (!value) {
+            synchronized(accessLock) {
+                if (!prefs.getBoolean("enabled", false) && !prefs.getBoolean("auto_share", false)) return
+                check(prefs.edit().putBoolean("enabled", false).putBoolean("auto_share", false)
+                    .putString(HindsightAccessPolicy.REVISION_KEY, UUID.randomUUID().toString()).commit())
+            }
+            return
         }
-        check(prefs.edit().putBoolean("enabled", value).commit())
+        val captured = accessSnapshot()
+        HindsightMemoryClient.normalizedEndpoint(captured.scope.endpoint)
+        if (captured.scope.endpoint == HindsightMemoryClient.DEFAULT_ENDPOINT) {
+            require(captured.token.isNotBlank()) { "Hindsight Cloud API key required." }
+        }
+        synchronized(accessLock) {
+            check(captured.scope == HindsightAccessPolicy.scope(prefs.all)) {
+                "Memory configuration changed; review it before enabling."
+            }
+            if (captured.scope.enabled) return
+            check(prefs.edit().putBoolean("enabled", true)
+                .putString(HindsightAccessPolicy.REVISION_KEY, UUID.randomUUID().toString()).commit())
+        }
     }
 
     fun setAutoShare(value: Boolean) {
-        require(!value || enabled()) { "Enable memory before sharing progress." }
-        check(prefs.edit().putBoolean("auto_share", value).commit())
+        synchronized(accessLock) {
+            require(!value || prefs.getBoolean("enabled", false)) { "Enable memory before sharing progress." }
+            if (prefs.getBoolean("auto_share", false) == value) return
+            check(prefs.edit().putBoolean("auto_share", value)
+                .putString(HindsightAccessPolicy.REVISION_KEY, UUID.randomUUID().toString()).commit())
+        }
     }
 
     /** Small on-device encrypted progress journal shared by all models of the same project.
@@ -97,7 +156,7 @@ internal class HindsightMemorySettings(context: Context) {
         if (value.isBlank()) return ""
         return runCatching {
             val array = JSONArray(decrypt(value))
-            buildList {
+            val eligible = buildList {
                 for (i in (array.length() - 4).coerceAtLeast(0) until array.length()) {
                     val item = array.getJSONObject(i)
                     val timestamp = item.optLong("time", 0)
@@ -105,18 +164,25 @@ internal class HindsightMemorySettings(context: Context) {
                     if (timestamp > 0 && System.currentTimeMillis() - timestamp < 30L * 24 * 3600 * 1000 &&
                         HindsightMemoryClient.shareable(text)) add(text.take(1200))
                 }
-            }.joinToString("\n").take(2100)
+            }
+            ProjectProgressContextPolicy.newestFirst(eligible)
         }.getOrDefault("")
     }
 
     /** Disconnect cloud access without destroying durable local project history. */
     fun disconnect() {
-        check(prefs.edit().remove("token").remove("endpoint")
-            .putBoolean("enabled", false).putBoolean("auto_share", false).commit())
+        synchronized(accessLock) {
+            check(prefs.edit().remove("token").remove("endpoint")
+                .putBoolean("enabled", false).putBoolean("auto_share", false)
+                .putString(HindsightAccessPolicy.REVISION_KEY, UUID.randomUUID().toString()).commit())
+        }
     }
 
     fun clear() {
-        check(prefs.edit().clear().commit())
+        synchronized(accessLock) {
+            check(prefs.edit().clear()
+                .putString(HindsightAccessPolicy.REVISION_KEY, UUID.randomUUID().toString()).commit())
+        }
     }
 
     private fun secret(): SecretKey {

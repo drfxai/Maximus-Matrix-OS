@@ -600,7 +600,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
         val current = _llmState.value
-        val memoryProjectAtRequest = sharedProjectMemory.activeProject()
+        val memoryAccessAtRequest = try { sharedProjectMemory.captureAccess() }
+            catch (_: Exception) { null }
+        val memoryProjectAtRequest = memoryAccessAtRequest?.scope?.project.orEmpty()
         if (!historyReady || current.status !in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED) || current.selectedModel.isBlank()) {
             appendAssistantError("Connect an API and select a supported model before sending a message.")
             return false
@@ -655,7 +657,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         _chatMessages.value = _chatMessages.value + userMessage
         // Capture the project at user-send time: a workspace switch must never inject
         // another project's history into a request that is already in flight.
-        val memoryEvidenceAtRequest = sharedProjectMemory.cachedContext()
+        val memoryEvidenceAtRequest = sharedProjectMemory.cachedContext(memoryAccessAtRequest)
         val memoryAndSystemBudget = ChatContextPolicy.estimateTokens(memoryEvidenceAtRequest) +
             ChatContextPolicy.estimateTokens(selectedAgent.systemPrompt)
         val modelContext = ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
@@ -834,12 +836,13 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 usageStore.record(config.provider, config.selectedModel, result.usage)
-                if (sharedProjectMemory.enabled()) {
+                if (memoryAccessAtRequest != null && memoryAccessAtRequest.scope.enabled) {
                     val modelName = config.selectedModel
                     val userTask = prompt
                     val output = result.text
                     viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        try { sharedProjectMemory.storeModelProgress(memoryProjectAtRequest, modelName, userTask, output) }
+                        try { sharedProjectMemory.storeModelProgress(memoryProjectAtRequest, modelName, userTask, output,
+                            capturedAccess = memoryAccessAtRequest) }
                         catch (_: Exception) { /* No generated content or credentials are logged. */ }
                     }
                 }
