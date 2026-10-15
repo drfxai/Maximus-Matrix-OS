@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_jobs_title">Запрос сборки ждёт одобрения</string>
+    <string name="phone_jobs_summary">Проект %1$s · файлов: %2$d · байт: %3$d</string>
+    <string name="phone_jobs_review">Проверить снимок</string>
+    <string name="phone_jobs_reject">Отклонить</string>
+    <string name="phone_jobs_approve_title">Запустить именно этот снимок?</string>
+    <string name="phone_jobs_warning">Автономная :app:assembleDebug выполняет доверенный код с Android-разрешениями приложения. PRoot не обеспечивает изоляцию. ZIP зафиксирован и не включает последующие правки. Одобряйте только доверенный код.</string>
+    <string name="phone_jobs_approve">Одобрить и собрать</string>
+    <string name="phone_jobs_back">Назад</string>
+    <string name="phone_jobs_expired">Запрос истёк, отозван или недоступен.</string>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_jobs_title">Build request awaiting approval</string>
+    <string name="phone_jobs_summary">Project %1$s · %2$d files · %3$d bytes</string>
+    <string name="phone_jobs_review">Review snapshot</string>
+    <string name="phone_jobs_reject">Reject</string>
+    <string name="phone_jobs_approve_title">Run this exact snapshot?</string>
+    <string name="phone_jobs_warning">Offline :app:assembleDebug executes trusted source with this app’s Android permissions. PRoot is not an isolation boundary. This ZIP is fixed: later editor changes are excluded. Only approve code you trust.</string>
+    <string name="phone_jobs_approve">Approve and build</string>
+    <string name="phone_jobs_back">Back</string>
+    <string name="phone_jobs_expired">Request expired, revoked or unavailable.</string>
+</resources>

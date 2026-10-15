@@ -59,6 +59,17 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var running by remember { mutableStateOf(PhoneHostSession.active != null) }
     var shared by remember { mutableStateOf(PhoneHostSession.sharedProject()) }
+    var previousProject by remember { mutableStateOf(projectId) }
+    LaunchedEffect(projectId) {
+        if (previousProject != projectId) {
+            PhoneHostSession.active?.let { server ->
+                val revision = server.invalidateAuthorization()
+                withContext(Dispatchers.IO) { server.approveProject(null, revision) }
+            }
+            shared = null
+            previousProject = projectId
+        }
+    }
     var status by remember { mutableStateOf("") }
     var confirmShare by remember { mutableStateOf(false) }
     var confirmStop by remember { mutableStateOf(false) }
@@ -179,6 +190,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
             }
         }
 
+        PhoneBuildRequestsPanel()
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
             HarnessCapabilityTile(
                 stringResource(R.string.phone_workspaces), stringResource(R.string.phone_host_on_phone),
@@ -424,9 +436,13 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                                 ) { Text(stringResource(R.string.phone_approve)) }
                             } else {
                                 OutlinedButton(onClick = {
-                                    PhoneHostSession.setSharedProject(null)
-                                    shared = null
-                                    status = context.getString(R.string.phone_host_share_revoked)
+                                    val server = PhoneHostSession.active
+                                    val revision = server?.invalidateAuthorization()
+                                    uiScope.launch {
+                                        withContext(Dispatchers.IO) { if (server != null && revision != null) server.approveProject(null, revision) }
+                                        shared = null
+                                        status = context.getString(R.string.phone_host_share_revoked)
+                                    }
                                 }) { Text(stringResource(R.string.phone_revoke)) }
                             }
                         }
@@ -540,9 +556,15 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
             Button(onClick = {
                 confirmShare = false
                 try {
-                    PhoneHostSession.setSharedProject(requireNotNull(projectId))
-                    shared = projectId
-                    status = context.getString(R.string.phone_host_share_approved)
+                    val server = requireNotNull(PhoneHostSession.active)
+                    val revision = server.invalidateAuthorization()
+                    uiScope.launch {
+                        runCatching { withContext(Dispatchers.IO) { check(server.approveProject(requireNotNull(projectId), revision)) } }
+                            .onSuccess {
+                                shared = projectId
+                                status = context.getString(R.string.phone_host_share_approved)
+                            }.onFailure { status = context.getString(R.string.phone_host_share_failed) }
+                    }
                 } catch (e: Exception) {
                     status = e.message ?: context.getString(R.string.phone_host_share_failed)
                 }

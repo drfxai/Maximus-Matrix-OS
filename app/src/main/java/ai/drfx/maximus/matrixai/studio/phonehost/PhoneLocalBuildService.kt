@@ -15,6 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Keep a user-approved real Android Gradle job observable while the screen is backgrounded. */
 class PhoneLocalBuildService : Service() {
@@ -22,11 +23,17 @@ class PhoneLocalBuildService : Service() {
         const val BUILD = "ai.drfx.maximus.matrixai.phonehost.BUILD"
         const val CANCEL = "ai.drfx.maximus.matrixai.phonehost.CANCEL_BUILD"
         const val PROJECT_ID = "project_uuid"
+        const val JOB_ID = "approved_job_uuid"
         private const val CHANNEL = "maximus_phone_build"
         private const val NOTIFICATION = 3733
+        private val cleanup = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private var observing = false
+    private val reserved = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val cancelRequested = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var ownedJobId: String? = null
+    @Volatile private var ownedOperationId: String? = null
+    @Volatile private var ownedJobs: PhoneBuildJobs? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -40,43 +47,63 @@ class PhoneLocalBuildService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val builder = PhoneBuildSession.forContext(applicationContext)
         if (intent?.action == CANCEL) {
-            builder.cancel()
+            cancelRequested.set(true)
+            if (reserved.get()) cleanup.launch {
+                val id = ownedJobId
+                if (id != null) ownedJobs?.cancel(id) else ownedOperationId?.let { builder.cancelOwned(it) }
+            } else stopSelf()
             return START_NOT_STICKY
         }
         if (intent?.action != BUILD) {
-            stopSelf()
+            if (!reserved.get()) stopSelf()
             return START_NOT_STICKY
         }
-        val project = intent.getStringExtra(PROJECT_ID).orEmpty()
-        if (!project.matches(Regex("[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}"))) {
-            stopSelf()
+        val requestedJob = intent.getStringExtra(JOB_ID)
+        val directProject = intent.getStringExtra(PROJECT_ID).orEmpty()
+        if (!reserved.compareAndSet(false, true)) {
+            if (requestedJob != null && requestedJob != ownedJobId) cleanup.launch {
+                PhoneHostSession.active?.jobs?.cancel(requestedJob)
+            }
             return START_NOT_STICKY
         }
-        // A duplicate start must not stop/cancel a build already owned by this service.
-        if (builder.state.value.busy) {
-            if (!observing) stopSelf()
-            return START_NOT_STICKY
-        }
+        ownedJobId = requestedJob
+        ownedOperationId = requestedJob ?: java.util.UUID.randomUUID().toString()
+        cancelRequested.set(false)
         startForeground(NOTIFICATION, notification("Preparing Gradle Debug APK build…"))
-        // Accept the new job before subscribing: a restored previous success is not
-        // the terminal event of this start request (Main.immediate emits synchronously).
-        if (runCatching { builder.build(project) }.isFailure) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        if (!observing) {
-            observing = true
-            scope.launch {
-                builder.state.collect { state ->
-                    getSystemService(NotificationManager::class.java).notify(
-                        NOTIFICATION, notification(state.message)
-                    )
-                    if (!state.busy && state.phase in setOf(
-                        "succeeded", "failed", "cancelled", "unavailable")) {
-                        stopForeground(STOP_FOREGROUND_REMOVE)
-                        stopSelf()
+        // Registry capture/hash/artifact locks may perform bounded bulk IO. Never
+        // wait for them in onStartCommand or other Main lifecycle callbacks.
+        scope.launch(Dispatchers.IO) {
+            try {
+                check(!cancelRequested.get())
+                require(!builder.state.value.busy)
+                if (requestedJob != null) {
+                    val registry = requireNotNull(PhoneHostSession.active?.jobs)
+                    ownedJobs = registry
+                    registry.start(requestedJob) { claim ->
+                        check(!cancelRequested.get())
+                        val guarded = claim.copy(isValid = { claim.isValid() && !cancelRequested.get() })
+                        builder.buildApproved(guarded)
                     }
+                } else {
+                    require(directProject.matches(PhoneBuildJobs.UUID_PATTERN))
+                    builder.buildForService(directProject, requireNotNull(ownedOperationId)) { !cancelRequested.get() }
+                }
+                builder.state.collect { state ->
+                    if (state.ownerJobId != ownedOperationId) return@collect
+                    ownedJobId?.let { ownedJobs?.observe(it, state) }
+                    withContext(Dispatchers.Main.immediate) {
+                        getSystemService(NotificationManager::class.java).notify(NOTIFICATION, notification(state.message))
+                        if (!state.busy && state.phase in setOf("succeeded", "failed", "cancelled", "unavailable")) {
+                            stopForeground(STOP_FOREGROUND_REMOVE)
+                            stopSelf()
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                ownedJobId?.let { ownedJobs?.cancel(it) }
+                withContext(Dispatchers.Main.immediate) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
                 }
             }
         }
@@ -102,8 +129,14 @@ class PhoneLocalBuildService : Service() {
     }
 
     override fun onDestroy() {
+        cancelRequested.set(true)
         val builder = PhoneBuildSession.forContext(applicationContext)
-        if (observing && builder.state.value.busy) builder.cancel()
+        val id = ownedJobId
+        val registry = ownedJobs
+        val operation = ownedOperationId
+        if (reserved.get()) cleanup.launch {
+            if (id != null) registry?.cancel(id) else operation?.let { builder.cancelOwned(it) }
+        }
         scope.cancel()
         super.onDestroy()
     }

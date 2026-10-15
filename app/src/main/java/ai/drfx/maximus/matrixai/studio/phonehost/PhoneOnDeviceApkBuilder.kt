@@ -20,6 +20,7 @@ import java.util.zip.ZipInputStream
 
 internal data class PhoneBuildState(
     val phase: String = "idle",
+    val ownerJobId: String? = null,
     val message: String = "Verify the on-phone Android build tools to enable compilation.",
     val projectId: String? = null,
     val logTail: String = "",
@@ -45,6 +46,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
     private val mutex = Any()
     private val cancelled = AtomicBoolean(false)
     private var process: Process? = null
+    private var ownerJobId: String? = null
     private val _state = MutableStateFlow(PhoneBuildState(phase = "restoring", message = "Checking saved build artifact…"))
     val state: StateFlow<PhoneBuildState> get() = _state
     private val rootfs get() = File(app.filesDir, "phone-runtime/rootfs")
@@ -76,7 +78,8 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
         synchronized(mutex) {
             if (_state.value.busy) return
             cancelled.set(false)
-            _state.value = _state.value.copy(phase = "verifying", message = "Running actual on-device tool probes…", verifiedTools = false, startedAtMs = System.currentTimeMillis())
+            ownerJobId = null
+            _state.value = _state.value.copy(phase = "verifying", ownerJobId = null, message = "Running actual on-device tool probes…", verifiedTools = false, startedAtMs = System.currentTimeMillis())
         }
         scope.launch {
             try {
@@ -112,16 +115,28 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
     }
 
     /** The Compose screen must obtain explicit per-build consent before calling this. */
-    fun build(projectId: String) {
+    fun build(projectId: String) = buildInternal(projectId, null)
+
+    fun buildApproved(claim: PhoneBuildJobs.Claim) = buildInternal(claim.projectId, claim)
+    fun buildForService(projectId: String, ownerId: String, isValid: () -> Boolean) =
+        buildInternal(projectId, null, ownerId, isValid)
+
+    fun cancelOwned(id: String) {
+        synchronized(mutex) { if (ownerJobId == id && _state.value.busy) cancel() }
+    }
+
+    private fun buildInternal(projectId: String, claim: PhoneBuildJobs.Claim?, ownerId: String? = claim?.id, allowed: () -> Boolean = { true }) {
         synchronized(mutex) {
             require(!_state.value.busy) { "Another local operation is running." }
+            check(allowed() && (claim == null || claim.isValid())) { "Build approval was revoked." }
             require(_state.value.verifiedTools) { "Verify on-phone build tools first." }
             require(projectId.matches(Regex("[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}"))) {
                 "Choose an existing Studio project."
             }
             cancelled.set(false)
+            ownerJobId = ownerId
             _state.value = PhoneBuildState(
-                phase = "building", message = "Creating a private snapshot; building on your phone…",
+                phase = "building", ownerJobId = ownerId, message = "Creating a private snapshot; building on your phone…",
                 projectId = projectId, verifiedTools = true, startedAtMs = System.currentTimeMillis()
             )
         }
@@ -140,7 +155,13 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                 val workspace = File(temp, "workspace").apply { mkdirs() }
                 val project = ProjectWorkspaceStore(app)
                 val archive = File(temp, "project.zip")
-                archive.outputStream().use { project.exportZip(projectId, it) }
+                check(allowed() && (claim == null || claim.isValid())) { "Build approval was revoked." }
+                if (claim == null) archive.outputStream().use { project.exportZip(projectId, it) }
+                else {
+                    // The exact ZIP reviewed on phone, not the mutable Studio project.
+                    claim.archive.inputStream().use { input -> archive.outputStream().use { input.copyTo(it) } }
+                    check(PhoneBuildJobs.digest(archive) == claim.sha256) { "Approved source snapshot changed." }
+                }
                 require(archive.length() in 1..(8L * 1024 * 1024)) {
                     "Project ZIP must be under 8 MiB."
                 }
@@ -158,11 +179,12 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                         "--console=plain -Dorg.gradle.jvmargs=-Xmx768m " +
                         "-Pandroid.aapt2FromMavenOverride=/root/android-sdk/build-tools/35.0.0/aapt2 " +
                         ":app:assembleDebug",
-                    timeoutSeconds = 15 * 60
+                    timeoutSeconds = 15 * 60,
+                    allowed = { allowed() && (claim == null || claim.isValid()) }
                 )
                 if (result.cancelled || cancelled.get()) {
                     _state.value = PhoneBuildState(
-                        phase = "cancelled", message = "Local build cancelled.",
+                        phase = "cancelled", ownerJobId = ownerId, message = "Local build cancelled.",
                         projectId = projectId, logTail = result.log
                     )
                     return@launch
@@ -185,7 +207,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                 }
                 val artifact = artifacts.save(apk, projectId, archiveInfo.packageName)
                 _state.value = PhoneBuildState(
-                    phase = "succeeded",
+                    phase = "succeeded", ownerJobId = ownerId,
                     message = "Debug APK compiled ON THIS PHONE. Package: " + archiveInfo.packageName,
                     projectId = projectId, logTail = result.log,
                     apkSha256 = artifact.sha256, apkPath = artifact.file.absolutePath,
@@ -193,13 +215,14 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                 )
             } catch (e: Exception) {
                 _state.value = PhoneBuildState(
-                    phase = if (cancelled.get()) "cancelled" else "failed",
+                    phase = if (cancelled.get()) "cancelled" else "failed", ownerJobId = ownerId,
                     message = (e.message ?: "Local Android build failed.").take(500),
                     projectId = projectId, logTail = _state.value.logTail,
                     verifiedTools = false
                 )
             } finally {
                 // Keep only a successful APK, not potentially sensitive source snapshots.
+                synchronized(mutex) { if (ownerJobId == ownerId) ownerJobId = null }
                 jobRoot?.let { root ->
                     File(root, "workspace").deleteRecursively()
                     File(root, "project.zip").delete()
@@ -250,7 +273,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
 
     private data class Execution(val exit: Int, val cancelled: Boolean, val log: String, val timedOut: Boolean = false)
 
-    private fun execute(workspace: File, command: String, timeoutSeconds: Int): Execution {
+    private fun execute(workspace: File, command: String, timeoutSeconds: Int, allowed: () -> Boolean = { true }): Execution {
         val arguments = mutableListOf(
             proot.absolutePath, "--link2symlink", "-0",
             "-r", rootfs.absolutePath, "-b", "/dev", "-b", "/proc", "-b", "/sys"
@@ -283,8 +306,11 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
         env["LD_LIBRARY_PATH"] = app.applicationInfo.nativeLibraryDir
         env["GLIBC_TUNABLES"] = "glibc.pthread.rseq=0"
         val log = StringBuilder()
-        val child = pb.start()
-        synchronized(mutex) { process = child }
+        val executionOwner = _state.value.ownerJobId
+        val child = synchronized(mutex) {
+            check(!cancelled.get() && allowed()) { "Build cancelled or approval revoked before process start." }
+            pb.start().also { process = it }
+        }
         val pump = Thread {
             try {
                 child.inputStream.bufferedReader().useLines { lines ->
@@ -293,7 +319,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                             log.append(line.take(512)).append('\n')
                             if (log.length > 48_000) log.delete(0, log.length - 40_000)
                             val current = _state.value
-                            if (current.phase == "building" || current.phase == "verifying") {
+                            if (current.ownerJobId == executionOwner && (current.phase == "building" || current.phase == "verifying")) {
                                 _state.value = current.copy(logTail = log.toString())
                             }
                         }
@@ -304,9 +330,9 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
         val deadline = System.nanoTime() + timeoutSeconds.toLong() * 1_000_000_000L
         try {
             while (true) {
-                if (cancelled.get() || System.nanoTime() >= deadline) {
+                if (cancelled.get() || !allowed() || System.nanoTime() >= deadline) {
                     child.destroyForcibly()
-                    return Execution(-1, cancelled.get(), synchronized(log) { log.toString() }, timedOut = !cancelled.get())
+                    return Execution(-1, cancelled.get() || !allowed(), synchronized(log) { log.toString() }, timedOut = !cancelled.get() && allowed())
                 }
                 if (child.waitFor(400L, TimeUnit.MILLISECONDS)) {
                     pump.join(1500)
