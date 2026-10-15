@@ -50,12 +50,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import ai.drfx.maximus.matrixai.llm.ConnectionStatus
 import ai.drfx.maximus.matrixai.agent.BrainRequestRouter
 import ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore
 import ai.drfx.maximus.matrixai.voice.SpeechLanguage
+import ai.drfx.maximus.matrixai.voice.SpeechPlaybackPolicy
 import ai.drfx.maximus.matrixai.voice.SpeechTranscriptGuard
 import ai.drfx.maximus.matrixai.voice.SpeechLanguagePolicy
 import kotlinx.coroutines.isActive
@@ -244,7 +246,10 @@ fun MatrixGraphScreen(
     var brainSpokenReplies by remember { mutableStateOf(false) }
     var brainVoiceSetupNeeded by remember { mutableStateOf(false) }
     var brainTtsReady by remember { mutableStateOf(false) }
-    var spokenReplyTimestamp by remember { mutableLongStateOf(-1L) }
+    val speechPlaybackPolicy = remember { SpeechPlaybackPolicy() }
+    var recognitionInProgress by remember { mutableStateOf(false) }
+    val owner = LocalLifecycleOwner.current
+    val speechLifecycleState by owner.lifecycle.currentStateAsState()
     var brainTts by remember { mutableStateOf<TextToSpeech?>(null) }
     val speechLanguage = SpeechLanguagePreferenceStore(appContext).selected()
     var recordingSpeechLanguage by remember { mutableStateOf(speechLanguage) }
@@ -273,6 +278,7 @@ fun MatrixGraphScreen(
         }
     }
     val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        recognitionInProgress = false
         if (result.resultCode == Activity.RESULT_OK) {
             val selection = SpeechTranscriptGuard.choose(
                 result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS),
@@ -288,11 +294,14 @@ fun MatrixGraphScreen(
         }
     }
     LaunchedEffect(brainSpokenReplies, brainTtsReady, llm.isGenerating,
-        brainMessages.lastOrNull()?.timestampMs, speechLanguage) {
+        brainMessages.lastOrNull()?.timestampMs, speechLanguage, speechLifecycleState, recognitionInProgress) {
         val reply = brainMessages.lastOrNull()
         if (!brainSpokenReplies || !brainTtsReady || llm.isGenerating ||
             reply == null || reply.role != "assistant" || reply.isError ||
-            reply.content.isBlank() || reply.timestampMs == spokenReplyTimestamp) return@LaunchedEffect
+            reply.content.isBlank() || !speechPlaybackPolicy.mayPlay(
+                reply.timestampMs, speechLifecycleState == Lifecycle.State.RESUMED,
+                recognitionInProgress
+            )) return@LaunchedEffect
 
         val language = SpeechLanguagePolicy.preferredTtsLanguage(
             reply.content, speechLanguage
@@ -307,7 +316,7 @@ fun MatrixGraphScreen(
         brainVoiceSetupNeeded = false
         if (engine.speak(reply.content, TextToSpeech.QUEUE_FLUSH, null,
                 "brain-reply-" + reply.timestampMs) == TextToSpeech.SUCCESS) {
-            spokenReplyTimestamp = reply.timestampMs
+            speechPlaybackPolicy.markSpoken(reply.timestampMs)
         } else {
             voiceError = appContext.getString(R.string.brain_voice_playback_failed)
         }
@@ -319,10 +328,10 @@ fun MatrixGraphScreen(
         selectedLobe = null
         lastTouch = SystemClock.uptimeMillis()
     }
-    val owner = LocalLifecycleOwner.current
     DisposableEffect(owner, brainTts) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) brainTts?.stop()
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP)
+                brainTts?.stop()
         }
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
@@ -898,6 +907,7 @@ fun MatrixGraphScreen(
                             brainTts?.stop()
                             recordingSpeechLanguage = speechLanguage
                             voiceError = null
+                            recognitionInProgress = true
                             voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE, recordingSpeechLanguage.tag)
@@ -906,9 +916,10 @@ fun MatrixGraphScreen(
                                 .putExtra(RecognizerIntent.EXTRA_PROMPT,
                                     appContext.getString(R.string.brain_voice_hint)))
                         } catch (_: Exception) {
+                            recognitionInProgress = false
                             voiceError = appContext.getString(R.string.brain_voice_unavailable)
                         }
-                    }) {
+                    }, enabled = !recognitionInProgress) {
                         Icon(Icons.Default.Mic, stringResource(R.string.brain_speak),
                             tint = graphTone(GraphPurple, light))
                     }
@@ -918,7 +929,7 @@ fun MatrixGraphScreen(
                             brainVoiceSetupNeeded = false
                         } else {
                             // Enable for FUTURE answers only, never replay an old answer.
-                            spokenReplyTimestamp = brainMessages.lastOrNull()?.timestampMs ?: -1L
+                            speechPlaybackPolicy.skipExistingReply(brainMessages.lastOrNull()?.timestampMs)
                         }
                         brainSpokenReplies = !brainSpokenReplies
                     }) {
