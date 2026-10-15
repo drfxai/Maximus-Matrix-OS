@@ -609,4 +609,20 @@
     <string name="hindsight_status_checkpoint_retained">نقطه بازیابی تأییدشده حفظ شد؛ %1$d حافظه مرتبط آماده است.</string>
     <string name="hindsight_status_checkpoint_failed">همگام‌سازی نقطه بازیابی ممکن نشد. نسخه محلی آن همچنان موجود است.</string>
     <string name="hindsight_safety_notice">حافظه فقط داده مرجعِ غیرقابل‌اعتماد است و مجوز اجرای ابزار نیست. نقاط بازیابی محلی بدون سرور کار می‌کنند. قطع اتصال حافظه‌های ابری را حذف نمی‌کند.</string>
+    <string name="runtime_export_verified">فایل Debug APK با SHA-256 تأیید و ذخیره شد. هیچ کلید امضای انتشار استفاده نشد.</string>
+    <string name="runtime_export_failed">ذخیره Debug APK ممکن نشد. اتصال و مقصد را بررسی کنید؛ فایل تأییدنشده پذیرفته نشده است.</string>
+    <string name="runtime_job_ready">Debug APK آماده است. پیش از دانلود، هش آن بررسی می‌شود.</string>
+    <string name="runtime_job_failed">ساخت Debug در محیط ایزوله ناموفق بود. امضای نسخه انتشار انجام نشده است.</string>
+    <string name="runtime_job_status_failed">بررسی وضعیت ساخت در Worker ممکن نیست. اتصال را بررسی کرده و دوباره تلاش کنید.</string>
+    <string name="runtime_debug_safety">ساخت Debug تنها با درخواست صریح شما در Worker آفلاین و احرازشده اجرا می‌شود. کلید امضای انتشار منتقل نمی‌شود.</string>
+    <string name="runtime_state_queued">در صف</string>
+    <string name="runtime_state_running">در حال اجرا</string>
+    <string name="runtime_state_succeeded">موفق</string>
+    <string name="runtime_state_failed">ناموفق</string>
+    <string name="runtime_debug_job">ساخت Debug: %1$s · %2$s</string>
+    <string name="runtime_approval_title">ساخت Debug APK در Worker را تأیید می‌کنید؟</string>
+    <string name="runtime_approval_description">فایل ZIP پروژه انتخاب‌شده به Worker احرازشده شما فرستاده و در محیط بدون دسترسی روت و آفلاین ساخته می‌شود. کد محرمانه یا کلیدها را به Worker غیرقابل‌اعتماد نفرستید. این عملیات APK انتشار را امضا نمی‌کند.</string>
+    <string name="runtime_build_accepted">ساخت Debug احرازشده پذیرفته شد. وضعیت کار در حال بررسی است.</string>
+    <string name="runtime_build_failed">ثبت درخواست ساخت Debug ممکن نشد. Worker و اطلاعات اتصال را بررسی کنید.</string>
+    <string name="runtime_build_cancel">انصراف</string>
 </resources>
