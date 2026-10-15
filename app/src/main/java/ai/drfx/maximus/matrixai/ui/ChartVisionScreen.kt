@@ -313,7 +313,7 @@ fun ChartVisionScreen(
                                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                                         ) {
                                             Text(
-                                                "SCANNING",
+                                                stringResource(R.string.vision_scanning_label),
                                                 color = Color(0xFF00E5FF),
                                                 fontSize = 8.5.sp,
                                                 fontWeight = FontWeight.ExtraBold
@@ -473,7 +473,7 @@ fun ChartVisionScreen(
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        "Scanning Multi-modal Price Action...",
+                        stringResource(R.string.vision_scanning_progress),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -485,7 +485,7 @@ fun ChartVisionScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "Analyze Chart",
+                        stringResource(R.string.vision_analyze_chart),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -671,7 +671,7 @@ fun ChartVisionScreen(
                             border = BorderStroke(1.dp, Color(0xFFFF5252).copy(alpha = 0.4f))
                         ) {
                             Text(
-                                "SHORT POSITION",
+                                stringResource(R.string.vision_short_position),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color(0xFFFF5252),
@@ -687,24 +687,24 @@ fun ChartVisionScreen(
                                     "Asset: ${analysis.assetIdentifier}\nEntry: ${analysis.tradePlan.entryZone}\nSL: ${analysis.tradePlan.stopLoss}\nTP: ${analysis.tradePlan.target1}\nR:R: ${analysis.tradePlan.riskRewardRatio}"
                                 )
                                 clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "Trade setup copied", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.vision_trade_copied), Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = textSecondary, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.ContentCopy, contentDescription = context.getString(R.string.vision_copy), tint = textSecondary, modifier = Modifier.size(16.dp))
                         }
                     }
 
                     // 2x2 Grid: Entry, Stop Loss, Target 1, Risk:Reward
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TradeSetupPill(
-                            label = "ENTRY ZONE",
+                            label = stringResource(R.string.vision_entry_zone),
                             value = analysis.tradePlan.entryZone,
                             accentColor = Color(0xFF00E5FF),
                             modifier = Modifier.weight(1f)
                         )
                         TradeSetupPill(
-                            label = "STOP LOSS",
+                            label = stringResource(R.string.vision_stop_loss),
                             value = analysis.tradePlan.stopLoss,
                             accentColor = Color(0xFFFF5252),
                             modifier = Modifier.weight(1f)
@@ -713,13 +713,13 @@ fun ChartVisionScreen(
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TradeSetupPill(
-                            label = "TARGET 1",
+                            label = stringResource(R.string.vision_target_one),
                             value = analysis.tradePlan.target1,
                             accentColor = primaryGreen,
                             modifier = Modifier.weight(1f)
                         )
                         TradeSetupPill(
-                            label = "RISK : REWARD",
+                            label = stringResource(R.string.vision_risk_reward),
                             value = analysis.tradePlan.riskRewardRatio,
                             accentColor = Color(0xFFFFB300),
                             modifier = Modifier.weight(1f)
@@ -734,7 +734,7 @@ fun ChartVisionScreen(
                         ) {
                             Icon(Icons.Default.Info, contentDescription = null, tint = textSecondary, modifier = Modifier.size(13.dp))
                             Text(
-                                "Invalidation: ${analysis.tradePlan.invalidationReason}",
+                                stringResource(R.string.vision_invalidation, analysis.tradePlan.invalidationReason),
                                 fontSize = 11.sp,
                                 color = textSecondary
                             )
@@ -749,7 +749,7 @@ fun ChartVisionScreen(
         // ------------------------------------------
         item {
             VisionCollapsibleCard(
-                title = "Detected Patterns",
+                title = stringResource(R.string.vision_detected_patterns),
                 icon = Icons.Default.Insights,
                 iconTint = Color(0xFF00E5FF),
                 expanded = isPatternsExpanded,
@@ -785,7 +785,7 @@ fun ChartVisionScreen(
                                         border = BorderStroke(1.dp, primaryGreen.copy(alpha = 0.35f))
                                     ) {
                                         Text(
-                                            "AI interpretation · uncalibrated",
+                                            stringResource(R.string.vision_uncalibrated_pattern),
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = primaryGreen,
@@ -944,7 +944,7 @@ fun ChartVisionScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                "AI Assistant & Sharing",
+                                stringResource(R.string.vision_assistant_share),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = textPrimary
@@ -1032,7 +1032,7 @@ fun ChartVisionScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        "Trader Notes & Assumptions",
+                        stringResource(R.string.vision_trader_notes),
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = textPrimary
