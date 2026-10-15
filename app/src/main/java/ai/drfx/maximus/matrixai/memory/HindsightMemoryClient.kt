@@ -43,7 +43,7 @@ internal class HindsightMemoryClient {
         fun shareable(text: String): Boolean {
             if (text.isBlank() || text.length > MAX_MEMORY) return false
             return !Regex(
-                "(?i)(-----BEGIN [A-Z ]*PRIVATE KEY-----|(?:sk|ghp|github_pat|hsk|AIza)[_-][A-Za-z0-9_-]{12,}|password\\s*[:=]|api[_ -]?key\\s*[:=]|authorization\\s*[:=]|bearer\\s+[A-Za-z0-9_-]{12,})"
+                "(?i)(-----BEGIN [A-Z ]*PRIVATE KEY-----|(?:sk|ghp|github_pat|hsk)[_-][A-Za-z0-9_-]{12,}|AIza[A-Za-z0-9_-]{35}|(?:AKIA|ASIA)[A-Z0-9]{16}|password\\s*[:=]|api[_ -]?key\\s*[:=]|authorization\\s*[:=]|bearer\\s+[A-Za-z0-9_-]{12,})"
             ).containsMatchIn(text)
         }
 

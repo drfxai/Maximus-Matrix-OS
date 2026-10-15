@@ -9,9 +9,11 @@ trap 'kill "$log_pid" 2>/dev/null || true; wait "$log_pid" 2>/dev/null || true' 
 # rather than being retried until an application assertion happens to pass.
 timeout --kill-after=2s 10s adb get-state > keyboard-check/initial-device-state.txt 2>&1 || exit 1
 "${ANDROID_HOME}/emulator/emulator" -version > keyboard-check/emulator-version.txt 2>&1 || true
-# The CI matrix runs every instrumentation class, but isolates memory/IME
+# The CI matrix runs the emulator-compatible instrumentation classes, isolating memory/IME
 # interactions by running each selected suite on a fresh emulator.
 # The full keyboard reopen cycle remains mandatory; no test is excluded.
+# PhoneNativeApkBuildAcceptanceTest is a separate physical ARM64 gate and must
+# never be represented as passing merely because these x86 suites pass.
 test_status=0
 test_args=(-Pandroid.testInstrumentationRunnerArguments.timeout_msec=120000)
 if [[ -n "${ANDROID_TEST_CLASSES:-}" ]]; then

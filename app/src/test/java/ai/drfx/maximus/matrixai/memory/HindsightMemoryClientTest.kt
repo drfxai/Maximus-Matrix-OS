@@ -37,6 +37,9 @@ class HindsightMemoryClientTest {
         assertFalse(HindsightMemoryClient.shareable("password = some-password"))
         assertFalse(HindsightMemoryClient.shareable("Authorization: Bearer abcdefghijklmnopqrstuvwxyz"))
         assertFalse(HindsightMemoryClient.shareable("-----BEGIN PRIVATE KEY-----"))
+        // Synthetic format fixtures, not actual account credentials.
+        assertFalse(HindsightMemoryClient.shareable("Discovered " + "AIza" + "a".repeat(35)))
+        assertFalse(HindsightMemoryClient.shareable("Discovered " + "AKIA" + "A".repeat(16)))
         assertFalse(HindsightMemoryClient.shareable("x".repeat(2600)))
         assertFalse(HindsightMemoryClient.shareable(""))
     }

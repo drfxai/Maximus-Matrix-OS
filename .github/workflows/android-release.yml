@@ -51,7 +51,8 @@ jobs:
       - run: python3 .github/scripts/test-release-publication.py
       - name: Test remote Worker discovery gateway
         run: python3 -m unittest discover -s remote-worker/tests -t remote-worker -v
-      - run: bash -n .github/scripts/*.sh
+      - name: Check every shell script
+        run: for script in .github/scripts/*.sh; do bash -n "$script"; done
       - run: gradle testDebugUnitTest lintRelease assembleDebug --no-daemon --stacktrace
       - name: Verify packaged PRoot ELF bytes
         run: python3 .github/scripts/verify-phone-native-packaging.py
