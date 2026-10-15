@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_jobs_title">Derleme isteği onay bekliyor</string>
+    <string name="phone_jobs_summary">Proje %1$s · %2$d dosya · %3$d bayt</string>
+    <string name="phone_jobs_review">Anlık görüntüyü incele</string>
+    <string name="phone_jobs_reject">Reddet</string>
+    <string name="phone_jobs_approve_title">Tam bu kaynak çalıştırılsın mı?</string>
+    <string name="phone_jobs_warning">Çevrimdışı :app:assembleDebug güvenilir kaynağı bu uygulamanın Android izinleriyle çalıştırır. PRoot izolasyon sağlamaz. ZIP sabittir, sonraki düzenlemeler dahil edilmez. Yalnızca güvendiğiniz kodu onaylayın.</string>
+    <string name="phone_jobs_approve">Onayla ve derle</string>
+    <string name="phone_jobs_back">Geri</string>
+    <string name="phone_jobs_expired">İsteğin süresi doldu, iptal edildi veya kullanılamıyor.</string>
+</resources>

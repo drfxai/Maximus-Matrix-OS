@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_jobs_title">طلب بناء ينتظر الموافقة</string>
+    <string name="phone_jobs_summary">المشروع %1$s · %2$d ملف · %3$d بايت</string>
+    <string name="phone_jobs_review">مراجعة النسخة</string>
+    <string name="phone_jobs_reject">رفض</string>
+    <string name="phone_jobs_approve_title">تشغيل هذه النسخة بالضبط؟</string>
+    <string name="phone_jobs_warning">ينفذ البناء دون اتصال :app:assembleDebug المصدر الموثوق بصلاحيات هذا التطبيق. PRoot ليس بيئة عزل. ملف ZIP ثابت ولا يشمل تعديلات المحرر اللاحقة. وافق فقط على كود تثق به.</string>
+    <string name="phone_jobs_approve">موافقة وبناء</string>
+    <string name="phone_jobs_back">رجوع</string>
+    <string name="phone_jobs_expired">انتهى الطلب أو أُلغي أو تعذر الوصول إليه.</string>
+</resources>

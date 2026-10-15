@@ -29,6 +29,16 @@ class PhoneHostPolicyTest {
         }
     }
 
+    @Test fun onlyExplicitBuildJobMethodsAreAccepted() {
+        assertEquals(PhoneHostPolicy.Route.BuildRequest, PhoneHostPolicy.route("POST", "/v1/build-jobs"))
+        assertEquals(PhoneHostPolicy.Route.Job(project, "cancel"), PhoneHostPolicy.route("POST", "/v1/build-jobs/$project/cancel"))
+        assertEquals(PhoneHostPolicy.Route.Job(project, "artifact"), PhoneHostPolicy.route("GET", "/v1/build-jobs/$project/artifact"))
+        for (suffix in listOf("approve", "start", "shell", "exec")) {
+            assertNull(PhoneHostPolicy.route("POST", "/v1/build-jobs/$project/$suffix"))
+        }
+        assertNull(PhoneHostPolicy.route("GET", "/v1/build-jobs/$project/cancel"))
+    }
+
     @Test fun rejectsPathConfusionAndEncodedTraversal() {
         for (path in listOf("/v1/projects/../../secret", "/v1/projects/$project/export?all=1",
             "/v1/projects/$project/%65xport", "/v1/projects/$project/..",

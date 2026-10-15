@@ -1,8 +1,8 @@
 package ai.drfx.maximus.matrixai.studio.phonehost
 
 /**
- * A deliberately small HTTP/1.1 read-only surface. The host never accepts
- * shell commands, uploaded source, privileged app actions or signing keys.
+ * A small loopback HTTP surface: read-only projects plus phone-approved build
+ * requests. No remote approval, shell, uploaded source or signing keys.
  */
 internal object PhoneHostPolicy {
     const val PORT = 18767
@@ -11,6 +11,8 @@ internal object PhoneHostPolicy {
     private val projectId = Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")
 
     sealed interface Route {
+        data object BuildRequest : Route
+        data class Job(val id: String, val operation: String) : Route
         data object Capabilities : Route
         data object Projects : Route
         data class Manifest(val id: String) : Route
@@ -18,9 +20,18 @@ internal object PhoneHostPolicy {
     }
 
     fun route(method: String, requestTarget: String): Route? {
-        if (method != "GET" || requestTarget.length > 160 ||
+        if (requestTarget.length > 160 ||
             '?' in requestTarget || '#' in requestTarget || '%' in requestTarget ||
             '\\' in requestTarget) return null
+        if (method == "POST" && requestTarget == "/v1/build-jobs") return Route.BuildRequest
+        val job = Regex("^/v1/build-jobs/([a-f0-9-]{36})(?:/(log|artifact|cancel))?$").matchEntire(requestTarget)
+        if (job != null && projectId.matches(job.groupValues[1])) {
+            val operation = job.groupValues[2].ifBlank { "status" }
+            if ((method == "GET" && operation != "cancel") || (method == "POST" && operation == "cancel"))
+                return Route.Job(job.groupValues[1], operation)
+            return null
+        }
+        if (method != "GET") return null
         if (requestTarget == "/v1/capabilities") return Route.Capabilities
         if (requestTarget == "/v1/projects") return Route.Projects
         val parts = requestTarget.split('/')

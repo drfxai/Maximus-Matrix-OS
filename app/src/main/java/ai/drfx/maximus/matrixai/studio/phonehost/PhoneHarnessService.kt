@@ -18,20 +18,51 @@ internal object PhoneHostSession {
     @Volatile var lastError: String = ""
         private set
 
-    @Synchronized fun start(context: Context) {
-        if (active != null) return
-        try {
-            active = PhoneHarnessHttpServer(context)
-            lastError = ""
-        } catch (_: Exception) {
-            lastError = "Cannot bind phone host to 127.0.0.1:18767."
-            throw IllegalStateException(lastError)
+    private val lifecycle = java.util.concurrent.Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "phone-host-lifecycle").apply { isDaemon = true }
+    }
+    private val lifecycleLock = Any()
+    private var generation = 0L
+    private var starting = false
+
+    fun start(context: Context, onFailure: () -> Unit = {}) {
+        val epoch = synchronized(lifecycleLock) {
+            if (active != null || starting) return
+            starting = true
+            generation
+        }
+        lifecycle.execute {
+            try {
+                if (synchronized(lifecycleLock) { generation != epoch }) return@execute
+                java.io.File(context.cacheDir, "phone-server-jobs").deleteRecursively()
+                val created = PhoneHarnessHttpServer(context)
+                val accepted = synchronized(lifecycleLock) {
+                    if (generation == epoch && starting) {
+                        active = created; starting = false; lastError = ""; true
+                    } else false
+                }
+                if (!accepted) created.close()
+            } catch (_: Exception) {
+                val current = synchronized(lifecycleLock) {
+                    if (generation == epoch) {
+                        starting = false
+                        lastError = "Cannot bind phone host to 127.0.0.1:18767."
+                        true
+                    } else false
+                }
+                if (current) onFailure()
+            }
         }
     }
 
-    @Synchronized fun stop() {
-        active?.close()
-        active = null
+    fun stop() {
+        val detached = synchronized(lifecycleLock) {
+            generation++; starting = false
+            active.also { active = null }
+        }
+        // Stop admitting work/valid approvals now; bulk teardown never blocks Main.
+        detached?.invalidate()
+        lifecycle.execute { detached?.close() }
     }
 
     fun token(): String = active?.bearerToken.orEmpty()
@@ -78,7 +109,10 @@ class PhoneHarnessService : Service() {
         }
         startForeground(NOTIFICATION, notification())
         try {
-            PhoneHostSession.start(applicationContext)
+            PhoneHostSession.start(applicationContext) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
         } catch (_: Exception) {
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()

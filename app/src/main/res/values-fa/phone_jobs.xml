@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_jobs_title">درخواست ساخت در انتظار تأیید</string>
+    <string name="phone_jobs_summary">پروژه %1$s · %2$d فایل · %3$d بایت</string>
+    <string name="phone_jobs_review">بررسی نسخهٔ ثابت</string>
+    <string name="phone_jobs_reject">رد کردن</string>
+    <string name="phone_jobs_approve_title">همین نسخه اجرا شود؟</string>
+    <string name="phone_jobs_warning">ساخت آفلاین :app:assembleDebug کد مورد اعتماد را با مجوزهای اندرویدی همین برنامه اجرا می‌کند. PRoot محیط ایزوله نیست. این ZIP ثابت است؛ تغییرات بعدی ویرایشگر در آن نیست. فقط کد مورد اعتماد را تأیید کنید.</string>
+    <string name="phone_jobs_approve">تأیید و ساخت</string>
+    <string name="phone_jobs_back">بازگشت</string>
+    <string name="phone_jobs_expired">درخواست منقضی، لغو یا غیرقابل دسترس شد.</string>
+</resources>
