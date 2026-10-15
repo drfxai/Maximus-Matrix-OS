@@ -144,6 +144,21 @@ export default {
           .bind(id, team.job, team.repository, team.periodMinutes).run();
         return json(201, { id, ...team, status: 'scheduled_by_cloudflare_cron_when_deployed' });
       }
+      // Explicit POST control commands work with Android HttpURLConnection,
+      // whose method allowlist excludes PATCH. These commands never accept a body.
+      const command = /^\/v1\/teams\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\/(pause|resume)$/.exec(url.pathname);
+      if (command) {
+        if (request.method !== 'POST') return error(405, 'method_not_allowed');
+        if (request.body || request.headers.has('content-length') && request.headers.get('content-length') !== '0')
+          return error(400, 'empty_body_required');
+        const id = command[1];
+        const existing = await env.AGENT_DB.prepare('SELECT id, enabled FROM agent_teams WHERE id = ?').bind(id).first();
+        if (!existing) return error(404, 'unknown_team');
+        const enabled = command[2] === 'resume';
+        await env.AGENT_DB.prepare('UPDATE agent_teams SET enabled = ? WHERE id = ?')
+          .bind(enabled ? 1 : 0, id).run();
+        return json(200, { id, enabled, runningTasksMayFinish: true });
+      }
       const item = /^\/v1\/teams\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/.exec(url.pathname);
       if (item) {
         const id = item[1];
