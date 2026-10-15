@@ -52,7 +52,7 @@ jobs:
       - name: Validate five translated Android resource packs
         run: python3 .github/scripts/check-ui-locales.py
       - name: Test authenticated cloud agent starter
-        run: node --test ops/cloud-agent/tests/worker-starter.test.mjs
+        run: node --test ops/cloud-agent/tests/*.test.mjs
       - run: python3 .github/scripts/test-release-identity.py
       - run: python3 .github/scripts/test-release-publication.py
       - name: Test remote Worker discovery gateway

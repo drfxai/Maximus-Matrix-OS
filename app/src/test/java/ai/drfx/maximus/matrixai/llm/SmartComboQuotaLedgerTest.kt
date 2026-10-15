@@ -247,4 +247,31 @@ class SmartComboQuotaLedgerTest {
         ledger.observe("shared-account", listOf(quota(remaining = 6000, observed = time)))
         assertEquals(4000L, ledger.capacities("shared-account").single().safeAvailable)
     }
+    @Test fun identicalProviderObservationCannotIncreaseQuota() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        ledger.observe("shared-account", listOf(quota(remaining = 6000)))
+        time += 50
+        // A delayed, duplicated provider timestamp must not mint more tokens.
+        ledger.observe("shared-account", listOf(quota(remaining = 9000)))
+        assertEquals(6000L, ledger.capacities("shared-account").single().safeAvailable)
+        // A more conservative observation at that timestamp may restrict capacity.
+        ledger.observe("shared-account", listOf(quota(remaining = 5000)))
+        assertEquals(5000L, ledger.capacities("shared-account").single().safeAvailable)
+        // Fresh authenticated evidence is required before increasing available quota.
+        time += 50
+        ledger.observe("shared-account", listOf(quota(remaining = 8000, observed = time)))
+        assertEquals(8000L, ledger.capacities("shared-account").single().safeAvailable)
+    }
+
+    @Test fun delayedSnapshotCannotErasePendingTokenReservation() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        ledger.observe("shared-account", listOf(quota(remaining = 8000)))
+        assertTrue(ledger.reserve(plan("reserved")).accepted)
+        time += 50
+        ledger.observe("shared-account", listOf(quota(remaining = 10000)))
+        assertEquals(6000L, ledger.capacities("shared-account").single().safeAvailable)
+    }
+
 }
