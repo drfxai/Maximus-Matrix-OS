@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_controls_show">کنترل‌های گفتگو</string>
+    <string name="focus_controls_hide">بستن کنترل‌ها</string>
+    <string name="focus_details">جزئیات</string>
+    <string name="focus_provider_configured">ارائه‌دهنده تنظیم‌شده</string>
+    <string name="focus_provider_active">در حال پاسخ به درخواست</string>
+    <string name="focus_agent">ایجنت</string>
+    <string name="focus_preparing">آماده‌سازی مسیر</string>
+    <string name="focus_idle">آماده</string>
+    <string name="focus_running">در حال اجرا</string>
+    <string name="focus_tokens_reported">نوبت آخر · گزارش‌شده</string>
+    <string name="focus_tokens_estimated">نوبت آخر · تخمینی</string>
+    <string name="focus_used">مصرف %1$s</string>
+    <string name="focus_context_left">ظرفیت متن باقی‌مانده ≈ %1$s</string>
+    <string name="focus_unknown">نامشخص</string>
+    <string name="focus_live_output">خروجی ≈ %1$s</string>
+    <string name="focus_expand_home">باز کردن جزئیات دستیار</string>
+    <string name="focus_collapse_home">بستن جزئیات دستیار</string>
+    <string name="focus_graph_canvas">گراف تعاملی گره‌ها</string>
+    <string name="focus_tokens_live">خروجی جاری · تخمینی</string>
+</resources>

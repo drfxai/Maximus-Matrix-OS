@@ -71,7 +71,12 @@ data class TokenMetrics(
     val verifiedRateRequestsRemaining: Long? = null,
     val verifiedRateTokensRemaining: Long? = null,
     val verifiedRequestRateKind: String = "Unknown",
-    val rateEvidenceAtEpochMs: Long? = null
+    val rateEvidenceAtEpochMs: Long? = null,
+    /** Identity of the provider response carrying this rate-limit snapshot. */
+    val rateProvider: LlmProvider? = null,
+    val rateModelId: String = "",
+    /** True until a provider supplies final usage; context is always a local estimate. */
+    val turnUsageEstimated: Boolean = true
 )
 
 data class ChatCompletionResult(
@@ -124,6 +129,16 @@ enum class FreeCatalogUiPhase {
     OFF, CHECKING, NO_ACCOUNTS, NONE_VERIFIED, READY, UNAVAILABLE
 }
 
+/** Public dispatch metadata only. Never stores endpoint, key, prompt or response. */
+data class ChatRequestTelemetry(
+    val provider: LlmProvider,
+    val modelId: String,
+    val agentId: String,
+    val agentName: String,
+    val startedAtEpochMs: Long,
+    val automatic: Boolean
+)
+
 data class LlmUiState(
     val status: ConnectionStatus = ConnectionStatus.DISCONNECTED,
     val provider: LlmProvider = LlmProvider.UNKNOWN,
@@ -135,6 +150,8 @@ data class LlmUiState(
     val hasSavedKey: Boolean = false,
     val statusMessage: String = "Configure an API endpoint to begin.",
     val isGenerating: Boolean = false,
+    val activeRequest: ChatRequestTelemetry? = null,
+    val lastRequest: ChatRequestTelemetry? = null,
     val subscriptionLabel: String = "",
     val monthlyBudgetUsd: Double = 0.0,
     val monthlyTokenBudget: Long = 0L,

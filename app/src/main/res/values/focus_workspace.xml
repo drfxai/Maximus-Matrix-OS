@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_controls_show">Workspace controls</string>
+    <string name="focus_controls_hide">Hide controls</string>
+    <string name="focus_details">Details</string>
+    <string name="focus_provider_configured">Configured provider</string>
+    <string name="focus_provider_active">Serving this request</string>
+    <string name="focus_agent">Agent</string>
+    <string name="focus_preparing">Preparing route</string>
+    <string name="focus_idle">Idle</string>
+    <string name="focus_running">Running</string>
+    <string name="focus_tokens_reported">Last turn · reported</string>
+    <string name="focus_tokens_estimated">Last turn · estimate</string>
+    <string name="focus_used">%1$s used</string>
+    <string name="focus_context_left">Context left ≈ %1$s</string>
+    <string name="focus_unknown">Unknown</string>
+    <string name="focus_live_output">Output ≈ %1$s</string>
+    <string name="focus_expand_home">Expand assistant details</string>
+    <string name="focus_collapse_home">Collapse assistant details</string>
+    <string name="focus_graph_canvas">Interactive node graph</string>
+    <string name="focus_tokens_live">Current output · estimate</string>
+</resources>

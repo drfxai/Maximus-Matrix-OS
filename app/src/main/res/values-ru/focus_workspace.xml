@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_controls_show">Управление чатом</string>
+    <string name="focus_controls_hide">Скрыть управление</string>
+    <string name="focus_details">Подробности</string>
+    <string name="focus_provider_configured">Выбранный провайдер</string>
+    <string name="focus_provider_active">Обрабатывает запрос</string>
+    <string name="focus_agent">Агент</string>
+    <string name="focus_preparing">Подготовка маршрута</string>
+    <string name="focus_idle">Ожидание</string>
+    <string name="focus_running">Выполняется</string>
+    <string name="focus_tokens_reported">Последний запрос · отчёт</string>
+    <string name="focus_tokens_estimated">Последний запрос · оценка</string>
+    <string name="focus_used">Использовано %1$s</string>
+    <string name="focus_context_left">Остаток контекста ≈ %1$s</string>
+    <string name="focus_unknown">Неизвестно</string>
+    <string name="focus_live_output">Вывод ≈ %1$s</string>
+    <string name="focus_expand_home">Развернуть сведения помощника</string>
+    <string name="focus_collapse_home">Свернуть сведения помощника</string>
+    <string name="focus_graph_canvas">Интерактивный граф узлов</string>
+    <string name="focus_tokens_live">Текущий вывод · оценка</string>
+</resources>

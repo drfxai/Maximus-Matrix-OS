@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_controls_show">أدوات المحادثة</string>
+    <string name="focus_controls_hide">إخفاء الأدوات</string>
+    <string name="focus_details">التفاصيل</string>
+    <string name="focus_provider_configured">المزوّد المحدد</string>
+    <string name="focus_provider_active">يجيب عن هذا الطلب</string>
+    <string name="focus_agent">الوكيل</string>
+    <string name="focus_preparing">تجهيز المسار</string>
+    <string name="focus_idle">جاهز</string>
+    <string name="focus_running">قيد التنفيذ</string>
+    <string name="focus_tokens_reported">الدور الأخير · مُبلّغ</string>
+    <string name="focus_tokens_estimated">الدور الأخير · تقديري</string>
+    <string name="focus_used">المستهلك %1$s</string>
+    <string name="focus_context_left">السياق المتبقي ≈ %1$s</string>
+    <string name="focus_unknown">غير معروف</string>
+    <string name="focus_live_output">المخرجات ≈ %1$s</string>
+    <string name="focus_expand_home">عرض تفاصيل المساعد</string>
+    <string name="focus_collapse_home">طي تفاصيل المساعد</string>
+    <string name="focus_graph_canvas">الرسم التفاعلي للعُقد</string>
+    <string name="focus_tokens_live">المخرجات الحالية · تقديرية</string>
+</resources>

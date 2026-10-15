@@ -31,6 +31,11 @@ printf '%s\n' "$test_status" > keyboard-check/test-exit-status.txt
 timeout --kill-after=2s 10s adb get-state > keyboard-check/device-state.txt 2>&1 || true
 # KeyboardLayoutTest saves its failure screenshot in the app external files area.
 timeout --kill-after=2s 15s adb pull /sdcard/Android/data/ai.drfx.maximus.matrixai/files/failure-state.png keyboard-check/test-failure-screen.png || true
+if [[ "${ANDROID_TEST_CLASSES:-}" == *"KeyboardLayoutTest"* ]]; then
+  for capture in home-graph.png chat-focus.png; do
+    timeout --kill-after=2s 10s adb pull "/sdcard/Android/data/ai.drfx.maximus.matrixai/files/$capture" "keyboard-check/$capture" || true
+  done
+fi
 if [[ -d app/build/outputs/androidTest-results/connected ]]; then
   cp -R app/build/outputs/androidTest-results/connected keyboard-check/test-results
 fi
