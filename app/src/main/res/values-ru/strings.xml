@@ -586,4 +586,18 @@
     <string name="phone_host_linux_not_installed">Среда Linux не установлена</string>
     <string name="phone_host_rootfs_unverified">Файловая система Linux не проверена</string>
     <string name="phone_host_execution_unverified">Файлы найдены; запуск исполняемых файлов ещё не проверен</string>
+    <string name="models_inventory_notice">Добавляйте свои файлы моделей из памяти Android без загрузки в сеть. Это только каталог файлов: локальный запуск моделей и скачивание с Hugging Face пока недоступны.</string>
+    <string name="models_registered_count">Зарегистрировано файлов: %1$d</string>
+    <string name="models_import_success">Ссылка на модель %1$s сохранена. Это не подтверждает возможность запуска.</string>
+    <string name="models_import_failed">Не удалось импортировать модель. Проверьте формат, размер и доступ к документу.</string>
+    <string name="models_format_size">%1$s · %2$s ГиБ</string>
+    <string name="models_gguf_verified">Заголовок GGUF распознан. Веса, оборудование и запуск модели ещё не проверены.</string>
+    <string name="models_litert_unverified">Распознано только расширение LiteRT-LM. Целостность пакета и поддержка среды не подтверждены.</string>
+    <string name="models_offline_notice">Документ может храниться в облаке. Регистрация не гарантирует доступ без сети. Удаление ссылки не удаляет исходный файл.</string>
+    <string name="models_forget_detail">Удалить сохранённую ссылку на %1$s? Исходный файл модели останется без изменений.</string>
+    <string name="models_forget_success">Ссылка на модель удалена. Исходный файл не изменён.</string>
+    <string name="models_forget_failed">Не удалось удалить ссылку на модель. Повторите попытку.</string>
+    <string name="models_file_name_missing">Не удалось прочитать имя файла.</string>
+    <string name="models_file_open_failed">Не удалось открыть выбранный документ.</string>
+    <string name="models_unverified_runtime">Пока нельзя запустить · поддержка вывода, изображений и звука не проверена.</string>
 </resources>
