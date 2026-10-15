@@ -17,7 +17,10 @@ import ai.drfx.maximus.matrixai.llm.LlmUiState
 @Composable
 internal fun smartComboStatusLabel(state: LlmUiState): String =
     when (state.smartComboUiPhase) {
-        FreeCatalogUiPhase.OFF -> stringResource(R.string.combo_state_off)
+        FreeCatalogUiPhase.OFF -> stringResource(
+            if (state.smartComboEnabled) R.string.combo_state_checking
+            else R.string.combo_state_off
+        )
         FreeCatalogUiPhase.CHECKING -> stringResource(R.string.combo_state_checking)
         FreeCatalogUiPhase.NO_ACCOUNTS -> stringResource(R.string.combo_state_no_accounts)
         FreeCatalogUiPhase.NONE_VERIFIED -> stringResource(R.string.combo_state_no_free)
