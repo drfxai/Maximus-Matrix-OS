@@ -456,4 +456,20 @@
     <string name="brain_graph_start_rotation">شروع چرخش</string>
     <string name="brain_graph_filter_nodes">فیلتر گروه‌های گره</string>
     <string name="brain_graph_clear_focus">لغو انتخاب</string>
+    <string name="brain_group_core">هسته ماتریکس</string>
+    <string name="brain_group_signals">سیگنال‌های زنده</string>
+    <string name="brain_group_vision">تحلیل تصویری نمودار</string>
+    <string name="brain_group_news">اخبار هوشمند</string>
+    <string name="brain_group_alerts">هشدارهای بازار</string>
+    <string name="brain_group_agents">اجرای ایجنت‌ها</string>
+    <string name="brain_group_execution">کنترل اجرا</string>
+    <string name="brain_group_chat">گفتگوی هوش مصنوعی</string>
+    <string name="brain_group_genome">ژنوم معاملاتی</string>
+    <string name="brain_group_pine">ابزارهای پاین</string>
+    <string name="brain_group_quant">پژوهش کمی</string>
+    <string name="brain_group_validation">آزمایشگاه اعتبارسنجی</string>
+    <string name="brain_group_research">حافظه پژوهش</string>
+    <string name="brain_group_data">داده و دانش</string>
+    <string name="brain_group_routing">مسیریابی مدل‌ها</string>
+    <string name="brain_group_finops">مدیریت هزینه و کنترل</string>
 </resources>
