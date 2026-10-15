@@ -456,4 +456,20 @@
     <string name="brain_graph_start_rotation">Dönüşü başlat</string>
     <string name="brain_graph_filter_nodes">Düğüm gruplarını filtrele</string>
     <string name="brain_graph_clear_focus">Seçimi temizle</string>
+    <string name="brain_group_core">Matrix çekirdeği</string>
+    <string name="brain_group_signals">Canlı sinyaller</string>
+    <string name="brain_group_vision">Grafik analizi</string>
+    <string name="brain_group_news">Haber analizi</string>
+    <string name="brain_group_alerts">Piyasa uyarıları</string>
+    <string name="brain_group_agents">Ajan çalıştırma</string>
+    <string name="brain_group_execution">Yürütme denetimi</string>
+    <string name="brain_group_chat">Yapay zekâ sohbeti</string>
+    <string name="brain_group_genome">İşlem genomu</string>
+    <string name="brain_group_pine">Pine araçları</string>
+    <string name="brain_group_quant">Nicel araştırma</string>
+    <string name="brain_group_validation">Doğrulama laboratuvarı</string>
+    <string name="brain_group_research">Araştırma belleği</string>
+    <string name="brain_group_data">Veri ve bilgi</string>
+    <string name="brain_group_routing">Model yönlendirme</string>
+    <string name="brain_group_finops">Maliyet ve kontrol</string>
 </resources>
