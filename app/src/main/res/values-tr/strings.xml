@@ -659,4 +659,18 @@
     <string name="chat_turn_tokens">%1$s token (İstem: %2$s · Yanıt: %3$s)</string>
     <string name="chat_server_combo">9Router (sunucu kombinasyonu)</string>
     <string name="vision_note_hint">Not, varlık sembolü veya zaman dilimi ekleyin…</string>
+    <string name="models_inventory_notice">Model dosyalarınızı Android depolama alanından yüklemeden kaydedin. Bu yalnızca dosya envanteridir; model çalıştırma ve Hugging Face indirme henüz etkin değildir.</string>
+    <string name="models_registered_count">Kayıtlı dosyalar: %1$d</string>
+    <string name="models_import_success">%1$s model kaydı oluşturuldu. Bu, modeli çalıştırabileceğiniz anlamına gelmez.</string>
+    <string name="models_import_failed">Model dosyası içe aktarılamadı. Dosya türünü, boyutunu ve belge erişimini kontrol edin.</string>
+    <string name="models_format_size">%1$s · %2$s GiB</string>
+    <string name="models_gguf_verified">GGUF başlığı tanındı. Model ağırlıkları, donanım ve çalıştırma henüz doğrulanmadı.</string>
+    <string name="models_litert_unverified">Yalnızca LiteRT-LM uzantısı tanındı. Paket bütünlüğü ve çalışma desteği doğrulanmadı.</string>
+    <string name="models_offline_notice">Seçilen belge bulutta bulunabilir. Kaydetmek çevrimdışı erişimi garanti etmez. Kaydı kaldırmak orijinal dosyayı silmez.</string>
+    <string name="models_forget_detail">%1$s için kayıtlı referans silinsin mi? Orijinal model dosyası silinmeyecek.</string>
+    <string name="models_forget_success">Model referansı kaldırıldı. Orijinal dosya değişmedi.</string>
+    <string name="models_forget_failed">Model referansı kaldırılamadı. Yeniden deneyin.</string>
+    <string name="models_file_name_missing">Belge dosya adı okunamıyor.</string>
+    <string name="models_file_open_failed">Seçilen belge açılamıyor.</string>
+    <string name="models_unverified_runtime">Henüz çalıştırılamaz · çıkarım, görüntü ve ses desteği doğrulanmadı.</string>
 </resources>

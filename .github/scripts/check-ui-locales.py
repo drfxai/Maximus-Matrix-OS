@@ -62,6 +62,21 @@ for file in sorted(roots.glob("*.kt")):
     hardcoded = [label for label in labels if not label.startswith("https://")]
     if hardcoded:
         stats[file.name] = len(hardcoded)
+# A previously localized screen must not silently regress to English-only
+# literal Text() labels. Legacy screens are inventoried but not prematurely
+# declared fully translated.
+fully_localized = (
+    "LocalModelHubPanel.kt",
+    "ElevenLabsPanel.kt",
+    "AgentTeamPanel.kt",
+    "PhoneHarnessPanel.kt",
+)
+for name in fully_localized:
+    if not (roots / name).is_file():
+        sys.exit("Localization coverage panel missing: " + name)
+    if stats.get(name, 0):
+        sys.exit("Direct English Text() literal returned in localized panel: " + name)
+
 print("Five Android locale catalogs validated, keys:", len(base))
 print("Remaining direct Text string-literal occurrences:", sum(stats.values()))
 for name, count in stats.items():
