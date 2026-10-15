@@ -144,6 +144,32 @@ export default {
           .bind(id, team.job, team.repository, team.periodMinutes).run();
         return json(201, { id, ...team, status: 'scheduled_by_cloudflare_cron_when_deployed' });
       }
+      const item = /^\\/v1\\/teams\\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/.exec(url.pathname);
+      if (item) {
+        const id = item[1];
+        if (request.method !== 'PATCH' && request.method !== 'DELETE') return error(405, 'method_not_allowed');
+        const existing = await env.AGENT_DB.prepare('SELECT id, enabled FROM agent_teams WHERE id = ?').bind(id).first();
+        if (!existing) return error(404, 'unknown_team');
+        if (request.method === 'PATCH') {
+          if (request.headers.get('content-type') !== 'application/json' || request.headers.has('content-encoding'))
+            return error(415, 'unsupported_media_type');
+          let body;
+          try { body = await readBody(request); }
+          catch (e) { return error(e?.message === 'body_too_large' ? 413 : 400,
+              e?.message === 'body_too_large' ? 'body_too_large' : 'invalid_json'); }
+          if (!body || typeof body !== 'object' || Array.isArray(body) ||
+              Object.keys(body).length !== 1 || typeof body.enabled !== 'boolean')
+            return error(400, 'invalid_update');
+          await env.AGENT_DB.prepare('UPDATE agent_teams SET enabled = ? WHERE id = ?')
+            .bind(body.enabled ? 1 : 0, id).run();
+          return json(200, { id, enabled: body.enabled, runningTasksMayFinish: true });
+        }
+        // A deletion revokes all future scheduling; an already-claimed task may finish.
+        if (request.body || request.headers.has('content-length') && request.headers.get('content-length') !== '0')
+          return error(400, 'empty_body_required');
+        await env.AGENT_DB.prepare('DELETE FROM agent_teams WHERE id = ?').bind(id).run();
+        return json(200, { id, deleted: true, runningTasksMayFinish: true });
+      }
       if (['/v1/teams', '/v1/reports'].includes(url.pathname)) return error(405, 'method_not_allowed');
       return error(404, 'not_found');
     } catch (_) { return error(503, 'storage_unavailable'); }
