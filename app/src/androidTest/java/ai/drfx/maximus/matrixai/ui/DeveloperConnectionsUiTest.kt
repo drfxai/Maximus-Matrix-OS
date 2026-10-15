@@ -3,17 +3,12 @@ package ai.drfx.maximus.matrixai.ui
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsEnabled
@@ -21,16 +16,17 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
-import androidx.test.uiautomator.By
-import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
-import androidx.test.uiautomator.UiObject2
-import androidx.test.uiautomator.UiScrollable
-import androidx.test.uiautomator.UiSelector
 import ai.drfx.maximus.matrixai.MainActivity
 import ai.drfx.maximus.matrixai.R
 import ai.drfx.maximus.matrixai.ui.theme.AppLanguage
@@ -53,92 +49,66 @@ class DeveloperConnectionsUiTest {
     private val context = instrumentation.targetContext
     private val device = UiDevice.getInstance(instrumentation)
 
-    @OptIn(ExperimentalComposeUiApi::class)
     @Test fun offlineRepositoryEditingAndCredentialStateRemainSafe() {
         val preferences = context.getSharedPreferences("maximus_developer_connections", Context.MODE_PRIVATE)
         val originalPreferences = preferences.all.toMap()
         val languages = LanguagePreferenceStore(context)
         val originalLanguage = languages.load()
         val originalLocale = Locale.getDefault()
-        val configurator = Configurator.getInstance()
-        val originalIdleTimeout = configurator.waitForIdleTimeout
         try {
             assertTrue(preferences.edit().clear().commit())
             languages.save(AppLanguage.ENGLISH)
-            configurator.setWaitForIdleTimeout(500)
             device.executeShellCommand("am start -W -f 0x10008000 -n ${context.packageName}/${MainActivity::class.java.name}")
             onActivity { activity ->
                 // Isolate the real panel from unrelated continuously animated screens.
-                // Resource IDs are exposed by this test wrapper only.
+                // Test tags identify real panel controls without production hooks.
                 activity.setContent {
                     MaximusMatrixTheme {
-                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                            .semantics { testTagsAsResourceId = true }
-                            .testTag("developer_ui_test_scroll")) {
+                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                             DeveloperConnectionsPanel()
                         }
                     }
                 }
             }
-            await("Disconnected state was not rendered") {
-                device.hasObject(By.text(text(R.string.dev_not_connected)))
-            }
+            status(R.string.dev_not_connected).assertIsDisplayed()
             button(R.string.dev_verify).assertIsNotEnabled()
             button(R.string.dev_save_token).assertIsNotEnabled()
 
-            // Accessibility text edits invoke the actual Compose onValueChange/parser
-            // wiring without requiring or dismissing the system keyboard.
+            // Exercise the real Compose field callback and parser, including each
+            // incomplete URL stage, with the same clock used by layout assertions.
             for (partial in listOf("h", "https://", "https://github.com/", "https://github.com/[")) {
-                field("developer_repository_url").text = partial
-                compose.waitForIdle()
-                scroll().scrollIntoView(UiSelector().text(text(R.string.dev_repository_invalid)))
-                await("Partial repository input did not render its validation error") {
-                    device.hasObject(By.text(text(R.string.dev_repository_invalid)))
-                }
+                field("developer_repository_url").performTextReplacement(partial)
+                compose.onNodeWithText(text(R.string.dev_repository_invalid))
+                    .performScrollTo().assertIsDisplayed()
             }
-            field("developer_repository_url").text = "https://github.com/DrFXAi/Maximus-Matrix-OS"
-            compose.waitForIdle()
+            field("developer_repository_url").performTextReplacement("https://github.com/DrFXAi/Maximus-Matrix-OS")
             val selected = text(R.string.dev_repository_selected, "DrFXAi", "Maximus-Matrix-OS")
-            scroll().scrollIntoView(UiSelector().text(selected))
-            await("Valid repository selection was not rendered") { device.hasObject(By.text(selected)) }
-            field("developer_repository_url").text = "https://github.com.evil.test/DrFXAi/Maximus-Matrix-OS"
-            compose.waitForIdle()
-            scroll().scrollIntoView(UiSelector().text(text(R.string.dev_repository_invalid)))
-            await("Invalid origin retained an old repository selection") { !device.hasObject(By.text(selected)) }
-            assertTrue(device.hasObject(By.text(text(R.string.dev_repository_invalid))))
+            compose.onNodeWithText(selected).performScrollTo().assertIsDisplayed()
+            field("developer_repository_url").performTextReplacement("https://github.com.evil.test/DrFXAi/Maximus-Matrix-OS")
+            compose.onNodeWithText(text(R.string.dev_repository_invalid)).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText(selected).assertDoesNotExist()
 
-            tagged("developer_advanced_editor_toggle").click()
-            await("Advanced editor did not expand") { device.hasObject(By.text(text(R.string.dev_hide_advanced))) }
-            tagged("developer_advanced_editor_toggle").click()
-            await("Advanced editor did not collapse") { device.hasObject(By.text(text(R.string.dev_show_advanced))) }
+            field("developer_advanced_editor_toggle").performClick()
+            compose.onNodeWithText(text(R.string.dev_hide_advanced)).assertExists()
+            compose.onNodeWithText(text(R.string.dev_git_editor)).performScrollTo().assertIsDisplayed()
+            button(R.string.dev_load_source).assertIsNotEnabled()
+            field("developer_advanced_editor_toggle").performClick()
+            compose.onNodeWithText(text(R.string.dev_show_advanced)).assertExists()
+            compose.onNodeWithText(text(R.string.dev_git_editor)).assertDoesNotExist()
 
             // Fixture is encrypted by the actual Android Keystore vault, never verified.
-            field("developer_token_input").text = "fixture-not-a-real-api-token-00000000"
-            compose.waitForIdle()
+            field("developer_token_input").performTextReplacement("fixture-not-a-real-api-token-00000000")
             button(R.string.dev_save_token).performClick()
-            scroll().scrollToBeginning(12)
-            await("Saved token was incorrectly shown as verified") {
-                device.hasObject(By.text(text(R.string.dev_stored_unverified)))
-            }
+            status(R.string.dev_stored_unverified).assertIsDisplayed()
             button(R.string.dev_verify).assertIsEnabled()
             button(R.string.dev_revoke).assertIsEnabled()
-            tagged("developer_token_input") // Scroll back to the service selector above the token.
-            scroll().scrollToBeginning(12)
-            checkNotNull(device.findObject(By.text("Cloudflare"))).click()
-            await("Cloudflare inherited the GitHub credential state") {
-                device.hasObject(By.text(text(R.string.dev_not_connected)))
-            }
+            compose.onNodeWithText("Cloudflare").performScrollTo().performClick()
+            status(R.string.dev_not_connected).assertIsDisplayed()
             button(R.string.dev_verify).assertIsNotEnabled()
-            scroll().scrollToBeginning(12)
-            checkNotNull(device.findObject(By.text("GitHub"))).click()
-            await("Returning to GitHub lost its stored-unverified state") {
-                device.hasObject(By.text(text(R.string.dev_stored_unverified)))
-            }
+            compose.onNodeWithText("GitHub").performScrollTo().performClick()
+            status(R.string.dev_stored_unverified).assertIsDisplayed()
             button(R.string.dev_revoke).performClick()
-            scroll().scrollToBeginning(12)
-            await("Revocation did not restore disconnected state") {
-                device.hasObject(By.text(text(R.string.dev_not_connected)))
-            }
+            status(R.string.dev_not_connected).assertIsDisplayed()
             button(R.string.dev_verify).assertIsNotEnabled()
             assertTrue(preferences.all.isEmpty())
         } catch (failure: Throwable) {
@@ -166,7 +136,6 @@ class DeveloperConnectionsUiTest {
             } finally {
                 try { languages.save(originalLanguage) } finally {
                     Locale.setDefault(originalLocale)
-                    configurator.setWaitForIdleTimeout(originalIdleTimeout)
                 }
             }
         }
@@ -175,29 +144,16 @@ class DeveloperConnectionsUiTest {
     private fun text(id: Int, vararg args: Any): String =
         LanguagePreferenceStore.localizedContext(context, AppLanguage.ENGLISH).getString(id, *args)
 
-    private fun scroll() = UiScrollable(UiSelector().resourceId("developer_ui_test_scroll"))
-        .setMaxSearchSwipes(12)
+    private fun status(id: Int): SemanticsNodeInteraction =
+        compose.onAllNodesWithText(text(id)).onFirst().performScrollTo()
 
-    private fun tagged(tag: String): UiObject2 {
-        scroll().scrollToBeginning(12)
-        scroll().scrollIntoView(UiSelector().resourceId(tag))
-        compose.waitForIdle()
-        return checkNotNull(device.findObject(By.res(tag))) { "Missing panel control: $tag" }
-    }
+    private fun field(tag: String): SemanticsNodeInteraction =
+        compose.onNodeWithTag(tag).performScrollTo()
 
-    private fun field(tag: String): UiObject2 {
-        val node = tagged(tag)
-        return if (node.className == "android.widget.EditText") node
-        else checkNotNull(node.findObject(By.clazz("android.widget.EditText"))) { "Missing editable input: $tag" }
-    }
-
-    private fun button(id: Int): SemanticsNodeInteraction {
-        scroll().scrollToBeginning(12)
-        scroll().scrollIntoView(UiSelector().text(text(id)))
+    private fun button(id: Int): SemanticsNodeInteraction =
         // Merged Compose semantics owns the action and Disabled state. Android's
         // accessibility TextView/decorative Button children do not carry these.
-        return compose.onNodeWithText(text(id)).assertHasClickAction()
-    }
+        compose.onNodeWithText(text(id)).assertHasClickAction().performScrollTo()
 
     private fun onActivity(block: (MainActivity) -> Unit) {
         val completed = CountDownLatch(1)
@@ -214,13 +170,4 @@ class DeveloperConnectionsUiTest {
         failure.get()?.let { throw it }
     }
 
-    private fun await(message: String, condition: () -> Boolean) {
-        compose.waitForIdle()
-        val deadline = SystemClock.uptimeMillis() + 10_000
-        while (SystemClock.uptimeMillis() < deadline) {
-            if (condition()) return
-            SystemClock.sleep(100)
-        }
-        fail(message)
-    }
 }
