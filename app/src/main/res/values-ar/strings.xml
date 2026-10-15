@@ -609,4 +609,20 @@
     <string name="hindsight_status_checkpoint_retained">تم الاحتفاظ بنقطة الحفظ المعتمدة؛ %1$d ذكرى مرتبطة جاهزة.</string>
     <string name="hindsight_status_checkpoint_failed">مزامنة نقطة الحفظ غير متاحة. النسخة المحلية ما زالت متوفرة.</string>
     <string name="hindsight_safety_notice">الذاكرة بيانات مرجعية غير موثوقة وليست تصريحاً لتشغيل الأدوات. تعمل نقاط الحفظ المحلية دون الخادم. قطع الاتصال لا يحذف ذكريات السحابة.</string>
+    <string name="runtime_export_verified">تم حفظ Debug APK بعد التحقق من SHA-256. لم يُستخدم مفتاح توقيع الإنتاج.</string>
+    <string name="runtime_export_failed">تعذر تصدير Debug APK. تحقق من الاتصال والوجهة؛ لم يُقبل ملف غير موثّق.</string>
+    <string name="runtime_job_ready">ملف Debug APK جاهز. سيتم التحقق من البصمة قبل التنزيل.</string>
+    <string name="runtime_job_failed">فشل بناء Debug في البيئة المعزولة. لم يجرِ توقيع إصدار إنتاجي.</string>
+    <string name="runtime_job_status_failed">تعذر فحص حالة البناء في Worker. تحقق من الاتصال وأعد المحاولة.</string>
+    <string name="runtime_debug_safety">تعمل أبنية Debug بموافقتك الصريحة داخل Worker مستقل وموثق وغير متصل. لا تُنقل مفاتيح توقيع الإنتاج.</string>
+    <string name="runtime_state_queued">في الانتظار</string>
+    <string name="runtime_state_running">قيد التشغيل</string>
+    <string name="runtime_state_succeeded">ناجح</string>
+    <string name="runtime_state_failed">فشل</string>
+    <string name="runtime_debug_job">بناء Debug: %1$s · %2$s</string>
+    <string name="runtime_approval_title">هل توافق على بناء Debug APK المعزول؟</string>
+    <string name="runtime_approval_description">سيُرسل ZIP المشروع المحدد إلى Worker الموثق ليُبنى دون اتصال ضمن حاوية بلا صلاحيات الجذر. لا تُرسل أسراراً أو مشاريع سرية إلى Worker لا تتحكم فيه. لن يتم توقيع APK إنتاجي.</string>
+    <string name="runtime_build_accepted">تم قبول بناء Debug الموثق. جارٍ التحقق من حالة المهمة.</string>
+    <string name="runtime_build_failed">تعذر تقديم بناء Debug. تحقق من Worker وبيانات الاعتماد.</string>
+    <string name="runtime_build_cancel">إلغاء</string>
 </resources>
