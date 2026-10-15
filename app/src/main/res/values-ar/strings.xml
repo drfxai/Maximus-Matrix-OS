@@ -582,4 +582,8 @@
     <string name="phone_host_stopping">جارٍ إيقاف الخادم وإلغاء صلاحيات هذه الجلسة…</string>
     <string name="phone_host_stop_failed">تعذّر إيقاف خادم الهاتف.</string>
     <string name="phone_host_cancel">إلغاء</string>
+    <string name="phone_host_linux_unavailable">Linux المحلي غير متاح على هذا الجهاز</string>
+    <string name="phone_host_linux_not_installed">بيئة تشغيل Linux غير مثبتة</string>
+    <string name="phone_host_rootfs_unverified">نظام ملفات Linux غير متحقق منه</string>
+    <string name="phone_host_execution_unverified">تم العثور على الملفات، لكن التشغيل الفعلي لم يُتحقق منه</string>
 </resources>
