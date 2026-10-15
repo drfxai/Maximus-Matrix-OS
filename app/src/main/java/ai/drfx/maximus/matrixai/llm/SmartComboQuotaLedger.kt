@@ -43,7 +43,8 @@ internal class SmartComboQuotaLedger(
     }
 
     data class Entry(
-        val plan: Plan, val createdAt: Long, val state: State, val confirmed: Usage? = null
+        val plan: Plan, val createdAt: Long, val state: State, val confirmed: Usage? = null,
+        val settledAt: Long? = null
     )
     data class Admission(val accepted: Boolean, val reason: String, val needsQuotaRefresh: Boolean)
     data class Capacity(
@@ -135,7 +136,7 @@ internal class SmartComboQuotaLedger(
     @Synchronized fun completedWithoutUsage(requestId: String): Boolean {
         val current = entries[requestId] ?: return false
         if (current.state != State.DISPATCHED) return false
-        entries[requestId] = current.copy(state = State.FINISHED_UNVERIFIED)
+        entries[requestId] = current.copy(state = State.FINISHED_UNVERIFIED, settledAt = now())
         return true
     }
 
@@ -144,7 +145,7 @@ internal class SmartComboQuotaLedger(
         val current = entries[requestId] ?: return false
         if (current.state == State.RECONCILED) return current.confirmed == usage
         if (current.state != State.DISPATCHED && current.state != State.UNCERTAIN) return false
-        entries[requestId] = current.copy(state = State.RECONCILED, confirmed = usage)
+        entries[requestId] = current.copy(state = State.RECONCILED, confirmed = usage, settledAt = now())
         return true
     }
 
@@ -158,7 +159,7 @@ internal class SmartComboQuotaLedger(
             } else {
                 val seen = requireNotNull(w.observedAtEpochMs)
                 val usageSince = entries.values.asSequence()
-                    .filter { it.plan.scope == scope && it.createdAt >= seen && it.state != State.RELEASED }
+                    .filter { it.plan.scope == scope && notYetCoveredBySnapshot(it, seen) }
                     .fold(0L) { sum, entry -> saturatingAdd(sum, accounted(entry, w.kind)) }
                 val advertised = requireNotNull(w.remaining)
                 Capacity(
@@ -170,6 +171,21 @@ internal class SmartComboQuotaLedger(
                     w.resetAtEpochMs
                 )
             }
+        }
+
+    /**
+     * An account snapshot cannot prove that an unfinished local request is included.
+     * In particular an older RESERVED request has not even reached the provider yet.
+     * Hold unresolved demand conservatively, then allow a strictly newer snapshot to
+     * supersede settled usage. This can underestimate availability while work is in
+     * flight; it must never advertise the reservation as newly available capacity.
+     */
+    private fun notYetCoveredBySnapshot(entry: Entry, observedAt: Long): Boolean =
+        when (entry.state) {
+            State.RELEASED -> false
+            State.RESERVED, State.DISPATCHED, State.UNCERTAIN -> true
+            State.RECONCILED, State.FINISHED_UNVERIFIED ->
+                (entry.settledAt ?: entry.createdAt) >= observedAt
         }
 
     private fun fresh(w: SmartComboPlanner.QuotaWindow, at: Long): Boolean {
