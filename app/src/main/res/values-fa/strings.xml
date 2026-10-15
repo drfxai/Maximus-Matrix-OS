@@ -582,4 +582,8 @@
     <string name="phone_host_stopping">در حال توقف سرور و لغو دسترسی این نشست…</string>
     <string name="phone_host_stop_failed">توقف سرور گوشی ممکن نشد.</string>
     <string name="phone_host_cancel">انصراف</string>
+    <string name="phone_host_linux_unavailable">لینوکس محلی روی این دستگاه پشتیبانی نمی‌شود</string>
+    <string name="phone_host_linux_not_installed">محیط اجرایی لینوکس نصب نشده است</string>
+    <string name="phone_host_rootfs_unverified">فایل‌سیستم لینوکس تأیید نشده است</string>
+    <string name="phone_host_execution_unverified">فایل‌ها پیدا شدند؛ اجرای واقعی هنوز تأیید نشده است</string>
 </resources>
