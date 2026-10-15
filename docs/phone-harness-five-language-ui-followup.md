@@ -2,7 +2,7 @@
 
 **Scope:** UI localization only; no change to the optional Linux installer, PRoot checksums, Android permission model, foreground-service behavior, API keys, or Gradle build execution.
 
-This patch converts 34 previously untranslated **Mobile Harness UI and transient status strings** to Android resource entries for English, Persian, Arabic, Turkish, and Russian.
+This patch converts 38 previously untranslated **Mobile Harness UI and transient status strings** to Android resource entries for English, Persian, Arabic, Turkish, and Russian.
 
 ## Screen coverage
 
@@ -10,7 +10,7 @@ This patch converts 34 previously untranslated **Mobile Harness UI and transient
 - Toolchain installation: setup start and failure, verified archive transfer counts and checksum labels.
 - Debug APK export: selected-destination error, success/failure and verified SHA-256 status.
 - Project authorization: copy-key label and warning, selected project, revocation result and sensitive-source consent text.
-- Android readiness: API/CPU/RAM/storage metrics, ARM64 compatibility and security limitations.
+- Android readiness: API/CPU/RAM/storage metrics, ARM64 compatibility, the four actual native Linux readiness headlines and security limitations.
 - High-impact consent dialogs: user-approved Gradle execution risk, limited source ZIP sharing and stop/revoke controls; localized Cancel.
 - Localized Android foreground-service startup/build messages emitted from the Compose screen.
 
@@ -24,7 +24,7 @@ PRoot does **not** isolate Gradle scripts from the app's Android UID. The build 
 
 ## Remaining gaps
 
-- `PhoneRuntimeInstaller`, `PhoneOnDeviceApkBuilder`, `PhoneRuntimeInspector` and `PhoneRuntimeSetupService` emit some dynamic English runtime diagnostics; these must migrate to a typed resource status system in a separate audited change, not be blindly translated as untrusted process logs.
+- `PhoneRuntimeInstaller`, `PhoneOnDeviceApkBuilder` and `PhoneRuntimeSetupService` emit some dynamic English runtime diagnostics; the PhoneRuntimeInspector headline is now translated by the UI from its typed flags. Remaining dynamic statuses should migrate to typed resource status IDs in a separate audited change, rather than blindly translating untrusted process logs.
 - Android platform errors, Gradle stderr and arbitrary imported-project logs remain in their original language by design.
 - The complete application and independent agent UI still have legacy untranslated sections; issue #36 tracks all app-wide localization.
 - Physical Samsung ARM64 Android 15 trial must verify long-running downloads, failure/retry, PRoot process viability and creation of a real Debug APK. This patch changes no binary runtime behavior.
