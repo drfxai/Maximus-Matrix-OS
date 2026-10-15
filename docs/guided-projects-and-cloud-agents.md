@@ -18,7 +18,7 @@ different states and must have different labels.
 
 | Priority | Work | Current evidence / remaining acceptance |
 |---|---|---|
-| P0 | Guided GitHub connection | Encrypted token storage and confirmed branch/file operations exist. This change adds repository-link parsing, token setup shortcut and progressive editor controls. Full repository picker, OAuth, PR creation and review workflow remain. |
+| P0 | Guided GitHub connection | Encrypted tokens, confirmed branch/file operations, repository-link parsing and progressive controls exist. The mobile draft-PR flow adds actual default-branch discovery, bounded change preview, stale-preview checks and explicit submission. Full repository picker, OAuth and independent review/merge workflow remain. |
 | P0 | Guided Cloudflare key setup | Official permission-prefilled dashboard URL. The user completes account selection and token creation in Cloudflare. No credential capable of minting arbitrary tokens is requested. |
 | P0 | Account and Worker setup | Account discovery with manual ID fallback; role-based names, source preview and explicit create/replace confirmation. Real account permission and upload acceptance require authorized staging validation. |
 | P0 | Worker chat starters | Assistant, research and project-planning prompts use a Workers AI binding, separate access secret and bounded requests. These are stateless text assistants; research does not imply live web search. |
@@ -26,7 +26,7 @@ different states and must have different labels.
 | P0 | Persian voice and five locales | Resource parity and selected panel migration exist. Complete remaining UI, real Persian STT/TTS, interruptions and physical-device acceptance under #36/#35. |
 | P0 | Conversational Brain | Preserve confirmation/cancel and exact-command routing. Finish provider/device integration, conversation continuity and real-device action acceptance under #40. |
 | P0 | Smart Combo | Verify provider/model prices and quotas, accurate used/remaining accounting, free-first routing and checkpointed failover. Unknown quota must remain unknown. |
-| P1 | Automatic project execution | Goal → bounded task plan → isolated branch → scoped coding worker → tests → reviewable PR. Durable leases, restart recovery, idempotency, budgets, stop/revoke and independent review remain under #38. |
+| P1 | Automatic project execution | Goal → bounded task plan → isolated branch → scoped coding worker → tests → reviewable PR. Debug-build requests now have durable identity/restart reconciliation and manual mobile draft PR creation is available in source. A complete coding-worker queue, task leases, budgets, stop/revoke and independent review remain under #38. |
 | P1 | Intelligent Worker provisioning | Choose bindings from actual task needs, preview changes, staged versions, route activation, health checks, logs and rollback. Stateful teams, queues and schedules need durable infrastructure; uploading a script does not provide them. |
 | P1 | Shared Hindsight | Connect approved workers and models to redacted task checkpoints, evidence and artifacts. Verify cross-model recovery without exposing credentials or private conversations. |
 | P1 | Local/private execution | Verify GGUF/LiteRT inference, signed model downloads, resource checks and authenticated private PC model connections under #22/#19. |
