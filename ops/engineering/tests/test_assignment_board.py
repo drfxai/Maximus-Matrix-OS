@@ -102,7 +102,8 @@ class AssignmentBoardTests(unittest.TestCase):
             lambda o: o["orders"][0].update(reviewer=o["orders"][0]["owner"]),
             lambda o: o["orders"][0].update(issue=o["orders"][1]["issue"]),
             lambda o: o["orders"][0].update(depends_on=[36]),
-            lambda o: o["orders"][0].update(depends_on=[39]),
+            # Issue 39 already depends on issue 40, creating a real cycle.
+            lambda o: o["orders"][1].update(depends_on=[39]),
             lambda o: o["orders"][0].update(evidence=[]),
         ):
             data = altered()
