@@ -299,7 +299,8 @@ jobs:
           if-no-files-found: error
 
       - name: Update existing Stable V1.0.0 assets
-        if: (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/release/validated-v1')
+        # Never publish from a branch push; stable release replacement needs explicit manual approval.
+        if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
         env:
           RELEASE_PUBLICATION_APPROVED: 'true'
           GH_TOKEN: ${{ github.token }}
