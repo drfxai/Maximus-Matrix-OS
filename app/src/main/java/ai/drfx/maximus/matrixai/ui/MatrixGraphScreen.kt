@@ -200,8 +200,56 @@ fun MatrixGraphScreen(
         "models" to stringResource(R.string.brain_node_gateway),
         "api" to stringResource(R.string.brain_node_finops)
     )
+    // Localize this catalog slice by stable identity. Routing/filter identifiers
+    // and provider/model values retain their original meaning and content.
+    val localizedNodeLabels = mapOf(
+        "core_kernel" to stringResource(R.string.graph_node_core_kernel_label),
+        "quantum_state" to stringResource(R.string.graph_node_quantum_state_label),
+        "chat_multimodal" to stringResource(R.string.graph_node_chat_multimodal_label),
+        "chat_context" to stringResource(R.string.graph_node_chat_context_label),
+        "chat_dispatcher" to stringResource(R.string.graph_node_chat_dispatcher_label),
+        "provider" to stringResource(R.string.graph_node_provider_label),
+        "model" to stringResource(R.string.graph_node_model_label),
+        "embedding_engine" to stringResource(R.string.graph_node_embedding_engine_label)
+    )
+    val localizedNodeDescriptions = mapOf(
+        "core_kernel" to stringResource(R.string.graph_node_core_kernel_description),
+        "quantum_state" to stringResource(R.string.graph_node_quantum_state_description),
+        "chat_multimodal" to stringResource(R.string.graph_node_chat_multimodal_description),
+        "chat_context" to stringResource(R.string.graph_node_chat_context_description),
+        "chat_dispatcher" to stringResource(R.string.graph_node_chat_dispatcher_description),
+        "embedding_engine" to stringResource(R.string.graph_node_embedding_engine_description),
+        "maximus" to stringResource(R.string.graph_node_maximus_description),
+        "chat_hub" to stringResource(R.string.graph_node_chat_hub_description),
+        "models" to if (llm.status == ConnectionStatus.CONNECTED)
+            stringResource(R.string.graph_node_models_connected,
+                llm.provider.name.replace('_', ' '), llm.selectedModel)
+            else stringResource(R.string.graph_node_models_disconnected),
+        "provider" to if (llm.status == ConnectionStatus.CONNECTED)
+            llm.provider.name.replace('_', ' ')
+            else stringResource(R.string.graph_node_provider_offline),
+        "model" to if (llm.status == ConnectionStatus.CONNECTED) llm.selectedModel
+            else stringResource(R.string.graph_node_model_none)
+    )
+    val localizedAnatomicalRegions = mapOf(
+        "maximus" to stringResource(R.string.graph_node_maximus_region),
+        "core_kernel" to stringResource(R.string.graph_node_core_kernel_region),
+        "quantum_state" to stringResource(R.string.graph_node_quantum_state_region),
+        "chat_hub" to stringResource(R.string.graph_node_chat_hub_region),
+        "chat_multimodal" to stringResource(R.string.graph_node_chat_multimodal_region),
+        "chat_context" to stringResource(R.string.graph_node_chat_context_region),
+        "chat_dispatcher" to stringResource(R.string.graph_node_chat_dispatcher_region),
+        "models" to stringResource(R.string.graph_node_models_region),
+        "provider" to stringResource(R.string.graph_node_provider_region),
+        "model" to stringResource(R.string.graph_node_model_region),
+        "embedding_engine" to stringResource(R.string.graph_node_embedding_engine_region)
+    )
     val nodes = topology.first.map { node ->
-        node.copy(label = localizedHubNames[node.id] ?: node.label)
+        node.copy(
+            label = localizedNodeLabels[node.id] ?: localizedHubNames[node.id] ?: node.label,
+            description = localizedNodeDescriptions[node.id] ?: node.description,
+            anatomicalRegion = localizedAnatomicalRegions[node.id] ?: node.anatomicalRegion
+        )
     }
     val edges = topology.second
     // Preserve canonical node.group identifiers for filtering and routing;
@@ -224,6 +272,12 @@ fun MatrixGraphScreen(
         "MODEL ROUTING" to stringResource(R.string.brain_group_routing),
         "FINOPS & CONTROL" to stringResource(R.string.brain_group_finops)
     )
+    val localizedLobes = mapOf(
+        "MIDBRAIN CORE" to stringResource(R.string.graph_node_lobe_midbrain),
+        "TEMPORAL LOBE" to stringResource(R.string.graph_node_lobe_temporal),
+        "CEREBELLAR" to stringResource(R.string.graph_node_lobe_cerebellar)
+    )
+    fun displayLobe(lobe: String): String = localizedLobes[lobe] ?: lobe
     fun displayGroup(group: String): String = localizedGroups[group] ?: group
     var selectedId by remember { mutableStateOf<String?>(null) }
     val selected = nodes.find { it.id == selectedId }
@@ -412,7 +466,7 @@ fun MatrixGraphScreen(
                             Box(Modifier.size(8.dp).background(graphTone(selected.color, light), CircleShape))
                             Spacer(Modifier.width(6.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(selected.lobe, color = graphTone(selected.color, light), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                                Text(displayLobe(selected.lobe), color = graphTone(selected.color, light), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                                 if (selected.anatomicalRegion.isNotEmpty()) {
                                     Text(selected.anatomicalRegion, color = muted, fontSize = 8.5.sp)
                                 }
@@ -766,7 +820,7 @@ fun MatrixGraphScreen(
                                     Spacer(Modifier.width(6.dp))
                                     Column(Modifier.weight(1f)) {
                                         Text(
-                                            selected.lobe,
+                                            displayLobe(selected.lobe),
                                             color = graphTone(selected.color, light),
                                             fontSize = 8.5.sp,
                                             fontWeight = FontWeight.Bold,

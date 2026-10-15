@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="graph_node_core_kernel_label">Ядро Matrix</string>
+    <string name="graph_node_quantum_state_label">Состояние сеанса</string>
+    <string name="graph_node_chat_multimodal_label">Мультимодальный ввод</string>
+    <string name="graph_node_chat_context_label">Память сеанса</string>
+    <string name="graph_node_chat_dispatcher_label">Диспетчер агентов</string>
+    <string name="graph_node_provider_label">Провайдер</string>
+    <string name="graph_node_model_label">Активная модель</string>
+    <string name="graph_node_embedding_engine_label">Движок эмбеддингов</string>
+    <string name="graph_node_core_kernel_description">Высокопроизводительная реактивная шина событий и поток телеметрии</string>
+    <string name="graph_node_quantum_state_description">Реактивное хранилище состояния для непрерывности между модулями</string>
+    <string name="graph_node_chat_multimodal_description">Голосовая диктовка и вложения с изображениями торговых графиков</string>
+    <string name="graph_node_chat_context_description">Сохранение истории беседы, предпочтений трейдера и допущений стратегии</string>
+    <string name="graph_node_chat_dispatcher_description">Специализированные роли помощника для торговли, количественного анализа и Pine Script</string>
+    <string name="graph_node_embedding_engine_description">Семантические векторные представления для нейронного поиска</string>
+    <string name="graph_node_maximus_description">Центральное нейронное ядро для координации систем ИИ, информационных потоков, анализа изображений и агентов.</string>
+    <string name="graph_node_chat_hub_description">Интерактивный мультимодальный диалог для обсуждения рынка, размера позиций и планирования торговых сценариев.</string>
+    <string name="graph_node_models_connected">Подключено к %1$s через %2$s.</string>
+    <string name="graph_node_models_disconnected">API языковой модели не подключён.</string>
+    <string name="graph_node_provider_offline">Не в сети</string>
+    <string name="graph_node_model_none">Модель не выбрана</string>
+    <string name="graph_node_maximus_region">Ядро таламуса и мозолистое тело</string>
+    <string name="graph_node_core_kernel_region">Левая внутренняя капсула</string>
+    <string name="graph_node_quantum_state_region">Правая внутренняя капсула</string>
+    <string name="graph_node_chat_hub_region">Центры Брока и Вернике</string>
+    <string name="graph_node_chat_multimodal_region">Верхняя височная борозда</string>
+    <string name="graph_node_chat_context_region">Средняя височная извилина</string>
+    <string name="graph_node_chat_dispatcher_region">Дугообразный пучок</string>
+    <string name="graph_node_models_region">Правое полушарие мозжечка</string>
+    <string name="graph_node_provider_region">Ножка мозжечка</string>
+    <string name="graph_node_model_region">Промежуточное ядро мозжечка</string>
+    <string name="graph_node_embedding_engine_region">Реле ядра шатра</string>
+    <string name="graph_node_lobe_midbrain">Ядро среднего мозга</string>
+    <string name="graph_node_lobe_temporal">Височная доля</string>
+    <string name="graph_node_lobe_cerebellar">Мозжечок</string>
+</resources>

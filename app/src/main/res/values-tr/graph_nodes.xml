@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="graph_node_core_kernel_label">Matrix çekirdeği</string>
+    <string name="graph_node_quantum_state_label">Oturum durumu</string>
+    <string name="graph_node_chat_multimodal_label">Çok modlu giriş</string>
+    <string name="graph_node_chat_context_label">Oturum belleği</string>
+    <string name="graph_node_chat_dispatcher_label">Ajan yönlendirici</string>
+    <string name="graph_node_provider_label">Sağlayıcı</string>
+    <string name="graph_node_model_label">Etkin model</string>
+    <string name="graph_node_embedding_engine_label">Gömme motoru</string>
+    <string name="graph_node_core_kernel_description">Yüksek performanslı reaktif olay veri yolu ve telemetri akışı</string>
+    <string name="graph_node_quantum_state_description">Modüller arası sürekliliği koruyan reaktif durum deposu</string>
+    <string name="graph_node_chat_multimodal_description">Sesli dikte girişi ve teknik grafik görseli ekleri</string>
+    <string name="graph_node_chat_context_description">Sohbet geçmişini, yatırımcı tercihlerini ve strateji varsayımlarını korur</string>
+    <string name="graph_node_chat_dispatcher_description">İşlem, nicel analiz ve Pine Script için uzman asistan rolleri</string>
+    <string name="graph_node_embedding_engine_description">Sinirsel erişim için anlamsal vektör gösterimleri</string>
+    <string name="graph_node_maximus_description">AI sistemlerini, bilgi akışlarını, görsel analizini ve ajanları koordine eden merkezî sinirsel çekirdek.</string>
+    <string name="graph_node_chat_hub_description">Piyasa değerlendirmeleri, pozisyon büyüklüğü soruları ve işlem senaryosu planlama için etkileşimli çok modlu sohbet motoru.</string>
+    <string name="graph_node_models_connected">%1$s sağlayıcısına %2$s ile bağlı.</string>
+    <string name="graph_node_models_disconnected">LLM API bağlantısı yok.</string>
+    <string name="graph_node_provider_offline">Çevrimdışı</string>
+    <string name="graph_node_model_none">Seçilmedi</string>
+    <string name="graph_node_maximus_region">Talamik çekirdek ve korpus kallozum</string>
+    <string name="graph_node_core_kernel_region">Sol iç kapsül</string>
+    <string name="graph_node_quantum_state_region">Sağ iç kapsül</string>
+    <string name="graph_node_chat_hub_region">Broca ve Wernicke merkezleri</string>
+    <string name="graph_node_chat_multimodal_region">Üst temporal oluk</string>
+    <string name="graph_node_chat_context_region">Orta temporal girus</string>
+    <string name="graph_node_chat_dispatcher_region">Arkuat fasikül</string>
+    <string name="graph_node_models_region">Sağ beyincik yarımküresi</string>
+    <string name="graph_node_provider_region">Beyincik sapı</string>
+    <string name="graph_node_model_region">İnterpoze çekirdek</string>
+    <string name="graph_node_embedding_engine_region">Fastigial röle</string>
+    <string name="graph_node_lobe_midbrain">Orta beyin çekirdeği</string>
+    <string name="graph_node_lobe_temporal">Temporal lob</string>
+    <string name="graph_node_lobe_cerebellar">Beyincik</string>
+</resources>

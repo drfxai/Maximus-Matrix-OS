@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="graph_node_core_kernel_label">هسته ماتریکس</string>
+    <string name="graph_node_quantum_state_label">وضعیت نشست</string>
+    <string name="graph_node_chat_multimodal_label">ورودی چندرسانه‌ای</string>
+    <string name="graph_node_chat_context_label">حافظه نشست</string>
+    <string name="graph_node_chat_dispatcher_label">توزیع‌کننده ایجنت‌ها</string>
+    <string name="graph_node_provider_label">ارائه‌دهنده</string>
+    <string name="graph_node_model_label">مدل فعال</string>
+    <string name="graph_node_embedding_engine_label">موتور بردارسازی</string>
+    <string name="graph_node_core_kernel_description">گذرگاه رویداد واکنشی و جریان تله‌متری با کارایی بالا</string>
+    <string name="graph_node_quantum_state_description">مخزن وضعیت واکنشی برای حفظ پیوستگی میان بخش‌ها</string>
+    <string name="graph_node_chat_multimodal_description">ورودی دیکته صوتی و پیوست تصاویر نمودارهای تحلیلی</string>
+    <string name="graph_node_chat_context_description">حفظ تاریخچه گفتگو، ترجیحات معامله‌گر و فرض‌های استراتژی</string>
+    <string name="graph_node_chat_dispatcher_description">نقش‌های تخصصی دستیار برای معامله‌گری، تحلیل کمی و Pine Script</string>
+    <string name="graph_node_embedding_engine_description">نمایش برداری معنایی برای بازیابی عصبی</string>
+    <string name="graph_node_maximus_description">هسته عصبی مرکزی برای هماهنگی سامانه‌های هوش مصنوعی، جریان‌های اطلاعات، تحلیل تصویر و ایجنت‌ها.</string>
+    <string name="graph_node_chat_hub_description">موتور گفتگوی تعاملی چندرسانه‌ای برای بررسی بازار، پرسش‌های حجم معامله و برنامه‌ریزی سناریوهای معاملاتی.</string>
+    <string name="graph_node_models_connected">متصل به %1$s با مدل %2$s.</string>
+    <string name="graph_node_models_disconnected">اتصال API مدل زبانی برقرار نیست.</string>
+    <string name="graph_node_provider_offline">آفلاین</string>
+    <string name="graph_node_model_none">مدلی انتخاب نشده</string>
+    <string name="graph_node_maximus_region">هسته تالاموس و جسم پینه‌ای</string>
+    <string name="graph_node_core_kernel_region">کپسول داخلی چپ</string>
+    <string name="graph_node_quantum_state_region">کپسول داخلی راست</string>
+    <string name="graph_node_chat_hub_region">مراکز بروکا و ورنیکه</string>
+    <string name="graph_node_chat_multimodal_region">شیار گیجگاهی فوقانی</string>
+    <string name="graph_node_chat_context_region">شکنج گیجگاهی میانی</string>
+    <string name="graph_node_chat_dispatcher_region">دسته قوسی</string>
+    <string name="graph_node_models_region">نیمکره راست مخچه</string>
+    <string name="graph_node_provider_region">پایه مخچه</string>
+    <string name="graph_node_model_region">هسته بینابینی</string>
+    <string name="graph_node_embedding_engine_region">رله هسته فاستیژیال</string>
+    <string name="graph_node_lobe_midbrain">هسته مغز میانی</string>
+    <string name="graph_node_lobe_temporal">لوب گیجگاهی</string>
+    <string name="graph_node_lobe_cerebellar">مخچه</string>
+</resources>

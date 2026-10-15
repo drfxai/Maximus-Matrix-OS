@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="graph_node_core_kernel_label">نواة ماتريكس</string>
+    <string name="graph_node_quantum_state_label">حالة الجلسة</string>
+    <string name="graph_node_chat_multimodal_label">إدخال متعدد الوسائط</string>
+    <string name="graph_node_chat_context_label">ذاكرة الجلسة</string>
+    <string name="graph_node_chat_dispatcher_label">موجّه الوكلاء</string>
+    <string name="graph_node_provider_label">المزوّد</string>
+    <string name="graph_node_model_label">النموذج النشط</string>
+    <string name="graph_node_embedding_engine_label">محرك التضمين</string>
+    <string name="graph_node_core_kernel_description">ناقل أحداث تفاعلي وتدفق قياسات عالي الأداء</string>
+    <string name="graph_node_quantum_state_description">مخزن حالة تفاعلي يحافظ على الاستمرارية بين الوحدات</string>
+    <string name="graph_node_chat_multimodal_description">إدخال بالإملاء الصوتي وإرفاق صور الرسوم البيانية الفنية</string>
+    <string name="graph_node_chat_context_description">حفظ سجل المحادثة وتفضيلات المتداول وافتراضات الاستراتيجية</string>
+    <string name="graph_node_chat_dispatcher_description">أدوار مساعدة متخصصة للتداول والتحليل الكمي وPine Script</string>
+    <string name="graph_node_embedding_engine_description">تمثيلات متجهية دلالية للاسترجاع العصبي</string>
+    <string name="graph_node_maximus_description">نواة عصبية مركزية لتنسيق أنظمة الذكاء الاصطناعي وتدفقات المعلومات وتحليل الصور والوكلاء.</string>
+    <string name="graph_node_chat_hub_description">محرك محادثة تفاعلي متعدد الوسائط لمناقشة السوق وأسئلة حجم المراكز وتخطيط سيناريوهات التداول.</string>
+    <string name="graph_node_models_connected">متصل بـ %1$s باستخدام %2$s.</string>
+    <string name="graph_node_models_disconnected">واجهة API للنموذج اللغوي غير متصلة.</string>
+    <string name="graph_node_provider_offline">غير متصل</string>
+    <string name="graph_node_model_none">لم يُحدد نموذج</string>
+    <string name="graph_node_maximus_region">النواة المهادية والجسم الثفني</string>
+    <string name="graph_node_core_kernel_region">المحفظة الداخلية اليسرى</string>
+    <string name="graph_node_quantum_state_region">المحفظة الداخلية اليمنى</string>
+    <string name="graph_node_chat_hub_region">مركزا بروكا وفيرنيكه</string>
+    <string name="graph_node_chat_multimodal_region">الثلم الصدغي العلوي</string>
+    <string name="graph_node_chat_context_region">التلفيف الصدغي الأوسط</string>
+    <string name="graph_node_chat_dispatcher_region">الحزمة المقوسة</string>
+    <string name="graph_node_models_region">نصف الكرة المخيخية الأيمن</string>
+    <string name="graph_node_provider_region">السويقة المخيخية</string>
+    <string name="graph_node_model_region">النواة المتداخلة</string>
+    <string name="graph_node_embedding_engine_region">مرحل النواة السقفية</string>
+    <string name="graph_node_lobe_midbrain">نواة الدماغ الأوسط</string>
+    <string name="graph_node_lobe_temporal">الفص الصدغي</string>
+    <string name="graph_node_lobe_cerebellar">المخيخ</string>
+</resources>

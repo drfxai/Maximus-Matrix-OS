@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="graph_node_core_kernel_label">Matrix Kernel</string>
+    <string name="graph_node_quantum_state_label">Session State</string>
+    <string name="graph_node_chat_multimodal_label">Multimodal Input</string>
+    <string name="graph_node_chat_context_label">Session Memory</string>
+    <string name="graph_node_chat_dispatcher_label">Agent Dispatcher</string>
+    <string name="graph_node_provider_label">Provider</string>
+    <string name="graph_node_model_label">Active Model</string>
+    <string name="graph_node_embedding_engine_label">Embedding Engine</string>
+    <string name="graph_node_core_kernel_description">High-performance reactive event bus and telemetry stream</string>
+    <string name="graph_node_quantum_state_description">Reactive state store maintaining cross-module continuity</string>
+    <string name="graph_node_chat_multimodal_description">Voice dictation input and technical chart image attachments</string>
+    <string name="graph_node_chat_context_description">Preserves conversation history, trader preferences, and strategy assumptions</string>
+    <string name="graph_node_chat_dispatcher_description">Specialized assistant roles for trading, quantitative analysis and Pine Script</string>
+    <string name="graph_node_embedding_engine_description">Semantic vector representations for neural retrieval</string>
+    <string name="graph_node_maximus_description">Central operating neural nucleus coordinating AI systems, intelligence feeds, vision analysis and agents.</string>
+    <string name="graph_node_chat_hub_description">Interactive multimodal conversational engine for market discussions, position sizing questions and trade scenario planning.</string>
+    <string name="graph_node_models_connected">Connected to %1$s using %2$s.</string>
+    <string name="graph_node_models_disconnected">LLM API disconnected.</string>
+    <string name="graph_node_provider_offline">Offline</string>
+    <string name="graph_node_model_none">None selected</string>
+    <string name="graph_node_maximus_region">Thalamic Nucleus &amp; Corpus Callosum</string>
+    <string name="graph_node_core_kernel_region">Left Internal Capsule</string>
+    <string name="graph_node_quantum_state_region">Right Internal Capsule</string>
+    <string name="graph_node_chat_hub_region">Broca &amp; Wernicke Centers</string>
+    <string name="graph_node_chat_multimodal_region">Superior Temporal Sulcus</string>
+    <string name="graph_node_chat_context_region">Middle Temporal Gyrus</string>
+    <string name="graph_node_chat_dispatcher_region">Arcuate Fasciculus</string>
+    <string name="graph_node_models_region">Right Cerebellar Hemisphere</string>
+    <string name="graph_node_provider_region">Cerebellar Peduncle</string>
+    <string name="graph_node_model_region">Interposed Nucleus</string>
+    <string name="graph_node_embedding_engine_region">Fastigial Relay</string>
+    <string name="graph_node_lobe_midbrain">Midbrain core</string>
+    <string name="graph_node_lobe_temporal">Temporal lobe</string>
+    <string name="graph_node_lobe_cerebellar">Cerebellum</string>
+</resources>
