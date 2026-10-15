@@ -138,6 +138,12 @@ test('cloud team pause, resume and deletion require token and strict payloads', 
   assert.equal(db.teams[0].enabled, 0);
   assert.equal((await worker.fetch(req(url, 'PATCH', { enabled: true }), env)).status, 200);
   assert.equal(db.teams[0].enabled, 1);
+  assert.equal((await worker.fetch(req(url + '/pause', 'POST', undefined, 'wrong'), env)).status, 401);
+  assert.equal((await worker.fetch(req(url + '/pause', 'POST', { enabled: true }), env)).status, 400);
+  assert.equal((await worker.fetch(req(url + '/pause', 'POST'), env)).status, 200);
+  assert.equal(db.teams[0].enabled, 0);
+  assert.equal((await worker.fetch(req(url + '/resume', 'POST'), env)).status, 200);
+  assert.equal(db.teams[0].enabled, 1);
   assert.equal((await worker.fetch(req(url, 'DELETE', undefined, 'wrong'), env)).status, 401);
   const deleted = await worker.fetch(req(url, 'DELETE'), env);
   assert.equal(deleted.status, 200);
