@@ -33,15 +33,104 @@ def snapshot():
         "issues": [{"number": 36}, {"number": 40}, {"number": 38}],
         "runs": [{"head_sha": main, "head_branch": "main",
                   "conclusion": "success", "status": "completed"}],
-        "checks": {pr_head: []},
+        "checks": {pr_head: [], main: [
+            {"name": name, "conclusion": "success", "status": "completed", "head_sha": main}
+            for name in ("validate", "emulator-smoke (keyboard, TestClass)",
+                         "emulator-smoke (credentials-and-history, TestClass)")
+        ]},
     }
 
 
 def check(name, conclusion):
-    return {"name": name, "conclusion": conclusion, "head_sha": "b" * 40}
+    return {"name": name, "conclusion": conclusion, "status": "completed", "head_sha": "b" * 40}
 
 
 class EngineeringSupervisorTests(unittest.TestCase):
+    def test_successful_unrelated_workflow_cannot_mask_main_failure(self):
+        state = snapshot()
+        state["checks"][state["main_sha"]][1]["conclusion"] = "failure"
+        report = supervisor.summarize(MANIFEST, state, dt.datetime.now(dt.timezone.utc))
+        self.assertEqual("failure", report["main_ci"])
+        self.assertIn("MAIN_CI_NOT_VERIFIED_GREEN", report["warnings"])
+
+    def test_successful_workflow_without_main_checks_is_unknown(self):
+        state = snapshot()
+        del state["checks"][state["main_sha"]]
+        report = supervisor.summarize(MANIFEST, state, dt.datetime.now(dt.timezone.utc))
+        self.assertEqual("UNKNOWN", report["main_ci"])
+
+    def test_wrong_or_missing_commit_identity_cannot_satisfy_checks(self):
+        for identity in (None, "c" * 40):
+            observed = check("validate", "success")
+            observed["head_sha"] = identity
+            result = supervisor.evaluate_pr(snapshot()["prs"][0], [observed], ["validate"])
+            self.assertEqual("AWAITING_CHECKS", result["status"])
+
+    def test_new_pending_attempt_overrides_old_success(self):
+        old = dict(check("validate", "success"), id=10)
+        pending = dict(check("validate", None), id=11, status="in_progress")
+        for observed in ([old, pending], [pending, old]):
+            result = supervisor.evaluate_pr(snapshot()["prs"][0], observed, ["validate"])
+            self.assertEqual("AWAITING_CHECKS", result["status"])
+
+    def test_new_success_supersedes_failed_attempt(self):
+        old = dict(check("validate", "failure"), id=10)
+        current = dict(check("validate", "success"), id=11)
+        result = supervisor.evaluate_pr(snapshot()["prs"][0], [current, old], ["validate"])
+        self.assertEqual("CHECKS_GREEN_AWAITING_INDEPENDENT_REVIEW", result["status"])
+
+    def test_ambiguous_attempt_order_fails_closed(self):
+        result = supervisor.evaluate_pr(snapshot()["prs"][0], [
+            check("validate", "success"), check("validate", None)
+        ], ["validate"])
+        self.assertEqual("AWAITING_CHECKS", result["status"])
+
+    def test_every_matching_matrix_check_must_pass(self):
+        result = supervisor.evaluate_pr(snapshot()["prs"][0], [
+            check("emulator-smoke (keyboard, API35)", "success"),
+            check("emulator-smoke (keyboard, API36)", None),
+        ], ["emulator-smoke (keyboard"])
+        self.assertEqual("AWAITING_CHECKS", result["status"])
+
+    def test_incomplete_status_cannot_reuse_success_conclusion(self):
+        observed = dict(check("validate", "success"), status="queued")
+        result = supervisor.evaluate_pr(snapshot()["prs"][0], [observed], ["validate"])
+        self.assertEqual("AWAITING_CHECKS", result["status"])
+
+    def test_snapshot_fetches_main_checks_without_any_open_prs(self):
+        class Client:
+            def get(self, path):
+                if path == "/branches/main":
+                    return {"commit": {"sha": "a" * 40}}
+                if path == "/releases/latest":
+                    return {}
+                if path.startswith("/actions/runs?"):
+                    return {"workflow_runs": []}
+                if path.startswith("/commits/"):
+                    self.check_path = path
+                    return {"check_runs": [{"name": "validate"}]}
+                return []
+        client = Client()
+        state = supervisor.fetch_snapshot(client)
+        self.assertIn("a" * 40, state["checks"])
+        self.assertIn("/commits/" + "a" * 40 + "/check-runs", client.check_path)
+
+    def test_main_checks_request_failure_remains_unknown(self):
+        class Client:
+            def get(self, path):
+                if path == "/branches/main":
+                    return {"commit": {"sha": "a" * 40}}
+                if path == "/releases/latest":
+                    return {}
+                if path.startswith("/actions/runs?"):
+                    return {"workflow_runs": []}
+                if path.startswith("/commits/"):
+                    raise RuntimeError("GitHub metadata unavailable")
+                return []
+        state = supervisor.fetch_snapshot(Client())
+        report = supervisor.summarize(MANIFEST, state, dt.datetime.now(dt.timezone.utc))
+        self.assertEqual("UNKNOWN", report["main_ci"])
+
     def test_manifest_and_release_gates_are_safe(self):
         supervisor.validate_config(MANIFEST)
         for forbidden in ("allow_auto_merge", "allow_auto_publish",

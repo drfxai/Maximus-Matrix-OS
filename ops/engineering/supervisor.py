@@ -89,8 +89,9 @@ def fetch_snapshot(client: GitHubReadClient, pr_limit: int = 12) -> dict[str, An
     issues = client.get("/issues?state=open&per_page=100")
     runs = client.get("/actions/runs?per_page=25")
     checks: dict[str, list[dict[str, Any]]] = {}
-    for pr in prs[:pr_limit]:
-        sha = pr.get("head", {}).get("sha", "")
+    for sha in dict.fromkeys([head["commit"]["sha"]] + [
+        pr.get("head", {}).get("sha", "") for pr in prs[:pr_limit]
+    ]):
         if not re.fullmatch(r"[a-f0-9]{40}", sha):
             continue
         try:
@@ -111,11 +112,21 @@ def fetch_snapshot(client: GitHubReadClient, pr_limit: int = 12) -> dict[str, An
 def evaluate_pr(pr: dict[str, Any], observed: list[dict[str, Any]],
                 required_names: list[str]) -> dict[str, Any]:
     sha = pr.get("head", {}).get("sha", "")
-    names: dict[str, list[str | None]] = {}
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for check in observed:
-        if check.get("head_sha") not in (sha, None):
+        # A check without an exact commit identity cannot establish readiness.
+        if check.get("head_sha") != sha:
             continue
-        names.setdefault(check.get("name", ""), []).append(check.get("conclusion"))
+        grouped.setdefault(check.get("name", ""), []).append(check)
+    names: dict[str, list[str | None]] = {}
+    for name, attempts in grouped.items():
+        # GitHub check-run IDs increase across reruns. If ordering metadata is
+        # absent, retain every observation rather than guessing which is newer.
+        if all(type(attempt.get("id")) is int for attempt in attempts):
+            attempts = [max(attempts, key=lambda attempt: attempt["id"])]
+        names[name] = [attempt.get("conclusion")
+                       if attempt.get("status") == "completed" else None
+                       for attempt in attempts]
     failing = [name for name, values in names.items()
                if any(value in ("failure", "timed_out", "cancelled", "action_required")
                       for value in values)]
@@ -125,7 +136,7 @@ def evaluate_pr(pr: dict[str, Any], observed: list[dict[str, Any]],
         for prefix in required_names
     }
     missing = [prefix for prefix, results in required.items()
-               if not results or "success" not in results]
+               if not results or any(result != "success" for result in results)]
     if failing:
         status = "BLOCKED_CI"
     elif missing:
@@ -160,10 +171,16 @@ def summarize(manifest: dict[str, Any], snapshot: dict[str, Any],
         p.get("head", {}).get("sha", ""), []), expected)
         for p in snapshot["prs"]]
 
-    runs = snapshot.get("runs", [])
-    current = [r for r in runs if r.get("head_sha") == snapshot["main_sha"]
-               and r.get("head_branch") == "main"]
-    main_ci = next((r.get("conclusion") or "IN_PROGRESS" for r in current), "UNKNOWN")
+    # Workflow-list order is not a CI gate: a successful supervisor or unrelated
+    # workflow must never mask failed, pending or missing Android checks.
+    main_evidence = evaluate_pr(
+        {"head": {"sha": snapshot["main_sha"]}},
+        snapshot.get("checks", {}).get(snapshot["main_sha"], []), expected,
+    )
+    main_ci = {
+        "BLOCKED_CI": "failure",
+        "CHECKS_GREEN_AWAITING_INDEPENDENT_REVIEW": "success",
+    }.get(main_evidence["status"], "UNKNOWN")
     release = snapshot.get("release", {})
     release_version = _release_internal_version(release)
     gradle_match = re.search(r"versionCode\s*=\s*(\d+)", checkout_gradle)
@@ -206,6 +223,7 @@ def summarize(manifest: dict[str, Any], snapshot: dict[str, Any],
         "repository": manifest["repository"],
         "main_sha": snapshot["main_sha"],
         "main_ci": main_ci,
+        "main_check_evidence": main_evidence,
         "release": {
             "tag": release.get("tag_name", ""),
             "published_internal_version": release_version,
