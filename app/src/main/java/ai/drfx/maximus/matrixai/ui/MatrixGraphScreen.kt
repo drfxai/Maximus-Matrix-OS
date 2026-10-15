@@ -202,6 +202,27 @@ fun MatrixGraphScreen(
         node.copy(label = localizedHubNames[node.id] ?: node.label)
     }
     val edges = topology.second
+    // Preserve canonical node.group identifiers for filtering and routing;
+    // translate ONLY displayed labels, including localized search queries.
+    val localizedGroups = mapOf(
+        "MATRIX CORE" to stringResource(R.string.brain_group_core),
+        "LIVE SIGNALS" to stringResource(R.string.brain_group_signals),
+        "CHART VISION" to stringResource(R.string.brain_group_vision),
+        "NEWS INTELLIGENCE" to stringResource(R.string.brain_group_news),
+        "MARKET ALERTS" to stringResource(R.string.brain_group_alerts),
+        "AGENT RUNTIME" to stringResource(R.string.brain_group_agents),
+        "EXECUTION CONTROL" to stringResource(R.string.brain_group_execution),
+        "CONVERSATIONAL AI" to stringResource(R.string.brain_group_chat),
+        "TRADING GENOME" to stringResource(R.string.brain_group_genome),
+        "PINE ASSETS" to stringResource(R.string.brain_group_pine),
+        "QUANT RESEARCH" to stringResource(R.string.brain_group_quant),
+        "VALIDATION LAB" to stringResource(R.string.brain_group_validation),
+        "RESEARCH MEMORY" to stringResource(R.string.brain_group_research),
+        "DATA & KNOWLEDGE" to stringResource(R.string.brain_group_data),
+        "MODEL ROUTING" to stringResource(R.string.brain_group_routing),
+        "FINOPS & CONTROL" to stringResource(R.string.brain_group_finops)
+    )
+    fun displayGroup(group: String): String = localizedGroups[group] ?: group
     var selectedId by remember { mutableStateOf<String?>(null) }
     val selected = nodes.find { it.id == selectedId }
     var selectedLobe by remember { mutableStateOf<String?>(null) }
@@ -451,18 +472,18 @@ fun MatrixGraphScreen(
             }
             Text(stringResource(if (search.isBlank()) R.string.brain_graph_top_hubs
                 else R.string.brain_graph_search_results), color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
-            nodes.filter { if (search.isBlank()) it.hub else it.label.contains(search, true) || it.group.contains(search, true) }.forEach { node ->
+            nodes.filter { if (search.isBlank()) it.hub else it.label.contains(search, true) || displayGroup(it.group).contains(search, true) || it.group.contains(search, true) }.forEach { node ->
                 Row(Modifier.fillMaxWidth().clickable { selectedId = node.id; hiddenGroups = hiddenGroups - node.group; openPanel = null }
                     .padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(7.dp).background(graphTone(node.color, light), CircleShape))
                     Column(Modifier.weight(1f).padding(start = 8.dp)) {
                         Text(node.label, color = ink, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                        Text(node.group, color = muted, fontSize = 8.5.sp)
+                        Text(displayGroup(node.group), color = muted, fontSize = 8.5.sp)
                     }
                     Text(edges.count { it.from == node.id || it.to == node.id }.toString(), color = muted, fontSize = 10.sp)
                 }
             }
-            if (search.isNotBlank() && nodes.none { it.label.contains(search, true) || it.group.contains(search, true) }) Text(stringResource(R.string.graph_none), color = muted, fontSize = 11.sp)
+            if (search.isNotBlank() && nodes.none { it.label.contains(search, true) || displayGroup(it.group).contains(search, true) || it.group.contains(search, true) }) Text(stringResource(R.string.graph_none), color = muted, fontSize = 11.sp)
             HorizontalDivider(color = border)
             Text(stringResource(R.string.graph_display), color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
             Text(stringResource(R.string.graph_spread), color = muted, fontSize = 11.sp)
@@ -483,7 +504,7 @@ fun MatrixGraphScreen(
                     if (selected?.group in hiddenGroups) selectedId = null
                 }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(6.dp).background(if (group in hiddenGroups) muted.copy(alpha = .3f) else graphTone(members.first().color, light), CircleShape))
-                    Text(group.lowercase().replaceFirstChar { it.uppercase() }, Modifier.weight(1f).padding(horizontal = 7.dp),
+                    Text(displayGroup(group), Modifier.weight(1f).padding(horizontal = 7.dp),
                         color = if (group in hiddenGroups) muted.copy(alpha = .5f) else ink, fontSize = 10.sp)
                     Text(members.size.toString(), color = muted, fontSize = 9.sp)
                 }
