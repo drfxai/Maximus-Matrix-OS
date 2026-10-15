@@ -13,6 +13,10 @@ import javax.crypto.spec.GCMParameterSpec
 /** Separate per-service Android Keystore-backed credentials, never embedded in APK assets. */
 internal enum class DevelopmentService { GITHUB, CLOUDFLARE }
 
+internal class DeveloperCredentialSnapshot(val revision: String, val token: String) {
+    override fun toString(): String = "DeveloperCredentialSnapshot(redacted)"
+}
+
 internal class DeveloperCredentialVault(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
         "maximus_developer_connections", Context.MODE_PRIVATE
@@ -38,10 +42,24 @@ internal class DeveloperCredentialVault(context: Context) {
         check(preferences.edit().remove("secret_" + service.name).commit())
     }
 
+    /** Changes on every save, including replacing a token with the same plaintext. */
+    internal fun revision(service: DevelopmentService): String = preferences
+        .getString("secret_" + service.name, null)?.let(CloudflareDeploymentPolicy::digest).orEmpty()
+
     /** Resolve only immediately before a request to the exact designated service API. */
     internal fun resolve(service: DevelopmentService): String {
         val wrapped = preferences.getString("secret_" + service.name, null) ?: return ""
-        return runCatching {
+        return decrypt(wrapped)
+    }
+
+    /** The token and revision are derived from one captured encrypted value. */
+    internal fun snapshot(service: DevelopmentService): DeveloperCredentialSnapshot {
+        val wrapped = preferences.getString("secret_" + service.name, null).orEmpty()
+        return DeveloperCredentialSnapshot(if (wrapped.isBlank()) "" else CloudflareDeploymentPolicy.digest(wrapped),
+            if (wrapped.isBlank()) "" else decrypt(wrapped))
+    }
+
+    private fun decrypt(wrapped: String): String = runCatching {
             val data = Base64.decode(wrapped, Base64.NO_WRAP)
             check(data.size > 28)
             Cipher.getInstance("AES/GCM/NoPadding").run {
@@ -49,6 +67,22 @@ internal class DeveloperCredentialVault(context: Context) {
                 doFinal(data.copyOfRange(12, data.size)).toString(Charsets.UTF_8)
             }
         }.getOrDefault("")
+
+    /** Non-secret write receipts survive screen dismissal and post-write validation failure. */
+    internal fun recordCloudflareReceipt(receipt: CloudflareDeploymentReceipt) {
+        val entry = org.json.JSONObject().put("account", receipt.review.accountId)
+            .put("worker", receipt.review.workerName).put("previous_version", receipt.review.activeVersion)
+            .put("staged_version", receipt.stagedVersion).put("source_sha256", receipt.review.sourceSha256)
+            .put("deployment", receipt.activatedDeployment).put("rollback", receipt.rolledBackDeployment)
+            .put("recorded_at", System.currentTimeMillis())
+        check(preferences.edit().putString("cloudflare_last_deployment_receipt", entry.toString()).commit())
+    }
+
+    internal fun recordCloudflareCreation(receipt: CloudflareCreationReceipt) {
+        val entry = org.json.JSONObject().put("account", receipt.accountId).put("worker", receipt.workerName)
+            .put("worker_id", receipt.workerId).put("version", receipt.version)
+            .put("verified", receipt.verified).put("recorded_at", System.currentTimeMillis())
+        check(preferences.edit().putString("cloudflare_last_creation_receipt", entry.toString()).commit())
     }
 
     private fun secret(): SecretKey {
