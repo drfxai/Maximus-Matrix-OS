@@ -472,4 +472,8 @@
     <string name="brain_group_data">Data and knowledge</string>
     <string name="brain_group_routing">Model routing</string>
     <string name="brain_group_finops">FinOps and control</string>
+    <string name="brain_status_planning">Planning</string>
+    <string name="brain_status_executing">Executing</string>
+    <string name="brain_status_attention">Needs attention</string>
+    <string name="brain_status_confirmation">Awaiting approval</string>
 </resources>
