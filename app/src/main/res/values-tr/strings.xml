@@ -475,4 +475,17 @@
     <string name="api_usd_planning">USD planlama tercihi (zorunlu değil)</string>
     <string name="api_token_count">%1$s token</string>
     <string name="api_estimated_output">≈%1$s tahmini token</string>
+    <string name="combo_diag_verifying">Ücretsiz model teklifleri doğrulanıyor…</string>
+    <string name="combo_diag_checking">Ücretsiz model katalogları kontrol ediliyor…</string>
+    <string name="combo_diag_disabled">Yalnızca ücretsiz yönlendirme kapalı.</string>
+    <string name="combo_diag_unavailable">Ücretsiz model kataloğu kullanılamıyor. Ücretli modele otomatik geçiş yok.</string>
+    <string name="combo_diag_no_account">Sağlayıcı hesabı yapılandırılmadı. API anahtarı ekleyin veya yalnızca ücretsiz modu kapatın.</string>
+    <string name="combo_diag_no_free">Sıfır maliyetli metin rotası doğrulanmadı. API anahtarı veya promosyon kredisi ücretsiz kullanım kanıtı değildir.</string>
+    <string name="combo_diag_verified">%1$d katalog rotasının sıfır fiyatı doğrulandı. Hesap kotası bilinmiyor.</string>
+    <string name="combo_diag_provider_unavailable">Katalog erişilemiyor veya kimlik doğrulaması başarısız; ücretsiz fiyat doğrulanamıyor.</string>
+    <string name="combo_diag_no_chat">Bu katalogda doğrulanmış sohbet modeli yok.</string>
+    <string name="combo_diag_no_price">Yayınlanmış sıfır maliyetli metin fiyatı yok; ücretsiz katman doğrulanmadı.</string>
+    <string name="combo_diag_no_context">%1$d sıfır fiyatlı modelin bağlam sınırı doğrulanmadı.</string>
+    <string name="combo_diag_provider_ready">%1$d ücretsiz metin rotası doğrulandı; güncel kota bilinmiyor.</string>
+    <string name="combo_diag_no_eligible">Uygun doğrulanmış ücretsiz model bulunamadı.</string>
 </resources>
