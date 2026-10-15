@@ -609,4 +609,20 @@
     <string name="hindsight_status_checkpoint_retained">Doğrulanmış kontrol noktası saklandı; %1$d ilgili anı hazır.</string>
     <string name="hindsight_status_checkpoint_failed">Kontrol noktası eşitlemesi kullanılamıyor. Yerel kopya duruyor.</string>
     <string name="hindsight_safety_notice">Bellek güvenilmeyen başvuru verisidir; araç çalıştırma yetkisi vermez. Yerel kontrol noktaları sunucusuz çalışır. Bağlantıyı kesmek bulut belleğini silmez.</string>
+    <string name="runtime_export_verified">SHA-256 doğrulanmış Debug APK dışa aktarıldı. Üretim imzalama anahtarı kullanılmadı.</string>
+    <string name="runtime_export_failed">Debug APK dışa aktarılamadı. Bağlantıyı ve hedefi kontrol edin; doğrulanmamış dosya kabul edilmedi.</string>
+    <string name="runtime_job_ready">Debug APK hazır. İndirmeden önce sağlama toplamı doğrulanacak.</string>
+    <string name="runtime_job_failed">Yalıtılmış Debug derlemesi başarısız oldu. Üretim imzalama yapılmadı.</string>
+    <string name="runtime_job_status_failed">Worker derleme durumu denetlenemiyor. Bağlantıyı kontrol edip tekrar deneyin.</string>
+    <string name="runtime_debug_safety">Açıkça onaylanan Debug derlemeleri, kimliği doğrulanmış çevrimdışı Worker üzerinde yalıtılmış olarak yürütülür. Üretim imzalama anahtarları aktarılmaz.</string>
+    <string name="runtime_state_queued">Sırada</string>
+    <string name="runtime_state_running">Çalışıyor</string>
+    <string name="runtime_state_succeeded">Başarılı</string>
+    <string name="runtime_state_failed">Başarısız</string>
+    <string name="runtime_debug_job">Debug derlemesi: %1$s · %2$s</string>
+    <string name="runtime_approval_title">Yalıtılmış Debug APK derlemesini onaylıyor musunuz?</string>
+    <string name="runtime_approval_description">Seçili proje ZIP dosyası, kök ayrıcalıkları olmadan çevrimdışı derlemek için kimliği doğrulanmış Worker ortamına gönderilir. Kontrol etmediğiniz Worker ortamına gizli anahtar veya proje göndermeyin. Üretim APK imzalanmaz.</string>
+    <string name="runtime_build_accepted">Kimliği doğrulanmış Debug derlemesi kabul edildi. İş durumu denetleniyor.</string>
+    <string name="runtime_build_failed">Debug derlemesi gönderilemedi. Worker ve kimlik bilgilerini kontrol edin.</string>
+    <string name="runtime_build_cancel">İptal</string>
 </resources>
