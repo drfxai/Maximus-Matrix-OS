@@ -400,7 +400,16 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                         Text(stringResource(R.string.phone_scan))
                     }
                 }
-                Text(diagnostics.headline, style = MaterialTheme.typography.bodyMedium,
+                val readinessLabel = when {
+                    !diagnostics.supportedForOptionalArm64Runtime ->
+                        R.string.phone_host_linux_unavailable
+                    !diagnostics.installedProotExecutable ->
+                        R.string.phone_host_linux_not_installed
+                    !diagnostics.verifiedRootfsPresent ->
+                        R.string.phone_host_rootfs_unverified
+                    else -> R.string.phone_host_execution_unverified
+                }
+                Text(stringResource(readinessLabel), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface)
                 val storageGiB = (diagnostics.availableStorageBytes / 1073741824.0)
                 val readiness = if (diagnostics.nativeRuntimeReady) 1f else if (
