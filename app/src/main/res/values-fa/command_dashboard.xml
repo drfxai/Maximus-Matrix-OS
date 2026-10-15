@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dash_combo_title">ماکسیموس اسمارت کمبو</string>
+    <string name="dash_request_in_use">درخواست در حال اجرا</string>
+    <string name="dash_request_idle">آمادهٔ درخواست بعدی</string>
+    <string name="dash_free_first">فقط مسیر رایگان تأییدشده</string>
+    <string name="dash_manual_route">مسیر دستی</string>
+    <string name="dash_session_tokens">توکن‌های جلسه</string>
+    <string name="dash_reported_or_estimated">گزارش سرویس یا تخمین محلی</string>
+    <string name="dash_context_left">باقی‌ماندهٔ زمینه</string>
+    <string name="dash_context_estimate">تخمین ظرفیت زمینهٔ مدل</string>
+    <string name="dash_provider_tokens">توکن باقی‌ماندهٔ سرویس</string>
+    <string name="dash_rate_snapshot">آخرین گزارش بازهٔ محدودیت</string>
+    <string name="dash_local_budget">باقی‌ماندهٔ بودجهٔ محلی</string>
+    <string name="dash_not_set">تنظیم نشده</string>
+    <string name="dash_user_budget">سقف شما؛ نه اعتبار حساب</string>
+    <string name="dash_snapshot_at">زمان گزارش: %1$s</string>
+    <string name="dash_configured_route">سرویس و مدل تنظیم‌شده</string>
+    <string name="dash_selected_agent">ایجنت انتخاب‌شده: %1$s</string>
+    <string name="dash_verified_routes">مسیرهای رایگان تأییدشده</string>
+    <string name="dash_catalog_not_quota">شواهد فهرست؛ نه سهمیه</string>
+    <string name="dash_provider_accounts">حساب‌های سرویس‌ها</string>
+    <string name="dash_configured_count">تنظیم‌شده برای مسیریابی</string>
+    <string name="dash_usage_scope_note">ظرفیت زمینه سهمیهٔ حساب نیست. گزارش محدودیت ممکن است قدیمی باشد؛ سهمیهٔ نامشخص، نامشخص نمایش داده می‌شود.</string>
+    <string name="dash_team_title">مرکز فرماندهی تیم ایجنت‌ها</string>
+    <string name="dash_android_scheduler">وظایف زمان‌بندی‌شدهٔ اندروید</string>
+    <string name="dash_running_jobs">در حال اجرا</string>
+    <string name="dash_observed_workmanager">وظایف مشاهده‌شدهٔ اندروید</string>
+    <string name="dash_enabled_schedules">زمان‌بندی‌های فعال</string>
+    <string name="dash_of_teams">از %1$d تیم تنظیم‌شده</string>
+    <string name="dash_verified_reports">گزارش‌های سالم</string>
+    <string name="dash_last_report_evidence">شواهد تأییدشدهٔ اخیر</string>
+    <string name="dash_attention">نیازمند بررسی</string>
+    <string name="dash_attention_detail">قدیمی، ناموجود یا خطای ساعت</string>
+    <string name="dash_hide_setup">بستن تنظیم تیم</string>
+    <string name="dash_new_team">ساخت تیم زمان‌بندی‌شده</string>
+    <string name="dash_scheduled">زمان‌بندی‌شده</string>
+    <string name="dash_create_failed">ساخت تیم ممکن نشد.</string>
+    <string name="dash_schedule_failed">زمان‌بندی در دسترس نیست.</string>
+    <string name="dash_active_route">در حال استفاده · سرویس و مدل</string>
+    <string name="dash_executing_agent">ایجنت در حال اجرا: %1$s</string>
+    <string name="dash_last_turn_usage">درخواست اخیر: %1$s توکن · %2$s</string>
+    <string name="dash_usage_estimated">تخمین محلی</string>
+    <string name="dash_usage_reported">گزارش‌شده توسط سرویس</string>
+    <string name="dash_request_preparing">در حال آماده‌سازی درخواست</string>
+</resources>
