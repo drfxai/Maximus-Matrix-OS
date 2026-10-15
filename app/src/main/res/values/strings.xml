@@ -433,4 +433,27 @@
     <string name="eleven_status_sample">Playing voice sample; account credits may be used.</string>
     <string name="eleven_status_stopped">Voice playback stopped.</string>
     <string name="eleven_sample_text">Hello from Maximus Matrix OS!</string>
+    <string name="brain_graph_action_signals">Open live signals</string>
+    <string name="brain_graph_action_vision">Open chart vision</string>
+    <string name="brain_graph_action_news">Open news intelligence</string>
+    <string name="brain_graph_action_alerts">View market alerts</string>
+    <string name="brain_graph_action_chat">Open AI chat</string>
+    <string name="brain_graph_action_agents">Open agents hub</string>
+    <string name="brain_graph_action_data">Open data center</string>
+    <string name="brain_graph_action_control">Open control hub</string>
+    <string name="brain_graph_action_gateway">Configure AI gateway</string>
+    <string name="brain_graph_clear_search">Clear search</string>
+    <string name="brain_graph_axons">%1$d connections</string>
+    <string name="brain_graph_connected_modules">Connected modules (%1$d)</string>
+    <string name="brain_graph_top_hubs">Top application hubs</string>
+    <string name="brain_graph_search_results">Search results</string>
+    <string name="brain_graph_mesh_explanation">Mesh particles are visual details; node spheres represent real app modules.</string>
+    <string name="brain_graph_search_nodes">Search and inspect nodes</string>
+    <string name="brain_graph_view_superior">Top</string>
+    <string name="brain_graph_view_frontal">Front</string>
+    <string name="brain_graph_view_lateral">Side</string>
+    <string name="brain_graph_pause_rotation">Pause rotation</string>
+    <string name="brain_graph_start_rotation">Start rotation</string>
+    <string name="brain_graph_filter_nodes">Filter node groups</string>
+    <string name="brain_graph_clear_focus">Clear selection</string>
 </resources>
