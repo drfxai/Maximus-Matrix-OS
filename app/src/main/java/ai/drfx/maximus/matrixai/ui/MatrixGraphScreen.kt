@@ -323,17 +323,17 @@ fun MatrixGraphScreen(
     }
     // Dictation fills editable text; it never automatically sends or executes a command.
 
-    fun getActionForNode(node: LiveNode): Pair<String, () -> Unit>? {
+    fun getActionForNode(node: LiveNode): Pair<Int, () -> Unit>? {
         return when {
-            node.id == "signals_hub" || node.id.startsWith("signal_") -> "Open Live Signals" to onNavigateToSignals
-            node.id == "vision_hub" || node.id.startsWith("vision_") -> "Open Chart Vision" to onNavigateToVision
-            node.id == "news_hub" || node.id.startsWith("news_") -> "Open News Intelligence" to onNavigateToNews
-            node.id == "alerts_hub" || node.id.startsWith("alert_") -> "View Market Alerts" to onNavigateToNews
-            node.id == "chat_hub" || node.id.startsWith("chat_") -> "Open AI Chat" to onNavigateToChat
-            node.id == "agents" || node.group == "AGENT RUNTIME" -> "Open Agents Hub" to onNavigateToAgents
-            node.id == "company" || node.group == "DATA & KNOWLEDGE" -> "Open Data Center" to onNavigateToData
-            node.id == "api" || node.group == "FINOPS & CONTROL" -> "Open Control Hub" to onNavigateToControl
-            node.id == "models" || node.id == "provider" || node.id == "model" -> "Configure AI Gateway" to onNavigateToControl
+            node.id == "signals_hub" || node.id.startsWith("signal_") -> R.string.brain_graph_action_signals to onNavigateToSignals
+            node.id == "vision_hub" || node.id.startsWith("vision_") -> R.string.brain_graph_action_vision to onNavigateToVision
+            node.id == "news_hub" || node.id.startsWith("news_") -> R.string.brain_graph_action_news to onNavigateToNews
+            node.id == "alerts_hub" || node.id.startsWith("alert_") -> R.string.brain_graph_action_alerts to onNavigateToNews
+            node.id == "chat_hub" || node.id.startsWith("chat_") -> R.string.brain_graph_action_chat to onNavigateToChat
+            node.id == "agents" || node.group == "AGENT RUNTIME" -> R.string.brain_graph_action_agents to onNavigateToAgents
+            node.id == "company" || node.group == "DATA & KNOWLEDGE" -> R.string.brain_graph_action_data to onNavigateToData
+            node.id == "api" || node.group == "FINOPS & CONTROL" -> R.string.brain_graph_action_control to onNavigateToControl
+            node.id == "models" || node.id == "provider" || node.id == "model" -> R.string.brain_graph_action_gateway to onNavigateToControl
             else -> null
         }
     }
@@ -368,7 +368,7 @@ fun MatrixGraphScreen(
                 trailingIcon = {
                     if (search.isNotBlank()) {
                         IconButton(onClick = { search = "" }) {
-                            Icon(Icons.Default.Close, "Clear search", Modifier.size(14.dp))
+                            Icon(Icons.Default.Close, stringResource(R.string.brain_graph_clear_search), Modifier.size(14.dp))
                         }
                     }
                 }
@@ -387,7 +387,9 @@ fun MatrixGraphScreen(
                                     Text(selected.anatomicalRegion, color = muted, fontSize = 8.5.sp)
                                 }
                             }
-                            Text("${edges.count { it.from == selected.id || it.to == selected.id }} axons", color = muted, fontSize = 9.sp)
+                            Text(stringResource(R.string.brain_graph_axons,
+                                edges.count { it.from == selected.id || it.to == selected.id }),
+                                color = muted, fontSize = 9.sp)
                         }
                         Text(selected.label, color = ink, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                         Text(selected.description, color = muted, fontSize = 10.5.sp, lineHeight = 15.sp)
@@ -405,7 +407,7 @@ fun MatrixGraphScreen(
                             ) {
                                 Icon(getIconForNode(selected), null, modifier = Modifier.size(15.dp), tint = Color.White)
                                 Spacer(Modifier.width(6.dp))
-                                Text(action.first, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(stringResource(action.first), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
 
@@ -417,7 +419,8 @@ fun MatrixGraphScreen(
                             .distinctBy { it.id }
 
                         if (neighbors.isNotEmpty()) {
-                            Text("CONNECTED MODULES (${neighbors.size})", color = muted, fontSize = 8.5.sp, letterSpacing = 0.8.sp)
+                            Text(stringResource(R.string.brain_graph_connected_modules, neighbors.size),
+                                color = muted, fontSize = 8.5.sp, letterSpacing = 0.8.sp)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 neighbors.forEach { neighbor ->
                                     Surface(
@@ -446,7 +449,8 @@ fun MatrixGraphScreen(
                     }
                 }
             }
-            Text(if (search.isBlank()) "TOP APPLICATION HUBS" else "SEARCH RESULTS", color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
+            Text(stringResource(if (search.isBlank()) R.string.brain_graph_top_hubs
+                else R.string.brain_graph_search_results), color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
             nodes.filter { if (search.isBlank()) it.hub else it.label.contains(search, true) || it.group.contains(search, true) }.forEach { node ->
                 Row(Modifier.fillMaxWidth().clickable { selectedId = node.id; hiddenGroups = hiddenGroups - node.group; openPanel = null }
                     .padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -467,7 +471,7 @@ fun MatrixGraphScreen(
             Slider(linkOpacity, { linkOpacity = it }, valueRange = .12f.. .7f)
             Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(labels, { labels = it }); Text(stringResource(R.string.graph_labels), color = ink, fontSize = 11.sp) }
             Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(mesh, { mesh = it }); Text(stringResource(R.string.graph_mesh), color = ink, fontSize = 11.sp) }
-            Text("Mesh particles are visual depth detail; node spheres represent actual live application modules.", color = muted, fontSize = 9.5.sp)
+            Text(stringResource(R.string.brain_graph_mesh_explanation), color = muted, fontSize = 9.5.sp)
         }
     }
     val filters: @Composable () -> Unit = {
@@ -619,7 +623,7 @@ fun MatrixGraphScreen(
                                     onClick = { openPanel = GraphPanel.INSPECTOR },
                                     modifier = Modifier.size(32.dp)
                                 ) {
-                                    Icon(Icons.Default.Search, "Search and inspect nodes", tint = ink, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Search, stringResource(R.string.brain_graph_search_nodes), tint = ink, modifier = Modifier.size(16.dp))
                                 }
                             }
                             TextButton(
@@ -630,7 +634,7 @@ fun MatrixGraphScreen(
                                 },
                                 contentPadding = PaddingValues(horizontal = 7.dp, vertical = 2.dp)
                             ) {
-                                Text("Superior", color = ink, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.brain_graph_view_superior), color = ink, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
                             }
                             TextButton(
                                 onClick = {
@@ -640,7 +644,7 @@ fun MatrixGraphScreen(
                                 },
                                 contentPadding = PaddingValues(horizontal = 7.dp, vertical = 2.dp)
                             ) {
-                                Text("Frontal", color = ink, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.brain_graph_view_frontal), color = ink, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
                             }
                             TextButton(
                                 onClick = {
@@ -650,7 +654,7 @@ fun MatrixGraphScreen(
                                 },
                                 contentPadding = PaddingValues(horizontal = 7.dp, vertical = 2.dp)
                             ) {
-                                Text("Lateral", color = ink, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.brain_graph_view_lateral), color = ink, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
                             }
                             TextButton(
                                 onClick = { reset() },
@@ -664,7 +668,8 @@ fun MatrixGraphScreen(
                             ) {
                                 Icon(
                                     if (autoRotate) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    if (autoRotate) "Pause rotation" else "Start rotation",
+                                    stringResource(if (autoRotate) R.string.brain_graph_pause_rotation
+                                        else R.string.brain_graph_start_rotation),
                                     tint = graphTone(GraphPurple, light),
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -674,7 +679,7 @@ fun MatrixGraphScreen(
                                     onClick = { openPanel = GraphPanel.FILTERS },
                                     modifier = Modifier.size(32.dp)
                                 ) {
-                                    Icon(Icons.Default.FilterList, "Filter node groups", tint = ink, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.FilterList, stringResource(R.string.brain_graph_filter_nodes), tint = ink, modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -730,10 +735,12 @@ fun MatrixGraphScreen(
                                             Text(selected.anatomicalRegion, color = muted, fontSize = 8.sp)
                                         }
                                     }
-                                    Text("${edges.count { it.from == selected.id || it.to == selected.id }} axons", color = muted, fontSize = 8.5.sp)
+                                    Text(stringResource(R.string.brain_graph_axons,
+                                        edges.count { it.from == selected.id || it.to == selected.id }),
+                                        color = muted, fontSize = 8.5.sp)
                                     Spacer(Modifier.width(6.dp))
                                     IconButton(onClick = { selectedId = null }, modifier = Modifier.size(20.dp)) {
-                                        Icon(Icons.Default.Close, "Clear focus", tint = muted, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Close, stringResource(R.string.brain_graph_clear_focus), tint = muted, modifier = Modifier.size(14.dp))
                                     }
                                 }
                                 Text(selected.label, color = ink, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
@@ -753,7 +760,7 @@ fun MatrixGraphScreen(
                                         ) {
                                             Icon(getIconForNode(selected), null, modifier = Modifier.size(13.dp), tint = Color.White)
                                             Spacer(Modifier.width(4.dp))
-                                            Text(action.first, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                            Text(stringResource(action.first), fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                         }
                                     }
                                     OutlinedButton(
@@ -765,7 +772,7 @@ fun MatrixGraphScreen(
                                     ) {
                                         Icon(Icons.Default.Tune, null, modifier = Modifier.size(12.dp), tint = ink)
                                         Spacer(Modifier.width(4.dp))
-                                        Text("Inspector", fontSize = 10.sp, color = ink)
+                                        Text(stringResource(R.string.graph_inspector), fontSize = 10.sp, color = ink)
                                     }
                                 }
                             }
