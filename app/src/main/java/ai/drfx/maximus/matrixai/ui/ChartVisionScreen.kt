@@ -691,7 +691,7 @@ fun ChartVisionScreen(
                             },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = context.getString(R.string.vision_copy), tint = textSecondary, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.ContentCopy, contentDescription = context.getString(R.string.vision_copy_action), tint = textSecondary, modifier = Modifier.size(16.dp))
                         }
                     }
 
