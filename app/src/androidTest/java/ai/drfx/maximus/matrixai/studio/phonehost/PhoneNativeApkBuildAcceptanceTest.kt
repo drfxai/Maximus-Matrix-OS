@@ -33,6 +33,7 @@ class PhoneNativeApkBuildAcceptanceTest {
         val proofFile = File(evidence, "result.json")
         proofFile.delete() // An earlier success must never survive this attempt.
         val builder = PhoneOnDeviceApkBuilder(context)
+        await(30_000) { !builder.state.value.busy }
         builder.verifyTools()
         await(120_000) { !builder.state.value.busy }
         check(builder.state.value.verifiedTools) { builder.state.value.message }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_console_linux">بيئة مستخدم لينكس</string>
+    <string name="phone_console_probed">تم التحقق من التنفيذ</string>
+    <string name="phone_console_unverified">يلزم فحص الأدوات</string>
+    <string name="phone_console_title">وحدة البناء</string>
+    <string name="phone_console_elapsed">%1$d ثانية</string>
+    <string name="phone_console_restoring">فحص APK المحفوظ</string>
+    <string name="phone_console_verifying">فحص أدوات البناء</string>
+    <string name="phone_console_building">البناء على هذا الهاتف</string>
+    <string name="phone_console_artifact">APK تصحيح موثّق</string>
+    <string name="phone_console_failed">فشلت العملية</string>
+    <string name="phone_console_cancelled">أوقفه المستخدم</string>
+    <string name="phone_console_project">المشروع %1$s</string>
+    <string name="phone_console_artifact_bytes">APK · %1$d بايت</string>
+    <string name="phone_console_boundary">يشغّل PRoot بيئة مستخدم لينكس على نواة أندرويد بصلاحيات هذا التطبيق. لا يوفر نواة منفصلة أو صلاحية روت. يقدّم الخادم المحلي بيانات المشروع والمصدر الموافق عليه بعد المصادقة؛ لا توجد طرفية عن بعد.</string>
+</resources>
