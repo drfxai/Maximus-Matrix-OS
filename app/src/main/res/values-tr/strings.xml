@@ -582,4 +582,8 @@
     <string name="phone_host_stopping">Sunucu durduruluyor ve oturum erişimi kaldırılıyor…</string>
     <string name="phone_host_stop_failed">Telefon sunucusu durdurulamadı.</string>
     <string name="phone_host_cancel">İptal</string>
+    <string name="phone_host_linux_unavailable">Yerel Linux bu cihazda kullanılamıyor</string>
+    <string name="phone_host_linux_not_installed">Linux çalışma ortamı kurulu değil</string>
+    <string name="phone_host_rootfs_unverified">Linux dosya sistemi doğrulanmadı</string>
+    <string name="phone_host_execution_unverified">Dosyalar bulundu; çalıştırma henüz doğrulanmadı</string>
 </resources>
