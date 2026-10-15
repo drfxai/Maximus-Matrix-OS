@@ -701,4 +701,8 @@
     <string name="vision_uncalibrated_pattern">تفسير الذكاء الاصطناعي · غير معاير</string>
     <string name="vision_assistant_share">مساعد الذكاء الاصطناعي والمشاركة</string>
     <string name="vision_trader_notes">ملاحظات المتداول وافتراضاته</string>
+    <string name="chat_go_to_latest_message">الانتقال إلى أحدث رسالة</string>
+    <string name="chat_composer_description">محرر رسائل المحادثة</string>
+    <string name="chat_input_description">إدخال المحادثة</string>
+    <string name="chat_configure_key_description">إعداد مفتاح API</string>
 </resources>

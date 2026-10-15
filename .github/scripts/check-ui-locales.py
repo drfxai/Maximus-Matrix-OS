@@ -77,6 +77,22 @@ for name in fully_localized:
     if stats.get(name, 0):
         sys.exit("Direct English Text() literal returned in localized panel: " + name)
 
+# Chat accessibility descriptions are user-facing UI too. Keep their English
+# values stable for existing keyboard tests while requiring localized resources.
+chat_accessibility = (
+    "chat_go_to_latest_message", "chat_composer_description",
+    "chat_input_description", "chat_configure_key_description", "chat_select_model",
+)
+for key in chat_accessibility:
+    if key not in base:
+        sys.exit("Required localized Chat accessibility label missing: " + key)
+    for lang in ("fa", "ar", "tr", "ru"):
+        if catalog[lang][key] == catalog[""][key]:
+            sys.exit("English-only Chat accessibility label in " + lang + ": " + key)
+chat_source = (roots / "ProviderChatScreen.kt").read_text(encoding="utf-8")
+if re.search(r'\bcontentDescription\s*=\s*"', chat_source):
+    sys.exit("Hardcoded Chat accessibility description; use a localized resource")
+
 print("Five Android locale catalogs validated, keys:", len(base))
 print("Remaining direct Text string-literal occurrences:", sum(stats.values()))
 for name, count in stats.items():

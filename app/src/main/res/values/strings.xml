@@ -701,4 +701,8 @@
     <string name="vision_uncalibrated_pattern">AI interpretation · not calibrated</string>
     <string name="vision_assistant_share">AI assistant and sharing</string>
     <string name="vision_trader_notes">Trader notes and assumptions</string>
+    <string name="chat_go_to_latest_message">Go to latest message</string>
+    <string name="chat_composer_description">Chat composer</string>
+    <string name="chat_input_description">Chat input</string>
+    <string name="chat_configure_key_description">Configure Key</string>
 </resources>
