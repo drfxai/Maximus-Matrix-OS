@@ -10,6 +10,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.UUID
 
 /**
  * The only supported origins are first-party GitHub and Cloudflare HTTPS APIs.
@@ -67,6 +68,8 @@ internal data class GithubSourceFile(
     val branch: String, val sha: String, val text: String
 )
 
+internal data class CloudflareAccount(val id: String, val name: String)
+
 /** Explicit user-owned API operations. No autonomous deployment or privileged remote shell. */
 internal class DeveloperServiceClient(private val vault: DeveloperCredentialVault) {
     private companion object {
@@ -79,11 +82,14 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         service: DevelopmentService,
         path: String,
         method: String = "GET",
-        body: ByteArray? = null
+        body: ByteArray? = null,
+        contentType: String = "application/json; charset=utf-8"
     ): ByteArray = withContext(Dispatchers.IO) {
         require(path.startsWith("/") && !path.startsWith("//") && '#' !in path)
         require(method in setOf("GET", "POST", "PUT"))
         require(body == null || body.size <= 512 * 1024)
+        require(contentType == "application/json; charset=utf-8" ||
+            contentType.matches(Regex("multipart/form-data; boundary=maximus-[a-f0-9-]{36}")))
         val token = vault.resolve(service)
         check(token.isNotBlank()) { "Connect this service with a restricted API token first." }
         val base = if (service == DevelopmentService.GITHUB) GH else CF
@@ -105,7 +111,8 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
                 connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
             if (body != null) {
                 connection.doOutput = true
-                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                connection.setRequestProperty("Content-Type", contentType)
+                connection.setFixedLengthStreamingMode(body.size)
                 connection.outputStream.use { it.write(body) }
             }
             val code = connection.responseCode
@@ -138,8 +145,10 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         val status = JSONObject(call(DevelopmentService.CLOUDFLARE, "/user/tokens/verify")
             .toString(StandardCharsets.UTF_8))
         check(status.optBoolean("success")) { "Cloudflare token validation failed." }
-        return status.optJSONObject("result")?.optString("status", "verified")?.take(70)
-            ?: "verified"
+        check(status.optJSONObject("result")?.optString("status") == "active") {
+            "Cloudflare token is not active."
+        }
+        return "active"
     }
 
     suspend fun readGithubFile(
@@ -194,6 +203,7 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         val path = DeveloperConnectionPolicy.filePath(file.path)
         val branch = DeveloperConnectionPolicy.writableBranch(file.branch)
         require(file.sha.matches(Regex("[a-f0-9]{40}")))
+        requireGithubWritableTarget(o, r, branch)
         val bytes = editedText.toByteArray(Charsets.UTF_8)
         require(bytes.size in 1..256 * 1024) { "Source file too large or empty." }
         val objectValue = JSONObject()
@@ -206,6 +216,80 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
             "PUT", objectValue.toString().toByteArray(Charsets.UTF_8))
             .toString(StandardCharsets.UTF_8))
         return result.getJSONObject("commit").getString("sha")
+    }
+
+    /** Fail closed when the authenticated API cannot establish a safe write target. */
+    private suspend fun requireGithubWritableTarget(owner: String, repo: String, branch: String) {
+        val repository = JSONObject(call(DevelopmentService.GITHUB, "/repos/$owner/$repo")
+            .toString(StandardCharsets.UTF_8))
+        val defaultBranch = repository.optString("default_branch")
+        check(defaultBranch.isNotBlank() && branch != defaultBranch) {
+            "Choose a feature branch instead of the repository default branch."
+        }
+        val target = JSONObject(call(DevelopmentService.GITHUB,
+            "/repos/$owner/$repo/branches/" + URLEncoder.encode(branch, "UTF-8"))
+            .toString(StandardCharsets.UTF_8))
+        check(target.optString("name") == branch && target.has("protected") &&
+            !target.getBoolean("protected")) {
+            "Protected or unverified branches cannot be edited here."
+        }
+    }
+
+    /** Discovery is restricted to accounts exposed by this user's scoped API token. */
+    suspend fun listCloudflareAccounts(): List<CloudflareAccount> {
+        val response = JSONObject(call(DevelopmentService.CLOUDFLARE,
+            "/accounts?per_page=50").toString(StandardCharsets.UTF_8))
+        check(response.optBoolean("success")) { "Cloudflare account discovery failed." }
+        val accounts = response.optJSONArray("result") ?: JSONArray()
+        return (0 until minOf(50, accounts.length())).mapNotNull { index ->
+            val item = accounts.optJSONObject(index) ?: return@mapNotNull null
+            val id = item.optString("id")
+            if (runCatching { DeveloperConnectionPolicy.cloudflareAccountId(id) }.isFailure)
+                return@mapNotNull null
+            CloudflareAccount(id, item.optString("name").take(120).ifBlank { id })
+        }
+    }
+
+    /** Creates or replaces only the exact approved script; no route or domain is configured. */
+    suspend fun deployCloudflareAgent(
+        accountId: String, workerName: String, purpose: CloudAgentPurpose,
+        accessToken: String, approved: Boolean
+    ): String {
+        check(approved) { "Explicit approval is required before creating or replacing a Worker." }
+        val account = DeveloperConnectionPolicy.cloudflareAccountId(accountId)
+        val name = DeveloperConnectionPolicy.workerName(workerName)
+        require(accessToken.matches(Regex("[A-Za-z0-9_-]{32,128}"))) {
+            "Agent access token must contain 32 to 128 URL-safe characters."
+        }
+        val metadata = JSONObject()
+            .put("main_module", "agent.js")
+            .put("compatibility_date", "2026-10-15")
+            .put("bindings", JSONArray()
+                .put(JSONObject().put("type", "ai").put("name", "AI"))
+                .put(JSONObject().put("type", "secret_text")
+                    .put("name", "MAXIMUS_AGENT_TOKEN").put("text", accessToken)))
+        val boundary = "maximus-" + UUID.randomUUID().toString()
+        val source = DeveloperSetupPolicy.workerSource(purpose)
+        // The secret belongs only to upload metadata, never to the executable module.
+        val upload = buildString {
+            append("--$boundary\r\n")
+            append("Content-Disposition: form-data; name=\"metadata\"\r\n")
+            append("Content-Type: application/json\r\n\r\n")
+            append(metadata.toString()).append("\r\n")
+            append("--$boundary\r\n")
+            append("Content-Disposition: form-data; name=\"agent.js\"; filename=\"agent.js\"\r\n")
+            append("Content-Type: application/javascript+module\r\n\r\n")
+            append(source).append("\r\n--$boundary--\r\n")
+        }.toByteArray(Charsets.UTF_8)
+        val response = call(DevelopmentService.CLOUDFLARE,
+            "/accounts/$account/workers/scripts/$name", "PUT", upload,
+            "multipart/form-data; boundary=$boundary")
+        // Do not forward Cloudflare's error body or metadata into UI feedback.
+        val succeeded = runCatching {
+            JSONObject(response.toString(StandardCharsets.UTF_8)).optBoolean("success")
+        }.getOrDefault(false)
+        check(succeeded) { "Cloudflare did not confirm Worker deployment." }
+        return name
     }
 
     suspend fun listCloudflareWorkers(accountId: String): List<String> {
