@@ -586,4 +586,18 @@
     <string name="phone_host_linux_not_installed">محیط اجرایی لینوکس نصب نشده است</string>
     <string name="phone_host_rootfs_unverified">فایل‌سیستم لینوکس تأیید نشده است</string>
     <string name="phone_host_execution_unverified">فایل‌ها پیدا شدند؛ اجرای واقعی هنوز تأیید نشده است</string>
+    <string name="models_inventory_notice">فایل مدل خود را بدون آپلود، از حافظه اندروید ثبت کنید. این بخش فقط فهرست فایل‌هاست؛ اجرای مدل و دانلود از Hugging Face هنوز فعال نیست.</string>
+    <string name="models_registered_count">فایل‌های ثبت‌شده: %1$d</string>
+    <string name="models_import_success">ارجاع مدل %1$s ثبت شد. این کار به معنای تأیید اجرای مدل نیست.</string>
+    <string name="models_import_failed">افزودن فایل مدل ممکن نشد. نوع فایل، اندازه و دسترسی به سند را بررسی کنید.</string>
+    <string name="models_format_size">%1$s · %2$s گیگابایت</string>
+    <string name="models_gguf_verified">سرآیند GGUF شناسایی شد؛ وزن‌های مدل، سخت‌افزار و امکان اجرا هنوز تأیید نشده‌اند.</string>
+    <string name="models_litert_unverified">فقط پسوند LiteRT-LM شناسایی شد؛ صحت بسته و پشتیبانی موتور تأیید نشده است.</string>
+    <string name="models_offline_notice">ممکن است فایل انتخاب‌شده در فضای ابری باشد. ثبت آن به معنای دسترسی آفلاین نیست. حذف ارجاع، فایل اصلی را پاک نمی‌کند.</string>
+    <string name="models_forget_detail">ارجاع ذخیره‌شده به %1$s حذف شود؟ فایل اصلی مدل پاک نخواهد شد.</string>
+    <string name="models_forget_success">ارجاع مدل حذف شد؛ فایل اصلی بدون تغییر باقی ماند.</string>
+    <string name="models_forget_failed">حذف ارجاع مدل ممکن نشد. دوباره تلاش کنید.</string>
+    <string name="models_file_name_missing">نام فایل سند قابل خواندن نیست.</string>
+    <string name="models_file_open_failed">بازکردن سند انتخاب‌شده ممکن نشد.</string>
+    <string name="models_unverified_runtime">هنوز قابل اجرا نیست · قابلیت‌های استنتاج، تصویر و صدا تأیید نشده‌اند.</string>
 </resources>
