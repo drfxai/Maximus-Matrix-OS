@@ -68,7 +68,9 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
                                 }
                             }
                         }
-                        val name = requireNotNull(displayName) { "File name is unavailable." }
+                        val name = requireNotNull(displayName) {
+                            context.getString(R.string.models_file_name_missing)
+                        }
                         val prefix = ByteArray(8)
                         val count = resolver.openInputStream(uri)?.use { input ->
                             var read = 0
@@ -79,7 +81,7 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
                                 read += n
                             }
                             read
-                        } ?: error("Cannot open the selected document.")
+                        } ?: error(context.getString(R.string.models_file_open_failed))
                         val probe = LocalModelIntakePolicy.inspect(
                             name, size, prefix.copyOf(count)
                         )
@@ -92,9 +94,12 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
                         library.register(uri, name, size, probe)
                     }
                     entries = library.list()
-                    status = newEntry.displayName + " indexed. " + newEntry.note
+                    status = context.getString(R.string.models_import_success,
+                        newEntry.displayName)
                 } catch (error: Exception) {
-                    status = error.message ?: "Model import failed."
+                    // Do not expose raw provider exceptions, document URIs or
+                    // English-only parser errors in the localized interface.
+                    status = context.getString(R.string.models_import_failed)
                 } finally {
                     busy = false
                 }
@@ -109,9 +114,7 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
     ) {
         Text(stringResource(R.string.models_title), style = MaterialTheme.typography.titleLarge)
         Text(
-            "Register your own model files from Android storage without uploading " +
-                "them. This is a secure model inventory: native model execution " +
-                "and Hugging Face downloads are NOT enabled in this build.",
+            stringResource(R.string.models_inventory_notice),
             style = MaterialTheme.typography.bodySmall
         )
         Button(
@@ -122,7 +125,8 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
         if (status.isNotBlank()) {
             Text(status, style = MaterialTheme.typography.bodySmall)
         }
-        Text("Registered files · " + entries.size, style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.models_registered_count, entries.size),
+            style = MaterialTheme.typography.titleMedium)
         if (entries.isEmpty()) {
             Text(stringResource(R.string.models_empty), style = MaterialTheme.typography.bodySmall)
         }
@@ -131,14 +135,24 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(entry.displayName, style = MaterialTheme.typography.titleSmall)
                     Text(
-                        entry.format.displayName + " · " +
-                            String.format(Locale.ROOT, "%.2f GiB",
-                                entry.sizeBytes.toDouble() / (1024.0 * 1024 * 1024)),
+                        stringResource(
+                            R.string.models_format_size,
+                            entry.format.displayName,
+                            String.format(Locale.ROOT, "%.2f",
+                                entry.sizeBytes.toDouble() / (1024.0 * 1024 * 1024))
+                        ),
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Text(entry.note, style = MaterialTheme.typography.bodySmall)
                     Text(
-                        "Not yet runnable · no runtime/vision/audio capability confirmed",
+                        stringResource(
+                            if (entry.format == LocalModelFormat.GGUF)
+                                R.string.models_gguf_verified
+                            else R.string.models_litert_unverified
+                        ),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        stringResource(R.string.models_unverified_runtime),
                         color = MaterialTheme.colorScheme.tertiary,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -149,9 +163,7 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
             }
         }
         Text(
-            "A document picker may return a cloud-backed file. Being indexed " +
-                "does not prove that a model is available offline. Forgetting a " +
-                "reference does not delete the original model file.",
+            stringResource(R.string.models_offline_notice),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -161,8 +173,7 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
         AlertDialog(
             onDismissRequest = { pendingForget = null },
             title = { Text(stringResource(R.string.models_confirm)) },
-            text = { Text("This removes the saved reference to " + entry.displayName +
-                " without deleting the original file.") },
+            text = { Text(stringResource(R.string.models_forget_detail, entry.displayName)) },
             confirmButton = {
                 Button(onClick = {
                     try {
@@ -173,16 +184,18 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
                             )
                         }
                         entries = library.list()
-                        status = "File reference forgotten. Original file is unchanged."
+                        status = context.getString(R.string.models_forget_success)
                     } catch (error: Exception) {
-                        status = error.message ?: "Could not forget file reference."
+                        status = context.getString(R.string.models_forget_failed)
                     } finally {
                         pendingForget = null
                     }
                 }) { Text(stringResource(R.string.models_forget_action)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingForget = null }) { Text("Cancel") }
+                TextButton(onClick = { pendingForget = null }) {
+                    Text(stringResource(R.string.studio_cancel))
+                }
             }
         )
     }
