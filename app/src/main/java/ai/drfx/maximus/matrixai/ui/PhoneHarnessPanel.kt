@@ -76,11 +76,11 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     withContext(Dispatchers.IO) {
                         context.contentResolver.openOutputStream(uri)?.use { output ->
                             builder.exportVerifiedApk(output)
-                        } ?: error("Selected APK destination cannot be written.")
+                        } ?: error(context.getString(R.string.phone_host_export_unwritable))
                     }
-                    status = "Verified on-device Debug APK exported successfully."
+                    status = context.getString(R.string.phone_host_export_success)
                 } catch (e: Exception) {
-                    status = e.message ?: "APK export failed."
+                    status = e.message ?: context.getString(R.string.phone_host_export_failed)
                 }
             }
         }
@@ -123,7 +123,9 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     }
                     Surface(shape = RoundedCornerShape(100.dp),
                         color = if (running) Color(0xFF174A45) else Color.White.copy(alpha = 0.12f)) {
-                        Text(if (running) "● LIVE" else "● OFFLINE", color = if (running) harnessAqua else Color.White,
+                        Text(if (running) "● " + stringResource(R.string.phone_host_live)
+                            else "● " + stringResource(R.string.phone_host_disconnected),
+                            color = if (running) harnessAqua else Color.White,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     }
@@ -132,7 +134,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Lock, null, tint = harnessAqua, modifier = Modifier.size(15.dp))
-                    Text("127.0.0.1:${PhoneHostPolicy.PORT}  ·  Same-device only",
+                    Text(stringResource(R.string.phone_host_same_device, PhoneHostPolicy.PORT),
                         color = Color.White.copy(alpha = 0.83f), style = MaterialTheme.typography.labelSmall)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -144,9 +146,9 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                                 context.startForegroundService(Intent(context, PhoneHarnessService::class.java).apply {
                                     action = PhoneHarnessService.ACTION_START
                                 })
-                                status = "Starting private phone server…"
+                                status = context.getString(R.string.phone_host_server_starting)
                             } catch (e: Exception) {
-                                status = e.message ?: "Could not start the server."
+                                status = e.message ?: context.getString(R.string.phone_host_server_start_failed)
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = harnessAqua, contentColor = harnessNight),
@@ -172,9 +174,12 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
 
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
             HarnessCapabilityTile(
-                stringResource(R.string.phone_workspaces), "On phone", Icons.Default.FolderOpen, true, Modifier.weight(1f))
+                stringResource(R.string.phone_workspaces), stringResource(R.string.phone_host_on_phone),
+                Icons.Default.FolderOpen, true, Modifier.weight(1f))
             HarnessCapabilityTile(
-                stringResource(R.string.phone_source_api), if (running) "Online" else "Standby",
+                stringResource(R.string.phone_source_api),
+                if (running) stringResource(R.string.phone_host_online)
+                else stringResource(R.string.phone_host_standby),
                 Icons.Default.Hub, running, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
@@ -223,8 +228,8 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     val total = installState.total
                     if (total > 0) {
                         val transferred = installState.transferred / (1024L * 1024L)
-                        Text(transferred.toString() + " / " +
-                            (total / (1024L * 1024L)).toString() + " MiB transferred",
+                        Text(stringResource(R.string.phone_host_transfer_mib, transferred,
+                                total / (1024L * 1024L)),
                             style = MaterialTheme.typography.labelSmall)
                     }
                     OutlinedButton(onClick = {
@@ -242,9 +247,9 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                                         action = PhoneRuntimeSetupService.START
                                     }
                                 )
-                                status = "Preparing verified runtime download on this phone…"
+                                status = context.getString(R.string.phone_host_download_starting)
                             } catch (e: Exception) {
-                                status = e.message ?: "Could not begin toolchain setup."
+                                status = e.message ?: context.getString(R.string.phone_host_download_start_failed)
                             }
                         }, modifier = Modifier.fillMaxWidth().testTag("phone_build_install")
                     ) {
@@ -300,7 +305,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     }
                 }
                 if (buildState.phase == "succeeded") {
-                    Text("Verified SHA-256: " + buildState.apkSha256.orEmpty(),
+                    Text(stringResource(R.string.phone_host_sha_label, buildState.apkSha256.orEmpty()),
                         style = MaterialTheme.typography.labelSmall)
                     Button(
                         onClick = { saveApk.launch("Maximus-Project-debug.apk") },
@@ -337,8 +342,9 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                             val secret = PhoneHostSession.token()
                             if (secret.isNotBlank()) {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("Temporary local access key", secret))
-                                status = "Temporary token copied. Clear the clipboard after pairing."
+                                clipboard.setPrimaryClip(ClipData.newPlainText(
+                                    context.getString(R.string.phone_host_clipboard_label), secret))
+                                status = context.getString(R.string.phone_host_token_copied)
                             }
                         }, modifier = Modifier.fillMaxWidth().testTag("phone_harness_copy_token")) {
                             Icon(Icons.Default.ContentCopy, null, Modifier.size(18.dp))
@@ -351,8 +357,8 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                                 Text(stringResource(R.string.phone_shared_project), fontWeight = FontWeight.SemiBold,
                                     style = MaterialTheme.typography.bodyMedium)
                                 Text(
-                                    if (shared == null) "None — source remains private"
-                                    else "Selected ID: " + shared.orEmpty().take(8) + "…",
+                                    if (shared == null) stringResource(R.string.phone_host_no_shared_source)
+                                    else stringResource(R.string.phone_host_shared_id, shared.orEmpty().take(8)),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -367,7 +373,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                                 OutlinedButton(onClick = {
                                     PhoneHostSession.setSharedProject(null)
                                     shared = null
-                                    status = "Source sharing revoked."
+                                    status = context.getString(R.string.phone_host_share_revoked)
                                 }) { Text(stringResource(R.string.phone_revoke)) }
                             }
                         }
@@ -406,17 +412,18 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     color = harnessIndigo
                 )
                 Text(
-                    "Android API ${diagnostics.androidApi} · ${diagnostics.architecture} · " +
-                        "${diagnostics.memoryClassMiB} MiB app memory class · " +
-                        "${String.format(java.util.Locale.US, "%.1f", storageGiB)} GiB free storage",
+                    stringResource(R.string.phone_host_device_stats,
+                        diagnostics.androidApi, diagnostics.architecture,
+                        diagnostics.memoryClassMiB,
+                        String.format(java.util.Locale.US, "%.1f", storageGiB)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     if (diagnostics.supportedForOptionalArm64Runtime)
-                        "ARM64 host eligible. A verified Linux bundle, native launcher and execution tests are still required."
+                        stringResource(R.string.phone_host_arm64_ready_hint)
                     else
-                        "Optional ARM64 Linux runtime requires compatible hardware and Android 9+. Base Matrix remains usable.",
+                        stringResource(R.string.phone_host_arm64_unsupported),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -429,9 +436,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.bodySmall)
             }
         }
-        Text("Security: local GET-only workspace API · bounded ZIP export · no public network listener, " +
-            "shell commands, signing keys or hidden source uploads. On-phone Ubuntu/PRoot and model " +
-            "inference are separate optional engines.",
+        Text(stringResource(R.string.phone_host_security_summary),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -439,9 +444,7 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
     if (confirmBuild) AlertDialog(
         onDismissRequest = { confirmBuild = false },
         title = { Text(stringResource(R.string.phone_build_confirm)) },
-        text = { Text("Gradle scripts can execute arbitrary code with this Android app's " +
-            "privileges. Do not build unknown or downloaded third-party projects here. " +
-            "The toolchain runs offline; building may use battery, RAM and storage.") },
+        text = { Text(stringResource(R.string.phone_host_build_warning)) },
         confirmButton = {
             Button(onClick = {
                 confirmBuild = false
@@ -452,39 +455,41 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                             putExtra(PhoneLocalBuildService.PROJECT_ID, requireNotNull(projectId))
                         }
                     )
-                    status = "Compiling selected project on this phone…"
+                    status = context.getString(R.string.phone_host_compiling)
                 } catch (e: Exception) {
-                    status = e.message ?: "Could not launch local APK build."
+                    status = e.message ?: context.getString(R.string.phone_host_build_start_failed)
                 }
             }) { Text(stringResource(R.string.phone_approve_build)) }
         },
-        dismissButton = { TextButton(onClick = { confirmBuild = false }) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = { confirmBuild = false }) {
+            Text(stringResource(R.string.phone_host_cancel))
+        } }
     )
     if (confirmShare) AlertDialog(
         onDismissRequest = { confirmShare = false },
         icon = { Icon(Icons.Default.FolderZip, null) },
         title = { Text(stringResource(R.string.phone_share_confirm)) },
-        text = { Text("A trusted same-phone client with the temporary key can read this project's manifest " +
-            "and download its source ZIP. Remove any confidential files first. Other workspaces remain private.") },
+        text = { Text(stringResource(R.string.phone_host_share_warning)) },
         confirmButton = {
             Button(onClick = {
                 confirmShare = false
                 try {
                     PhoneHostSession.setSharedProject(requireNotNull(projectId))
                     shared = projectId
-                    status = "Only the selected project is approved for export."
+                    status = context.getString(R.string.phone_host_share_approved)
                 } catch (e: Exception) {
-                    status = e.message ?: "Project authorization failed."
+                    status = e.message ?: context.getString(R.string.phone_host_share_failed)
                 }
             }) { Text(stringResource(R.string.phone_share_approve)) }
         },
-        dismissButton = { TextButton(onClick = { confirmShare = false }) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = { confirmShare = false }) {
+            Text(stringResource(R.string.phone_host_cancel))
+        } }
     )
     if (confirmStop) AlertDialog(
         onDismissRequest = { confirmStop = false },
         title = { Text(stringResource(R.string.phone_stop_confirm)) },
-        text = { Text("This closes the local listener, revokes active source sharing and rotates the " +
-            "temporary key on the next start.") },
+        text = { Text(stringResource(R.string.phone_host_stop_warning)) },
         confirmButton = {
             Button(onClick = {
                 confirmStop = false
@@ -492,9 +497,9 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
                     context.startService(Intent(context, PhoneHarnessService::class.java).apply {
                         action = PhoneHarnessService.ACTION_STOP
                     })
-                    status = "Stopping and revoking the current session…"
+                    status = context.getString(R.string.phone_host_stopping)
                 } catch (e: Exception) {
-                    status = e.message ?: "Could not stop server."
+                    status = e.message ?: context.getString(R.string.phone_host_stop_failed)
                 }
             }) { Text(stringResource(R.string.phone_stop_revoke)) }
         },
