@@ -544,4 +544,8 @@
     <string name="api_usage_estimate_info">اگر ارائه‌دهنده مصرف را گزارش نکند، مقدار مصرف هر نوبت تخمینی است. زمینه یک برآورد محلی است و اعتبار حساب نیست.</string>
     <string name="api_usd_planning">بودجه برنامه‌ریزی دلاری (اجباری نیست)</string>
     <string name="api_visible_offers">نمایش %1$d مسیر از %2$d مسیر کاتالوگ.</string>
+    <string name="brain_status_planning">در حال برنامه‌ریزی</string>
+    <string name="brain_status_executing">در حال اجرا</string>
+    <string name="brain_status_attention">نیازمند بررسی</string>
+    <string name="brain_status_confirmation">منتظر تأیید</string>
 </resources>

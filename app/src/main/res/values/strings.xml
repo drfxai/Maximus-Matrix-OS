@@ -544,4 +544,8 @@
     <string name="api_usage_estimate_info">Turn usage can be estimated when the provider omits usage. Context is a local estimate, not account credit.</string>
     <string name="api_usd_planning">USD planning preference (not enforced)</string>
     <string name="api_visible_offers">Showing %1$d of %2$d catalog routes.</string>
+    <string name="brain_status_planning">Planning</string>
+    <string name="brain_status_executing">Executing</string>
+    <string name="brain_status_attention">Needs attention</string>
+    <string name="brain_status_confirmation">Awaiting approval</string>
 </resources>

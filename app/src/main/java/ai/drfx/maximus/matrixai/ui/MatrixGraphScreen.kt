@@ -547,7 +547,18 @@ fun MatrixGraphScreen(
                 Text(stringResource(R.string.brain_subtitle), color = muted, fontSize = 8.5.sp, letterSpacing = .6.sp)
             }
             Box(Modifier.size(7.dp).background(if (status == "READY") GraphAccent else GraphGold, CircleShape))
-            Text(if (status == "READY") stringResource(R.string.brain_status_ready) else status, Modifier.padding(start = 6.dp), color = graphTone(GraphAccent, light), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(
+                when (status) {
+                    "READY" -> stringResource(R.string.brain_status_ready)
+                    "PLANNING" -> stringResource(R.string.brain_status_planning)
+                    "EXECUTING" -> stringResource(R.string.brain_status_executing)
+                    "ATTENTION" -> stringResource(R.string.brain_status_attention)
+                    "CONFIRM" -> stringResource(R.string.brain_status_confirmation)
+                    else -> status
+                },
+                Modifier.padding(start = 6.dp), color = graphTone(GraphAccent, light),
+                fontSize = 10.sp, fontWeight = FontWeight.Bold
+            )
         }
 
         // Horizontal Anatomical Lobe Filter Chips

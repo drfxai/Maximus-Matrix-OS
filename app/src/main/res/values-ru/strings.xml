@@ -544,4 +544,8 @@
     <string name="api_usage_estimate_info">Если провайдер не сообщает расход, он оценивается приблизительно. Контекст — локальная оценка, а не кредит счёта.</string>
     <string name="api_usd_planning">Планируемый бюджет в USD (не ограничивает расходы)</string>
     <string name="api_visible_offers">Показано %1$d из %2$d маршрутов каталога.</string>
+    <string name="brain_status_planning">Планирование</string>
+    <string name="brain_status_executing">Выполнение</string>
+    <string name="brain_status_attention">Требует внимания</string>
+    <string name="brain_status_confirmation">Ожидание подтверждения</string>
 </resources>

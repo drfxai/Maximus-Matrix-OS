@@ -544,4 +544,8 @@
     <string name="api_usage_estimate_info">Sağlayıcı kullanım bildirmezse tur tüketimi tahminidir. Bağlam yerel bir tahmindir, hesap kredisi değildir.</string>
     <string name="api_usd_planning">USD planlama tercihi (zorunlu değil)</string>
     <string name="api_visible_offers">Katalogdaki %2$d rotadan %1$d tanesi gösteriliyor.</string>
+    <string name="brain_status_planning">Planlanıyor</string>
+    <string name="brain_status_executing">Çalışıyor</string>
+    <string name="brain_status_attention">İnceleme gerekli</string>
+    <string name="brain_status_confirmation">Onay bekleniyor</string>
 </resources>

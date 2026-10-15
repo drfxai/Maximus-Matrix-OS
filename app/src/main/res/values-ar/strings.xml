@@ -544,4 +544,8 @@
     <string name="api_usage_estimate_info">قد يكون استهلاك الجولة تقديرياً إن لم يبلغ المزود عنه. السياق تقدير محلي وليس رصيد الحساب.</string>
     <string name="api_usd_planning">تقدير الميزانية بالدولار (غير ملزم)</string>
     <string name="api_visible_offers">عرض %1$d من أصل %2$d مسارات في القائمة.</string>
+    <string name="brain_status_planning">جارٍ التخطيط</string>
+    <string name="brain_status_executing">جارٍ التنفيذ</string>
+    <string name="brain_status_attention">بحاجة إلى المراجعة</string>
+    <string name="brain_status_confirmation">بانتظار الموافقة</string>
 </resources>
