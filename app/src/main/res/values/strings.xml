@@ -743,4 +743,18 @@
     <string name="dev_invalid_account">Enter the 32-character Account ID from the Cloudflare dashboard, or clear it to open the general token form.</string>
     <string name="dev_clear_failed">Could not remove the saved token. Try again.</string>
     <string name="dev_working">Working…</string>
+    <string name="dev_pr_heading">Draft pull request</string>
+    <string name="dev_pr_hint">Preview the current feature branch against the repository’s real default branch. Your token needs Contents read and Pull requests write for this repository.</string>
+    <string name="dev_pr_title">Pull request title</string>
+    <string name="dev_pr_body">Description</string>
+    <string name="dev_pr_prepare">Prepare preview</string>
+    <string name="dev_pr_preview_ready">Preview ready. No pull request has been created.</string>
+    <string name="dev_pr_confirm">Create this draft pull request?</string>
+    <string name="dev_pr_target">Head: %1$s → Base: %2$s</string>
+    <string name="dev_pr_changes">%1$d commits ahead · %2$d changed files</string>
+    <string name="dev_pr_warning">This creates a draft visible to repository collaborators and may trigger CI. Branches are checked again before submission. Later commits update the pull request. Merge requires a separate action.</string>
+    <string name="dev_pr_create">Create draft pull request</string>
+    <string name="dev_pr_created">Draft pull request created. Inspect its current changes and checks on GitHub.</string>
+    <string name="dev_pr_open">Open pull request</string>
+    <string name="dev_pr_created_changed">A pull request was created, but its returned branch or draft state differs from the approved preview. Open it and review before any further action.</string>
 </resources>

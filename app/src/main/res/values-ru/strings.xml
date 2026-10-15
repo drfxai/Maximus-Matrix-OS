@@ -743,4 +743,18 @@
     <string name="dev_invalid_account">Введите Account ID из 32 символов из панели Cloudflare или очистите поле для общей формы токена.</string>
     <string name="dev_clear_failed">Не удалось удалить сохранённый токен. Повторите попытку.</string>
     <string name="dev_working">Выполняется…</string>
+    <string name="dev_pr_heading">Черновик запроса на слияние</string>
+    <string name="dev_pr_hint">Просмотрите изменения текущей рабочей ветки относительно основной ветки репозитория. Токену нужны права Contents: чтение и Pull requests: запись для этого репозитория.</string>
+    <string name="dev_pr_title">Заголовок запроса</string>
+    <string name="dev_pr_body">Описание</string>
+    <string name="dev_pr_prepare">Подготовить предпросмотр</string>
+    <string name="dev_pr_preview_ready">Предпросмотр готов. Запрос на слияние ещё не создан.</string>
+    <string name="dev_pr_confirm">Создать этот черновик запроса?</string>
+    <string name="dev_pr_target">Исходная ветка: %1$s → Базовая ветка: %2$s</string>
+    <string name="dev_pr_changes">Коммитов впереди: %1$d · Изменённых файлов: %2$d</string>
+    <string name="dev_pr_warning">Будет создан черновик, видимый участникам репозитория; возможен запуск CI. Перед отправкой ветки проверяются повторно. Новые коммиты обновят запрос. Слияние требует отдельного действия.</string>
+    <string name="dev_pr_create">Создать черновик запроса</string>
+    <string name="dev_pr_created">Черновик создан. Проверьте его актуальные изменения и проверки на GitHub.</string>
+    <string name="dev_pr_open">Открыть запрос</string>
+    <string name="dev_pr_created_changed">Запрос создан, но полученное состояние веток или черновика отличается от одобренного предпросмотра. Откройте его и проверьте перед дальнейшими действиями.</string>
 </resources>

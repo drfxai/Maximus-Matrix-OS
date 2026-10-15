@@ -743,4 +743,18 @@
     <string name="dev_invalid_account">شناسه ۳۲ کاراکتری Account ID را از داشبورد Cloudflare وارد کنید یا برای فرم عمومی توکن، کادر را خالی کنید.</string>
     <string name="dev_clear_failed">توکن ذخیره‌شده حذف نشد. دوباره تلاش کنید.</string>
     <string name="dev_working">در حال انجام…</string>
+    <string name="dev_pr_heading">درخواست ادغام پیش‌نویس</string>
+    <string name="dev_pr_hint">شاخهٔ فعلی توسعه را در برابر شاخهٔ پیش‌فرض واقعی مخزن پیش‌نمایش کنید. توکن شما برای این مخزن به مجوز خواندن Contents و نوشتن Pull requests نیاز دارد.</string>
+    <string name="dev_pr_title">عنوان درخواست ادغام</string>
+    <string name="dev_pr_body">توضیحات</string>
+    <string name="dev_pr_prepare">آماده‌سازی پیش‌نمایش</string>
+    <string name="dev_pr_preview_ready">پیش‌نمایش آماده است. هنوز درخواست ادغامی ساخته نشده است.</string>
+    <string name="dev_pr_confirm">این درخواست ادغام پیش‌نویس ساخته شود؟</string>
+    <string name="dev_pr_target">شاخهٔ مبدأ: %1$s ← شاخهٔ پایه: %2$s</string>
+    <string name="dev_pr_changes">%1$d کامیت جلوتر · %2$d فایل تغییریافته</string>
+    <string name="dev_pr_warning">این کار پیش‌نویسی قابل مشاهده برای همکاران مخزن می‌سازد و ممکن است CI را اجرا کند. شاخه‌ها پیش از ارسال دوباره بررسی می‌شوند. کامیت‌های بعدی درخواست را به‌روز می‌کنند. ادغام به اقدام جداگانه نیاز دارد.</string>
+    <string name="dev_pr_create">ساخت درخواست پیش‌نویس</string>
+    <string name="dev_pr_created">درخواست ادغام پیش‌نویس ساخته شد. تغییرات فعلی و بررسی‌های آن را در گیت‌هاب ببینید.</string>
+    <string name="dev_pr_open">باز کردن درخواست ادغام</string>
+    <string name="dev_pr_created_changed">درخواست ادغام ساخته شد، اما وضعیت شاخه یا پیش‌نویس برگشتی با پیش‌نمایش تأییدشده فرق دارد. پیش از هر اقدام بعدی آن را باز کرده و بررسی کنید.</string>
 </resources>
