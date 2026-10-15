@@ -13,7 +13,9 @@ import java.net.URL
  * Every project has its own bank, authenticated with the USER's own cloud key or private edge.
  * Never follow redirects with Authorization, accept cleartext, or execute memory as commands.
  */
-internal class HindsightMemoryClient {
+internal class HindsightMemoryClient(
+    private val openConnection: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection }
+) {
     companion object {
         const val DEFAULT_ENDPOINT = "https://api.hindsight.vectorize.io"
         private const val MAX_BODY = 128_000
@@ -54,7 +56,10 @@ internal class HindsightMemoryClient {
 
     data class Memory(val id: String, val text: String, val type: String)
 
-    suspend fun retain(origin: String, key: String, projectId: String, content: String, context: String) =
+    suspend fun retain(
+        origin: String, key: String, projectId: String, content: String, context: String,
+        beforeDispatch: () -> Unit = { }
+    ) =
         CancellableHttp.execute {
             require(shareable(content)) { "Possible secret or oversized content. Remote memory upload blocked." }
             require(context in setOf("project-checkpoint", "model-progress")) { "Unsupported memory context." }
@@ -70,14 +75,17 @@ internal class HindsightMemoryClient {
                 JSONObject().put("content", safeMemo(content))
                     .put("context", context).put("document_id", documentId)
             )).put("async", false)
-            call(origin, key, projectId, "memories", request)
+            call(origin, key, projectId, "memories", request, beforeDispatch)
         }
 
-    suspend fun recall(origin: String, key: String, projectId: String, query: String): List<Memory> =
+    suspend fun recall(
+        origin: String, key: String, projectId: String, query: String,
+        beforeDispatch: () -> Unit = { }
+    ): List<Memory> =
         CancellableHttp.execute {
             require(query.length in 5..1000)
             val request = JSONObject().put("query", query).put("max_tokens", 650).put("budget", "low")
-            val result = call(origin, key, projectId, "memories/recall", request)
+            val result = call(origin, key, projectId, "memories/recall", request, beforeDispatch)
             val memories = result.optJSONArray("results") ?: JSONArray()
             buildList {
                 for (i in 0 until memories.length().coerceAtMost(8)) {
@@ -91,7 +99,8 @@ internal class HindsightMemoryClient {
         }
 
     private fun call(
-        origin: String, key: String, projectId: String, operation: String, body: JSONObject
+        origin: String, key: String, projectId: String, operation: String, body: JSONObject,
+        beforeDispatch: () -> Unit
     ): JSONObject {
         val endpoint = normalizedEndpoint(origin)
         require(operation in setOf("memories", "memories/recall"))
@@ -100,7 +109,7 @@ internal class HindsightMemoryClient {
         val url = "$endpoint/v1/default/banks/${bankFor(projectId)}/$operation"
         val payload = body.toString().toByteArray(Charsets.UTF_8)
         require(payload.size <= 8_192) { "Memory request too large." }
-        val connection = CancellableHttp.register(URL(url).openConnection() as HttpURLConnection)
+        val connection = CancellableHttp.register(openConnection(URL(url)))
         try {
             connection.instanceFollowRedirects = false
             connection.requestMethod = "POST"
@@ -112,6 +121,10 @@ internal class HindsightMemoryClient {
             if (key.isNotBlank()) connection.setRequestProperty("Authorization", "Bearer $key")
             connection.doOutput = true
             connection.setFixedLengthStreamingMode(payload.size)
+            // Run on the HTTP worker, after any executor queue delay and immediately
+            // before outputStream can connect. Access changes after this dispatch
+            // boundary cannot undo an HTTP request already sent to the captured account.
+            beforeDispatch()
             connection.outputStream.use { it.write(payload) }
             val code = connection.responseCode
             if (code !in 200..299) {

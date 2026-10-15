@@ -79,6 +79,7 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
             Button(enabled = !busy, onClick = {
                 try {
                     settings.configure(url, keyInput.trim().ifBlank { null })
+                    autoShare = settings.autoShare()
                     keyInput = ""
                     bridge.forgetCache()
                     status = context.getString(R.string.hindsight_status_config_saved)

@@ -17,7 +17,7 @@ internal class SharedProjectMemory(context: Context) {
     private val checkpoints = ProjectContinuityStore(context.applicationContext, workspace)
     private data class Snapshot(
         val loadedAt: Long,
-        val connectionId: String,
+        val scope: HindsightAccessScope,
         val facts: List<HindsightMemoryClient.Memory>
     )
     private data class LocalSnapshot(val loadedAt: Long, val text: String)
@@ -28,23 +28,26 @@ internal class SharedProjectMemory(context: Context) {
         private val local = ConcurrentHashMap<String, LocalSnapshot>()
     }
 
-    private fun connectionId(origin: String, key: String): String {
-        val bytes = java.security.MessageDigest.getInstance("SHA-256")
-            .digest((origin + "\u0000" + key).toByteArray(Charsets.UTF_8))
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
-
     fun activeProject(): String = settings.activeProject()
+    fun captureAccess(): HindsightAccessSnapshot = settings.accessSnapshot()
     fun enabled(): Boolean = settings.enabled()
 
-    /** No network or file access in UI/inference critical path. */
-    fun cachedContext(): String {
-        if (!settings.enabled()) return ""
-        val project = settings.activeProject()
+    /** Optional prompt context never acquires a newer account or breaks ordinary chat. */
+    fun cachedContext(capturedAccess: HindsightAccessSnapshot?): String {
+        if (capturedAccess == null) return ""
+        return runCatching {
+            settings.withCurrentAccess(capturedAccess) { contextFor(capturedAccess.scope) }
+        }.getOrDefault("")
+    }
+
+    /** No network, credential decryption or file access in this inference critical path. */
+    private fun contextFor(access: HindsightAccessScope): String {
+        if (!HindsightAccessPolicy.allowed(access, access.project)) return ""
+        val project = access.project
         val snapshot = cache[project]
         val recent = snapshot?.takeIf {
             System.currentTimeMillis() - it.loadedAt <= 300_000L &&
-                it.connectionId == connectionId(settings.endpoint(), settings.token())
+                it.scope == access
         }
         val facts = recent?.facts.orEmpty().take(6).joinToString("\n") {
             "- [memory ${it.id.take(24)}, ${it.type}] ${it.text.replace('\n', ' ').take(350)}"
@@ -83,27 +86,31 @@ internal class SharedProjectMemory(context: Context) {
         query: String = "Project requirements, verified decisions, changes, unfinished tasks and next steps",
         force: Boolean = false
     ): Int {
+        val access = settings.accessSnapshot()
+        require(HindsightAccessPolicy.allowed(access.scope, access.scope.project)) {
+            "Enable shared memory and select a Project Studio workspace to recall history."
+        }
+        val project = access.scope.project
         warmLocalCheckpoint()
-        require(settings.enabled()) { "Enable shared memory to recall project history." }
-        val project = settings.activeProject().takeIf { it.isNotBlank() }
-            ?: error("Select a Project Studio workspace first.")
-        val origin = settings.endpoint()
-        val key = settings.token()
-        val stamp = connectionId(origin, key)
         val existing = cache[project]
-        if (!force && existing != null && existing.connectionId == stamp &&
-            System.currentTimeMillis() - existing.loadedAt <= 300_000L) return existing.facts.size
-        val memories = remote.recall(origin, key, project, query)
-        // Reject a late result after an account/project change or revoked consent.
-        if (settings.enabled() && settings.activeProject() == project &&
-            connectionId(settings.endpoint(), settings.token()) == stamp) {
-            cache[project] = Snapshot(System.currentTimeMillis(), stamp, memories)
+        if (!force && existing != null && existing.scope == access.scope &&
+            System.currentTimeMillis() - existing.loadedAt <= 300_000L) {
+            settings.requireCurrentAccess(access)
+            return existing.facts.size
+        }
+        val memories = remote.recall(access.scope.endpoint, access.token, project, query,
+            beforeDispatch = { settings.requireCurrentAccess(access) })
+        // Publishing is atomic with access-setting changes. A late result from an old
+        // account/consent revision cannot repopulate a cache after the user switches.
+        settings.withCurrentAccess(access) {
+            cache[project] = Snapshot(System.currentTimeMillis(), access.scope, memories)
         }
         return memories.size
     }
 
     suspend fun storeCheckpoint(projectId: String) {
-        require(settings.enabled() && settings.activeProject() == projectId)
+        val access = settings.accessSnapshot()
+        require(HindsightAccessPolicy.allowed(access.scope, projectId))
         val checkpoint = checkpoints.latest(projectId) ?: error("Create a local checkpoint first.")
         require(checkpoint.unchanged) { "Workspace changed; save a new verified checkpoint." }
         val memo = """
@@ -116,8 +123,9 @@ internal class SharedProjectMemory(context: Context) {
         require(HindsightMemoryClient.shareable(memo)) {
             "Sensitive content detected. Remote sync blocked; local checkpoint kept."
         }
-        remote.retain(settings.endpoint(), settings.token(), projectId, memo, "project-checkpoint")
-        cache.remove(projectId)
+        remote.retain(access.scope.endpoint, access.token, projectId, memo, "project-checkpoint",
+            beforeDispatch = { settings.requireCurrentAccess(access) })
+        settings.withCurrentAccess(access) { cache.remove(projectId) }
     }
 
     /**
@@ -126,13 +134,19 @@ internal class SharedProjectMemory(context: Context) {
      * Do not ever upload attachments, tool arguments or full project source files.
      */
     suspend fun storeModelProgress(
-        project: String, model: String, userTask: String, modelResponse: String
+        project: String, model: String, userTask: String, modelResponse: String,
+        capturedAccess: HindsightAccessSnapshot
     ) {
-        if (!settings.enabled() || project != settings.activeProject()) return
-        if (project.isBlank() || !workspace.projects().any { it.id == project }) return
-        settings.rememberProgress(project, model, userTask, modelResponse)
+        // Use the access captured when this chat request started, even if its response
+        // arrives after the user switches accounts or re-enables sharing elsewhere.
+        val access = capturedAccess
+        if (!HindsightAccessPolicy.allowed(access.scope, project)) return
+        if (!workspace.projects().any { it.id == project }) return
+        settings.withCurrentAccess(access) {
+            settings.rememberProgress(project, model, userTask, modelResponse)
+        }
         warmLocalCheckpoint()
-        if (!settings.autoShare()) return
+        if (!access.scope.autoShare) return
         val memo = """
             PROJECT PROGRESS from model ${model.take(80)}
             User task: ${userTask.take(440)}
@@ -140,8 +154,9 @@ internal class SharedProjectMemory(context: Context) {
             This is a generated suggestion, not evidence of a test, deployment, file edit, or approval.
         """.trimIndent()
         if (!HindsightMemoryClient.shareable(memo)) return
-        remote.retain(settings.endpoint(), settings.token(), project, memo, "model-progress")
-        cache.remove(project)
+        remote.retain(access.scope.endpoint, access.token, project, memo, "model-progress",
+            beforeDispatch = { settings.requireCurrentAccess(access, automatic = true) })
+        settings.withCurrentAccess(access, automatic = true) { cache.remove(project) }
     }
 
     /** Clear retrieved memory immediately when user disables/changes access. */

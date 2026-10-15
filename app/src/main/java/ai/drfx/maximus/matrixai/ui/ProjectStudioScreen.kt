@@ -300,11 +300,13 @@ fun ProjectStudioScreen(
                     Button(onClick = {
                         val id = activeId ?: return@Button
                         if (busy) return@Button
+                        val memoryAccess = runCatching { sharedMemory.captureAccess() }.getOrNull()
+                            ?.takeIf { it.scope.project == id }
                         busy = true
                         scope.launch {
                             try {
                                 val prompt = withContext(Dispatchers.IO) { continuity.resumePrompt(id) }
-                                val relevantMemory = sharedMemory.cachedContext()
+                                val relevantMemory = sharedMemory.cachedContext(memoryAccess)
                                 val handoff = if (relevantMemory.isNotBlank()) prompt + "\n\n" + relevantMemory else prompt
                                 val sent = onPlanWithAi(handoff)
                                 message = if (sent) "Verified checkpoint sent for planning (source contents not attached)."
