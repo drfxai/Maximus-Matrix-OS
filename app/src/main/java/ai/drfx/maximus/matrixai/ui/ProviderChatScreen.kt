@@ -642,18 +642,19 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             }
                         }
                         Text(
-                            "MAXIMUS AI Engine Ready",
+                            stringResource(R.string.chat_engine_ready),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
                         Text(
-                            "Active: ${state.provider.displayName} · Model: ${state.selectedModel.ifBlank { "Not configured" }}",
+                            stringResource(R.string.chat_active_model, state.provider.displayName,
+                                state.selectedModel.ifBlank { stringResource(R.string.chat_not_configured) }),
                             color = MaterialTheme.colorScheme.primary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            "Select a provider and verify its models. Conversations remain isolated; /mission invokes approved runtime tools.",
+                            stringResource(R.string.chat_start_hint),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 24.dp),
@@ -833,7 +834,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 state.provider, state.models.firstOrNull { it.id == state.selectedModel }
             )) {
             Text(
-                "9Router image support is not verified for this route. Sending will attempt one image request; the server may reject it. No automatic fallback.",
+                stringResource(R.string.chat_unverified_router_vision),
                 color = MaterialTheme.colorScheme.tertiary,
                 fontSize = 10.sp
             )
@@ -1173,7 +1174,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             ) {
                 Text(stringResource(R.string.chat_provider_settings), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(
-                    "Select engine preset or enter custom OpenAI-compatible endpoint.",
+                    stringResource(R.string.chat_engine_preset_hint),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
@@ -1257,10 +1258,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                     label = {
                                         Text(
                                             when (state.provider) {
-                                                LlmProvider.GEMINI -> "Gemini API Key (AIza...)"
-                                                LlmProvider.NVIDIA -> "NVIDIA API Key (nvapi-...)"
-                                                LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> "9Router API Key"
-                                                else -> "API Key"
+                                                LlmProvider.GEMINI -> stringResource(R.string.chat_gemini_api_key)
+                                                LlmProvider.NVIDIA -> stringResource(R.string.chat_nvidia_api_key)
+                                                LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO ->
+                                                    stringResource(R.string.chat_router_api_key)
+                                                else -> stringResource(R.string.chat_generic_api_key)
                                             }
                                         )
                                     },
@@ -1275,19 +1277,19 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 ) {
                                     if (state.hasSavedKey) {
                                         Text(
-                                            "Hardware-encrypted in KeyStore",
+                                            stringResource(R.string.chat_keystore_encryption),
                                             color = MaterialTheme.colorScheme.primary,
                                             fontSize = 11.sp
                                         )
                                     } else {
                                         Text(
-                                            "AES-GCM secured",
+                                            stringResource(R.string.chat_aes_encryption),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 11.sp
                                         )
                                     }
                                     Button(onClick = { viewModel.detectApi(baseUrl, apiKey) }) {
-                                        Icon(Icons.Default.Refresh, "Detect API")
+                                        Icon(Icons.Default.Refresh, stringResource(R.string.chat_detect_api))
                                         Spacer(Modifier.width(6.dp))
                                         Text(if (state.status == ConnectionStatus.DETECTING) "Detecting..." else "Detect")
                                     }
