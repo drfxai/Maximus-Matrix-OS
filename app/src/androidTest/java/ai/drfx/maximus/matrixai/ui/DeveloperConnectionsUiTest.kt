@@ -14,6 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
@@ -35,11 +42,13 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.Rule
 import org.junit.runner.RunWith
 
 /** Actual panel interaction without API requests, usable credentials or production UI hooks. */
 @RunWith(AndroidJUnit4::class)
 class DeveloperConnectionsUiTest {
+    @get:Rule val compose = createEmptyComposeRule()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
     private val device = UiDevice.getInstance(instrumentation)
@@ -74,23 +83,26 @@ class DeveloperConnectionsUiTest {
             await("Disconnected state was not rendered") {
                 device.hasObject(By.text(text(R.string.dev_not_connected)))
             }
-            assertFalse(button(R.string.dev_verify).isEnabled)
-            assertFalse(button(R.string.dev_save_token).isEnabled)
+            button(R.string.dev_verify).assertIsNotEnabled()
+            button(R.string.dev_save_token).assertIsNotEnabled()
 
             // Accessibility text edits invoke the actual Compose onValueChange/parser
             // wiring without requiring or dismissing the system keyboard.
             for (partial in listOf("h", "https://", "https://github.com/", "https://github.com/[")) {
                 field("developer_repository_url").text = partial
+                compose.waitForIdle()
                 scroll().scrollIntoView(UiSelector().text(text(R.string.dev_repository_invalid)))
                 await("Partial repository input did not render its validation error") {
                     device.hasObject(By.text(text(R.string.dev_repository_invalid)))
                 }
             }
             field("developer_repository_url").text = "https://github.com/DrFXAi/Maximus-Matrix-OS"
+            compose.waitForIdle()
             val selected = text(R.string.dev_repository_selected, "DrFXAi", "Maximus-Matrix-OS")
             scroll().scrollIntoView(UiSelector().text(selected))
             await("Valid repository selection was not rendered") { device.hasObject(By.text(selected)) }
             field("developer_repository_url").text = "https://github.com.evil.test/DrFXAi/Maximus-Matrix-OS"
+            compose.waitForIdle()
             scroll().scrollIntoView(UiSelector().text(text(R.string.dev_repository_invalid)))
             await("Invalid origin retained an old repository selection") { !device.hasObject(By.text(selected)) }
             assertTrue(device.hasObject(By.text(text(R.string.dev_repository_invalid))))
@@ -102,31 +114,32 @@ class DeveloperConnectionsUiTest {
 
             // Fixture is encrypted by the actual Android Keystore vault, never verified.
             field("developer_token_input").text = "fixture-not-a-real-api-token-00000000"
-            button(R.string.dev_save_token).click()
+            compose.waitForIdle()
+            button(R.string.dev_save_token).performClick()
             scroll().scrollToBeginning(12)
             await("Saved token was incorrectly shown as verified") {
                 device.hasObject(By.text(text(R.string.dev_stored_unverified)))
             }
-            assertTrue(button(R.string.dev_verify).isEnabled)
-            assertTrue(button(R.string.dev_revoke).isEnabled)
+            button(R.string.dev_verify).assertIsEnabled()
+            button(R.string.dev_revoke).assertIsEnabled()
             tagged("developer_token_input") // Scroll back to the service selector above the token.
             scroll().scrollToBeginning(12)
             checkNotNull(device.findObject(By.text("Cloudflare"))).click()
             await("Cloudflare inherited the GitHub credential state") {
                 device.hasObject(By.text(text(R.string.dev_not_connected)))
             }
-            assertFalse(button(R.string.dev_verify).isEnabled)
+            button(R.string.dev_verify).assertIsNotEnabled()
             scroll().scrollToBeginning(12)
             checkNotNull(device.findObject(By.text("GitHub"))).click()
             await("Returning to GitHub lost its stored-unverified state") {
                 device.hasObject(By.text(text(R.string.dev_stored_unverified)))
             }
-            button(R.string.dev_revoke).click()
+            button(R.string.dev_revoke).performClick()
             scroll().scrollToBeginning(12)
             await("Revocation did not restore disconnected state") {
                 device.hasObject(By.text(text(R.string.dev_not_connected)))
             }
-            assertFalse(button(R.string.dev_verify).isEnabled)
+            button(R.string.dev_verify).assertIsNotEnabled()
             assertTrue(preferences.all.isEmpty())
         } catch (failure: Throwable) {
             runCatching {
@@ -135,6 +148,8 @@ class DeveloperConnectionsUiTest {
                 hierarchy.toString("UTF-8").take(180_000).chunked(2800).forEachIndexed { index, part ->
                     android.util.Log.i("DeveloperConnectionsUiTest", "Failure hierarchy[$index]: $part")
                 }
+            }
+            runCatching {
                 device.takeScreenshot(java.io.File(context.getExternalFilesDir(null), "failure-state.png"))
             }
             throw failure
@@ -166,6 +181,7 @@ class DeveloperConnectionsUiTest {
     private fun tagged(tag: String): UiObject2 {
         scroll().scrollToBeginning(12)
         scroll().scrollIntoView(UiSelector().resourceId(tag))
+        compose.waitForIdle()
         return checkNotNull(device.findObject(By.res(tag))) { "Missing panel control: $tag" }
     }
 
@@ -175,17 +191,12 @@ class DeveloperConnectionsUiTest {
         else checkNotNull(node.findObject(By.clazz("android.widget.EditText"))) { "Missing editable input: $tag" }
     }
 
-    private fun button(id: Int): UiObject2 {
+    private fun button(id: Int): SemanticsNodeInteraction {
         scroll().scrollToBeginning(12)
         scroll().scrollIntoView(UiSelector().text(text(id)))
-        var node = checkNotNull(device.findObject(By.text(text(id)))) { "Missing panel button: ${text(id)}" }
-        // Compose may expose the label as an enabled child of a disabled Button.
-        // Assert the actionable semantic node, never the text child's enabled flag.
-        repeat(8) {
-            if (node.className == "android.widget.Button") return node
-            node = checkNotNull(node.parent) { "Missing button ancestor: ${text(id)}" }
-        }
-        error("Missing button semantic node: ${text(id)}")
+        // Merged Compose semantics owns the action and Disabled state. Android's
+        // accessibility TextView/decorative Button children do not carry these.
+        return compose.onNodeWithText(text(id)).assertHasClickAction()
     }
 
     private fun onActivity(block: (MainActivity) -> Unit) {
@@ -204,6 +215,7 @@ class DeveloperConnectionsUiTest {
     }
 
     private fun await(message: String, condition: () -> Boolean) {
+        compose.waitForIdle()
         val deadline = SystemClock.uptimeMillis() + 10_000
         while (SystemClock.uptimeMillis() < deadline) {
             if (condition()) return
