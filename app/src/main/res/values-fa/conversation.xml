@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="conv_export_destination">مسیر ذخیره باز نشد.</string>
+    <string name="conv_exported">پاسخ ذخیره شد</string>
+    <string name="conv_export_failed">ذخیره ناموفق بود. مسیر ذخیره و فضای خالی را بررسی کنید.</string>
+    <string name="conv_recording_start_failed">ضبط میکروفون شروع نشد.</string>
+    <string name="conv_recording_save_failed">صدای ضبط‌شده ذخیره نشد.</string>
+    <string name="conv_usage_used">مصرف‌شده: %1$s</string>
+    <string name="conv_context_left">باقی‌مانده تخمینی: %1$s</string>
+    <string name="conv_export_unavailable">ذخیره این پاسخ ممکن نیست.</string>
+    <string name="conv_eleven_setup">صدا و کلید API سرویس ElevenLabs را در مرکز کنترل ← صدای ElevenLabs تنظیم کنید.</string>
+    <string name="conv_eleven_limit">حد گفتار ElevenLabs برابر %1$d نویسه است. پاسخ کوتاه‌تری انتخاب کنید.</string>
+    <string name="conv_eleven_failed">پخش صدای ElevenLabs ناموفق بود. اتصال، سهمیه و تنظیمات صدا را بررسی کنید.</string>
+    <string name="conv_detecting">در حال شناسایی…</string>
+    <string name="conv_key_ready">کلید ذخیره شد</string>
+    <string name="conv_key_setup">تنظیم کلید</string>
+    <string name="conv_gemini_hint">کلید API خود را از Google AI Studio وارد کنید؛ سپس مدل‌های در دسترس را دریافت و پاسخ‌دهی را آزمایش کنید.</string>
+    <string name="conv_nvidia_hint">کلید API سرویس NVIDIA NIM را با پیشوند nvapi- وارد کنید؛ سپس مدل‌های در دسترس حساب خود را دریافت کنید.</string>
+    <string name="conv_router_hint">نشانی سرویس مستقرشده و کلید آن را وارد کنید. مدلی را از فهرست همان سرویس انتخاب کنید.</string>
+    <string name="conv_combo_hint">نام Combo باید در فهرست سرور شما موجود باشد. مسیریابی را همان سرور مدیریت می‌کند.</string>
+    <string name="conv_brain_composer">کادر نوشتن پیام دستیار MAXIMUS</string>
+    <string name="conv_brain_question">پرسش از دستیار</string>
+    <string name="conv_brain_engine">موتور MAXIMUS: %1$s</string>
+    <string name="conv_attachment_unsupported">نوع فایل پشتیبانی نمی‌شود. PNG، JPEG، WebP، PDF یا متن UTF-8 انتخاب کنید.</string>
+    <string name="conv_attachment_size">حجم پیوست از حد ۵ مگابایت بیشتر است.</string>
+    <string name="conv_attachment_read">فایل پیوست خوانده نشد.</string>
+    <string name="conv_attachment_empty">فایل انتخاب‌شده خالی است.</string>
+    <string name="conv_image_invalid">تصویر نامعتبر است یا از ۴۰ مگاپیکسل بیشتر است.</string>
+    <string name="conv_pdf_invalid">سند PDF نامعتبر است.</string>
+    <string name="conv_text_binary">محتوای باینری را نمی‌توان به‌عنوان متن پیوست کرد.</string>
+    <string name="conv_voice_payload">فایل صوتی در دسترس نیست یا از حد پخش بزرگ‌تر است.</string>
+    <string name="conv_attachment_default">پیوست</string>
+</resources>

@@ -141,11 +141,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         if (uri != null && item != null) {
             runCatching {
                 context.contentResolver.openOutputStream(uri)?.use { it.write(item.bytes) }
-                    ?: error("Could not open the destination.")
+                    ?: error(context.getString(R.string.conv_export_destination))
             }.onSuccess {
-                android.widget.Toast.makeText(context, "Response downloaded", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, context.getString(R.string.conv_exported), android.widget.Toast.LENGTH_SHORT).show()
             }.onFailure {
-                android.widget.Toast.makeText(context, "Export failed: " + it.message, android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(context, context.getString(R.string.conv_export_failed), android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -207,7 +207,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             recordingSeconds = 0
             attachmentError = null
         } catch (e: Exception) {
-            attachmentError = "Microphone recording could not start."
+            attachmentError = context.getString(R.string.conv_recording_start_failed)
         }
     }
     fun finishRecording() {
@@ -215,7 +215,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             attachment = recorder.stop()
             attachmentError = null
         } catch (error: Exception) {
-            attachmentError = error.message ?: "Voice recording could not be saved."
+            attachmentError = context.getString(R.string.conv_recording_save_failed)
         } finally {
             recording = false
         }
@@ -409,7 +409,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = if (sendable) state.selectedModel
-                                else "Connect ${state.provider.displayName}",
+                                else stringResource(R.string.chat_connect_provider, state.provider.displayName),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
                                 maxLines = 1,
@@ -425,7 +425,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             maxLines = 1
                         )
                     }
-                    Icon(Icons.Default.Tune, "Provider settings", modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Tune, stringResource(R.string.chat_provider_settings), modifier = Modifier.size(16.dp))
                 }
             }
 
@@ -453,13 +453,13 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Spacer(Modifier.width(4.dp))
                     Column {
                         Text(
-                            text = "Used: ${numberFormat.format(metrics.consumedTurnTotalTokens)}",
+                            text = stringResource(R.string.conv_usage_used, numberFormat.format(metrics.consumedTurnTotalTokens)),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Est. left: ${numberFormat.format(metrics.remainingContextTokens)}",
+                            text = stringResource(R.string.conv_context_left, numberFormat.format(metrics.remainingContextTokens)),
                             fontSize = 8.sp,
                             color = Color(0xFF00E676),
                             fontWeight = FontWeight.Bold
@@ -721,7 +721,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             onDownload = {
                                 runCatching { ChatPresentation.export(message.content) }
                                     .onSuccess { pendingExport = it; exportPicker.launch(it.name) }
-                                    .onFailure { attachmentError = it.message ?: "Export unavailable." }
+                                    .onFailure { attachmentError = context.getString(R.string.conv_export_unavailable) }
                             },
                             onSpeak = {
                             if (elevenSettings.elevenSelected()) {
@@ -730,9 +730,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                     val modelId = elevenSettings.selectedModel()
                                     val key = elevenSettings.key()
                                     if (!ElevenLabsClient.validVoiceId(voiceId) || key.isBlank()) {
-                                        attachmentError = "Set an ElevenLabs voice and API key in Control Hub > ElevenLabs Voice."
+                                        attachmentError = context.getString(R.string.conv_eleven_setup)
                                     } else if (message.content.length > ElevenLabsClient.MAX_SPOKEN_CHARACTERS) {
-                                        attachmentError = "ElevenLabs speech limit is ${ElevenLabsClient.MAX_SPOKEN_CHARACTERS} characters. Speak a shorter response."
+                                        attachmentError = context.getString(R.string.conv_eleven_limit, ElevenLabsClient.MAX_SPOKEN_CHARACTERS)
                                     } else {
                                         elevenBusy = true
                                         tts?.stop()
@@ -745,7 +745,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                                                 throw cancelled
                                             } catch (error: Exception) {
-                                                attachmentError = error.message ?: "ElevenLabs speech failed."
+                                                attachmentError = context.getString(R.string.conv_eleven_failed)
                                             } finally {
                                                 elevenBusy = false
                                             }
@@ -769,7 +769,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         }, onPlayVoice = {
                             message.attachment?.let { voice ->
                                 runCatching { voicePlayback.play(voice) }
-                                    .onFailure { attachmentError = "Voice playback is unavailable." }
+                                    .onFailure { attachmentError = context.getString(R.string.brain_voice_playback_failed) }
                             }
                         })
                     }
@@ -1039,10 +1039,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = when (quickKeyTargetProvider) {
-                            LlmProvider.GEMINI -> "Enter your Google AI Studio API key, then discover available models and test inference."
-                            LlmProvider.NVIDIA -> "Enter your NVIDIA NIM API key (starts with nvapi-). Direct access to Llama 3.3 70B and DeepSeek R1."
-                            LlmProvider.ROUTER_9_SMART -> "Enter your deployment endpoint and key. Select a model returned by its catalog."
-                            LlmProvider.ROUTER_9_COMBO -> "Combo names must exist in your server catalog. Routing behavior is managed by that server."
+                            LlmProvider.GEMINI -> stringResource(R.string.conv_gemini_hint)
+                            LlmProvider.NVIDIA -> stringResource(R.string.conv_nvidia_hint)
+                            LlmProvider.ROUTER_9_SMART -> stringResource(R.string.conv_router_hint)
+                            LlmProvider.ROUTER_9_COMBO -> stringResource(R.string.conv_combo_hint)
                             else -> stringResource(R.string.chat_enter_provider_key, quickKeyTargetProvider.displayName)
                         },
                         fontSize = 12.sp,
@@ -1317,7 +1317,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                     Button(onClick = { viewModel.detectApi(baseUrl, apiKey) }) {
                                         Icon(Icons.Default.Refresh, stringResource(R.string.chat_detect_api))
                                         Spacer(Modifier.width(6.dp))
-                                        Text(if (state.status == ConnectionStatus.DETECTING) "Detecting..." else "Detect")
+                                        Text(stringResource(if (state.status == ConnectionStatus.DETECTING) R.string.conv_detecting else R.string.chat_detect_api))
                                     }
                                 }
                             }
@@ -1538,7 +1538,7 @@ private fun ChatProviderSwitcherBar(
                     )
                     Spacer(Modifier.width(3.dp))
                     Text(
-                        text = if (hasSavedKey) "Key" else "Set Key",
+                        text = stringResource(if (hasSavedKey) R.string.conv_key_ready else R.string.conv_key_setup),
                         fontSize = 8.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (hasSavedKey) Color(0xFF00E676) else MaterialTheme.colorScheme.onTertiaryContainer
@@ -1781,7 +1781,7 @@ private class VoicePlaybackController(private val context: Context) {
     }
     fun play(attachment: ChatAttachment) {
         stop()
-        require(attachment.data.isNotBlank() && attachment.data.length <= 4 * 1024 * 1024) { "Voice payload is unavailable or exceeds playback limit." }
+        require(attachment.data.isNotBlank() && attachment.data.length <= 4 * 1024 * 1024) { context.getString(R.string.conv_voice_payload) }
         val temp = File.createTempFile("matrix_voice_play_", ".m4a", context.cacheDir)
         file = temp
         val active = MediaPlayer()
@@ -1800,11 +1800,11 @@ private class VoicePlaybackController(private val context: Context) {
 private fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
     val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
     val isText = mimeType.startsWith("text/") || mimeType == "application/json"
-    var name = "attachment"
+    var name = context.getString(R.string.conv_attachment_default)
     context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
         val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
         if (cursor.moveToFirst() && nameIndex >= 0) {
-            name = cursor.getString(nameIndex) ?: "attachment"
+            name = cursor.getString(nameIndex) ?: context.getString(R.string.conv_attachment_default)
         }
     }
     if (mimeType.startsWith("image/") || name.lowercase().endsWith(".heic") ||
@@ -1814,7 +1814,7 @@ private fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
             data = Base64.encodeToString(prepared.jpeg, Base64.NO_WRAP), isText = false)
     }
     require(isText || mimeType in setOf("image/png", "image/jpeg", "image/webp", "application/pdf")) {
-        "Unsupported file type. Select PNG, JPEG, WebP, PDF or UTF-8 text."
+        context.getString(R.string.conv_attachment_unsupported)
     }
     val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
         val output = java.io.ByteArrayOutputStream()
@@ -1822,21 +1822,21 @@ private fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
         while (true) {
             val count = stream.read(buffer)
             if (count < 0) break
-            require(output.size() + count <= 5 * 1024 * 1024) { "Attachment exceeds the 5 MB limit." }
+            require(output.size() + count <= 5 * 1024 * 1024) { context.getString(R.string.conv_attachment_size) }
             output.write(buffer, 0, count)
         }
         output.toByteArray()
     }
-        ?: throw IllegalStateException("Could not read attachment file.")
-    require(bytes.isNotEmpty()) { "The selected file is empty." }
+        ?: throw IllegalStateException(context.getString(R.string.conv_attachment_read))
+    require(bytes.isNotEmpty()) { context.getString(R.string.conv_attachment_empty) }
     if (mimeType.startsWith("image/")) {
         val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
         require(options.outWidth > 0 && options.outHeight > 0 &&
-            options.outWidth.toLong() * options.outHeight <= 40_000_000) { "Image is invalid or exceeds 40 megapixels." }
+            options.outWidth.toLong() * options.outHeight <= 40_000_000) { context.getString(R.string.conv_image_invalid) }
     }
-    if (mimeType == "application/pdf") require(bytes.take(5).toByteArray().toString(Charsets.US_ASCII) == "%PDF-") { "Invalid PDF document." }
-    if (isText) require(!bytes.contains(0)) { "Binary content cannot be attached as text." }
+    if (mimeType == "application/pdf") require(bytes.take(5).toByteArray().toString(Charsets.US_ASCII) == "%PDF-") { context.getString(R.string.conv_pdf_invalid) }
+    if (isText) require(!bytes.contains(0)) { context.getString(R.string.conv_text_binary) }
     val data = if (isText) String(bytes, Charsets.UTF_8) else Base64.encodeToString(bytes, Base64.NO_WRAP)
     return ChatAttachment(name = name, mimeType = mimeType, data = data, isText = isText)
 }

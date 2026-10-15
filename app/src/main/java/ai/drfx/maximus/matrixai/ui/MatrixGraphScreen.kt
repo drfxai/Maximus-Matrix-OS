@@ -838,7 +838,7 @@ fun MatrixGraphScreen(
                 confirmButton = { TextButton(onClick = { openPanel = null }) { Text(stringResource(R.string.graph_done)) } })
         }
         Surface(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)
-            .semantics { contentDescription = "MAXIMUS assistant composer" }, color = panelColor,
+            .semantics { contentDescription = appContext.getString(R.string.conv_brain_composer) }, color = panelColor,
             shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, border)) {
             Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -885,7 +885,7 @@ fun MatrixGraphScreen(
                         mission = it.take(4000)
                         brainInputFromVoice = false
                     },
-                    Modifier.fillMaxWidth().semantics { contentDescription = "Assistant question" },
+                    Modifier.fillMaxWidth().semantics { contentDescription = appContext.getString(R.string.conv_brain_question) },
                     minLines = 1,
                     maxLines = 3,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -1145,7 +1145,16 @@ private fun IntelligenceRing(status: String, light: Boolean, modifier: Modifier)
         label = "pulse_glow"
     )
 
-    Box(modifier.semantics { contentDescription = "MAXIMUS engine $status" }, contentAlignment = Alignment.Center) {
+    val localizedStatus = when (status) {
+        "READY" -> stringResource(R.string.brain_status_ready)
+        "PLANNING" -> stringResource(R.string.brain_status_planning)
+        "EXECUTING" -> stringResource(R.string.brain_status_executing)
+        "ATTENTION" -> stringResource(R.string.brain_status_attention)
+        "CONFIRM" -> stringResource(R.string.brain_status_confirmation)
+        else -> status // Preserve an unknown diagnostic status instead of claiming readiness.
+    }
+    val engineDescription = stringResource(R.string.conv_brain_engine, localizedStatus)
+    Box(modifier.semantics { contentDescription = engineDescription }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val r = size.minDimension * .40f
             drawCircle(Brush.radialGradient(listOf(purple.copy(alpha = .18f * pulseGlow), Color.Transparent), radius = r * 1.3f), r * 1.3f)
@@ -1346,12 +1355,13 @@ private fun NeuralScene(
         label = "synaptic_ripple"
     )
 
+    val graphDescription = stringResource(R.string.brain_graph_explore_help)
     Canvas(
         Modifier
             .fillMaxSize()
             .semantics {
                 contentDescription =
-                    "Interactive 3D cerebral cortex node graph. Orbit, pinch to zoom, tap any neuron to inspect."
+                    graphDescription
             }
             .pointerInput(Unit) {
                 awaitPointerEventScope {
