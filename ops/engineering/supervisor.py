@@ -19,6 +19,10 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+# Keep direct-script and importlib-based unit test entrypoints identical.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from assignment_board import build_board, render_board, validate_orders
+
 
 def validate_config(config: dict[str, Any]) -> None:
     if config.get("schema_version") != 1:
@@ -262,22 +266,34 @@ def main() -> int:
     ap.add_argument("--manifest", default="ops/engineering/team.json")
     ap.add_argument("--gradle", default="app/build.gradle.kts")
     ap.add_argument("--output-dir", default="engineering-audit")
+    ap.add_argument("--work-orders", default="ops/engineering/work_orders.json")
     args = ap.parse_args()
     config = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
+    orders = json.loads(Path(args.work_orders).read_text(encoding="utf-8"))
     validate_config(config)
+    validate_orders(orders, config)
     checkout_gradle = Path(args.gradle).read_text(encoding="utf-8")
     snapshot = fetch_snapshot(GitHubReadClient(config["repository"], os.getenv("GITHUB_TOKEN", "")))
-    report = summarize(config, snapshot, dt.datetime.now(dt.timezone.utc), checkout_gradle)
+    now = dt.datetime.now(dt.timezone.utc)
+    report = summarize(config, snapshot, now, checkout_gradle)
+    board = build_board(orders, config, snapshot, report["open_prs"], now)
+    # This is a planning board, not evidence of independently deployed coding agents.
+    report["assignment_board"] = board
     path = Path(args.output_dir)
     path.mkdir(parents=True, exist_ok=True)
-    (path / "status.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
+    (path / "status.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+                                      encoding="utf-8")
+    (path / "assignment-board.json").write_text(json.dumps(board, indent=2, ensure_ascii=False) + "\n",
+                                                encoding="utf-8")
     summary = render_markdown(report)
+    board_text = render_board(board)
     (path / "summary.md").write_text(summary, encoding="utf-8")
-    print(summary)
+    (path / "assignment-board.md").write_text(board_text, encoding="utf-8")
+    print(summary + "\n" + board_text)
     github_summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if github_summary:
         with open(github_summary, "a", encoding="utf-8") as f:
-            f.write(summary)
+            f.write(summary + "\n" + board_text)
     return 0
 
 
