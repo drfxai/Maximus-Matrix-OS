@@ -457,7 +457,7 @@
     <string name="api_stat_lifetime">LIFETIME CONSUMED</string>
     <string name="api_stat_active_turns">Active conversation turns</string>
     <string name="api_stat_completed_requests">%1$s completed API requests</string>
-    <string name="api_stat_in_out">ورودی: %1$s · خروجی: %2$s</string>
+    <string name="api_stat_in_out">Input: %1$s · Output: %2$s</string>
     <string name="api_stat_max">Max: %1$s</string>
     <string name="api_local_budget_remaining">Local lifetime token budget remaining (not provider quota)</string>
     <string name="api_status_label">Status</string>
