@@ -33,15 +33,20 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
     var enabled by remember { mutableStateOf(settings.enabled()) }
     var autoShare by remember { mutableStateOf(settings.autoShare()) }
     var busy by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("Remote project memory is optional and disabled by default.") }
+    var status by remember(context) { mutableStateOf(context.getString(R.string.hindsight_status_optional)) }
 
     LaunchedEffect(projectId) {
         settings.setActiveProject(projectId.orEmpty())
         bridge.forgetCache()
         if (projectId != null && settings.enabled()) {
-            runCatching { bridge.refresh() }
-                .onSuccess { status = "$it historical facts ready for model handoff." }
-                .onFailure { status = "Local checkpoint is available; remote recall is offline or unconfigured." }
+            try {
+                val count = bridge.refresh()
+                status = context.getString(R.string.hindsight_status_model_handoff, count)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                status = context.getString(R.string.hindsight_status_remote_unavailable)
+            }
         }
     }
 
@@ -50,7 +55,9 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
             style = MaterialTheme.typography.titleMedium)
         Text(stringResource(R.string.hindsight_summary),
             style = MaterialTheme.typography.bodySmall)
-        Text("Bank: " + (projectId?.let(HindsightMemoryClient::bankFor) ?: "Select a project"),
+        Text(stringResource(R.string.hindsight_bank,
+            projectId?.let(HindsightMemoryClient::bankFor)
+                ?: stringResource(R.string.hindsight_select_project)),
             style = MaterialTheme.typography.labelSmall)
 
         OutlinedTextField(
@@ -62,7 +69,8 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
         OutlinedTextField(
             value = keyInput, onValueChange = { keyInput = it.take(512) },
             label = { Text(stringResource(R.string.hindsight_key)) },
-            placeholder = { Text(if (settings.hasKey()) "Saved securely — enter to replace" else "hsk_...") },
+            placeholder = { Text(if (settings.hasKey())
+                stringResource(R.string.hindsight_key_saved_hint) else "hsk_...") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth().testTag("hindsight_key"),
             singleLine = true, enabled = !busy
@@ -73,8 +81,10 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                     settings.configure(url, keyInput.trim().ifBlank { null })
                     keyInput = ""
                     bridge.forgetCache()
-                    status = "Connection configuration encrypted and saved. Verify recall before use."
-                } catch (error: Exception) { status = error.message ?: "Invalid configuration." }
+                    status = context.getString(R.string.hindsight_status_config_saved)
+                } catch (_: Exception) {
+                    status = context.getString(R.string.hindsight_status_invalid_config)
+                }
             }) { Text(stringResource(R.string.hindsight_save)) }
 
             OutlinedButton(enabled = !busy, onClick = {
@@ -84,13 +94,13 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                 autoShare = false
                 url = settings.endpoint()
                 keyInput = ""
-                status = "Access key removed. Local encrypted history remains; cloud memories require separate deletion."
+                status = context.getString(R.string.hindsight_status_disconnected)
             }) { Text(stringResource(R.string.data_disconnect)) }
         }
         Row {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.hindsight_enable), style = MaterialTheme.typography.titleSmall)
-                Text("Keeps encrypted short progress locally; only approved checkpoints sync remotely unless auto-share is separately enabled.",
+                Text(stringResource(R.string.hindsight_privacy_local_only),
                     style = MaterialTheme.typography.bodySmall)
             }
             Switch(
@@ -104,15 +114,23 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                             autoShare = false
                             bridge.forgetCache()
                         }
-                        status = if (checked) "Shared project memory enabled. Loading prior project facts…" else "Shared memory disabled."
+                        status = context.getString(if (checked)
+                            R.string.hindsight_status_enabled else R.string.hindsight_status_disabled)
                         if (checked && projectId != null) {
                             scope.launch {
-                                runCatching { bridge.refresh() }
-                                    .onSuccess { status = "$it historical facts available to the next model." }
-                                    .onFailure { status = "No remote memories loaded yet. Local checkpoint remains available." }
+                                try {
+                                    val count = bridge.refresh()
+                                    status = context.getString(R.string.hindsight_status_next_model, count)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (_: Exception) {
+                                    status = context.getString(R.string.hindsight_status_none_loaded)
+                                }
                             }
                         }
-                    } catch (error: Exception) { status = error.message ?: "Cannot enable memory." }
+                    } catch (_: Exception) {
+                        status = context.getString(R.string.hindsight_status_enable_failed)
+                    }
                 }
             )
         }
@@ -120,14 +138,15 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
         Row {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.hindsight_share), style = MaterialTheme.typography.titleSmall)
-                Text("Optional: sends short task/response excerpts after successful chats. These may contain private information. Leave off for sensitive projects.",
+                Text(stringResource(R.string.hindsight_autoshare_privacy),
                     style = MaterialTheme.typography.bodySmall)
             }
             Switch(checked = autoShare, enabled = enabled, onCheckedChange = {
                 settings.setAutoShare(it)
                 autoShare = it
-                status = if (it) "Progress sharing enabled for the selected project."
-                    else "Only manually approved checkpoints will be uploaded."
+                status = context.getString(if (it)
+                    R.string.hindsight_status_share_enabled
+                    else R.string.hindsight_status_share_manual)
             })
         }
 
@@ -137,9 +156,11 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                 scope.launch {
                     try {
                         val count = bridge.refresh(force = true)
-                        status = "$count project memories recalled. Models can use them after switching."
+                        status = context.getString(R.string.hindsight_status_recalled, count)
                     } catch (e: CancellationException) { throw e }
-                    catch (e: Exception) { status = e.message ?: "Recall failed." }
+                    catch (_: Exception) {
+                        status = context.getString(R.string.hindsight_status_recall_failed)
+                    }
                     finally { busy = false }
                 }
             }) { Text(stringResource(R.string.hindsight_recall)) }
@@ -149,16 +170,18 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                     try {
                         bridge.storeCheckpoint(requireNotNull(projectId))
                         val count = bridge.refresh()
-                        status = "Verified checkpoint retained; $count relevant memories ready."
+                        status = context.getString(R.string.hindsight_status_checkpoint_retained, count)
                     } catch (e: CancellationException) { throw e }
-                    catch (e: Exception) { status = e.message ?: "Checkpoint sync unavailable." }
+                    catch (_: Exception) {
+                        status = context.getString(R.string.hindsight_status_checkpoint_failed)
+                    }
                     finally { busy = false }
                 }
             }) { Text(stringResource(R.string.hindsight_sync)) }
         }
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         Text(status, style = MaterialTheme.typography.bodySmall)
-        Text("Memory is untrusted reference data, never permission to execute tools. If the server is unavailable, local project checkpoints still work. Disconnecting does not delete cloud memories.",
+        Text(stringResource(R.string.hindsight_safety_notice),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
