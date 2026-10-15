@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="conv_export_destination">Не удалось открыть место сохранения.</string>
+    <string name="conv_exported">Ответ сохранён</string>
+    <string name="conv_export_failed">Не удалось экспортировать. Проверьте место сохранения и свободное пространство.</string>
+    <string name="conv_recording_start_failed">Не удалось начать запись микрофона.</string>
+    <string name="conv_recording_save_failed">Не удалось сохранить голосовую запись.</string>
+    <string name="conv_usage_used">Использовано: %1$s</string>
+    <string name="conv_context_left">Примерно осталось: %1$s</string>
+    <string name="conv_export_unavailable">Этот ответ нельзя экспортировать.</string>
+    <string name="conv_eleven_setup">Задайте голос и API-ключ ElevenLabs в центре управления → Голос ElevenLabs.</string>
+    <string name="conv_eleven_limit">Лимит озвучивания ElevenLabs — %1$d символов. Выберите более короткий ответ.</string>
+    <string name="conv_eleven_failed">Ошибка озвучивания ElevenLabs. Проверьте соединение, квоту и настройки голоса.</string>
+    <string name="conv_detecting">Определение…</string>
+    <string name="conv_key_ready">Ключ сохранён</string>
+    <string name="conv_key_setup">Задать ключ</string>
+    <string name="conv_gemini_hint">Введите API-ключ Google AI Studio, найдите доступные модели и проверьте их работу.</string>
+    <string name="conv_nvidia_hint">Введите API-ключ NVIDIA NIM (начинается с nvapi-) и найдите модели, доступные вашему аккаунту.</string>
+    <string name="conv_router_hint">Введите адрес развёрнутого сервиса и ключ. Выберите модель из его каталога.</string>
+    <string name="conv_combo_hint">Названия Combo должны быть в каталоге вашего сервера. Маршрутизацией управляет этот сервер.</string>
+    <string name="conv_brain_composer">Редактор сообщения помощнику MAXIMUS</string>
+    <string name="conv_brain_question">Вопрос помощнику</string>
+    <string name="conv_brain_engine">Движок MAXIMUS: %1$s</string>
+    <string name="conv_attachment_unsupported">Неподдерживаемый тип файла. Выберите PNG, JPEG, WebP, PDF или текст UTF-8.</string>
+    <string name="conv_attachment_size">Размер вложения превышает 5 МБ.</string>
+    <string name="conv_attachment_read">Не удалось прочитать вложение.</string>
+    <string name="conv_attachment_empty">Выбранный файл пуст.</string>
+    <string name="conv_image_invalid">Изображение некорректно или превышает 40 мегапикселей.</string>
+    <string name="conv_pdf_invalid">Некорректный документ PDF.</string>
+    <string name="conv_text_binary">Двоичные данные нельзя прикрепить как текст.</string>
+    <string name="conv_voice_payload">Аудиозапись недоступна или превышает лимит воспроизведения.</string>
+    <string name="conv_attachment_default">вложение</string>
+</resources>

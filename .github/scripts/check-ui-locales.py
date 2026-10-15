@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Validate five complete Android UI resource packs and report legacy hardcoded UI labels.
+"""Validate five Android plain <string> resource catalogs and inventory legacy UI labels.
+
+Every XML file in each supported values directory is aggregated. Plurals and
+string arrays are outside this gate; it does not certify full linguistic coverage.
 
 Only source/UI labels are inspected: user chat content, device logs and model output
 MUST NOT be machine-translated or altered by app localization.
@@ -11,26 +14,35 @@ from pathlib import Path
 
 res = Path("app/src/main/res")
 files = {
-    lang: res / ("values" + ("-" + lang if lang else "")) / "strings.xml"
+    lang: sorted((res / ("values" + ("-" + lang if lang else ""))).glob("*.xml"))
     for lang in ("", "fa", "ar", "tr", "ru")
 }
 
-def parse(path):
+def parse(paths):
     result = {}
-    for item in ET.parse(path).getroot().findall("string"):
-        name = item.get("name")
-        if not name or name in result:
-            raise ValueError("Duplicate/empty localized key in " + str(path) + ": " + str(name))
-        result[name] = "".join(item.itertext()).strip()
-        if not result[name]:
-            raise ValueError("Empty translation: " + str(path) + " " + name)
-    return result
+    nontranslatable = set()
+    origins = {}
+    for path in paths:
+        for item in ET.parse(path).getroot().findall("string"):
+            name = item.get("name")
+            if not name or name in result:
+                raise ValueError("Duplicate/empty localized key in " + str(path) + ": " + str(name) +
+                                 "; previous=" + str(origins.get(name, "none")))
+            result[name] = "".join(item.itertext()).strip()
+            origins[name] = path
+            if not result[name]:
+                raise ValueError("Empty translation: " + str(path) + " " + name)
+            if item.get("translatable") == "false":
+                nontranslatable.add(name)
+    return result, nontranslatable
 
-catalog = {language: parse(path) for language, path in files.items()}
+parsed = {language: parse(paths) for language, paths in files.items()}
+catalog = {language: content[0] for language, content in parsed.items()}
+nontranslatable = parsed[""][1]
 base = set(catalog[""])
 for language in ("fa", "ar", "tr", "ru"):
     current = set(catalog[language])
-    missing = sorted(base - current)
+    missing = sorted(base - nontranslatable - current)
     unexpected = sorted(current - base)
     if missing or unexpected:
         sys.exit(language + " resource catalog mismatch. Missing=" +
@@ -40,7 +52,7 @@ for language in ("fa", "ar", "tr", "ru"):
     def arguments(text):
         return sorted(re.findall(r'%(\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?([a-zA-Z])',
                                  text.replace('%%', '')))
-    for key in base:
+    for key in base & current:
         if arguments(catalog[''][key]) != arguments(catalog[language][key]):
             sys.exit(language + ' format arguments mismatch: ' + key)
 
@@ -89,9 +101,19 @@ for key in chat_accessibility:
     for lang in ("fa", "ar", "tr", "ru"):
         if catalog[lang][key] == catalog[""][key]:
             sys.exit("English-only Chat accessibility label in " + lang + ": " + key)
+# The conversation migration contains user-facing phrases rather than brands.
+# Require actual translations for its split catalog, not English fallbacks.
+for key in sorted(name for name in base - nontranslatable if name.startswith("conv_")):
+    for lang in ("fa", "ar", "tr", "ru"):
+        if catalog[lang][key] == catalog[""][key]:
+            sys.exit("English-only conversation label in " + lang + ": " + key)
 chat_source = (roots / "ProviderChatScreen.kt").read_text(encoding="utf-8")
 if re.search(r'\bcontentDescription\s*=\s*"', chat_source):
     sys.exit("Hardcoded Chat accessibility description; use a localized resource")
+
+brain_source = (roots / "MatrixGraphScreen.kt").read_text(encoding="utf-8")
+if re.search(r'\bcontentDescription\s*=\s*"', brain_source):
+    sys.exit("Hardcoded Brain accessibility description; use a localized resource")
 
 print("Five Android locale catalogs validated, keys:", len(base))
 print("Remaining direct Text string-literal occurrences:", sum(stats.values()))

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="conv_export_destination">تعذر فتح وجهة الحفظ.</string>
+    <string name="conv_exported">تم حفظ الرد</string>
+    <string name="conv_export_failed">تعذر الحفظ. تحقق من الوجهة والمساحة المتاحة.</string>
+    <string name="conv_recording_start_failed">تعذر بدء تسجيل الميكروفون.</string>
+    <string name="conv_recording_save_failed">تعذر حفظ التسجيل الصوتي.</string>
+    <string name="conv_usage_used">المستخدم: %1$s</string>
+    <string name="conv_context_left">المتبقي تقديريًا: %1$s</string>
+    <string name="conv_export_unavailable">لا يمكن تصدير هذا الرد.</string>
+    <string name="conv_eleven_setup">اضبط صوت ElevenLabs ومفتاح API في مركز التحكم ← صوت ElevenLabs.</string>
+    <string name="conv_eleven_limit">حد نطق ElevenLabs هو %1$d حرفًا. اختر ردًا أقصر.</string>
+    <string name="conv_eleven_failed">تعذر نطق ElevenLabs. تحقق من الاتصال والحصة وإعدادات الصوت.</string>
+    <string name="conv_detecting">جارٍ الاكتشاف…</string>
+    <string name="conv_key_ready">المفتاح محفوظ</string>
+    <string name="conv_key_setup">إعداد المفتاح</string>
+    <string name="conv_gemini_hint">أدخل مفتاح API من Google AI Studio ثم اكتشف النماذج المتاحة واختبر الاستدلال.</string>
+    <string name="conv_nvidia_hint">أدخل مفتاح API الخاص بـ NVIDIA NIM الذي يبدأ بـ nvapi- ثم اكتشف النماذج المتاحة لحسابك.</string>
+    <string name="conv_router_hint">أدخل عنوان خدمتك المنشورة ومفتاحها. اختر نموذجًا من كتالوجها.</string>
+    <string name="conv_combo_hint">يجب أن تكون أسماء Combo موجودة في كتالوج خادمك. يدير ذلك الخادم التوجيه.</string>
+    <string name="conv_brain_composer">محرر رسائل مساعد MAXIMUS</string>
+    <string name="conv_brain_question">سؤال للمساعد</string>
+    <string name="conv_brain_engine">محرك MAXIMUS: %1$s</string>
+    <string name="conv_attachment_unsupported">نوع الملف غير مدعوم. اختر PNG أو JPEG أو WebP أو PDF أو نص UTF-8.</string>
+    <string name="conv_attachment_size">يتجاوز المرفق حد ٥ ميغابايت.</string>
+    <string name="conv_attachment_read">تعذرت قراءة الملف المرفق.</string>
+    <string name="conv_attachment_empty">الملف المحدد فارغ.</string>
+    <string name="conv_image_invalid">الصورة غير صالحة أو تتجاوز ٤٠ ميغابكسل.</string>
+    <string name="conv_pdf_invalid">مستند PDF غير صالح.</string>
+    <string name="conv_text_binary">لا يمكن إرفاق المحتوى الثنائي كنص.</string>
+    <string name="conv_voice_payload">الصوت غير متاح أو يتجاوز حد التشغيل.</string>
+    <string name="conv_attachment_default">مرفق</string>
+</resources>

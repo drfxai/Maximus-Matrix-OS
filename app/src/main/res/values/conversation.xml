@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="conv_export_destination">Could not open the destination.</string>
+    <string name="conv_exported">Response downloaded</string>
+    <string name="conv_export_failed">Export failed. Check the destination and available storage.</string>
+    <string name="conv_recording_start_failed">Microphone recording could not start.</string>
+    <string name="conv_recording_save_failed">Voice recording could not be saved.</string>
+    <string name="conv_usage_used">Used: %1$s</string>
+    <string name="conv_context_left">Est. left: %1$s</string>
+    <string name="conv_export_unavailable">This response cannot be exported.</string>
+    <string name="conv_eleven_setup">Set an ElevenLabs voice and API key in Control Hub → ElevenLabs Voice.</string>
+    <string name="conv_eleven_limit">ElevenLabs speech limit is %1$d characters. Select a shorter response.</string>
+    <string name="conv_eleven_failed">ElevenLabs speech failed. Check your connection, quota and voice settings.</string>
+    <string name="conv_detecting">Detecting…</string>
+    <string name="conv_key_ready">Key saved</string>
+    <string name="conv_key_setup">Set key</string>
+    <string name="conv_gemini_hint">Enter your Google AI Studio API key, then discover available models and test inference.</string>
+    <string name="conv_nvidia_hint">Enter your NVIDIA NIM API key (starts with nvapi-), then discover models available to your account.</string>
+    <string name="conv_router_hint">Enter your deployment endpoint and key. Select a model returned by its catalog.</string>
+    <string name="conv_combo_hint">Combo names must exist in your server catalog. Routing behavior is managed by that server.</string>
+    <string name="conv_brain_composer">MAXIMUS assistant composer</string>
+    <string name="conv_brain_question">Assistant question</string>
+    <string name="conv_brain_engine">MAXIMUS engine %1$s</string>
+    <string name="conv_attachment_unsupported">Unsupported file type. Select PNG, JPEG, WebP, PDF or UTF-8 text.</string>
+    <string name="conv_attachment_size">Attachment exceeds the 5 MB limit.</string>
+    <string name="conv_attachment_read">Could not read the attachment file.</string>
+    <string name="conv_attachment_empty">The selected file is empty.</string>
+    <string name="conv_image_invalid">Image is invalid or exceeds 40 megapixels.</string>
+    <string name="conv_pdf_invalid">Invalid PDF document.</string>
+    <string name="conv_text_binary">Binary content cannot be attached as text.</string>
+    <string name="conv_voice_payload">Voice audio is unavailable or exceeds the playback limit.</string>
+    <string name="conv_attachment_default">attachment</string>
+</resources>

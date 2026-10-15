@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="conv_export_destination">Kayıt konumu açılamadı.</string>
+    <string name="conv_exported">Yanıt kaydedildi</string>
+    <string name="conv_export_failed">Dışa aktarılamadı. Konumu ve boş alanı kontrol edin.</string>
+    <string name="conv_recording_start_failed">Mikrofon kaydı başlatılamadı.</string>
+    <string name="conv_recording_save_failed">Ses kaydı kaydedilemedi.</string>
+    <string name="conv_usage_used">Kullanılan: %1$s</string>
+    <string name="conv_context_left">Tahmini kalan: %1$s</string>
+    <string name="conv_export_unavailable">Bu yanıt dışa aktarılamıyor.</string>
+    <string name="conv_eleven_setup">Kontrol Merkezi → ElevenLabs Ses bölümünden bir ses ve API anahtarı ayarlayın.</string>
+    <string name="conv_eleven_limit">ElevenLabs konuşma sınırı %1$d karakterdir. Daha kısa bir yanıt seçin.</string>
+    <string name="conv_eleven_failed">ElevenLabs konuşması başarısız. Bağlantıyı, kotayı ve ses ayarlarını kontrol edin.</string>
+    <string name="conv_detecting">Algılanıyor…</string>
+    <string name="conv_key_ready">Anahtar kayıtlı</string>
+    <string name="conv_key_setup">Anahtar ayarla</string>
+    <string name="conv_gemini_hint">Google AI Studio API anahtarınızı girin, kullanılabilir modelleri bulun ve çıkarımı test edin.</string>
+    <string name="conv_nvidia_hint">NVIDIA NIM API anahtarınızı (nvapi- ile başlar) girin ve hesabınızdaki modelleri bulun.</string>
+    <string name="conv_router_hint">Dağıtım uç noktanızı ve anahtarınızı girin. Kataloğundan bir model seçin.</string>
+    <string name="conv_combo_hint">Combo adları sunucu kataloğunuzda bulunmalıdır. Yönlendirmeyi bu sunucu yönetir.</string>
+    <string name="conv_brain_composer">MAXIMUS asistan mesajı düzenleyicisi</string>
+    <string name="conv_brain_question">Asistana soru</string>
+    <string name="conv_brain_engine">MAXIMUS motoru: %1$s</string>
+    <string name="conv_attachment_unsupported">Dosya türü desteklenmiyor. PNG, JPEG, WebP, PDF veya UTF-8 metni seçin.</string>
+    <string name="conv_attachment_size">Ek, 5 MB sınırını aşıyor.</string>
+    <string name="conv_attachment_read">Ek dosyası okunamadı.</string>
+    <string name="conv_attachment_empty">Seçilen dosya boş.</string>
+    <string name="conv_image_invalid">Görüntü geçersiz veya 40 megapiksel sınırını aşıyor.</string>
+    <string name="conv_pdf_invalid">Geçersiz PDF belgesi.</string>
+    <string name="conv_text_binary">İkili içerik metin olarak eklenemez.</string>
+    <string name="conv_voice_payload">Ses verisi kullanılamıyor veya oynatma sınırını aşıyor.</string>
+    <string name="conv_attachment_default">ek</string>
+</resources>
