@@ -70,8 +70,13 @@ internal class SmartComboQuotaLedger(
                 window.confidence != SmartComboPlanner.Confidence.PROVIDER_VERIFIED) continue
             val previous = byKind[window.kind]
             val previousAt = previous?.value?.observedAtEpochMs ?: Long.MIN_VALUE
+            // Identical observation timestamps are not new provider evidence. Never
+            // raise advertised headroom from a duplicate or delayed response. A stricter
+            // (lower remaining) observation is safe to incorporate; a higher one must
+            // carry a strictly newer trusted observation time.
             if (observed > previousAt ||
-                (observed == previousAt && received > (previous?.receivedAt ?: Long.MIN_VALUE))) {
+                (observed == previousAt && previous != null &&
+                    window.remaining < requireNotNull(previous.value.remaining))) {
                 byKind[window.kind] = Evidence(window, received)
             }
         }
