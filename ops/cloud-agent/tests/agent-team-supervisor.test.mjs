@@ -16,7 +16,12 @@ class Db {
     return {
       args: [],
       bind(...args) { this.args = args; return this; },
-      async first() { if (sql.startsWith('SELECT COUNT')) return { count: db.teams.length }; throw Error('unexpected SQL'); },
+      async first() {
+        if (sql.startsWith('SELECT COUNT')) return { count: db.teams.length };
+        if (sql.startsWith('SELECT id, enabled FROM agent_teams WHERE id = ?'))
+          return db.teams.find(t => t.id === this.args[0]) || null;
+        throw Error('unexpected SQL');
+      },
       async all() {
         if (sql.includes('FROM agent_teams')) return { results: db.teams.slice(0, 8) };
         if (sql.includes('FROM agent_reports')) return { results: db.reports.slice(0, 30) };
@@ -36,6 +41,16 @@ class Db {
         }
         if (sql.startsWith('INSERT INTO agent_teams')) {
           db.teams.push({ id: a[0], job: a[1], repository: a[2], period_minutes: a[3], enabled: 1 });
+          return { meta: { changes: 1 } };
+        }
+        if (sql.startsWith('UPDATE agent_teams SET enabled')) {
+          const row = db.teams.find(t => t.id === a[1]);
+          if (row) row.enabled = a[0];
+          return { meta: { changes: Number(!!row) } };
+        }
+        if (sql.startsWith('DELETE FROM agent_teams WHERE id')) {
+          db.teams = db.teams.filter(t => t.id !== a[0]);
+          db.reports = db.reports.filter(r => r.team_id !== a[0]);
           return { meta: { changes: 1 } };
         }
         if (sql.startsWith('DELETE FROM agent_reports')) { db.reports = db.reports.filter(r => r.observed_at >= a[0]); return { meta: { changes: 0 } }; }
@@ -105,4 +120,37 @@ test('untrusted oversized request bodies are rejected before team creation', asy
   const response = await worker.fetch(req('/v1/teams', 'POST', 'x'.repeat(2100)), env);
   assert.equal(response.status, 413);
   assert.equal(db.teams.length, 0);
+});
+
+test('cloud team pause, resume and deletion require token and strict payloads', async () => {
+  const db = new Db(), env = { AGENT_DB: db, MAXIMUS_AGENT_TOKEN: secret };
+  const created = await worker.fetch(req('/v1/teams', 'POST', proposal), env);
+  assert.equal(created.status, 201);
+  const { id } = await created.json();
+  const url = '/v1/teams/' + id;
+
+  assert.equal((await worker.fetch(req(url, 'PATCH', { enabled: false }, 'wrong'), env)).status, 401);
+  assert.equal((await worker.fetch(req(url, 'PATCH', { enabled: 'false' }), env)).status, 400);
+  assert.equal((await worker.fetch(req(url, 'PATCH', { enabled: false, job: 'SHELL' }), env)).status, 400);
+  const paused = await worker.fetch(req(url, 'PATCH', { enabled: false }), env);
+  assert.equal(paused.status, 200);
+  assert.equal((await paused.json()).enabled, false);
+  assert.equal(db.teams[0].enabled, 0);
+  assert.equal((await worker.fetch(req(url, 'PATCH', { enabled: true }), env)).status, 200);
+  assert.equal(db.teams[0].enabled, 1);
+  assert.equal((await worker.fetch(req(url, 'DELETE', undefined, 'wrong'), env)).status, 401);
+  const deleted = await worker.fetch(req(url, 'DELETE'), env);
+  assert.equal(deleted.status, 200);
+  assert.equal((await deleted.json()).deleted, true);
+  assert.equal(db.teams.length, 0);
+  assert.equal((await worker.fetch(req(url, 'PATCH', { enabled: true }), env)).status, 404);
+});
+
+test('disabled cloud teams are excluded from Cron fetch and cannot be recreated by retries', async () => {
+  const db = new Db(), env = { AGENT_DB: db, MAXIMUS_AGENT_TOKEN: secret };
+  const result = await worker.fetch(req('/v1/teams', 'POST', proposal), env);
+  const { id } = await result.json();
+  await worker.fetch(req('/v1/teams/' + id, 'PATCH', { enabled: false }), env);
+  const enabled = db.teams.filter(x => x.enabled === 1);
+  assert.equal(enabled.length, 0);
 });
