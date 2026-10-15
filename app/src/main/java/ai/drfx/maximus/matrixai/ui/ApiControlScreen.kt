@@ -48,8 +48,8 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
             Text(stringResource(R.string.api_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -60,6 +60,8 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 lineHeight = 17.sp
             )
         }
+
+        item { SmartComboCommandDashboard(state) }
 
         item {
             ControlCard {
@@ -230,7 +232,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         )
                     }
                     LinearProgressIndicator(
-                        progress = { metrics.contextUsagePercent.coerceIn(0.01f, 1f) },
+                        progress = { metrics.contextUsagePercent.coerceIn(0f, 1f) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp)
@@ -488,7 +490,7 @@ private fun ControlCard(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun MetricLine(label: String, value: String, color: Color) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-        Text(value, color = color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text(label, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        Text(value, modifier = Modifier.weight(1f), color = color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = androidx.compose.ui.text.style.TextAlign.End)
     }
 }

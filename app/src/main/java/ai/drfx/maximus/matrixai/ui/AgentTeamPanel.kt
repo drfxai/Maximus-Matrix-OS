@@ -1,5 +1,6 @@
 package ai.drfx.maximus.matrixai.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,7 +23,11 @@ import ai.drfx.maximus.matrixai.agent.teams.AgentTeamScheduler
 import ai.drfx.maximus.matrixai.agent.teams.AgentTeamSupervisor
 import ai.drfx.maximus.matrixai.agent.teams.AgentTeamSpec
 import ai.drfx.maximus.matrixai.agent.teams.AgentTeamStore
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import java.text.DateFormat
 import java.util.Date
 
@@ -30,6 +35,7 @@ import java.util.Date
  * REAL local best-effort scheduled tasks. Does not present agent personas as
  * inference workers, or imply the phone can run continuously 24/7 in Doze.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AgentTeamPanel(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -39,6 +45,8 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
     var kind by remember { mutableStateOf(AgentTeamJob.VERIFIED_NEWS) }
     var period by remember { mutableLongStateOf(180L) }
     var feedback by remember { mutableStateOf("") }
+    val createFailure = stringResource(R.string.dash_create_failed)
+    val scheduleFailure = stringResource(R.string.dash_schedule_failed)
     var pendingDelete by remember { mutableStateOf<String?>(null) }
     var refreshTick by remember { mutableIntStateOf(0) }
 
@@ -50,92 +58,118 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
         }
     }
 
+    var showCreate by remember { mutableStateOf(teams.isEmpty()) }
+    // RUNNING is observed from WorkManager; an enabled periodic schedule is never counted as live.
+    val workInfos by produceState<List<WorkInfo>?>(null, context) {
+        try {
+            WorkManager.getInstance(context).getWorkInfosByTagFlow("maximus.team").collect { value = it }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) { value = null }
+    }
     val supervisor = remember(teams, refreshTick) {
         AgentTeamSupervisor.observe(teams, System.currentTimeMillis(), store::report)
     }
     Column(modifier.fillMaxWidth().testTag("agent_team_dashboard"),
         verticalArrangement = Arrangement.spacedBy(11.dp)) {
-        ElevatedCard(shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth().testTag("agent_team_supervisor")) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(R.string.team_supervisor_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold)
-                Text(stringResource(R.string.team_supervisor_counts,
-                    supervisor.healthy, supervisor.active, supervisor.attention),
-                    style = MaterialTheme.typography.bodyMedium)
-                Text(stringResource(R.string.team_supervisor_disclaimer),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+        CommandDashboardCard(Modifier.fillMaxWidth().testTag("agent_team_supervisor")) {
+            Text(stringResource(R.string.dash_team_title),
+                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+            CommandStatus(stringResource(R.string.dash_android_scheduler), workInfos != null)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CommandMetric(stringResource(R.string.dash_running_jobs),
+                    workInfos?.count { it.state == WorkInfo.State.RUNNING }?.toString()
+                        ?: stringResource(R.string.api_unknown),
+                    stringResource(R.string.dash_observed_workmanager), Modifier.weight(1f))
+                CommandMetric(stringResource(R.string.dash_enabled_schedules),
+                    supervisor.active.toString(), stringResource(R.string.dash_of_teams, teams.size),
+                    Modifier.weight(1f))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CommandMetric(stringResource(R.string.dash_verified_reports), supervisor.healthy.toString(),
+                    stringResource(R.string.dash_last_report_evidence), Modifier.weight(1f))
+                CommandMetric(stringResource(R.string.dash_attention), supervisor.attention.toString(),
+                    stringResource(R.string.dash_attention_detail), Modifier.weight(1f),
+                    attention = supervisor.attention > 0)
+            }
+            Text(stringResource(R.string.team_supervisor_disclaimer),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = { showCreate = !showCreate }, modifier = Modifier.fillMaxWidth()
+                .testTag("agent_team_create_toggle")) {
+                Text(stringResource(if (showCreate) R.string.dash_hide_setup else R.string.dash_new_team))
             }
         }
-        ElevatedCard(shape = RoundedCornerShape(18.dp)) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Groups, null, tint = MaterialTheme.colorScheme.primary)
-                    Text(stringResource(R.string.team_title),
-                        fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                }
-                Text(stringResource(R.string.team_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedTextField(
-                    value = name, onValueChange = { name = it.take(60) },
-                    label = { Text(stringResource(R.string.team_name)) },
-                    modifier = Modifier.fillMaxWidth().testTag("agent_team_name"),
-                    singleLine = true
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = kind == AgentTeamJob.VERIFIED_NEWS,
-                        onClick = { kind = AgentTeamJob.VERIFIED_NEWS },
-                        label = { Text(stringResource(R.string.team_news)) }
+        AnimatedVisibility(visible = showCreate) {
+            ElevatedCard(shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Groups, null, tint = MaterialTheme.colorScheme.primary)
+                        Text(stringResource(R.string.team_title),
+                            fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    }
+                    Text(stringResource(R.string.team_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(
+                        value = name, onValueChange = { name = it.take(60) },
+                        label = { Text(stringResource(R.string.team_name)) },
+                        modifier = Modifier.fillMaxWidth().testTag("agent_team_name"),
+                        singleLine = true
                     )
-                    FilterChip(
-                        selected = kind == AgentTeamJob.DEVICE_HEALTH,
-                        onClick = { kind = AgentTeamJob.DEVICE_HEALTH },
-                        label = { Text(stringResource(R.string.team_health)) }
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    for ((minutes, label) in listOf(
-                        15L to stringResource(R.string.team_15m),
-                        180L to stringResource(R.string.team_3h),
-                        1440L to stringResource(R.string.team_day)
-                    )) {
-                        FilterChip(selected = period == minutes, onClick = { period = minutes },
-                            label = { Text(label) })
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = kind == AgentTeamJob.VERIFIED_NEWS,
+                            onClick = { kind = AgentTeamJob.VERIFIED_NEWS },
+                            label = { Text(stringResource(R.string.team_news)) }
+                        )
+                        FilterChip(
+                            selected = kind == AgentTeamJob.DEVICE_HEALTH,
+                            onClick = { kind = AgentTeamJob.DEVICE_HEALTH },
+                            label = { Text(stringResource(R.string.team_health)) }
+                        )
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        for ((minutes, label) in listOf(
+                            15L to stringResource(R.string.team_15m),
+                            180L to stringResource(R.string.team_3h),
+                            1440L to stringResource(R.string.team_day)
+                        )) {
+                            FilterChip(selected = period == minutes, onClick = { period = minutes },
+                                label = { Text(label) })
+                        }
+                    }
+                    Button(
+                        onClick = {
+                            try {
+                                val team = store.create(name.trim(), kind, period)
+                                AgentTeamScheduler.schedule(context, team)
+                                teams = store.list()
+                                feedback = ""
+                                name = ""
+                                showCreate = false
+                            } catch (e: Exception) {
+                                feedback = e.message ?: createFailure
+                            }
+                        },
+                        enabled = name.trim().length in 2..60 && teams.size < 8,
+                        modifier = Modifier.fillMaxWidth().testTag("agent_team_create")
+                    ) {
+                        Icon(Icons.Default.Autorenew, null, Modifier.size(17.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.team_create))
+                    }
+                    Text(stringResource(R.string.team_android_limit),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (feedback.isNotBlank()) {
+                        Text(feedback, color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                Button(
-                    onClick = {
-                        try {
-                            val team = store.create(name.trim(), kind, period)
-                            AgentTeamScheduler.schedule(context, team)
-                            teams = store.list()
-                            feedback = ""
-                            name = ""
-                        } catch (e: Exception) {
-                            feedback = e.message ?: "Unable to create the team."
-                        }
-                    },
-                    enabled = name.trim().length in 2..60 && teams.size < 8,
-                    modifier = Modifier.fillMaxWidth().testTag("agent_team_create")
-                ) {
-                    Icon(Icons.Default.Autorenew, null, Modifier.size(17.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.team_create))
-                }
-                Text(stringResource(R.string.team_android_limit),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (feedback.isNotBlank()) {
-                    Text(feedback, color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall)
-                }
             }
-        }
 
+        }
         if (teams.isEmpty()) {
             Text(stringResource(R.string.team_empty),
                 style = MaterialTheme.typography.bodySmall,
@@ -153,7 +187,7 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
                         Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                             Text(team.name, fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f))
-                            Text(if (team.enabled) stringResource(R.string.team_enabled)
+                            Text(if (team.enabled) stringResource(R.string.dash_scheduled)
                                 else stringResource(R.string.team_paused),
                                 color = if (team.enabled) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -206,12 +240,12 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 5)
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             OutlinedButton(
                                 enabled = team.enabled,
                                 onClick = {
                                     runCatching { AgentTeamScheduler.runNow(context, team) }
-                                        .onFailure { feedback = it.message ?: "Schedule unavailable." }
+                                        .onFailure { feedback = it.message ?: scheduleFailure }
                                 }, modifier = Modifier.testTag("agent_team_run_now")
                             ) {
                                 Icon(Icons.Default.PlayArrow, null, Modifier.size(15.dp))

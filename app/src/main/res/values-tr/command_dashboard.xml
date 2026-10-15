@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dash_combo_title">Maximus Smart Combo</string>
+    <string name="dash_request_in_use">İstek sürüyor</string>
+    <string name="dash_request_idle">Sonraki isteğiniz için hazır</string>
+    <string name="dash_free_first">Yalnızca doğrulanmış ücretsiz</string>
+    <string name="dash_manual_route">Manuel rota</string>
+    <string name="dash_session_tokens">Oturum belirteçleri</string>
+    <string name="dash_reported_or_estimated">Sağlayıcı kullanımı veya yerel tahmin</string>
+    <string name="dash_context_left">Kalan bağlam</string>
+    <string name="dash_context_estimate">Tahmini model bağlamı</string>
+    <string name="dash_provider_tokens">Kalan sağlayıcı belirteçleri</string>
+    <string name="dash_rate_snapshot">Son hız aralığı anlık görüntüsü</string>
+    <string name="dash_local_budget">Kalan yerel bütçe</string>
+    <string name="dash_not_set">Ayarlanmadı</string>
+    <string name="dash_user_budget">Sizin limitiniz; hesap kredisi değil</string>
+    <string name="dash_snapshot_at">Anlık görüntü: %1$s</string>
+    <string name="dash_configured_route">Yapılandırılmış sağlayıcı · model</string>
+    <string name="dash_selected_agent">Seçili ajan: %1$s</string>
+    <string name="dash_verified_routes">Doğrulanmış ücretsiz rotalar</string>
+    <string name="dash_catalog_not_quota">Katalog kanıtı; kota değil</string>
+    <string name="dash_provider_accounts">Sağlayıcı hesapları</string>
+    <string name="dash_configured_count">Yönlendirme için yapılandırıldı</string>
+    <string name="dash_usage_scope_note">Bağlam hesap kotası değildir. Hız görüntüleri eski olabilir; bilinmeyen limitler bilinmiyor olarak kalır.</string>
+    <string name="dash_team_title">Ajan ekibi komuta merkezi</string>
+    <string name="dash_android_scheduler">Android zamanlanmış görevleri</string>
+    <string name="dash_running_jobs">Şu an çalışıyor</string>
+    <string name="dash_observed_workmanager">Gözlemlenen Android işleri</string>
+    <string name="dash_enabled_schedules">Etkin zamanlamalar</string>
+    <string name="dash_of_teams">Yapılandırılmış %1$d ekipten</string>
+    <string name="dash_verified_reports">Sağlıklı raporlar</string>
+    <string name="dash_last_report_evidence">Son doğrulanmış kanıtlar</string>
+    <string name="dash_attention">İlgilenilmeli</string>
+    <string name="dash_attention_detail">Eski, kullanılamaz veya saat sorunu</string>
+    <string name="dash_hide_setup">Ekip kurulumunu gizle</string>
+    <string name="dash_new_team">Zamanlanmış ekip oluştur</string>
+    <string name="dash_scheduled">Zamanlandı</string>
+    <string name="dash_create_failed">Ekip oluşturulamadı.</string>
+    <string name="dash_schedule_failed">Zamanlama kullanılamıyor.</string>
+    <string name="dash_active_route">Kullanımda · sağlayıcı ve model</string>
+    <string name="dash_executing_agent">Çalışan ajan: %1$s</string>
+    <string name="dash_last_turn_usage">Son istek: %1$s belirteç · %2$s</string>
+    <string name="dash_usage_estimated">Yerel tahmin</string>
+    <string name="dash_usage_reported">Sağlayıcı bildirimi</string>
+    <string name="dash_request_preparing">İstek hazırlanıyor</string>
+</resources>

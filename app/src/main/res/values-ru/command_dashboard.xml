@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dash_combo_title">Maximus Smart Combo</string>
+    <string name="dash_request_in_use">Запрос выполняется</string>
+    <string name="dash_request_idle">Готово к следующему запросу</string>
+    <string name="dash_free_first">Только проверенные бесплатные</string>
+    <string name="dash_manual_route">Ручной маршрут</string>
+    <string name="dash_session_tokens">Токены сеанса</string>
+    <string name="dash_reported_or_estimated">Данные провайдера или местная оценка</string>
+    <string name="dash_context_left">Остаток контекста</string>
+    <string name="dash_context_estimate">Оценка контекста модели</string>
+    <string name="dash_provider_tokens">Остаток токенов провайдера</string>
+    <string name="dash_rate_snapshot">Последний снимок окна лимита</string>
+    <string name="dash_local_budget">Остаток местного бюджета</string>
+    <string name="dash_not_set">Не задано</string>
+    <string name="dash_user_budget">Ваш лимит, не кредит счёта</string>
+    <string name="dash_snapshot_at">Снимок: %1$s</string>
+    <string name="dash_configured_route">Настроенный провайдер · модель</string>
+    <string name="dash_selected_agent">Выбранный агент: %1$s</string>
+    <string name="dash_verified_routes">Проверенные бесплатные маршруты</string>
+    <string name="dash_catalog_not_quota">Данные каталога, не квота</string>
+    <string name="dash_provider_accounts">Аккаунты провайдеров</string>
+    <string name="dash_configured_count">Настроены для маршрутизации</string>
+    <string name="dash_usage_scope_note">Контекст не является квотой аккаунта. Снимки лимитов могут устареть; неизвестные лимиты остаются неизвестными.</string>
+    <string name="dash_team_title">Центр управления командой агентов</string>
+    <string name="dash_android_scheduler">Задачи по расписанию Android</string>
+    <string name="dash_running_jobs">Выполняются сейчас</string>
+    <string name="dash_observed_workmanager">Наблюдаемые задачи Android</string>
+    <string name="dash_enabled_schedules">Включённые расписания</string>
+    <string name="dash_of_teams">Из %1$d настроенных команд</string>
+    <string name="dash_verified_reports">Нормальные отчёты</string>
+    <string name="dash_last_report_evidence">Недавние проверенные данные</string>
+    <string name="dash_attention">Требуют внимания</string>
+    <string name="dash_attention_detail">Устарели, недоступны или сбой часов</string>
+    <string name="dash_hide_setup">Скрыть настройку команды</string>
+    <string name="dash_new_team">Создать команду по расписанию</string>
+    <string name="dash_scheduled">По расписанию</string>
+    <string name="dash_create_failed">Не удалось создать команду.</string>
+    <string name="dash_schedule_failed">Планирование недоступно.</string>
+    <string name="dash_active_route">Используются · провайдер и модель</string>
+    <string name="dash_executing_agent">Выполняющий агент: %1$s</string>
+    <string name="dash_last_turn_usage">Последний запрос: %1$s токенов · %2$s</string>
+    <string name="dash_usage_estimated">Местная оценка</string>
+    <string name="dash_usage_reported">Данные провайдера</string>
+    <string name="dash_request_preparing">Подготовка запроса</string>
+</resources>
