@@ -472,4 +472,8 @@
     <string name="brain_group_data">البيانات والمعرفة</string>
     <string name="brain_group_routing">توجيه النماذج</string>
     <string name="brain_group_finops">إدارة التكاليف والتحكم</string>
+    <string name="brain_status_planning">جارٍ التخطيط</string>
+    <string name="brain_status_executing">جارٍ التنفيذ</string>
+    <string name="brain_status_attention">بحاجة إلى المراجعة</string>
+    <string name="brain_status_confirmation">بانتظار الموافقة</string>
 </resources>
