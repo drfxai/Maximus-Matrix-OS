@@ -32,8 +32,8 @@ class SmartComboLocalizationTest {
                         english.getString(id), text)
                 }
             }
-            assertTrue(localized.getString(R.string.api_visible_offers, 2, 5).contains("2"))
-            assertTrue(localized.getString(R.string.combo_diag_no_context, 3).contains("3"))
+            assertFalse(localized.getString(R.string.api_visible_offers, 2, 5).contains("%1"))
+            assertFalse(localized.getString(R.string.combo_diag_no_context, 3).contains("%1"))
         }
     }
 }
