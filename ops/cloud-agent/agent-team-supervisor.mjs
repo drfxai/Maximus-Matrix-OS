@@ -144,7 +144,7 @@ export default {
           .bind(id, team.job, team.repository, team.periodMinutes).run();
         return json(201, { id, ...team, status: 'scheduled_by_cloudflare_cron_when_deployed' });
       }
-      const item = /^\\/v1\\/teams\\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/.exec(url.pathname);
+      const item = /^\/v1\/teams\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/.exec(url.pathname);
       if (item) {
         const id = item[1];
         if (request.method !== 'PATCH' && request.method !== 'DELETE') return error(405, 'method_not_allowed');
