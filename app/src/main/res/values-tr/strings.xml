@@ -472,4 +472,8 @@
     <string name="brain_group_data">Veri ve bilgi</string>
     <string name="brain_group_routing">Model yönlendirme</string>
     <string name="brain_group_finops">Maliyet ve kontrol</string>
+    <string name="brain_status_planning">Planlanıyor</string>
+    <string name="brain_status_executing">Çalışıyor</string>
+    <string name="brain_status_attention">İnceleme gerekli</string>
+    <string name="brain_status_confirmation">Onay bekleniyor</string>
 </resources>
