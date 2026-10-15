@@ -11,13 +11,22 @@ Public version remains **V1.0.0**. This patch translates the interactive Brain g
 - Localize screen reader labels on key graph actions. App brand, untrusted model output, user content, provider names, raw technical IDs and code must not be modified.
 - Internal `versionCode` is increased to **10020** for user-data-preserving signed upgrade. Public `versionName` stays **1.0.0**.
 
+## Follow-up: core, conversation and gateway node catalog (CI pending)
+
+- Add 34 string keys in separate `graph_nodes.xml` catalogs for all five languages.
+- Localize labels, descriptions and anatomical regions for 11 nodes in the central core, conversational AI and AI Gateway branches. Existing hub labels keep their translated resources.
+- Translate displayed midbrain, temporal and cerebellar lobe labels. Canonical node IDs, groups and lobe identities continue to control routing and filtering.
+- Gateway descriptions use the existing connection status and preserve the provider and model names verbatim. Disconnected and unselected states are localized.
+- Voice input is described as dictation; this catalog does not imply background listening or autonomous execution.
+- The existing split-catalog gate and its regression tests check duplicate names, locale-key parity and format parity. Kotlin compilation checks resource references; compilation, Android lint and emulator/render validation remain pending for this follow-up until CI completes. No physical-device voice evidence is added.
+
 ## Release gates
 
 CI must validate string-key parity, `%1$d` placeholder parity, Kotlin compilation, JVM tests, Android lint, both instrumentation emulator suites, the same permanent release certificate, an in-place upgrade from the existing V1.0.0 build and published APK/source SHA-256 hashes.
 
 ## Still outstanding
 
-- Descriptions of individual graph nodes and some specialized anatomical labels are still English. They are static product taxonomy, not user model content, and require a separate review.
+- Node descriptions and specialized anatomical labels outside the core, conversation and gateway slice are still English. They are static product taxonomy, not user/model content, and require further resource migration.
 - Other older UI modules, error details, some worker-generated reports and platform provider screens still have untranslated labels; **complete application localization is not yet claimed** (issue #36).
 - Persian microphone transcription accuracy and voice availability depend on the device speech recognition/TTS engines. No offline ASR engine or guaranteed 24/7 cloud worker is added here.
 - Real ARM64 device acceptance remains necessary in addition to green emulators.

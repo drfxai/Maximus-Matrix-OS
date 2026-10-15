@@ -11,7 +11,7 @@ or model-vendor attribution into public repository metadata.
 |---|---|---|
 | Engineering Supervisor | CI status, independent review, release safeguards, cross-team planning | #40, #38 |
 | Principal Android Engineer | Brain Android actions, permissions and lifecycle, PRoot phone builds | #39, #24, #40 |
-| Voice & Localization Engineer | Persian two-way voice, five-language UI, RTL and accessibility | #36, #35, PR #51 |
+| Voice & Localization Engineer | Persian two-way voice, five-language UI, RTL and accessibility | #36, #35 |
 | Smart Combo & Local Model Engineer | Free-first routing, GGUF/LiteRT engines, Hindsight and quota visibility | #22, #19 |
 | Agent Orchestration Engineer | Durable jobs, explicit permission scopes, multi-agent teamwork | #38, #40 |
 | Developer Infrastructure Engineer | GitHub branch/PR operations, Cloudflare staged preview and rollback | #38, #19, #20 |
@@ -73,18 +73,16 @@ and the team manifest are not substitute workers.
 No auto-merge, silent Cloudflare deploy, security permission escalation,
 automatic paid provider fallback, owner key substitution or secret logging.
 
-## Initial priority backlog
+## Current priorities — 2026-10-15 checkpoint
 
-- #51 localization PR: rerun interrupted keyboard emulator check; inspect
-  actual failure and never bypass the gate.
-- #36: five-language app-wide UI, RTL, Persian microphone transcription,
-  genuine bidirectional Persian voice on real hardware.
-- #24: install pinned PRoot and complete real Android 15 ARM64 APK build.
-- #22 and #19: run GGUF/LiteRT and authenticated local PC models; tie to
-  verified Smart Combo and Hindsight without leaking provider keys.
-- #38 and #40: durable agent teams on explicit user-controlled workers; GitHub
-  controlled PR workflow, Cloudflare staged changes with approval.
-- #39: screen analysis/camera capture only after per-session Android consent.
+- [PR #75](https://github.com/drfxai/Maximus-Matrix-OS/pull/75) merged the explicit GitHub draft-PR workflow. [PR #76](https://github.com/drfxai/Maximus-Matrix-OS/pull/76) merged the conversation localization slice and split string-catalog validation. These are source/CI milestones, not a new APK release.
+- [PR #77](https://github.com/drfxai/Maximus-Matrix-OS/pull/77) and [PR #78](https://github.com/drfxai/Maximus-Matrix-OS/pull/78) are pending at this checkpoint; use their current checks and independent reviews before any merge.
+- #36 and #35: continue remaining graph and legacy-screen resource migration, five-language RTL/accessibility inspection, and physical Persian recognition/TTS conversation acceptance. Earlier interrupted keyboard checks are historical; current heads must pass their own gates.
+- #38 and #40: finish staged Cloudflare preview, exact-target deployment approval, replacement/route implications and rollback. A successful script upload does not prove a live endpoint or working inference.
+- #38 and #40: build on durable worker state toward user-controlled agent execution with reliable leases, recovery, scoped tools, shared checkpoints and observable pause/revoke controls. Continuous execution remains an acceptance requirement, not an assumed capability.
+- #24: complete physical ARM64 Android 15 installation, launch and upgrade acceptance. Build/export evidence does not establish installation, runtime behavior, voice quality or same-signed upgrade success.
+- #22 and #19: verify GGUF/LiteRT and authenticated PC-model execution with Smart Combo/Hindsight continuity and accurate quota evidence.
+- #39: validate screen analysis/camera capture only after the required per-session Android consent.
 
 Reports must always distinguish PLANNED, IMPLEMENTED, CI-VERIFIED,
 PHYSICAL-DEVICE-VERIFIED and RELEASED. The manifest and checks are
