@@ -54,7 +54,9 @@ internal object AgentTeamSupervisor {
                     Health.CLOCK_ANOMALY
                 report.status == "UNAVAILABLE" -> Health.UNAVAILABLE
                 elapsed > allowedDriftMs -> Health.STALE
-                report.status == "VERIFIED" || report.status == "UNAVAILABLE" -> Health.HEALTHY
+                // A label without any verified source evidence is NOT healthy.
+                report.status == "VERIFIED" && report.evidenceCount > 0 -> Health.HEALTHY
+                report.status == "VERIFIED" -> Health.UNAVAILABLE
                 else -> Health.WAITING_FOR_FIRST_RUN
             }
             Observation(
