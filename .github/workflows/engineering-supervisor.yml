@@ -1,0 +1,47 @@
+name: Matrix Engineering Supervisor (read-only)
+
+on:
+  schedule:
+    # GitHub-hosted schedules are best-effort and can be delayed.
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "ops/engineering/**"
+      - ".github/workflows/engineering-supervisor.yml"
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: engineering-supervisor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deterministic supervisor and policy constraints
+        run: python3 -m unittest discover -s ops/engineering/tests -p "test_*.py" -v
+      - name: Observe current engineering and release status
+        if: github.event_name != 'pull_request'
+        run: |
+          python3 ops/engineering/supervisor.py \
+            --manifest ops/engineering/team.json \
+            --gradle app/build.gradle.kts \
+            --output-dir engineering-audit
+      - name: Upload auditable status snapshot
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: engineering-supervisor-snapshot
+          path: engineering-audit/
+          retention-days: 14
