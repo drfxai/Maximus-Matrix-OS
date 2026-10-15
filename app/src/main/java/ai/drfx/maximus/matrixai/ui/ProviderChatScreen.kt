@@ -589,7 +589,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     Text(
                         if (state.smartComboRefreshing)
                             "Checking configured provider catalogs for explicit zero-cost pricing and context length…"
-                        else state.smartComboMessage,
+                        else localizedSmartComboDiagnostic(state.smartComboMessage),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
