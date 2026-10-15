@@ -1,6 +1,8 @@
 package ai.drfx.maximus.matrixai.ui
 
 import android.app.Application
+import ai.drfx.maximus.matrixai.R
+import ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -185,6 +187,14 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             notificationService.loadSavedState()
         }
+    }
+
+    /** User-facing policy messages follow the app locale, not the system-wide locale. */
+    private fun localizedUiString(resourceId: Int): String {
+        val app = getApplication<Application>()
+        val preference = LanguagePreferenceStore(app)
+        return LanguagePreferenceStore.localizedContext(app, preference.load())
+            .getString(resourceId)
     }
 
     private fun scheduleSmartComboRefresh() {
@@ -607,12 +617,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 return false
             }
             if (freeOffers.isEmpty()) {
-                appendAssistantError(
+                appendAssistantError(localizedUiString(
                     if (current.smartComboRefreshing)
-                        "Smart Combo is still checking provider catalogs. Wait for verification or explicitly switch to your selected provider."
-                    else
-                        "No catalog-confirmed free route. Refresh Smart Combo or choose 'Use selected provider' to disable free-only routing; the provider may charge."
-                )
+                        R.string.chat_combo_refresh_status
+                    else R.string.chat_combo_no_free_status
+                ))
                 return false
             }
         }
