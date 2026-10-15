@@ -472,4 +472,8 @@
     <string name="brain_group_data">Данные и знания</string>
     <string name="brain_group_routing">Маршрутизация моделей</string>
     <string name="brain_group_finops">Финансы и управление</string>
+    <string name="brain_status_planning">Планирование</string>
+    <string name="brain_status_executing">Выполнение</string>
+    <string name="brain_status_attention">Требует внимания</string>
+    <string name="brain_status_confirmation">Ожидание подтверждения</string>
 </resources>
