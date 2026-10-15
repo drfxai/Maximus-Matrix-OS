@@ -13,6 +13,8 @@ import android.speech.tts.TextToSpeech
 import ai.drfx.maximus.matrixai.voice.SpeechLanguage
 import ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore
 import ai.drfx.maximus.matrixai.voice.SpeechLanguagePolicy
+import ai.drfx.maximus.matrixai.voice.SpeechPlaybackPolicy
+import androidx.lifecycle.compose.currentStateAsState
 import ai.drfx.maximus.matrixai.voice.SpeechTranscriptGuard
 import ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceStore
 import androidx.compose.ui.res.stringResource
@@ -228,10 +230,6 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             if (recording) finishRecording()
         }
     }
-    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) startRecording()
-        else attachmentError = context.getString(R.string.speech_microphone_permission_required)
-    }
     val speechPreference = remember(context) { SpeechLanguagePreferenceStore(context) }
     var selectedSpeechLanguage by remember { mutableStateOf(speechPreference.selected()) }
     var speechFollowsAppLanguage by remember { mutableStateOf(speechPreference.explicitChoice() == null) }
@@ -240,7 +238,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var voiceLanguageMenuOpen by remember { mutableStateOf(false) }
     var voiceConversation by remember { mutableStateOf(false) }
     var voiceReplies by remember { mutableStateOf(false) }
-    var spokenReplyTimestamp by remember { mutableLongStateOf(-1L) }
+    val speechPlaybackPolicy = remember { SpeechPlaybackPolicy() }
+    var recognitionInProgress by remember { mutableStateOf(false) }
     var speechReady by remember { mutableStateOf(false) }
     var speechVoiceInstallNeeded by remember { mutableStateOf(false) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
@@ -249,9 +248,26 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         tts = engine
         onDispose { engine.stop(); engine.shutdown(); tts = null }
     }
+    fun stopVoicePlayback() {
+        tts?.stop()
+        voicePlayback.stop()
+        elevenJob?.cancel()
+        elevenPlayback.stop()
+    }
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            stopVoicePlayback()
+            startRecording()
+        } else attachmentError = context.getString(R.string.speech_microphone_permission_required)
+    }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val speechLifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
     DisposableEffect(lifecycleOwner, recorder, voicePlayback, tts) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE ||
+                event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                tts?.stop()
+            }
             if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
                 recorder.cancel()
                 recording = false
@@ -265,10 +281,14 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     LaunchedEffect(messages.lastOrNull()?.timestampMs, voiceReplies, speechReady,
-        state.isGenerating, selectedSpeechLanguage) {
+        state.isGenerating, selectedSpeechLanguage, speechLifecycleState, recognitionInProgress, recording) {
         val last = messages.lastOrNull()
         if (!state.isGenerating && voiceReplies && speechReady && last?.role == "assistant" &&
-            !last.isError && last.content.isNotBlank() && last.timestampMs != spokenReplyTimestamp) {
+            !last.isError && last.content.isNotBlank() && speechPlaybackPolicy.mayPlay(
+                last.timestampMs,
+                speechLifecycleState == androidx.lifecycle.Lifecycle.State.RESUMED,
+                recognitionInProgress || recording
+            )) {
             val language = SpeechLanguagePolicy.preferredTtsLanguage(
                 last.content, selectedSpeechLanguage
             ).locale()
@@ -282,7 +302,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             speechVoiceInstallNeeded = false
             if (engine.speak(last.content, TextToSpeech.QUEUE_FLUSH, null,
                     "reply-" + last.timestampMs) == TextToSpeech.SUCCESS) {
-                spokenReplyTimestamp = last.timestampMs
+                speechPlaybackPolicy.markSpoken(last.timestampMs)
             } else attachmentError = context.getString(R.string.brain_voice_playback_failed)
         }
     }
@@ -310,6 +330,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         uri?.let(::load)
     }
     val voiceInput = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        recognitionInProgress = false
         if (result.resultCode == Activity.RESULT_OK) {
             val selection = SpeechTranscriptGuard.choose(
                 result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS),
@@ -453,7 +474,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 IconButton(onClick = { tts?.stop(); voicePlayback.stop(); elevenJob?.cancel(); elevenPlayback.stop() }) { Icon(Icons.Default.Stop, stringResource(R.string.speech_stop_audio)) }
                 IconButton(
                     onClick = {
-                        if (!voiceReplies) spokenReplyTimestamp = messages.lastOrNull()?.timestampMs ?: -1L
+                        if (!voiceReplies) speechPlaybackPolicy.skipExistingReply(messages.lastOrNull()?.timestampMs)
                         voiceReplies = !voiceReplies
                         if (!voiceReplies) {
                             voiceConversation = false
@@ -545,7 +566,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     onCheckedChange = {
                         voiceConversation = it
                         if (it && !voiceReplies) {
-                            spokenReplyTimestamp = messages.lastOrNull()?.timestampMs ?: -1L
+                            speechPlaybackPolicy.skipExistingReply(messages.lastOrNull()?.timestampMs)
                             voiceReplies = true
                         }
                     },
@@ -911,17 +932,22 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, recordingSpeechLanguage.tag)
                             .putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.speech_prompt))
                             .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                        recognitionInProgress = true
                         try { voiceInput.launch(intent) }
-                        catch (e: Exception) { attachmentError = context.getString(R.string.speech_recognizer_unavailable) }
-                    }, enabled = !recording, modifier = Modifier.size(36.dp)) {
+                        catch (e: Exception) {
+                            recognitionInProgress = false
+                            attachmentError = context.getString(R.string.speech_recognizer_unavailable)
+                        }
+                    }, enabled = !recording && !recognitionInProgress, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Default.KeyboardVoice, stringResource(R.string.speech_dictate), modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = {
+                        stopVoicePlayback()
                         if (recording) finishRecording()
                         else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
                             PackageManager.PERMISSION_GRANTED) startRecording()
                         else micPermission.launch(Manifest.permission.RECORD_AUDIO)
-                    }, modifier = Modifier.size(36.dp)) {
+                    }, enabled = !recognitionInProgress, modifier = Modifier.size(36.dp)) {
                         Icon(if (recording) Icons.Default.StopCircle else Icons.Default.FiberManualRecord,
                             if (recording) stringResource(R.string.speech_stop_audio) else stringResource(R.string.speech_record),
                             tint = if (recording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
