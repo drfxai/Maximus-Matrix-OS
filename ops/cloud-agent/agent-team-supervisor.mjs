@@ -10,7 +10,10 @@ export function validateTeam(input) {
   if (input.job !== 'GITHUB_RELEASES' || !PERIODS.has(input.periodMinutes)) return null;
   if (typeof input.repository !== 'string' || !REPO.test(input.repository)) return null;
   const [owner, name] = input.repository.split('/');
-  if (owner === '.' || owner === '..' || name === '.' || name === '..') return null;
+  // GitHub account owners allow letters, numbers and internal hyphens only.
+  // In particular dotted IPv4 literals must not be accepted as "owners".
+  if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(owner) ||
+      name === '.' || name === '..') return null;
   return { job: input.job, periodMinutes: input.periodMinutes, repository: input.repository };
 }
 
