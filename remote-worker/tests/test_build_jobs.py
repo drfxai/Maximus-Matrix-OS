@@ -38,7 +38,10 @@ class FakeIsolatedRunner:
     def check(self):
         pass
 
-    def run(self, source, output):
+    def cleanup(self, container_name, owner_id):
+        pass
+
+    def run(self, source, output, **ownership):
         self.runs += 1
         assert (source / "settings.gradle.kts").is_file()
         path = output / "project-debug.apk"
@@ -60,13 +63,16 @@ class ArchiveTests(unittest.TestCase):
         builder = RootlessBuilder('example/sdk@sha256:' + 'a' * 64)
         with tempfile.TemporaryDirectory() as root, patch('build_jobs.subprocess.run') as run:
             run.side_effect = [subprocess.TimeoutExpired('docker', 600),
+                               subprocess.CompletedProcess([], 0, stdout='a' * 12),
+                               subprocess.CompletedProcess([], 0, stdout='b' * 32),
                                subprocess.CompletedProcess([], 0)]
             with self.assertRaises(subprocess.TimeoutExpired):
-                builder.run(pathlib.Path(root), pathlib.Path(root))
+                builder.run(pathlib.Path(root), pathlib.Path(root), owner_id="b" * 32)
             invocation = run.call_args_list[0].args[0]
             name = next(arg.split('=', 1)[1] for arg in invocation if arg.startswith('--name='))
             self.assertRegex(name, r'^maximus-debug-[a-f0-9]{32}$')
-            self.assertEqual(['docker', 'rm', '--force', name], run.call_args_list[1].args[0])
+            self.assertEqual(['docker', 'rm', '--force', 'a' * 12], run.call_args_list[3].args[0])
+            self.assertIn('name=^/' + name + '$', run.call_args_list[1].args[0])
 
     def test_only_bounded_android_sources_accepted(self):
         self.assertEqual(3, len(validate_zip(project_zip())))
@@ -106,7 +112,8 @@ class ArchiveTests(unittest.TestCase):
 class HttpBuildTests(unittest.TestCase):
     def setUp(self):
         self.runner = FakeIsolatedRunner()
-        self.coordinator = BuildCoordinator(self.runner)
+        self.state_directory = tempfile.TemporaryDirectory()
+        self.coordinator = BuildCoordinator(self.runner, self.state_directory.name)
         self.server = make_server("127.0.0.1", 0, TOKEN, self.coordinator)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -115,6 +122,8 @@ class HttpBuildTests(unittest.TestCase):
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=3)
+        self.coordinator.close()
+        self.state_directory.cleanup()
 
     def request(self, method, path, payload=None, auth=True):
         headers = {"Content-Type": "application/json"}

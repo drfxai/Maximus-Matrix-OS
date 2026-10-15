@@ -17,6 +17,7 @@ import os
 import platform
 import re
 import secrets
+import sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 API_VERSION = 1
@@ -173,12 +174,15 @@ def main() -> None:
     builder_image = os.environ.get("MAXIMUS_BUILDER_IMAGE", "")
     try:
         coordinator = None
+        validate_configuration(args.host, token)
         if builder_image:
             from build_jobs import BuildCoordinator, RootlessBuilder
-            coordinator = BuildCoordinator(RootlessBuilder(builder_image))
+            coordinator = BuildCoordinator(RootlessBuilder(builder_image), os.environ.get("MAXIMUS_WORKER_STATE_DIR") or None)
         server = make_server(args.host, args.port, token, coordinator)
     except ValueError as error:
         parser.error(str(error))
+    except (OSError, RuntimeError, sqlite3.DatabaseError):
+        parser.error("Worker ownership, sandbox or journal initialization failed; inspect private host state.")
     print(f"Maximus discovery gateway listening on {args.host}:{server.server_port}", flush=True)
     try:
         server.serve_forever(poll_interval=0.2)
@@ -186,6 +190,11 @@ def main() -> None:
         pass
     finally:
         server.server_close()
+        if coordinator is not None:
+            try:
+                coordinator.close()
+            except RuntimeError:
+                pass  # Active job remains journaled for the next process recovery.
 
 
 if __name__ == "__main__":
