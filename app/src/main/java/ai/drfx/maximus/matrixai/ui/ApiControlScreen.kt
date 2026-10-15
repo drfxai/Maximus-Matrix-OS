@@ -54,7 +54,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
         item {
             Text(stringResource(R.string.api_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                stringResource(R.string.api_desc),
+                stringResource(R.string.api_intro),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 lineHeight = 17.sp
@@ -76,8 +76,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     color = if (state.smartComboEnabled && state.smartComboOffers > 0) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.api_verified_offers, state.smartComboOffers),
-                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.api_verified_offers, state.smartComboOffers), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     OutlinedButton(
                         onClick = viewModel::refreshSmartCombo,
                         enabled = state.smartComboEnabled && !state.smartComboRefreshing && !state.isGenerating
@@ -93,7 +92,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         Text("• " + smartComboProviderLabel(check), fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(stringResource(R.string.api_provider_warning),
+                    Text(stringResource(R.string.api_pricing_warning),
                         fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (state.smartComboRouteLabels.isNotEmpty()) {
@@ -106,21 +105,19 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                             horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                             Icon(Icons.Default.Bolt, null, tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(15.dp))
-                            Text(label.removeSuffix(" · zero catalog price") + " · " +
-                                stringResource(R.string.combo_zero_price),
-                                fontSize = 11.sp, modifier = Modifier.weight(1f))
+                            Text(label, fontSize = 11.sp, modifier = Modifier.weight(1f))
                         }
                     }
                     if (state.smartComboOffers > state.smartComboRouteLabels.size) {
-                        Text(stringResource(R.string.api_first_offers,
-                                state.smartComboRouteLabels.size, state.smartComboOffers),
+                        Text(stringResource(R.string.api_visible_offers,
+                            state.smartComboRouteLabels.size, state.smartComboOffers),
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(stringResource(R.string.api_catalog_note),
+                    Text(stringResource(R.string.api_free_evidence_note),
                         fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(stringResource(R.string.api_auto_policy),
+                Text(stringResource(R.string.api_free_only_caution),
                     fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -134,7 +131,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Text(stringResource(R.string.api_presets), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 Text(
-                    stringResource(R.string.api_presets_hint),
+                    stringResource(R.string.api_provider_presets_info),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
@@ -219,7 +216,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            stringResource(R.string.api_usage_context),
+                            stringResource(R.string.api_context_used),
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -247,16 +244,16 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                Text(stringResource(R.string.api_usage_note), fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.api_usage_estimate_info), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (metrics.streamingEstimateActive) {
                     MetricLine(
-                        "LIVE OUTPUT · ESTIMATE ONLY",
-                        "~${numberFormat.format(metrics.streamingOutputTokensEstimate)} tokens",
+                        stringResource(R.string.api_live_output),
+                        stringResource(R.string.api_estimated_output,
+                            numberFormat.format(metrics.streamingOutputTokensEstimate)),
                         MaterialTheme.colorScheme.tertiary
                     )
                     Text(
-                        stringResource(R.string.api_stream_estimate),
+                        stringResource(R.string.api_streaming_estimate_warning),
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -264,21 +261,22 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
 
                 if (metrics.rateEvidenceAtEpochMs != null) {
                     MetricLine(
-                        "Verified rate requests left (${metrics.verifiedRequestRateKind})",
-                        metrics.verifiedRateRequestsRemaining?.let(numberFormat::format) ?: "Unknown",
+                        stringResource(R.string.api_rate_requests,
+                            metrics.verifiedRequestRateKind),
+                        metrics.verifiedRateRequestsRemaining?.let(numberFormat::format) ?: stringResource(R.string.api_unknown),
                         MaterialTheme.colorScheme.primary
                     )
                     MetricLine(
-                        "Verified rate tokens left (TPM)",
-                        metrics.verifiedRateTokensRemaining?.let(numberFormat::format) ?: "Unknown",
+                        stringResource(R.string.api_rate_tokens),
+                        metrics.verifiedRateTokensRemaining?.let(numberFormat::format) ?: stringResource(R.string.api_unknown),
                         MaterialTheme.colorScheme.primary
                     )
-                    Text("HTTP provider snapshot (not account credit). Refreshes on the next response; may expire or change on other devices.",
+                    Text(stringResource(R.string.api_provider_snapshot),
                         fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     MetricLine(
-                        "Provider rate balance / account credit",
-                        "Unknown (no authoritative response headers)",
+                        stringResource(R.string.api_rate_account),
+                        stringResource(R.string.api_rate_no_headers),
                         MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -288,16 +286,18 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     StatBox(
-                        title = "CONSUMED (TURN)",
+                        title = stringResource(R.string.api_stat_turn),
                         value = numberFormat.format(metrics.consumedTurnTotalTokens),
-                        subtext = "In: ${numberFormat.format(metrics.consumedTurnInputTokens)} · Out: ${numberFormat.format(metrics.consumedTurnOutputTokens)}",
+                        subtext = stringResource(R.string.api_stat_in_out,
+                            numberFormat.format(metrics.consumedTurnInputTokens),
+                            numberFormat.format(metrics.consumedTurnOutputTokens)),
                         valueColor = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     )
                     StatBox(
-                        title = "EST. CONTEXT LEFT",
+                        title = stringResource(R.string.api_stat_context_left),
                         value = numberFormat.format(metrics.remainingContextTokens),
-                        subtext = "Max: ${numberFormat.format(metrics.contextCapacity)}",
+                        subtext = stringResource(R.string.api_stat_max, numberFormat.format(metrics.contextCapacity)),
                         valueColor = Color(0xFF00E676),
                         modifier = Modifier.weight(1f)
                     )
@@ -308,16 +308,16 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     StatBox(
-                        title = "SESSION CONSUMED",
+                        title = stringResource(R.string.api_stat_session),
                         value = numberFormat.format(metrics.consumedSessionTokens),
-                        subtext = "Active chat turns",
+                        subtext = stringResource(R.string.api_stat_active_turns),
                         valueColor = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f)
                     )
                     StatBox(
-                        title = "LIFETIME CONSUMED",
+                        title = stringResource(R.string.api_stat_lifetime),
                         value = numberFormat.format(usage.totalTokens),
-                        subtext = "${numberFormat.format(usage.requests)} completed API requests",
+                        subtext = stringResource(R.string.api_stat_completed_requests, numberFormat.format(usage.requests)),
                         valueColor = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f)
                     )
@@ -325,7 +325,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
 
                 if (metrics.remainingBudgetTokens != null) {
                     MetricLine(
-                        "Local Lifetime Budget Remaining (not provider quota)",
+                        stringResource(R.string.api_local_budget_remaining),
                         "${numberFormat.format(metrics.remainingBudgetTokens)} / ${numberFormat.format(metrics.monthlyTokenBudget)}",
                         if (metrics.remainingBudgetTokens < (metrics.monthlyTokenBudget * 0.15)) MaterialTheme.colorScheme.error
                         else Color(0xFF00E676)
@@ -355,16 +355,16 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Text(stringResource(R.string.api_status), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 MetricLine(
-                    "Status",
+                    stringResource(R.string.api_status_label),
                     state.status.name,
                     if (state.status == ConnectionStatus.CONNECTED) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.tertiary
                 )
-                MetricLine("Engine Provider", state.provider.displayName, MaterialTheme.colorScheme.onSurface)
-                MetricLine("Active Model", state.selectedModel.ifBlank { "None" }, MaterialTheme.colorScheme.onSurface)
-                MetricLine("Estimated Model Context Limit", "${numberFormat.format(metrics.contextCapacity)} tokens", MaterialTheme.colorScheme.primary)
-                MetricLine("Conversational Personas", state.supportedAgents.size.toString(), MaterialTheme.colorScheme.onSurface)
-                MetricLine("Base Endpoint", state.baseUrl.ifBlank { "Default Provider URL" }, MaterialTheme.colorScheme.onSurfaceVariant)
+                MetricLine(stringResource(R.string.api_provider_label), state.provider.displayName, MaterialTheme.colorScheme.onSurface)
+                MetricLine(stringResource(R.string.api_model_label), state.selectedModel.ifBlank { stringResource(R.string.api_none) }, MaterialTheme.colorScheme.onSurface)
+                MetricLine(stringResource(R.string.api_model_limit), stringResource(R.string.api_token_count, numberFormat.format(metrics.contextCapacity)), MaterialTheme.colorScheme.primary)
+                MetricLine(stringResource(R.string.api_personas_label), state.supportedAgents.size.toString(), MaterialTheme.colorScheme.onSurface)
+                MetricLine(stringResource(R.string.api_endpoint_label), state.baseUrl.ifBlank { stringResource(R.string.api_default_endpoint) }, MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -377,7 +377,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     Text(stringResource(R.string.api_budget), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
                 Text(
-                    "Configure local usage tracking. Provider account quotas are not enforced here.",
+                    stringResource(R.string.api_budget_info),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
@@ -385,22 +385,22 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                     value = tokenBudgetInput,
                     onValueChange = { value -> tokenBudgetInput = value.filter { it.isDigit() }.take(12) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Local lifetime token budget (e.g., 1000000)") },
-                    placeholder = { Text("Leave blank for unlimited") },
+                    label = { Text(stringResource(R.string.api_local_budget_input)) },
+                    placeholder = { Text(stringResource(R.string.api_unlimited)) },
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = planLabel,
                     onValueChange = { planLabel = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Plan / subscription label") },
+                    label = { Text(stringResource(R.string.api_subscription_label)) },
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = budgetUsd,
                     onValueChange = { value -> budgetUsd = value.filter { it.isDigit() || it == '.' }.take(10) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("USD planning preference (not enforced)") },
+                    label = { Text(stringResource(R.string.api_usd_planning)) },
                     singleLine = true
                 )
                 Button(
