@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.RejectedExecutionException
@@ -46,6 +47,9 @@ internal class PhoneHarnessHttpServer(
         { id -> PhoneBuildSession.forContext(application).cancelOwned(id) }
     )
     private val socket = ServerSocket()
+    // Keep track of live/queued sockets so a restart never races outstanding
+    // loopback clients or leaves the fixed development port pinned.
+    private val clients = ConcurrentHashMap.newKeySet<Socket>()
     private val executor = ThreadPoolExecutor(
         2, 2, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(4),
         { runnable ->
@@ -81,10 +85,14 @@ internal class PhoneHarnessHttpServer(
                         client.close()
                         break
                     }
+                    clients.add(client)
                     try {
-                        executor.execute { handle(client) }
+                        executor.execute {
+                            try { handle(client) } finally { clients.remove(client) }
+                        }
                     } catch (_: RejectedExecutionException) {
                         // Bounded queue. A local flood must not retain sockets forever.
+                        clients.remove(client)
                         client.close()
                     }
                 } catch (_: Exception) {
@@ -360,13 +368,20 @@ internal class PhoneHarnessHttpServer(
     }
 
     override fun close() {
+        // Stop admission, then terminate every in-flight/queued connection.
+        // The old server must be fully detached before a new listener can bind
+        // the same 127.0.0.1 port after the user restarts Phone Host.
         invalidate()
+        clients.forEach { runCatching { it.close() } }
+        executor.shutdownNow()
+        // This is called by the lifecycle IO thread in production.
+        runCatching { executor.awaitTermination(800, TimeUnit.MILLISECONDS) }
+        clients.clear()
         synchronized(projectAuthorization) {
             jobs.close()
             approvedProject = null
         }
         socket.close()
-        executor.shutdownNow()
         tokenBytes.fill(0)
     }
 }
