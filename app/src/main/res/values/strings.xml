@@ -777,4 +777,5 @@
     <string name="team_hindsight_success">Hindsight confirmed the project-team handoff was submitted.</string>
     <string name="team_hindsight_review">Review and share team handoff</string>
     <string name="team_hindsight_disabled">Enable Hindsight for this project to review a manual handoff.</string>
+    <string name="cloud_agent_recent_reports">Recent reports from verified sources</string>
 </resources>

@@ -20,6 +20,30 @@ class CloudTeamHealthClientTest {
         }
     }
 
+    @Test fun savedBearerCanNeverBeProbedAgainstEditedOrigin() {
+        val pinned = "https://worker.example.org"
+        assertTrue(CloudTeamHealthClient.matchesSavedOrigin(pinned, pinned))
+        assertFalse(CloudTeamHealthClient.matchesSavedOrigin("https://other.example.org", pinned))
+        assertFalse(CloudTeamHealthClient.matchesSavedOrigin(pinned + "/", pinned))
+        assertFalse(CloudTeamHealthClient.matchesSavedOrigin(pinned, ""))
+    }
+
+    @Test fun reportsReadOnlyAcceptVerifiedSourceEvidenceAndRejectMalformedRows() = runBlocking {
+        val client = CloudTeamHealthClient { url ->
+            assertEquals("https://worker.example.org/v1/reports", url.toString())
+            Stub(url, 200, """{"reports":[
+              {"team_id":"00112233-4455-6677-8899-aabbccddeeff","status":"VERIFIED","summary":"GitHub CI: failure","observed_at":1234567},
+              {"team_id":"malicious","status":"VERIFIED","summary":"fake","observed_at":1234567},
+              {"team_id":"00112233-4455-6677-8899-aabbccddeeff","status":"EXECUTED","summary":"fake","observed_at":1234567}
+            ]}""")
+        }
+        val reports = client.reports("https://worker.example.org", secret)
+        assertEquals(1, reports.size)
+        assertEquals("GitHub CI: failure", reports.single().summary)
+        assertEquals("VERIFIED", reports.single().status)
+        Unit
+    }
+
     @Test fun healthUsesOneAuthenticatedBoundedReadAndNeverFollowsRedirects() = runBlocking {
         var opened = 0
         val client = CloudTeamHealthClient { url ->

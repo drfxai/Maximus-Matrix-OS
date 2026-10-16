@@ -777,4 +777,5 @@
     <string name="team_hindsight_success">Отправка результата команды в Hindsight подтверждена.</string>
     <string name="team_hindsight_review">Проверить и передать результат команды</string>
     <string name="team_hindsight_disabled">Включите Hindsight для этого проекта, чтобы отправить результат вручную.</string>
+    <string name="cloud_agent_recent_reports">Последние отчёты с проверяемыми источниками</string>
 </resources>

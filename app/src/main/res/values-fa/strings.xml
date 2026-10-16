@@ -777,4 +777,5 @@
     <string name="team_hindsight_success">ارسال نتیجه تیم به Hindsight تأیید شد.</string>
     <string name="team_hindsight_review">بررسی و اشتراک نتیجه تیم</string>
     <string name="team_hindsight_disabled">برای اشتراک‌گذاری دستی نتیجه، Hindsight را برای این پروژه فعال کنید.</string>
+    <string name="cloud_agent_recent_reports">گزارش‌های اخیر با منبع قابل بررسی</string>
 </resources>
