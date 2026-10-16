@@ -39,6 +39,7 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
             )
         }
         item { AgentTeamPanel() }
+        item { CloudTeamStatusPanel() }
         item { DeveloperConnectionsPanel() }
         item { HorizontalDivider() }
         items(AgentRegistry.agents) { agent ->
