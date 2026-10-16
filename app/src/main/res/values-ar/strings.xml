@@ -761,4 +761,13 @@
     <string name="models_verify_bytes">التحقق من ملف النموذج</string>
     <string name="models_hash_verified">تطابق SHA-256 الملف مع القيمة المحددة؛ لم يتم التحقق من تشغيل النموذج.</string>
     <string name="models_hash_failed">بصمة الملف غير متطابقة أو تعذرت قراءته.</string>
+    <string name="cloud_agent_title">اتصال الوكيل السحابي</string>
+    <string name="cloud_agent_notice">تعمل الفرق فقط على عامل سحابي منشور بموافقة المستخدم. لا يؤكد هذا الفحص استدلالا مستمرا.</string>
+    <string name="cloud_agent_endpoint">عنوان HTTPS للعامل</string>
+    <string name="cloud_agent_token">رمز وصول العامل (ليس مفتاح إدارة API)</string>
+    <string name="cloud_agent_save">حفظ محلي</string>
+    <string name="cloud_agent_check">فحص الحالة</string>
+    <string name="cloud_agent_ready">العامل السحابي متاح · %1$d فرق مهيأة</string>
+    <string name="cloud_agent_unavailable">لم يتم التحقق من العامل أو أنه غير متاح.</string>
+    <string name="cloud_agent_disconnect">قطع الاتصال</string>
 </resources>
