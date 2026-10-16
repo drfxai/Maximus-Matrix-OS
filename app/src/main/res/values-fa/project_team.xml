@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="project_team_title">تیم ایجنت پروژه</string>
+    <string name="project_team_boundary">برنامه‌ریز ← بازبین · درخواست واقعی به پرووایدر. خروجی فقط پیشنهاد است؛ فایل، بیلد و استقرار تغییر نمی‌کند.</string>
+    <string name="project_team_roles">نقش ایجنت‌ها</string>
+    <string name="project_team_output_limit">حداکثر توکن خروجی</string>
+    <string name="project_team_other_project">تیم اکنون در اختیار پروژه دیگری است.</string>
+    <string name="project_team_prepare">آماده‌سازی اجرای تیم</string>
+    <string name="project_team_awaiting">پیش از تأیید ورودی ثبت‌شده را بررسی کنید</string>
+    <string name="project_team_planner_ready">برنامه‌ریز آماده است</string>
+    <string name="project_team_planner_running">درخواست برنامه‌ریز در حال اجراست</string>
+    <string name="project_team_reviewer_ready">بازبین آماده است</string>
+    <string name="project_team_reviewer_running">درخواست بازبین در حال اجراست</string>
+    <string name="project_team_complete">هر دو پاسخ ذخیره شد · اجرای کد تأیید نشده</string>
+    <string name="project_team_cancelled">اجرا متوقف شد</string>
+    <string name="project_team_uncertain">نتیجه درخواست نامشخص است · تکرار خودکار انجام نمی‌شود</string>
+    <string name="project_team_blocked">اجرا مسدود است · تأیید جدید آماده کنید</string>
+    <string name="project_team_inputs">اطلاعات ثبت‌شده و نسخه پروژه</string>
+    <string name="project_team_consent">عنوان، توضیح و مسیر فایل‌های ثبت‌شده به مسیرهای رایگانِ تأییدشده ارسال شود. حداکثر دو درخواست؛ سهمیه حساب نامشخص است. محتوای فایل ارسال نمی‌شود.</string>
+    <string name="project_team_approve">تأیید دو درخواست</string>
+    <string name="project_team_stop">توقف و لغو مجوز</string>
+    <string name="project_team_planner">پیشنهاد برنامه‌ریز</string>
+    <string name="project_team_reviewer">یافته‌های بازبین</string>
+    <string name="project_team_estimated">توکن تخمینی · ورودی %1$d · خروجی %2$d</string>
+    <string name="project_team_reported">توکن گزارش‌شده پرووایدر · ورودی %1$d · خروجی %2$d</string>
+    <string name="project_team_prepare_failed">آماده‌سازی یا تأیید ممکن نشد. مسیرهای رایگان را تازه‌سازی و تغییر نکردن پروژه را بررسی کنید.</string>
+    <string name="project_team_invalid">نقطه ذخیره تیم نامعتبر است</string>
+    <string name="project_team_discard">کنار گذاشتن نقطه ذخیره نامعتبر</string>
+    <string name="project_team_keep">نگه داشتن نقطه ذخیره</string>
+    <string name="project_team_discard_help">نقطه ذخیره ناخوانا جدا می‌شود تا تأیید تازه‌ای آماده کنید. هیچ درخواستی دوباره ارسال نمی‌شود.</string>
+</resources>

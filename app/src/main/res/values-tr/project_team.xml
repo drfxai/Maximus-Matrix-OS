@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="project_team_title">Proje ajan ekibi</string>
+    <string name="project_team_boundary">Planlayıcı → İnceleyen · gerçek sağlayıcı istekleri. Yalnızca öneri; dosyalar, derlemeler ve dağıtımlar değişmez.</string>
+    <string name="project_team_roles">Ajan rolleri</string>
+    <string name="project_team_output_limit">En fazla çıktı tokenı</string>
+    <string name="project_team_other_project">Ekip şu anda başka bir projeye ayrılmış.</string>
+    <string name="project_team_prepare">Ekip çalışmasını hazırla</string>
+    <string name="project_team_awaiting">Onaydan önce kaydedilen girdileri inceleyin</string>
+    <string name="project_team_planner_ready">Planlayıcı hazır</string>
+    <string name="project_team_planner_running">Planlayıcı isteği sürüyor</string>
+    <string name="project_team_reviewer_ready">İnceleyen hazır</string>
+    <string name="project_team_reviewer_running">İnceleyen isteği sürüyor</string>
+    <string name="project_team_complete">İki yanıt kaydedildi · yürütme doğrulanmadı</string>
+    <string name="project_team_cancelled">Çalışma durduruldu</string>
+    <string name="project_team_uncertain">İstek sonucu belirsiz · otomatik tekrar yok</string>
+    <string name="project_team_blocked">Çalışma engellendi · yeni onay hazırlayın</string>
+    <string name="project_team_inputs">Kaydedilen bilgiler ve proje sürümü</string>
+    <string name="project_team_consent">Kaydedilen proje adı, açıklaması ve yolları doğrulanmış ücretsiz rotalara gönderilsin. En fazla iki istek; hesap kotası bilinmiyor. Dosya içeriği eklenmez.</string>
+    <string name="project_team_approve">İki isteği onayla</string>
+    <string name="project_team_stop">Durdur ve izni kaldır</string>
+    <string name="project_team_planner">Planlayıcı önerisi</string>
+    <string name="project_team_reviewer">İnceleyen bulguları</string>
+    <string name="project_team_estimated">Tahmini token · girdi %1$d · çıktı %2$d</string>
+    <string name="project_team_reported">Sağlayıcının bildirdiği token · girdi %1$d · çıktı %2$d</string>
+    <string name="project_team_prepare_failed">Hazırlama veya onay başarısız. Ücretsiz rotaları yenileyin ve projenin değişmediğini doğrulayın.</string>
+    <string name="project_team_invalid">Takım kontrol noktası geçersiz</string>
+    <string name="project_team_discard">Geçersiz kaydı ayır</string>
+    <string name="project_team_keep">Kaydı koru</string>
+    <string name="project_team_discard_help">Okunamayan kaydı ayırıp yeni onay hazırlayın. Hiçbir istek yeniden gönderilmez.</string>
+</resources>

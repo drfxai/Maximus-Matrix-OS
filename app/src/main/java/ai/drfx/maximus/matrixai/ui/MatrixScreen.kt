@@ -276,6 +276,13 @@ fun MatrixScreen(
                         modifier = Modifier.fillMaxSize()
                     )
                     Destination.STUDIO -> ProjectStudioScreen(
+                        projectTeamRun = viewModel.projectTeamRun.collectAsState().value,
+                        projectTeamInvalid = viewModel.projectTeamInvalid.collectAsState().value,
+                        onDiscardInvalidTeam = viewModel::discardInvalidProjectTeam,
+                        projectTeamMessage = viewModel.projectTeamMessage.collectAsState().value,
+                        onPrepareTeam = viewModel::prepareProjectTeam,
+                        onApproveTeam = viewModel::approveProjectTeam,
+                        onCancelTeam = viewModel::cancelProjectTeam,
                         onPlanWithAi = { prompt ->
                             val submitted = viewModel.sendChat(prompt)
                             if (submitted) destination = Destination.CHAT

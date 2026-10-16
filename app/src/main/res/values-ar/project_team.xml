@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="project_team_title">فريق وكلاء المشروع</string>
+    <string name="project_team_boundary">مخطط ← مراجع · طلبات فعلية للمزود. اقتراحات فقط؛ لا تتغير الملفات أو عمليات البناء والنشر.</string>
+    <string name="project_team_roles">أدوار الوكلاء</string>
+    <string name="project_team_output_limit">أقصى رموز الإخراج</string>
+    <string name="project_team_other_project">فريق التنفيذ مشغول بمشروع آخر.</string>
+    <string name="project_team_prepare">إعداد تشغيل الفريق</string>
+    <string name="project_team_awaiting">راجع المدخلات المحفوظة قبل الموافقة</string>
+    <string name="project_team_planner_ready">المخطط جاهز</string>
+    <string name="project_team_planner_running">طلب المخطط قيد التنفيذ</string>
+    <string name="project_team_reviewer_ready">المراجع جاهز</string>
+    <string name="project_team_reviewer_running">طلب المراجع قيد التنفيذ</string>
+    <string name="project_team_complete">حُفظ الردان · التنفيذ غير متحقق</string>
+    <string name="project_team_cancelled">توقف التشغيل</string>
+    <string name="project_team_uncertain">نتيجة الطلب مجهولة · لا إعادة تلقائية</string>
+    <string name="project_team_blocked">التشغيل محظور · جهز موافقة جديدة</string>
+    <string name="project_team_inputs">البيانات المحفوظة ومراجعة المشروع</string>
+    <string name="project_team_consent">أرسل عنوان المشروع ووصفه ومساراته المحفوظة إلى مسارات ثبت أنها مجانية. طلبان كحد أقصى؛ حصة الحساب مجهولة. لا تُرفق محتويات الملفات.</string>
+    <string name="project_team_approve">الموافقة على طلبين</string>
+    <string name="project_team_stop">إيقاف وسحب الإذن</string>
+    <string name="project_team_planner">اقتراح المخطط</string>
+    <string name="project_team_reviewer">نتائج المراجع</string>
+    <string name="project_team_estimated">رموز تقديرية · إدخال %1$d · إخراج %2$d</string>
+    <string name="project_team_reported">رموز أبلغ عنها المزود · إدخال %1$d · إخراج %2$d</string>
+    <string name="project_team_prepare_failed">تعذر الإعداد أو الموافقة. حدّث المسارات المجانية وتحقق من عدم تغير المشروع.</string>
+    <string name="project_team_invalid">نقطة حفظ الفريق غير صالحة</string>
+    <string name="project_team_discard">عزل نقطة الحفظ غير الصالحة</string>
+    <string name="project_team_keep">الاحتفاظ بنقطة الحفظ</string>
+    <string name="project_team_discard_help">اعزل نقطة الحفظ غير المقروءة وجهز موافقة جديدة. لن يعاد إرسال أي طلب.</string>
+</resources>

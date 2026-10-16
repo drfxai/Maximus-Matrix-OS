@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="project_team_title">Команда агентов проекта</string>
+    <string name="project_team_boundary">Планировщик → Рецензент · реальные запросы провайдеру. Только предложения; файлы, сборки и развёртывания не меняются.</string>
+    <string name="project_team_roles">Роли агентов</string>
+    <string name="project_team_output_limit">Предел выходных токенов</string>
+    <string name="project_team_other_project">Команда сейчас занята другим проектом.</string>
+    <string name="project_team_prepare">Подготовить запуск команды</string>
+    <string name="project_team_awaiting">Проверьте сохранённые данные до подтверждения</string>
+    <string name="project_team_planner_ready">Планировщик готов</string>
+    <string name="project_team_planner_running">Запрос планировщика выполняется</string>
+    <string name="project_team_reviewer_ready">Рецензент готов</string>
+    <string name="project_team_reviewer_running">Запрос рецензента выполняется</string>
+    <string name="project_team_complete">Оба ответа сохранены · выполнение не проверено</string>
+    <string name="project_team_cancelled">Запуск остановлен</string>
+    <string name="project_team_uncertain">Результат запроса неизвестен · автоповтора нет</string>
+    <string name="project_team_blocked">Запуск заблокирован · подготовьте новое согласие</string>
+    <string name="project_team_inputs">Сохранённые данные и ревизия проекта</string>
+    <string name="project_team_consent">Отправить сохранённые название, описание и пути проекта по проверенным бесплатным маршрутам. Не более двух запросов; квота аккаунта неизвестна. Содержимое файлов не прилагается.</string>
+    <string name="project_team_approve">Подтвердить два запроса</string>
+    <string name="project_team_stop">Остановить и отозвать</string>
+    <string name="project_team_planner">Предложение планировщика</string>
+    <string name="project_team_reviewer">Замечания рецензента</string>
+    <string name="project_team_estimated">Оценка токенов · ввод %1$d · вывод %2$d</string>
+    <string name="project_team_reported">Токены по отчёту провайдера · ввод %1$d · вывод %2$d</string>
+    <string name="project_team_prepare_failed">Не удалось подготовить или подтвердить. Обновите бесплатные маршруты и убедитесь, что проект не изменился.</string>
+    <string name="project_team_invalid">Поврежденная контрольная точка команды</string>
+    <string name="project_team_discard">Изолировать контрольную точку</string>
+    <string name="project_team_keep">Сохранить контрольную точку</string>
+    <string name="project_team_discard_help">Изолировать нечитаемую запись и подготовить новое согласие. Запросы не повторяются.</string>
+</resources>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="project_team_title">Project agent team</string>
+    <string name="project_team_boundary">Planner → Reviewer · real provider requests. Proposals only; files, builds and deployments stay unchanged.</string>
+    <string name="project_team_roles">Agent roles</string>
+    <string name="project_team_output_limit">Maximum output tokens</string>
+    <string name="project_team_other_project">Another project currently owns the team lease.</string>
+    <string name="project_team_prepare">Prepare team run</string>
+    <string name="project_team_awaiting">Review captured inputs before approval</string>
+    <string name="project_team_planner_ready">Planner ready</string>
+    <string name="project_team_planner_running">Planner request in progress</string>
+    <string name="project_team_reviewer_ready">Reviewer ready</string>
+    <string name="project_team_reviewer_running">Reviewer request in progress</string>
+    <string name="project_team_complete">Both responses saved · execution unverified</string>
+    <string name="project_team_cancelled">Run stopped</string>
+    <string name="project_team_uncertain">Request outcome uncertain · never replayed automatically</string>
+    <string name="project_team_blocked">Run blocked · prepare a new approval</string>
+    <string name="project_team_inputs">Captured metadata and revision</string>
+    <string name="project_team_consent">Send this captured project title, brief and paths to verified-free routes. Two requests maximum; account quota remains unknown. No source contents are attached.</string>
+    <string name="project_team_approve">Approve two requests</string>
+    <string name="project_team_stop">Stop and revoke</string>
+    <string name="project_team_planner">Planner proposal</string>
+    <string name="project_team_reviewer">Reviewer findings</string>
+    <string name="project_team_estimated">Estimated tokens · input %1$d · output %2$d</string>
+    <string name="project_team_reported">Provider-reported tokens · input %1$d · output %2$d</string>
+    <string name="project_team_prepare_failed">Could not prepare or approve. Refresh free routes and verify the project has not changed.</string>
+    <string name="project_team_invalid">Invalid saved team checkpoint</string>
+    <string name="project_team_discard">Discard invalid checkpoint</string>
+    <string name="project_team_keep">Keep checkpoint</string>
+    <string name="project_team_discard_help">Quarantine the unreadable checkpoint and prepare a fresh approval. No request is replayed.</string>
+</resources>

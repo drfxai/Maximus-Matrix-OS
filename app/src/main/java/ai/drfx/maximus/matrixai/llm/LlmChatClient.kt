@@ -9,14 +9,20 @@ import java.net.URL
 import android.util.Base64
 import java.util.UUID
 
-class LlmChatClient {
+class LlmChatClient(private val requestTransport: ((String, String, Map<String, String>) -> String)? = null) {
+    private val dispatchGuard = ThreadLocal<(() -> Unit)?>()
     suspend fun send(
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
         agent: AgentDescriptor,
+        maxOutputTokens: Int? = null,
+        beforeDispatch: (() -> Unit)? = null,
         onQuota: ((List<SmartComboPlanner.QuotaWindow>) -> Unit)? = null,
         onDelta: ((String) -> Unit)? = null
     ): ChatCompletionResult = CancellableHttp.execute {
+        dispatchGuard.set(beforeDispatch)
+        try {
+        require(maxOutputTokens == null || maxOutputTokens in 1..4096) { "Invalid output token cap." }
         EndpointPolicy.validate(config.baseUrl, config.provider)
         CredentialPolicy.validate(config.provider, config.apiKey)
         require(config.selectedModel.isNotBlank()) { "Select a discovered model before inference." }
@@ -27,16 +33,17 @@ class LlmChatClient {
         if (config.provider == LlmProvider.OPENAI && audio != null) {
             val transcript = transcribeOpenAi(config, audio)
             val textHistory = history.dropLast(1) + requireNotNull(last).copy(content = transcript, attachment = null)
-            return@execute openAiWithFallback(config, textHistory, agent).copy(transcript = transcript)
+            return@execute openAiWithFallback(config, textHistory, agent, maxOutputTokens).copy(transcript = transcript)
         }
         when (config.provider) {
-            LlmProvider.GEMINI -> gemini(config, history, agent)
-            LlmProvider.NVIDIA -> openAiCompatible(config, history, agent, onQuota, onDelta)
-            LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> openAiCompatible(config, history, agent, onQuota, onDelta)
-            LlmProvider.ANTHROPIC -> anthropic(config, history, agent)
-            LlmProvider.OPENAI -> openAiCompatible(config, history, agent, onQuota, onDelta)
-            LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> openAiCompatible(config, history, agent, onQuota, onDelta)
+            LlmProvider.GEMINI -> gemini(config, history, agent, maxOutputTokens)
+            LlmProvider.NVIDIA -> openAiCompatible(config, history, agent, maxOutputTokens, onQuota, onDelta)
+            LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO -> openAiCompatible(config, history, agent, maxOutputTokens, onQuota, onDelta)
+            LlmProvider.ANTHROPIC -> anthropic(config, history, agent, maxOutputTokens)
+            LlmProvider.OPENAI -> openAiCompatible(config, history, agent, maxOutputTokens, onQuota, onDelta)
+            LlmProvider.OPENAI_COMPATIBLE, LlmProvider.UNKNOWN -> openAiCompatible(config, history, agent, maxOutputTokens, onQuota, onDelta)
         }
+        } finally { dispatchGuard.remove() }
     }
 
     /** Uploads the recorded M4A only to the configured OpenAI transcription endpoint. */
@@ -76,10 +83,11 @@ class LlmChatClient {
     private fun openAiWithFallback(
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
-        agent: AgentDescriptor
+        agent: AgentDescriptor,
+        maxOutputTokens: Int? = null
     ): ChatCompletionResult {
         // Explicit retries belong to the UI. Automatic secondary requests can duplicate costs/actions.
-        return openAiCompatible(config, history, agent)
+        return openAiCompatible(config, history, agent, maxOutputTokens)
     }
 
     private fun router9(
@@ -96,6 +104,7 @@ class LlmChatClient {
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
         agent: AgentDescriptor,
+        maxOutputTokens: Int? = null,
         onQuota: ((List<SmartComboPlanner.QuotaWindow>) -> Unit)? = null,
         onDelta: ((String) -> Unit)? = null
     ): ChatCompletionResult {
@@ -116,12 +125,13 @@ class LlmChatClient {
             .put("model", config.selectedModel)
             .put("messages", messages)
         if (config.provider == LlmProvider.NVIDIA) {
-            body.put("max_tokens", 4096)
+            body.put("max_tokens", maxOutputTokens ?: 4096)
             body.put("stream", false)
             body.put("temperature", 0.3)
         } else {
             body.put("temperature", 0.35)
         }
+        OutputTokenLimit.apply(body, config.provider, maxOutputTokens)
         val headers = if (config.apiKey.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer " + config.apiKey)
         if (onDelta != null) {
             body.put("stream", true)
@@ -141,7 +151,8 @@ class LlmChatClient {
     private fun openAiResponses(
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
-        agent: AgentDescriptor
+        agent: AgentDescriptor,
+        maxOutputTokens: Int? = null
     ): ChatCompletionResult {
         val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/responses"
         val transcript = history.takeLast(24).joinToString("\n") {
@@ -151,6 +162,7 @@ class LlmChatClient {
             .put("model", config.selectedModel)
             .put("instructions", agent.systemPrompt)
             .put("input", transcript)
+        maxOutputTokens?.let { body.put("max_output_tokens", it) }
         val headers = if (config.apiKey.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer " + config.apiKey)
         val json = JSONObject(post(endpoint, body.toString(), headers))
         val direct = json.optString("output_text")
@@ -177,7 +189,8 @@ class LlmChatClient {
     private fun anthropic(
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
-        agent: AgentDescriptor
+        agent: AgentDescriptor,
+        maxOutputTokens: Int? = null
     ): ChatCompletionResult {
         val endpoint = ApiDiscoveryEngine.apiRoot(config.baseUrl) + "/messages"
         val messages = JSONArray()
@@ -199,7 +212,7 @@ class LlmChatClient {
         }
         val body = JSONObject()
             .put("model", config.selectedModel)
-            .put("max_tokens", 4096)
+            .put("max_tokens", maxOutputTokens ?: 4096)
             .put("system", agent.systemPrompt)
             .put("messages", messages)
         val json = JSONObject(
@@ -237,7 +250,8 @@ class LlmChatClient {
     private fun gemini(
         config: ApiConnectionConfig,
         history: List<ChatMessage>,
-        agent: AgentDescriptor
+        agent: AgentDescriptor,
+        maxOutputTokens: Int? = null
     ): ChatCompletionResult {
         val root = ApiDiscoveryEngine.geminiRoot(config.baseUrl)
         val cleanModel = config.selectedModel.removePrefix("models/")
@@ -263,6 +277,7 @@ class LlmChatClient {
         val body = JSONObject()
             .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", agent.systemPrompt))))
             .put("contents", contents)
+        maxOutputTokens?.let { body.put("generationConfig", JSONObject().put("maxOutputTokens", it)) }
         val json = JSONObject(post(endpoint, body.toString(), mapOf("x-goog-api-key" to config.apiKey)))
         val candidates = json.optJSONArray("candidates")
         val parts = candidates?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
@@ -314,6 +329,7 @@ class LlmChatClient {
         onQuota: ((List<SmartComboPlanner.QuotaWindow>) -> Unit)?,
         onDelta: (String) -> Unit
     ): ChatCompletionResult {
+        dispatchGuard.get()?.invoke()
         val connection = CancellableHttp.register(URL(endpoint).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = false
             requestMethod = "POST"
@@ -356,6 +372,8 @@ class LlmChatClient {
     }
 
     private fun post(url: String, body: String, headers: Map<String, String>): String {
+        dispatchGuard.get()?.invoke()
+        requestTransport?.let { return it(url, body, headers) }
         val connection = CancellableHttp.register(URL(url).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = false
             requestMethod = "POST"
