@@ -777,4 +777,5 @@
     <string name="team_hindsight_success">Ekip devrinin Hindsight\'a gönderildiği doğrulandı.</string>
     <string name="team_hindsight_review">Ekip devrini incele ve paylaş</string>
     <string name="team_hindsight_disabled">Elle paylaşım için bu projede Hindsight\'ı etkinleştirin.</string>
+    <string name="cloud_agent_recent_reports">Kaynağı doğrulanabilir son raporlar</string>
 </resources>
