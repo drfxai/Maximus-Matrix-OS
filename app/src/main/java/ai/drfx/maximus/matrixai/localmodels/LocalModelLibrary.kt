@@ -18,6 +18,7 @@ data class LocalModelEntry(
 
 /** Metadata and SAF URI only. Model data stays in its original user-owned file. */
 class LocalModelLibrary(context: Context) {
+    private val resolver = context.applicationContext.contentResolver
     private val prefs = context.applicationContext.getSharedPreferences(
         "maximus_local_model_inventory_v1", Context.MODE_PRIVATE
     )
@@ -56,6 +57,20 @@ class LocalModelLibrary(context: Context) {
         }
         save(current.filterNot { it.uri == value.uri } + value)
         return value
+    }
+
+    /**
+     * User-initiated byte verification against an independently obtained digest.
+     * Must be called off the UI thread; no file data or credentials are uploaded.
+     */
+    fun verifyBytes(id: String, expectedSha256: String): LocalModelIntegrityVerifier.Result {
+        require(expectedSha256.matches(Regex("[0-9a-fA-F]{64}")))
+        val entry = list().firstOrNull { it.id == id } ?: error("Model reference unavailable.")
+        val uri = Uri.parse(entry.uri)
+        check(uri.scheme == "content")
+        return (resolver.openInputStream(uri) ?: error("Model file unavailable.")).use { input ->
+            LocalModelIntegrityVerifier.verify(input, entry.sizeBytes, expectedSha256)
+        }
     }
 
     fun forget(id: String): LocalModelEntry? {
