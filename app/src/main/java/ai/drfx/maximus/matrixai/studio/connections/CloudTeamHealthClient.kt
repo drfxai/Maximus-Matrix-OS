@@ -18,6 +18,10 @@ internal class CloudTeamHealthClient(
 ) {
     data class Health(val configuredTeams: Int, val observedAt: Long, val scheduler: String)
     companion object {
+        /** Never transmit an existing bearer to a different, unverified host. */
+        fun matchesSavedOrigin(draft: String, saved: String): Boolean =
+            saved.isNotBlank() && draft == saved
+
         fun origin(raw: String): String {
             val uri = URI(raw.trim())
             require(uri.scheme?.lowercase() == "https" &&
