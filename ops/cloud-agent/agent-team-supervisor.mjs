@@ -137,11 +137,13 @@ export default {
         try { body = await readBody(request); } catch (e) { return error(e?.message === 'body_too_large' ? 413 : 400, e?.message === 'body_too_large' ? 'body_too_large' : 'invalid_json'); }
         const team = validateTeam(body);
         if (!team) return error(400, 'invalid_team');
-        const row = await env.AGENT_DB.prepare('SELECT COUNT(*) AS count FROM agent_teams').first();
-        if (Number(row?.count || 0) >= 8) return error(409, 'team_limit');
         const id = crypto.randomUUID();
-        await env.AGENT_DB.prepare('INSERT INTO agent_teams (id, job, repository, period_minutes, enabled) VALUES (?, ?, ?, ?, 1)')
+        // Check capacity and insert in one statement, including overlapping requests.
+        // The schema trigger remains a backstop for other writers.
+        const created = await env.AGENT_DB.prepare('INSERT INTO agent_teams (id, job, repository, period_minutes, enabled) SELECT ?, ?, ?, ?, 1 WHERE (SELECT COUNT(*) FROM agent_teams) < 8')
           .bind(id, team.job, team.repository, team.periodMinutes).run();
+        if (created.meta?.changes === 0) return error(409, 'team_limit');
+        if (created.meta?.changes !== 1) return error(503, 'storage_unavailable');
         return json(201, { id, ...team, status: 'scheduled_by_cloudflare_cron_when_deployed' });
       }
       // Explicit POST control commands work with Android HttpURLConnection,
