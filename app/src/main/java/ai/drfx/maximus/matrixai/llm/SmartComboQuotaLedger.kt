@@ -166,7 +166,11 @@ internal class SmartComboQuotaLedger(
                 val usageSince = entries.values.asSequence()
                     .filter { it.plan.scope == scope && notYetCoveredBySnapshot(it, seen) }
                     .fold(0L) { sum, entry -> saturatingAdd(sum, accounted(entry, w.kind)) }
-                val advertised = requireNotNull(w.remaining)
+                // Reject inflated quota reports conservatively: a provider's
+                // declared window limit is an upper bound even when a delayed
+                // remaining counter advertises a larger number.
+                val reported = requireNotNull(w.remaining)
+                val advertised = minOf(reported, w.limit ?: reported)
                 Capacity(
                     w.kind,
                     if (usageSince > 0L) Source.LOCALLY_ADJUSTED else Source.PROVIDER_SNAPSHOT,
