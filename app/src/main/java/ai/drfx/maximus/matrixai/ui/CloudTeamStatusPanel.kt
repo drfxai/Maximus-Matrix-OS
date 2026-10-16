@@ -87,15 +87,15 @@ internal fun CloudTeamStatusPanel(modifier: Modifier = Modifier) {
                         feedback = try {
                             // Check only the pinned, saved origin; never an edited
                             // text field supplied by untrusted UI state.
-                            check(origin == savedOrigin && savedOrigin.isNotBlank())
+                            check(CloudTeamHealthClient.matchesSavedOrigin(origin, savedOrigin))
                             val result = client.health(savedOrigin,
                                 vault.snapshot(DevelopmentService.CLOUD_AGENT).token)
                             context.getString(R.string.cloud_agent_ready, result.configuredTeams)
                         } catch (_: Exception) { unavailable }
                         finally { busy = false }
                     }
-                }, enabled = !busy && connected && origin == savedOrigin &&
-                    savedOrigin.isNotBlank()) {
+                }, enabled = !busy && connected &&
+                    CloudTeamHealthClient.matchesSavedOrigin(origin, savedOrigin)) {
                     Text(stringResource(R.string.cloud_agent_check))
                 }
             }
