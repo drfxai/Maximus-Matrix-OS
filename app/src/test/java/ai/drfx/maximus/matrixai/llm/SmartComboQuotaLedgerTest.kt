@@ -37,6 +37,17 @@ class SmartComboQuotaLedgerTest {
         assertEquals(2000L, ledger.capacities("shared-account").single().safeAvailable)
     }
 
+    @Test fun inflatedRemainingCannotExceedVerifiedWindowLimit() {
+        val ledger = SmartComboQuotaLedger(now = { clock })
+        ledger.observe("shared-account", listOf(quota(remaining = 100_000L, limit = 3_000L)))
+        val capacity = ledger.capacities("shared-account").single()
+        assertEquals(3_000L, capacity.providerRemaining)
+        assertEquals(3_000L, capacity.safeAvailable)
+        assertFalse(ledger.reserve(plan("inflated", amount = 2_000L)).accepted)
+        assertTrue(ledger.reserve(plan("within-limit", amount = 1_000L)).accepted)
+        assertEquals(2_000L, ledger.capacities("shared-account").single().safeAvailable)
+    }
+
     @Test fun duplicateIdCannotBeDispatchedTwice() {
         val ledger = SmartComboQuotaLedger(now = { clock })
         assertTrue(ledger.reserve(plan("r1")).accepted)
