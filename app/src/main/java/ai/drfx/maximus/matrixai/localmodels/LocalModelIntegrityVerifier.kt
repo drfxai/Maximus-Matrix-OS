@@ -20,7 +20,7 @@ object LocalModelIntegrityVerifier {
             val limit = minOf(bytes.size.toLong(), expectedBytes - consumed + 1).toInt()
             val count = input.read(bytes, 0, limit)
             if (count < 0) break
-            if (count == 0) continue
+            if (count == 0) return Result(false, consumed, "")
             consumed += count
             if (consumed > expectedBytes) return Result(false, consumed, "")
             digest.update(bytes, 0, count)
