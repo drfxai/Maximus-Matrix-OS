@@ -770,4 +770,11 @@
     <string name="cloud_agent_ready">Cloud Worker reachable · %1$d configured teams</string>
     <string name="cloud_agent_unavailable">Cloud Worker unverified or unavailable.</string>
     <string name="cloud_agent_disconnect">Disconnect</string>
+    <string name="team_hindsight_confirm_title">Share this completed team result with Hindsight?</string>
+    <string name="team_hindsight_disclosure">The exact text below will be sent to your configured Hindsight service. It may include project details. The outputs are untrusted suggestions, not proof of execution or permission to run code.</string>
+    <string name="team_hindsight_send">Send to Hindsight</string>
+    <string name="team_hindsight_failed">Could not verify the project, sharing permission, or Hindsight response. Nothing was confirmed as stored.</string>
+    <string name="team_hindsight_success">Hindsight confirmed the project-team handoff was submitted.</string>
+    <string name="team_hindsight_review">Review and share team handoff</string>
+    <string name="team_hindsight_disabled">Enable Hindsight for this project to review a manual handoff.</string>
 </resources>
