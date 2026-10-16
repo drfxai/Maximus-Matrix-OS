@@ -11,7 +11,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** Separate per-service Android Keystore-backed credentials, never embedded in APK assets. */
-internal enum class DevelopmentService { GITHUB, CLOUDFLARE }
+internal enum class DevelopmentService { GITHUB, CLOUDFLARE, CLOUD_AGENT }
 
 internal class DeveloperCredentialSnapshot(val revision: String, val token: String) {
     override fun toString(): String = "DeveloperCredentialSnapshot(redacted)"
