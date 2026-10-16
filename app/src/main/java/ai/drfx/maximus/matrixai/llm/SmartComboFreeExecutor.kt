@@ -68,6 +68,35 @@ internal class SmartComboFreeExecutor(
         )
     }
 
+    /**
+     * A pre-dispatch connectivity/credential failure may select a DIFFERENT free
+     * route under a NEW request ID. The original reservation must be released.
+     * A dispatched or unknown request is never resent or silently rerouted.
+     *
+     * Caller must explicitly decide to continue and preserve the project
+     * checkpoint; this function performs no network I/O or paid fallback.
+     */
+    fun prepareAlternativeBeforeDispatch(
+        previous: Prepared,
+        newRequestId: String,
+        estimatedInput: Int,
+        reservedOutput: Int,
+        requiredCapabilities: Set<ModelCapability>,
+        offers: List<SmartComboFreeCatalog.Offer>,
+        resolveCredential: (LlmProvider, String) -> String,
+        agentId: String,
+        nowMs: Long = System.currentTimeMillis()
+    ): Prepared? {
+        if (newRequestId.isBlank() || newRequestId == previous.requestId) return null
+        // Do not release a DISPATCHED, UNCERTAIN or reconciled request.
+        if (!ledger.releaseUndispatched(previous.requestId)) return null
+        return prepare(
+            newRequestId, estimatedInput, reservedOutput, requiredCapabilities,
+            offers.filterNot { it.route.id == previous.offer.route.id },
+            resolveCredential, agentId, nowMs
+        )
+    }
+
     fun observeProviderQuota(
         prepared: Prepared, windows: List<SmartComboPlanner.QuotaWindow>
     ) {
