@@ -83,4 +83,47 @@ class SmartComboFreeExecutorTest {
         assertFalse(executor.dispatched(first))
         assertNotNull(prepare(executor, "second", listOf(offer("free"))))
     }
+    @Test fun preDispatchAlternativeExcludesOriginalRouteAndUsesNewRequestId() {
+        val executor = SmartComboFreeExecutor()
+        val offers = listOf(offer("first"), offer("second"))
+        val first = requireNotNull(prepare(executor, "original-request", listOf(offer("first"))))
+        val alternate = executor.prepareAlternativeBeforeDispatch(
+            first, "new-request", 300, 1000, setOf(ModelCapability.CHAT),
+            offers, { _, _ -> "user-key" }, "general"
+        )
+        assertEquals("second", alternate?.config?.selectedModel)
+        assertFalse(executor.dispatched(first))
+        assertTrue(executor.dispatched(requireNotNull(alternate)))
+        assertNull(executor.prepareAlternativeBeforeDispatch(
+            first, "third-request", 300, 1000, setOf(ModelCapability.CHAT),
+            offers, { _, _ -> "user-key" }, "general"
+        ))
+    }
+
+    @Test fun dispatchedOrUnknownRequestsCannotRerouteOrReplay() {
+        val executor = SmartComboFreeExecutor()
+        val first = requireNotNull(prepare(executor, "sent", listOf(offer("first"))))
+        assertTrue(executor.dispatched(first))
+        assertNull(executor.prepareAlternativeBeforeDispatch(
+            first, "retry", 300, 1000, setOf(ModelCapability.CHAT),
+            listOf(offer("first"), offer("second")), { _, _ -> "owned-key" }, "general"
+        ))
+        executor.failed(first)
+        assertEquals(SmartComboQuotaLedger.State.UNCERTAIN, executor.requestState("sent"))
+        assertNull(executor.prepareAlternativeBeforeDispatch(
+            first, "another", 300, 1000, setOf(ModelCapability.CHAT),
+            listOf(offer("second")), { _, _ -> "owned-key" }, "general"
+        ))
+    }
+
+    @Test fun alternativeWithSameRequestIdIsAlwaysRejectedWithoutReleasing() {
+        val executor = SmartComboFreeExecutor()
+        val first = requireNotNull(prepare(executor, "same", listOf(offer("first"))))
+        assertNull(executor.prepareAlternativeBeforeDispatch(
+            first, "same", 300, 1000, setOf(ModelCapability.CHAT),
+            listOf(offer("second")), { _, _ -> "owned-key" }, "general"
+        ))
+        assertTrue(executor.dispatched(first))
+    }
+
 }

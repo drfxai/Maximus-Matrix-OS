@@ -121,6 +121,23 @@ jobs:
           path: |
             app/build/reports/androidTests/
             keyboard-check/
+  # Stable required context; each emulator matrix variant must succeed.
+  # An aggregated check avoids brittle long job names when test classes change.
+  required-ci:
+    if: always()
+    needs: [validate, emulator-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require validation and every emulator matrix shard
+        shell: bash
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          EMULATOR_RESULT: ${{ needs.emulator-smoke.result }}
+        run: |
+          set -euo pipefail
+          test "$VALIDATE_RESULT" = success
+          test "$EMULATOR_RESULT" = success
+
   build-release:
     needs: [validate, emulator-smoke]
     if: (github.event_name == 'workflow_dispatch' && (inputs.verify_signed || inputs.publish) && github.ref == 'refs/heads/main') || (github.event_name == 'push' && (github.ref == 'refs/heads/release/validated-v1' || github.ref == 'refs/heads/release/verify-v1'))
