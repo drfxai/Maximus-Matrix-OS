@@ -69,7 +69,7 @@ with apk.open('rb') as src:
     digest = hashlib.file_digest(src, 'sha256').hexdigest()
 assert report['physical_device'] is True and report['abi'] == 'arm64-v8a'
 assert report['source_commit'] == revision and report['build_and_export'] == 'passed'
-assert re.fullmatch(r'ai\\.drfx\\.generated\\.phoneproof[0-9]+', report['apk_package'])
+assert re.fullmatch(r'ai\.drfx\.generated\.phoneproof[0-9]+', report['apk_package'])
 assert report['apk_sha256'] == digest
 print('Physical ARM64 source, APK artifact and digest verified:', digest)
 PYVERIFY
