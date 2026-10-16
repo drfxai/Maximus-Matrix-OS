@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 if (!globalThis.crypto) Object.defineProperty(globalThis, 'crypto', { value: webcrypto });
 import worker, { validateTeam, releaseSource, collectRelease, executeScheduled } from '../agent-team-supervisor.mjs';
 
@@ -40,6 +42,10 @@ class Db {
           return { meta: { changes: 1 } };
         }
         if (sql.startsWith('INSERT INTO agent_teams')) {
+          if (sql.endsWith('WHERE (SELECT COUNT(*) FROM agent_teams) < 8') && db.teams.length >= 8)
+            return { meta: { changes: 0 } };
+          // Mirror the shipped schema trigger for unconditional inserts.
+          if (db.teams.length >= 8) throw Error('team_limit');
           db.teams.push({ id: a[0], job: a[1], repository: a[2], period_minutes: a[3], enabled: 1 });
           return { meta: { changes: 1 } };
         }
@@ -159,4 +165,87 @@ test('disabled cloud teams are excluded from Cron fetch and cannot be recreated 
   await worker.fetch(req('/v1/teams/' + id, 'PATCH', { enabled: false }), env);
   const enabled = db.teams.filter(x => x.enabled === 1);
   assert.equal(enabled.length, 0);
+});
+
+// Hold both requests at their D1 boundary so an old COUNT-then-INSERT flow
+// observes the same seven rows before either request can insert.
+function rendezvous(parties) {
+  let arrived = 0, release;
+  const ready = new Promise(resolve => { release = resolve; });
+  return async () => { if (++arrived === parties) release(); await ready; };
+}
+
+class OverlappingDb extends Db {
+  constructor() { super(); this.readGate = rendezvous(2); this.writeGate = rendezvous(2); this.inserts = []; }
+  prepare(sql) {
+    const statement = super.prepare(sql), db = this;
+    if (sql.startsWith('SELECT COUNT')) {
+      const first = statement.first;
+      statement.first = async function () { const row = await first.call(this); await db.readGate(); return row; };
+    }
+    if (sql.startsWith('INSERT INTO agent_teams')) {
+      const run = statement.run;
+      statement.run = async function () {
+        db.inserts.push({ sql, args: this.args });
+        await db.writeGate();
+        return run.call(this);
+      };
+    }
+    return statement;
+  }
+}
+
+test('overlapping valid registrations compete atomically for the eighth team slot', async () => {
+  const db = new OverlappingDb(), env = { AGENT_DB: db, MAXIMUS_AGENT_TOKEN: secret };
+  db.teams = Array.from({ length: 7 }, (_, i) => ({ ...team, id: 'existing-' + i, enabled: i % 2 }));
+  const responses = await Promise.all([
+    worker.fetch(req('/v1/teams', 'POST', proposal), env),
+    worker.fetch(req('/v1/teams', 'POST', proposal), env)
+  ]);
+  assert.deepEqual(responses.map(r => r.status).sort(), [201, 409]);
+  assert.deepEqual(await responses.find(r => r.status === 409).json(), { error: { code: 'team_limit' } });
+  assert.equal(db.teams.length, 8);
+  const created = await responses.find(r => r.status === 201).json();
+  assert.equal(db.teams.filter(t => t.id === created.id).length, 1);
+
+  // Execute the actual prepared SQL on SQLite using the shipped schema and
+  // separate concurrent connections. This validates the predicate, not only
+  // our D1 fake; Python's standard-library SQLite needs no additional package.
+  const sqlite = spawnSync('python3', ['-c', `
+import concurrent.futures, json, pathlib, sqlite3, sys, tempfile, threading
+payload = json.load(sys.stdin)
+with tempfile.TemporaryDirectory() as directory:
+    path = str(pathlib.Path(directory) / 'teams.sqlite')
+    with sqlite3.connect(path) as db:
+        db.executescript(payload['schema'])
+        for i in range(7):
+            db.execute('INSERT INTO agent_teams VALUES (?, ?, ?, ?, ?)',
+                       ('existing-' + str(i), 'GITHUB_RELEASES', 'drfxai/Maximus-Matrix-OS', 180, i % 2))
+    gate = threading.Barrier(12)
+    def insert(i):
+        with sqlite3.connect(path, timeout=10, isolation_level=None) as db:
+            gate.wait(timeout=10)
+            args = payload['args'].copy()
+            args[0] = 'new-' + str(i)
+            return db.execute(payload['sql'], args).rowcount
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool:
+        changes = list(pool.map(insert, range(12)))
+    with sqlite3.connect(path) as db:
+        count = db.execute('SELECT COUNT(*) FROM agent_teams').fetchone()[0]
+    print(json.dumps({'changes': sorted(changes), 'count': count}))
+`], {
+    input: JSON.stringify({ ...db.inserts[0], schema: readFileSync(new URL('../schema.sql', import.meta.url), 'utf8') }),
+    encoding: 'utf8', timeout: 20000
+  });
+  assert.equal(sqlite.status, 0, sqlite.error?.message || sqlite.stderr);
+  assert.deepEqual(JSON.parse(sqlite.stdout), { changes: [...Array(11).fill(0), 1], count: 8 });
+});
+
+test('team creation requires confirmed D1 write metadata', async () => {
+  for (const result of [{}, { meta: {} }, { meta: { changes: '1' } }, { meta: { changes: 2 } }]) {
+    const db = { prepare: () => ({ bind() { return this; }, async run() { return result; } }) };
+    const response = await worker.fetch(req('/v1/teams', 'POST', proposal), { AGENT_DB: db, MAXIMUS_AGENT_TOKEN: secret });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: { code: 'storage_unavailable' } });
+  }
 });
