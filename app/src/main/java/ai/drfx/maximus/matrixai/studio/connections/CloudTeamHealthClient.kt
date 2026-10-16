@@ -35,6 +35,52 @@ internal class CloudTeamHealthClient(
             return uri.toASCIIString().removeSuffix("/")
         }
     }
+    data class Report(val teamId: String, val status: String,
+                      val summary: String, val observedAt: Long)
+
+    /** Read-only bounded reports; no untrusted link is opened or executed. */
+    suspend fun reports(base: String, bearer: String): List<Report> = withContext(Dispatchers.IO) {
+        require(bearer.length in 32..128 &&
+            bearer.all { it.code in 33..126 && !it.isWhitespace() })
+        val connection = connect(URL(origin(base) + "/v1/reports"))
+        try {
+            connection.instanceFollowRedirects = false
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 8000
+            connection.useCaches = false
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer $bearer")
+            check(connection.responseCode == 200) { "Cloud Agent reports unavailable." }
+            check(connection.contentLengthLong in -1L..16384L)
+            val bytes = ByteArrayOutputStream()
+            connection.inputStream.use { input ->
+                val buffer = ByteArray(2048)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    require(bytes.size() + count <= 16384) { "Cloud Agent response too large." }
+                    bytes.write(buffer, 0, count)
+                }
+            }
+            val data = JSONObject(bytes.toString("UTF-8")).optJSONArray("reports")
+                ?: error("Cloud Agent reports response invalid.")
+            buildList {
+                for (i in 0 until data.length().coerceAtMost(30)) {
+                    val row = data.optJSONObject(i) ?: continue
+                    val id = row.optString("team_id")
+                    val status = row.optString("status")
+                    val summary = row.optString("summary")
+                    val at = row.optLong("observed_at")
+                    if (!id.matches(Regex("[a-f0-9]{8}(-[a-f0-9]{4}){4}")) ||
+                        status !in setOf("RUNNING", "VERIFIED", "UNAVAILABLE") ||
+                        at <= 0L || summary.length > 200) continue
+                    add(Report(id, status, summary, at))
+                }
+            }
+        } finally { connection.disconnect() }
+    }
+
     suspend fun health(base: String, bearer: String): Health = withContext(Dispatchers.IO) {
         require(bearer.length in 32..128 &&
             bearer.all { it.code in 33..126 && !it.isWhitespace() })
