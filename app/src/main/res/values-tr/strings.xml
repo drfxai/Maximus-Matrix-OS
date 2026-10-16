@@ -770,4 +770,11 @@
     <string name="cloud_agent_ready">Bulut Worker erişilebilir · %1$d kayıtlı ekip</string>
     <string name="cloud_agent_unavailable">Bulut Worker doğrulanamadı veya erişilemiyor.</string>
     <string name="cloud_agent_disconnect">Bağlantıyı kes</string>
+    <string name="team_hindsight_confirm_title">Tamamlanan ekip sonucunu Hindsight ile paylaş?</string>
+    <string name="team_hindsight_disclosure">Aşağıdaki metin seçtiğiniz Hindsight hizmetine aynen gönderilir ve proje ayrıntıları içerebilir. Çıktılar doğrulanmamış önerilerdir; yürütme kanıtı veya kod çalıştırma izni değildir.</string>
+    <string name="team_hindsight_send">Hindsight'a gönder</string>
+    <string name="team_hindsight_failed">Proje, paylaşım izni veya Hindsight yanıtı doğrulanamadı; kayıt onaylanmadı.</string>
+    <string name="team_hindsight_success">Ekip devrinin Hindsight'a gönderildiği doğrulandı.</string>
+    <string name="team_hindsight_review">Ekip devrini incele ve paylaş</string>
+    <string name="team_hindsight_disabled">Elle paylaşım için bu projede Hindsight'ı etkinleştirin.</string>
 </resources>
