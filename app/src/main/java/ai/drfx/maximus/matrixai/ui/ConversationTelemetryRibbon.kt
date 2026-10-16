@@ -65,13 +65,13 @@ private fun RibbonTile(label: String, value: String, detail: String, modifier: M
     Surface(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .55f))) {
-        Column(Modifier.padding(horizontal = 7.dp, vertical = 7.dp),
+        Column(Modifier.padding(horizontal = 7.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(label, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            Text(label, fontSize = 10.sp, lineHeight = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+            Text(value, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(detail, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            Text(detail, fontSize = 10.sp, lineHeight = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

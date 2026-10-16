@@ -724,16 +724,19 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             }
                         }
                         Text(
-                            stringResource(R.string.chat_engine_ready),
+                            stringResource(R.string.workspaces_chat_title),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
                         Text(
-                            stringResource(R.string.chat_active_model, state.provider.displayName,
-                                state.selectedModel.ifBlank { stringResource(R.string.chat_not_configured) }),
+                            stringResource(R.string.focus_provider_configured) + ": " +
+                                state.provider.displayName + " · " +
+                                state.selectedModel.ifBlank { stringResource(R.string.chat_not_configured) },
                             color = MaterialTheme.colorScheme.primary,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            lineHeight = 16.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                         Text(
                             stringResource(R.string.chat_start_hint),
