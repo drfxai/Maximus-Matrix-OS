@@ -31,6 +31,7 @@ internal fun CloudTeamStatusPanel(modifier: Modifier = Modifier) {
     var connected by remember { mutableStateOf(vault.configured(DevelopmentService.CLOUD_AGENT)) }
     var busy by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf("") }
+    var reports by remember { mutableStateOf(emptyList<CloudTeamHealthClient.Report>()) }
     val unavailable = stringResource(R.string.cloud_agent_unavailable)
 
     ElevatedCard(modifier.fillMaxWidth().testTag("cloud_team_status_panel")) {
@@ -75,6 +76,7 @@ internal fun CloudTeamStatusPanel(modifier: Modifier = Modifier) {
                         check(vault.configured(DevelopmentService.CLOUD_AGENT))
                         origin = verified
                         connected = true
+                        reports = emptyList()
                         feedback = ""
                     } catch (_: Exception) { feedback = unavailable }
                 }, enabled = !busy && origin.isNotBlank()) {
@@ -88,8 +90,9 @@ internal fun CloudTeamStatusPanel(modifier: Modifier = Modifier) {
                             // Check only the pinned, saved origin; never an edited
                             // text field supplied by untrusted UI state.
                             check(CloudTeamHealthClient.matchesSavedOrigin(origin, savedOrigin))
-                            val result = client.health(savedOrigin,
-                                vault.snapshot(DevelopmentService.CLOUD_AGENT).token)
+                            val bearer = vault.snapshot(DevelopmentService.CLOUD_AGENT).token
+                            val result = client.health(savedOrigin, bearer)
+                            reports = client.reports(savedOrigin, bearer)
                             context.getString(R.string.cloud_agent_ready, result.configuredTeams)
                         } catch (_: Exception) { unavailable }
                         finally { busy = false }
@@ -101,11 +104,27 @@ internal fun CloudTeamStatusPanel(modifier: Modifier = Modifier) {
             }
             if (feedback.isNotBlank()) Text(feedback,
                 style = MaterialTheme.typography.bodySmall)
+            if (reports.isNotEmpty()) {
+                HorizontalDivider()
+                Text(stringResource(R.string.cloud_agent_recent_reports),
+                    style = MaterialTheme.typography.titleSmall)
+                reports.take(5).forEach { report ->
+                    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = MaterialTheme.shapes.medium) {
+                        Column(Modifier.fillMaxWidth().padding(8.dp)) {
+                            Text(report.status, style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary)
+                            Text(report.summary, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
             TextButton(onClick = {
                 runCatching {
                     vault.clear(DevelopmentService.CLOUD_AGENT)
                     check(prefs.edit().remove("origin").commit())
                     origin = ""; savedOrigin = ""; token = ""; connected = false; feedback = ""
+                    reports = emptyList()
                 }.onFailure { feedback = unavailable }
             }, enabled = !busy && connected) {
                 Text(stringResource(R.string.cloud_agent_disconnect))
