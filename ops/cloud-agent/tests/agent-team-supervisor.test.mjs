@@ -249,3 +249,17 @@ test('team creation requires confirmed D1 write metadata', async () => {
     assert.deepEqual(await response.json(), { error: { code: 'storage_unavailable' } });
   }
 });
+
+test('authenticated health probe confirms D1 availability without claiming continuous execution', async () => {
+  const db = new Db(), env = { AGENT_DB: db, MAXIMUS_AGENT_TOKEN: secret };
+  assert.equal((await worker.fetch(req('/v1/health', 'GET', undefined, 'invalid'), env)).status, 401);
+  const response = await worker.fetch(req('/v1/health'), env);
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.status, 'ready');
+  assert.equal(data.scheduler, 'cron');
+  assert.equal(data.externalExecution, false);
+  assert.equal(data.configuredTeams, 0);
+  assert.equal((await worker.fetch(req('/v1/health', 'POST'), env)).status, 405);
+  assert.equal((await worker.fetch(req('/v1/health'), { MAXIMUS_AGENT_TOKEN: secret })).status, 503);
+});
