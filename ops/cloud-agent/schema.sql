@@ -2,7 +2,7 @@
 -- No provider keys, prompts, model transcripts or private source files are stored.
 CREATE TABLE IF NOT EXISTS agent_teams (
   id TEXT PRIMARY KEY,
-  job TEXT NOT NULL CHECK (job = 'GITHUB_RELEASES'),
+  job TEXT NOT NULL CHECK (job IN ('GITHUB_RELEASES', 'GITHUB_CI')),
   repository TEXT NOT NULL,
   period_minutes INTEGER NOT NULL CHECK (period_minutes IN (15, 180, 1440)),
   enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1))
