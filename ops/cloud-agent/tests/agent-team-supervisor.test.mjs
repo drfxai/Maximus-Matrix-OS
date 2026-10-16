@@ -148,7 +148,8 @@ test('D1 per-team time-slot lease makes duplicate scheduled deliveries idempoten
 
 test('collector exception leaves a durable unavailable report and cannot replay the slot', async () => {
   const db = new Db();
-  const now = 1_800_100_000_000;
+  // Slot-aligned timestamp: an additional 15 min remains inside a 180-min team slot.
+  const now = 1_800_000_000_000;
   let attempts = 0;
   assert.equal(await executeScheduled(team, now, db, async () => {
     attempts++;
