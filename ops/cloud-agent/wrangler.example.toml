@@ -1,0 +1,15 @@
+# Opt-in staging configuration. Copy to wrangler.toml only after the owner
+# explicitly selects the Cloudflare account and D1 database and approves cost.
+# DO NOT commit wrangler.toml, credentials, API tokens or signing material.
+name = "maximus-team-supervisor-staging"
+main = "agent-team-supervisor.mjs"
+compatibility_date = "2026-10-16"
+workers_dev = false
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[d1_databases]]
+binding = "AGENT_DB"
+database_name = "maximus-agent-teams-staging"
+database_id = "REPLACE_WITH_OWNER_APPROVED_D1_DATABASE_ID"
