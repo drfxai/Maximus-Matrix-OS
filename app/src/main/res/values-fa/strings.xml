@@ -761,4 +761,13 @@
     <string name="models_verify_bytes">بررسی صحت فایل مدل</string>
     <string name="models_hash_verified">SHA-256 فایل با مقدار واردشده مطابقت دارد؛ قابلیت اجرای مدل هنوز تأیید نشده است.</string>
     <string name="models_hash_failed">هش فایل تطابق ندارد یا خواندن فایل ممکن نیست.</string>
+    <string name="cloud_agent_title">اتصال ایجنت ابری</string>
+    <string name="cloud_agent_notice">تیم ابری فقط روی ورکر مستقرشده با تأیید کاربر اجرا می‌شود. این بررسی، اجرای مداوم مدل را ثابت نمی‌کند.</string>
+    <string name="cloud_agent_endpoint">نشانی HTTPS ورکر</string>
+    <string name="cloud_agent_token">توکن دسترسی ورکر (نه کلید مدیریتی API)</string>
+    <string name="cloud_agent_save">ذخیره محلی</string>
+    <string name="cloud_agent_check">بررسی وضعیت</string>
+    <string name="cloud_agent_ready">ورکر ابری در دسترس است · %1$d تیم تنظیم‌شده</string>
+    <string name="cloud_agent_unavailable">وضعیت ورکر ابری تأیید نشد یا سرویس در دسترس نیست.</string>
+    <string name="cloud_agent_disconnect">قطع اتصال</string>
 </resources>
