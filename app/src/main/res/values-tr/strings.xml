@@ -757,4 +757,8 @@
     <string name="dev_pr_created">Taslak oluşturuldu. Güncel değişiklikleri ve kontrolleri GitHub üzerinde inceleyin.</string>
     <string name="dev_pr_open">Çekme isteğini aç</string>
     <string name="dev_pr_created_changed">Çekme isteği oluşturuldu, ancak dönen dal veya taslak durumu onaylanan önizlemeden farklı. Başka işlem yapmadan önce açıp inceleyin.</string>
+    <string name="models_hash_hint">Beklenen SHA-256 (64 onaltılık karakter)</string>
+    <string name="models_verify_bytes">Yerel model dosyasını doğrula</string>
+    <string name="models_hash_verified">Dosya SHA-256 değeri girilen özetle eşleşti; model çıkarımı henüz doğrulanmadı.</string>
+    <string name="models_hash_failed">Dosya özeti eşleşmiyor veya dosya okunamıyor.</string>
 </resources>
