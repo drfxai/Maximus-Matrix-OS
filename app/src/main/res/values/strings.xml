@@ -757,4 +757,8 @@
     <string name="dev_pr_created">Draft pull request created. Inspect its current changes and checks on GitHub.</string>
     <string name="dev_pr_open">Open pull request</string>
     <string name="dev_pr_created_changed">A pull request was created, but its returned branch or draft state differs from the approved preview. Open it and review before any further action.</string>
+    <string name="models_hash_hint">Expected SHA-256 (64 hex characters)</string>
+    <string name="models_verify_bytes">Verify local model bytes</string>
+    <string name="models_hash_verified">File SHA-256 matches the supplied checksum; inference is still unverified.</string>
+    <string name="models_hash_failed">File checksum does not match or the file cannot be read.</string>
 </resources>
