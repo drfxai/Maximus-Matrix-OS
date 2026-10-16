@@ -166,6 +166,9 @@ fun MatrixGraphScreen(
     val llm by viewModel.llmState.collectAsState()
     val brainMessages by viewModel.chatMessages.collectAsState()
     var brainExpanded by remember { mutableStateOf(false) }
+    // The graph is the home screen's primary canvas. Lobe chips take screen
+    // space only when the user explicitly asks to filter anatomical groups.
+    var lobeFiltersExpanded by remember { mutableStateOf(false) }
     val dataCenter by viewModel.dataCenter.collectAsState()
     val recentAlerts by viewModel.notificationService.recentAlerts.collectAsState()
     val watchlist by viewModel.notificationService.activeWatchlist.collectAsState()
@@ -621,6 +624,14 @@ fun MatrixGraphScreen(
                 }
                 Text(stringResource(R.string.brain_subtitle), color = muted, fontSize = 8.5.sp, letterSpacing = .6.sp)
             }
+            IconButton(
+                onClick = { lobeFiltersExpanded = !lobeFiltersExpanded },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(Icons.Default.Tune, stringResource(R.string.brain_graph_filters),
+                    tint = if (lobeFiltersExpanded) graphTone(GraphAccent, light) else muted,
+                    modifier = Modifier.size(18.dp))
+            }
             Box(Modifier.size(7.dp).background(if (status == "READY") GraphAccent else GraphGold, CircleShape))
             Text(
                 when (status) {
@@ -648,7 +659,7 @@ fun MatrixGraphScreen(
             "LIMBIC SYSTEM" to stringResource(R.string.brain_lobe_limbic),
             "CEREBELLAR" to stringResource(R.string.brain_lobe_cerebellar)
         )
-        if (!keyboardVisible) LazyRow(
+        if (!keyboardVisible && lobeFiltersExpanded) LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 2.dp),
@@ -907,10 +918,10 @@ fun MatrixGraphScreen(
                 text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { if (openPanel == GraphPanel.INSPECTOR) inspector() else filters() } },
                 confirmButton = { TextButton(onClick = { openPanel = null }) { Text(stringResource(R.string.graph_done)) } })
         }
-        Surface(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)
+        Surface(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp)
             .semantics { contentDescription = appContext.getString(R.string.conv_brain_composer) }, color = panelColor,
             shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, border)) {
-            Column(Modifier.heightIn(max = if (keyboardVisible) 240.dp else 480.dp)
+            Column(Modifier.heightIn(max = if (keyboardVisible) 220.dp else 300.dp)
                 .verticalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
