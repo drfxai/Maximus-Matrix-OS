@@ -777,4 +777,5 @@
     <string name="team_hindsight_success">أكد Hindsight إرسال ملخص الفريق.</string>
     <string name="team_hindsight_review">مراجعة ومشاركة تسليم الفريق</string>
     <string name="team_hindsight_disabled">فعّل Hindsight لهذا المشروع للسماح بالمشاركة اليدوية.</string>
+    <string name="cloud_agent_recent_reports">التقارير الأخيرة بمصادر قابلة للتحقق</string>
 </resources>
