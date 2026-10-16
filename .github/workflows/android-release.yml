@@ -132,7 +132,7 @@ jobs:
         shell: bash
         env:
           VALIDATE_RESULT: ${{ needs.validate.result }}
-          EMULATOR_RESULT: ${{ needs.emulator-smoke.result }}
+          EMULATOR_RESULT: ${{ needs['emulator-smoke'].result }}
         run: |
           set -euo pipefail
           test "$VALIDATE_RESULT" = success
