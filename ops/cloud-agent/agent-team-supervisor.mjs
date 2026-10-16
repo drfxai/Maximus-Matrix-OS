@@ -108,7 +108,15 @@ export async function executeScheduled(team, scheduledTime, db, collector = coll
   const claim = await db.prepare('INSERT OR IGNORE INTO agent_reports (team_id, slot, status, summary, evidence, observed_at) VALUES (?, ?, ?, ?, ?, ?)')
     .bind(team.id, slot, 'RUNNING', 'Awaiting source verification', 0, scheduledTime).run();
   if (!claim.meta || claim.meta.changes !== 1) return false;
-  const result = await collector(team);
+  // One failing provider/timeout must settle its claimed slot as unavailable
+  // and must not prevent other teams from running in this Cron tick.
+  // Never blindly retry: a claimed slot may have already observed an external effect.
+  let result;
+  try {
+    result = await collector(team);
+  } catch (_) {
+    result = { status: 'UNAVAILABLE', summary: 'Source unavailable', evidence: 0 };
+  }
   const verified = result && result.status === 'VERIFIED' && result.evidence === 1;
   await db.prepare('UPDATE agent_reports SET status = ?, summary = ?, evidence = ?, url = ?, observed_at = ? WHERE team_id = ? AND slot = ?')
     .bind(verified ? 'VERIFIED' : 'UNAVAILABLE', String(result?.summary || 'Source unavailable').slice(0, 200), verified ? 1 : 0, verified ? String(result.url || '').slice(0, 512) : '', scheduledTime, team.id, slot).run();
@@ -204,7 +212,14 @@ export default {
     const scheduledTime = event.scheduledTime;
     if (!Number.isSafeInteger(scheduledTime)) return;
     const { results } = await env.AGENT_DB.prepare('SELECT id, job, repository, period_minutes FROM agent_teams WHERE enabled = 1 ORDER BY id LIMIT 8').all();
-    for (const team of results || []) await executeScheduled(team, scheduledTime, env.AGENT_DB);
+    for (const team of results || []) {
+      try {
+        await executeScheduled(team, scheduledTime, env.AGENT_DB);
+      } catch (_) {
+        // A database fault for one team cannot abort the remaining team's
+        // execution. The failed team's durable slot remains diagnosable in D1.
+      }
+    }
     // Stored evidence is bounded in time, preserving no prompts or secrets.
     await env.AGENT_DB.prepare('DELETE FROM agent_reports WHERE observed_at < ?').bind(scheduledTime - 30 * 86400000).run();
   }
