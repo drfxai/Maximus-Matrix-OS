@@ -5,12 +5,23 @@ This is a narrow, production-oriented cloud **evidence monitor** for Maximus Mat
 ## Supported behavior
 - User-authenticated `POST /v1/teams` registers at most eight cloud jobs of type `GITHUB_RELEASES` for a validated public `owner/repo`. Allowed cadence: 15, 180, or 1440 minutes.
 - `GET /v1/teams` and `GET /v1/reports` provide authenticated team and latest evidence states.
+- `GET /v1/health` is a bearer-protected D1 read: it proves API and D1 reachability but **not** 24/7 inference or that Cron has fired. Android stores a distinct user-provided Worker access token using Android Keystore and never forwards the Cloudflare administrative token.
 - User-approved management endpoints allow pausing, resuming and deleting a team: `POST /v1/teams/{id}/pause`, `POST /v1/teams/{id}/resume`, `PATCH /v1/teams/{id}` with an exact JSON boolean `enabled`, and `DELETE /v1/teams/{id}`. All operations require the saved bearer secret, reject unknown team IDs, and do not accept arbitrary commands. Pausing or deleting prevents future Cron dispatch but does not forcibly terminate an already-running source check.
 - Cloudflare Cron every 15 minutes invokes `scheduled()`. A D1 uniqueness claim per team and schedule window avoids duplicate dispatch.
 - Collector accesses only `https://api.github.com/repos/{owner}/{repo}/releases/latest` with redirect disabled. Validator accepts only the expected GitHub release URL. Reporter persists bounded evidence, and records UNAVAILABLE when source evidence is absent.
 - Reports are pruned after 30 days. No prompts, private code, user credentials, or arbitrary URLs are stored.
 
 This is not an always-running Linux process. Cloudflare Cron is periodic, and an active deployment (and available account quota) is required. The mobile Android WorkManager workers remain best-effort and independent.
+
+## Private staging configuration
+
+The sample `ops/cloud-agent/wrangler.example.toml` is deliberately non-deployable until
+the owner replaces its D1 database ID, selects the correct authorized Cloudflare account,
+reviews plan costs and adds `MAXIMUS_AGENT_TOKEN` through the Cloudflare secrets interface.
+Its `workers_dev = false` setting avoids accidentally publishing a public endpoint.
+Copy it to a local `wrangler.toml` only after approval. Never commit that configured
+file or the token. Before trusting this service, confirm the expected Cron invocation,
+a real registration/report and user-approved stop and resume from the Android UI.
 
 ## Deployment gate
 
