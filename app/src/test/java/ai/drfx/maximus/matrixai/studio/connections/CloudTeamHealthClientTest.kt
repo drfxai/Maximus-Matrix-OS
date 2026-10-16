@@ -37,6 +37,7 @@ class CloudTeamHealthClientTest {
         assertThrows(IllegalStateException::class.java) {
             runBlocking { client.health("https://worker.example.org", secret) }
         }
+        Unit // JUnit4 requires a void method, not the returned Throwable
     }
 
     private class Stub(url: URL, private val status: Int, private val body: String) : HttpURLConnection(url) {
