@@ -51,6 +51,13 @@ private val studioGreen = Color(0xFF54D9B0)
 @Composable
 fun ProjectStudioScreen(
     onPlanWithAi: (String) -> Boolean,
+    projectTeamRun: ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRun? = null,
+    projectTeamMessage: String = "",
+    projectTeamInvalid: Boolean = false,
+    onDiscardInvalidTeam: () -> Unit = {},
+    onPrepareTeam: (String) -> Unit = {},
+    onApproveTeam: (String) -> Unit = {},
+    onCancelTeam: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -170,6 +177,10 @@ fun ProjectStudioScreen(
                     }
                 }
             }
+        }
+        item {
+            ProjectTeamRunPanel(activeId, projectTeamRun, projectTeamMessage,
+                onPrepareTeam, onApproveTeam, onCancelTeam, projectTeamInvalid, onDiscardInvalidTeam)
         }
         item {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

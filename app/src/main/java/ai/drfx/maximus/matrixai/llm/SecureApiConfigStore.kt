@@ -69,11 +69,22 @@ class SecureApiConfigStore(context: Context) {
     fun loadModelForProvider(provider: LlmProvider): String = preferences.getString("model_" + provider.name, null) ?: provider.defaultModel
 
     /** Re-entering a key is required to authorize any custom endpoint change. */
-    fun resolveCredential(provider: LlmProvider, endpoint: String): String {
-        if (endpoint.isBlank()) return ""
+    fun resolveCredential(provider: LlmProvider, endpoint: String): String =
+        credentialSnapshot(provider, endpoint).first
+
+    /** Atomic preference snapshot; identity changes even when the same plaintext key is saved again. */
+    internal fun credentialSnapshot(provider: LlmProvider, endpoint: String): Pair<String, String> {
+        if (endpoint.isBlank()) return "" to ""
         EndpointPolicy.validate(endpoint, provider)
-        val trusted = preferences.getString("endpoint_" + provider.name, null) ?: return ""
-        return if (ApiDiscoveryEngine.normalizeBaseUrl(endpoint) == ApiDiscoveryEngine.normalizeBaseUrl(trusted)) loadKeyForProvider(provider) else ""
+        val saved = preferences.all
+        val trusted = saved["endpoint_" + provider.name] as? String ?: return "" to ""
+        if (ApiDiscoveryEngine.normalizeBaseUrl(endpoint) != ApiDiscoveryEngine.normalizeBaseUrl(trusted)) return "" to ""
+        val ciphertext = saved["api_key_" + provider.name] as? String ?: return "" to ""
+        val plaintext = runCatching { decrypt(ciphertext) }.getOrDefault("")
+        val identity = java.security.MessageDigest.getInstance("SHA-256")
+            .digest((provider.name + "|" + trusted + "|" + ciphertext).toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        return plaintext to identity
     }
 
     fun loadBaseUrl(): String = preferences.getString("base_url", "").orEmpty()
