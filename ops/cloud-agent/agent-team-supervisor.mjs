@@ -123,6 +123,13 @@ export default {
     const url = new URL(request.url);
     if (url.search || url.hash) return error(400, 'invalid_query');
     try {
+      if (request.method === 'GET' && url.pathname === '/v1/health') {
+        // Authenticated operational probe: actual D1 reachability, not a claim
+        // that Linux jobs or paid model inference are running continuously.
+        const row = await env.AGENT_DB.prepare('SELECT COUNT(*) AS count FROM agent_teams').first();
+        return json(200, { status: 'ready', scheduler: 'cron', externalExecution: false,
+          configuredTeams: Number(row?.count || 0), observedAt: Date.now() });
+      }
       if (request.method === 'GET' && url.pathname === '/v1/teams') {
         const { results } = await env.AGENT_DB.prepare('SELECT id, job, repository, period_minutes, enabled FROM agent_teams ORDER BY id LIMIT 8').all();
         return json(200, { teams: results || [] });
@@ -187,7 +194,7 @@ export default {
         await env.AGENT_DB.prepare('DELETE FROM agent_teams WHERE id = ?').bind(id).run();
         return json(200, { id, deleted: true, runningTasksMayFinish: true });
       }
-      if (['/v1/teams', '/v1/reports'].includes(url.pathname)) return error(405, 'method_not_allowed');
+      if (['/v1/teams', '/v1/reports', '/v1/health'].includes(url.pathname)) return error(405, 'method_not_allowed');
       return error(404, 'not_found');
     } catch (_) { return error(503, 'storage_unavailable'); }
   },

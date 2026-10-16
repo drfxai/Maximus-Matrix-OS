@@ -123,4 +123,26 @@ class ProjectTeamRunTest {
         assertEquals(ProjectTeamRun.State.AWAITING_APPROVAL,
             store().prepare(project, revision, "fresh approval required").state)
     }
+    @Test fun completedTeamRequiresExplicitUserApprovalForHindsightHandoff() {
+        val modelRun = ready(store())
+        val completed = modelRun.copy(state = ProjectTeamRun.State.COMPLETE,
+            planner = evidence("Reviewed implementation choices"),
+            reviewer = evidence("Approved as project evidence"))
+        assertNull(ProjectTeamHandoff.approvedCheckpoint(completed, approved = false))
+        val checkpoint = requireNotNull(ProjectTeamHandoff.approvedCheckpoint(completed, approved = true))
+        assertTrue(checkpoint.contains("Source SHA256: $revision"))
+        assertTrue(checkpoint.contains(completed.planner!!.sha256))
+        assertTrue(checkpoint.contains(completed.reviewer!!.sha256))
+        assertTrue(checkpoint.contains("UNTRUSTED"))
+        assertNull(ProjectTeamHandoff.approvedCheckpoint(
+            completed.copy(state = ProjectTeamRun.State.UNCERTAIN), approved = true))
+    }
+
+    @Test fun HindsightHandoffRejectsCredentialBearingModelOutput() {
+        val pending = ready(store())
+        val compromised = pending.copy(state = ProjectTeamRun.State.COMPLETE,
+            planner = evidence("API_KEY = dummy-do-not-send"), reviewer = evidence("reviewed"))
+        assertNull(ProjectTeamHandoff.approvedCheckpoint(compromised, approved = true))
+    }
+
 }

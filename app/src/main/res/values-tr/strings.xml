@@ -757,4 +757,17 @@
     <string name="dev_pr_created">Taslak oluşturuldu. Güncel değişiklikleri ve kontrolleri GitHub üzerinde inceleyin.</string>
     <string name="dev_pr_open">Çekme isteğini aç</string>
     <string name="dev_pr_created_changed">Çekme isteği oluşturuldu, ancak dönen dal veya taslak durumu onaylanan önizlemeden farklı. Başka işlem yapmadan önce açıp inceleyin.</string>
+    <string name="models_hash_hint">Beklenen SHA-256 (64 onaltılık karakter)</string>
+    <string name="models_verify_bytes">Yerel model dosyasını doğrula</string>
+    <string name="models_hash_verified">Dosya SHA-256 değeri girilen özetle eşleşti; model çıkarımı henüz doğrulanmadı.</string>
+    <string name="models_hash_failed">Dosya özeti eşleşmiyor veya dosya okunamıyor.</string>
+    <string name="cloud_agent_title">Bulut ajanı bağlantısı</string>
+    <string name="cloud_agent_notice">Ekipler yalnızca kullanıcı onayıyla dağıtılmış Worker üzerinde çalışır. Durum kontrolü kesintisiz model çalışmasını kanıtlamaz.</string>
+    <string name="cloud_agent_endpoint">Worker HTTPS adresi</string>
+    <string name="cloud_agent_token">Worker erişim anahtarı (API yönetici anahtarı değil)</string>
+    <string name="cloud_agent_save">Yerel kaydet</string>
+    <string name="cloud_agent_check">Durumu kontrol et</string>
+    <string name="cloud_agent_ready">Bulut Worker erişilebilir · %1$d kayıtlı ekip</string>
+    <string name="cloud_agent_unavailable">Bulut Worker doğrulanamadı veya erişilemiyor.</string>
+    <string name="cloud_agent_disconnect">Bağlantıyı kes</string>
 </resources>

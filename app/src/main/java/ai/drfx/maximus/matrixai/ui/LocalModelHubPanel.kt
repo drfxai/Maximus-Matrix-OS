@@ -131,6 +131,8 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
             Text(stringResource(R.string.models_empty), style = MaterialTheme.typography.bodySmall)
         }
         entries.forEach { entry ->
+            var expectedHash by remember(entry.id) { mutableStateOf("") }
+            var verifiedMessage by remember(entry.id) { mutableStateOf("") }
             ElevatedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(entry.displayName, style = MaterialTheme.typography.titleSmall)
@@ -156,6 +158,41 @@ fun LocalModelHubPanel(modifier: Modifier = Modifier) {
                         color = MaterialTheme.colorScheme.tertiary,
                         style = MaterialTheme.typography.labelSmall
                     )
+                    OutlinedTextField(
+                        value = expectedHash,
+                        onValueChange = {
+                            expectedHash = it.filter { c -> c in '0'..'9' ||
+                                c in 'a'..'f' || c in 'A'..'F' }.take(64)
+                            verifiedMessage = ""
+                        },
+                        label = { Text(stringResource(R.string.models_hash_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("model_expected_sha256")
+                    )
+                    OutlinedButton(
+                        enabled = !busy && expectedHash.length == 64,
+                        modifier = Modifier.fillMaxWidth().testTag("model_verify_bytes"),
+                        onClick = {
+                            if (busy) return@OutlinedButton
+                            val captured = expectedHash
+                            busy = true
+                            scope.launch {
+                                verifiedMessage = try {
+                                    val accepted = withContext(Dispatchers.IO) {
+                                        library.verifyBytes(entry.id, captured).accepted
+                                    }
+                                    context.getString(if (accepted) R.string.models_hash_verified
+                                        else R.string.models_hash_failed)
+                                } catch (_: Exception) {
+                                    context.getString(R.string.models_hash_failed)
+                                } finally { busy = false }
+                            }
+                        }
+                    ) { Text(stringResource(R.string.models_verify_bytes)) }
+                    if (verifiedMessage.isNotBlank()) {
+                        Text(verifiedMessage, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     TextButton(onClick = { pendingForget = entry }) {
                         Text(stringResource(R.string.models_forget))
                     }

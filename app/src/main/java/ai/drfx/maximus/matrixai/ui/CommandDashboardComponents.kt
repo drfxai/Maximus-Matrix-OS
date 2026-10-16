@@ -23,29 +23,29 @@ internal fun CommandDashboardCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(modifier, shape = RoundedCornerShape(22.dp),
+    Surface(modifier, shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .22f)),
         color = MaterialTheme.colorScheme.surfaceContainer) {
         Column(Modifier.background(Brush.linearGradient(listOf(
             MaterialTheme.colorScheme.primary.copy(alpha = .09f),
             MaterialTheme.colorScheme.surfaceContainer,
             MaterialTheme.colorScheme.tertiary.copy(alpha = .05f)
-        ))).padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+        ))).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
     }
 }
 
 @Composable
 internal fun CommandMetric(label: String, value: String, detail: String,
                            modifier: Modifier = Modifier, attention: Boolean = false) {
-    Surface(modifier, shape = RoundedCornerShape(14.dp),
+    Surface(modifier, shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = .72f)) {
-        Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium,
+        Column(Modifier.padding(9.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(label, maxLines = 2, style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.titleLarge,
+            Text(value, maxLines = 2, style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = if (attention) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-            Text(detail, style = MaterialTheme.typography.labelSmall,
+            Text(detail, maxLines = 2, style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

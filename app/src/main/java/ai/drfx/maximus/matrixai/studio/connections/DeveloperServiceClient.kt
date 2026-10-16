@@ -84,6 +84,10 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         body: ByteArray? = null,
         expectedCloudflareRevision: String? = null
     ): ByteArray = withContext(Dispatchers.IO) {
+        // A Cloud Agent bearer credential is never valid for cloud-administrator
+        // or GitHub API operations, even when a caller makes a programming error.
+        require(service == DevelopmentService.GITHUB ||
+            service == DevelopmentService.CLOUDFLARE)
         require(path.startsWith("/") && !path.startsWith("//") && '#' !in path)
         require(method in setOf("GET", "POST", "PUT"))
         require(body == null || body.size <= 512 * 1024)

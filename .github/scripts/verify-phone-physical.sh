@@ -16,6 +16,10 @@ if [[ "${#devices[@]}" -ne 1 ]]; then
   exit 2
 fi
 serial="${devices[0]}"
+if [[ -n "${ANDROID_SERIAL:-}" && "$ANDROID_SERIAL" != "$serial" ]]; then
+  echo "Connected device does not match explicit ANDROID_SERIAL; refusing physical execution." >&2
+  exit 2
+fi
 [[ "$(adb -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r')" != "1" ]] || { echo "An emulator does not satisfy physical acceptance." >&2; exit 2; }
 adb -s "$serial" shell getprop ro.product.cpu.abilist | grep -q 'arm64-v8a' || { echo "ARM64 is required." >&2; exit 2; }
 api="$(adb -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')"
@@ -56,13 +60,16 @@ remote="/sdcard/Android/data/ai.drfx.maximus.matrixai/files/physical-acceptance"
 adb -s "$serial" pull "$remote/result.json" "$out/result.json"
 adb -s "$serial" pull "$remote/phone-proof-debug.apk" "$out/phone-proof-debug.apk"
 python3 - "$out" "$source_commit" <<'PYVERIFY'
-import hashlib, json, pathlib, sys
+import hashlib, json, pathlib, re, sys
 directory, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
 report = json.loads((directory / 'result.json').read_text())
 apk = directory / 'phone-proof-debug.apk'
-digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+assert 1024 <= apk.stat().st_size <= 200 * 1024 * 1024
+with apk.open('rb') as src:
+    digest = hashlib.file_digest(src, 'sha256').hexdigest()
 assert report['physical_device'] is True and report['abi'] == 'arm64-v8a'
 assert report['source_commit'] == revision and report['build_and_export'] == 'passed'
-assert report['apk_sha256'] == digest and apk.stat().st_size >= 1024
+assert re.fullmatch(r'ai\.drfx\.generated\.phoneproof[0-9]+', report['apk_package'])
+assert report['apk_sha256'] == digest
 print('Physical ARM64 source, APK artifact and digest verified:', digest)
 PYVERIFY

@@ -757,4 +757,17 @@
     <string name="dev_pr_created">Draft pull request created. Inspect its current changes and checks on GitHub.</string>
     <string name="dev_pr_open">Open pull request</string>
     <string name="dev_pr_created_changed">A pull request was created, but its returned branch or draft state differs from the approved preview. Open it and review before any further action.</string>
+    <string name="models_hash_hint">Expected SHA-256 (64 hex characters)</string>
+    <string name="models_verify_bytes">Verify local model bytes</string>
+    <string name="models_hash_verified">File SHA-256 matches the supplied checksum; inference is still unverified.</string>
+    <string name="models_hash_failed">File checksum does not match or the file cannot be read.</string>
+    <string name="cloud_agent_title">Cloud Agent connection</string>
+    <string name="cloud_agent_notice">Cloud teams run only on an explicitly deployed Worker. This status check does not prove continuous inference.</string>
+    <string name="cloud_agent_endpoint">Worker HTTPS origin</string>
+    <string name="cloud_agent_token">Worker access token (not an API admin key)</string>
+    <string name="cloud_agent_save">Save locally</string>
+    <string name="cloud_agent_check">Check status</string>
+    <string name="cloud_agent_ready">Cloud Worker reachable · %1$d configured teams</string>
+    <string name="cloud_agent_unavailable">Cloud Worker unverified or unavailable.</string>
+    <string name="cloud_agent_disconnect">Disconnect</string>
 </resources>
