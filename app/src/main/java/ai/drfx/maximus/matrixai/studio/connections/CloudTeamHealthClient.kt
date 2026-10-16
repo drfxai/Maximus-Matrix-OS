@@ -72,7 +72,7 @@ internal class CloudTeamHealthClient(
                     val status = row.optString("status")
                     val summary = row.optString("summary")
                     val at = row.optLong("observed_at")
-                    if (!id.matches(Regex("[a-f0-9]{8}(-[a-f0-9]{4}){4}")) ||
+                    if (!id.matches(Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")) ||
                         status !in setOf("RUNNING", "VERIFIED", "UNAVAILABLE") ||
                         at <= 0L || summary.length > 200) continue
                     add(Report(id, status, summary, at))
