@@ -108,6 +108,24 @@ test('D1 per-team time-slot lease makes duplicate scheduled deliveries idempoten
   assert.equal(calls, 2);
 });
 
+test('collector exception leaves a durable unavailable report and cannot replay the slot', async () => {
+  const db = new Db();
+  const now = 1_800_100_000_000;
+  let attempts = 0;
+  assert.equal(await executeScheduled(team, now, db, async () => {
+    attempts++;
+    throw new Error('publisher_offline');
+  }), true);
+  assert.equal(db.reports.length, 1);
+  assert.equal(db.reports[0].status, 'UNAVAILABLE');
+  assert.equal(db.reports[0].evidence, 0);
+  assert.equal(await executeScheduled(team, now + 15 * 60_000, db, async () => {
+    attempts++;
+    return { status: 'VERIFIED', evidence: 1, summary: 'must not run' };
+  }), false);
+  assert.equal(attempts, 1);
+});
+
 test('cloud team endpoints require strong bearer token and configured D1', async () => {
   const db = new Db(), env = { AGENT_DB: db, MAXIMUS_AGENT_TOKEN: secret };
   assert.equal((await worker.fetch(req('/v1/teams', 'GET', undefined, 'wrong'), env)).status, 401);
