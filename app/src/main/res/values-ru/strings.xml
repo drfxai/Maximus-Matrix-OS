@@ -761,4 +761,13 @@
     <string name="models_verify_bytes">Проверить файл модели</string>
     <string name="models_hash_verified">SHA-256 файла совпадает с указанным значением; запуск модели ещё не подтверждён.</string>
     <string name="models_hash_failed">Контрольная сумма не совпадает или файл недоступен.</string>
+    <string name="cloud_agent_title">Подключение облачного агента</string>
+    <string name="cloud_agent_notice">Команды работают только на развёрнутом с согласия пользователя Worker. Проверка статуса не подтверждает непрерывный запуск моделей.</string>
+    <string name="cloud_agent_endpoint">HTTPS-адрес Worker</string>
+    <string name="cloud_agent_token">Токен Worker (не ключ администратора API)</string>
+    <string name="cloud_agent_save">Сохранить локально</string>
+    <string name="cloud_agent_check">Проверить статус</string>
+    <string name="cloud_agent_ready">Облачный Worker доступен · команд: %1$d</string>
+    <string name="cloud_agent_unavailable">Облачный Worker не подтверждён или недоступен.</string>
+    <string name="cloud_agent_disconnect">Отключить</string>
 </resources>
