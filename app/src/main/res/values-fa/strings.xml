@@ -770,4 +770,11 @@
     <string name="cloud_agent_ready">ورکر ابری در دسترس است · %1$d تیم تنظیم‌شده</string>
     <string name="cloud_agent_unavailable">وضعیت ورکر ابری تأیید نشد یا سرویس در دسترس نیست.</string>
     <string name="cloud_agent_disconnect">قطع اتصال</string>
+    <string name="team_hindsight_confirm_title">نتیجه این تیم به Hindsight ارسال شود؟</string>
+    <string name="team_hindsight_disclosure">متن دقیق زیر به سرویس Hindsight انتخاب‌شده ارسال می‌شود و ممکن است جزئیات پروژه را داشته باشد. خروجی‌ها پیشنهادهای تأییدنشده هستند، نه اثبات اجرا یا مجوز اجرای کد.</string>
+    <string name="team_hindsight_send">ارسال به Hindsight</string>
+    <string name="team_hindsight_failed">پروژه، مجوز اشتراک‌گذاری یا پاسخ Hindsight تأیید نشد؛ ذخیره شدن نتیجه مشخص نیست.</string>
+    <string name="team_hindsight_success">ارسال نتیجه تیم به Hindsight تأیید شد.</string>
+    <string name="team_hindsight_review">بررسی و اشتراک نتیجه تیم</string>
+    <string name="team_hindsight_disabled">برای اشتراک‌گذاری دستی نتیجه، Hindsight را برای این پروژه فعال کنید.</string>
 </resources>

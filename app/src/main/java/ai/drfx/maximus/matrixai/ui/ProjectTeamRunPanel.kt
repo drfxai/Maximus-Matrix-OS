@@ -8,11 +8,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ai.drfx.maximus.matrixai.R
 import ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRun
+import ai.drfx.maximus.matrixai.agent.teams.ProjectTeamHandoff
+import ai.drfx.maximus.matrixai.memory.SharedProjectMemory
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 /** Actual project run evidence, with a separate approval of the captured metadata. */
 @Composable
@@ -20,6 +25,12 @@ fun ProjectTeamRunPanel(projectId: String?, run: ProjectTeamRun?, message: Strin
     prepare: (String) -> Unit, approve: (String) -> Unit, cancel: () -> Unit,
     invalid: Boolean = false, discardInvalid: () -> Unit = {},
     modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val memory = remember(context) { SharedProjectMemory(context.applicationContext) }
+    val scope = rememberCoroutineScope()
+    var pendingHandoff by remember(run?.id) { mutableStateOf<String?>(null) }
+    var sendingHandoff by remember(run?.id) { mutableStateOf(false) }
+    var handoffStatus by remember(run?.id) { mutableStateOf("") }
     var confirmDiscard by remember { mutableStateOf(false) }
     var showInputs by remember(run?.id) { mutableStateOf(false) }
     if (confirmDiscard) AlertDialog(onDismissRequest = { confirmDiscard = false },
@@ -30,6 +41,61 @@ fun ProjectTeamRunPanel(projectId: String?, run: ProjectTeamRun?, message: Strin
         } }, dismissButton = { TextButton(onClick = { confirmDiscard = false }) {
             Text(stringResource(R.string.project_team_keep))
         } })
+    pendingHandoff?.let { preview ->
+        AlertDialog(
+            onDismissRequest = { if (!sendingHandoff) pendingHandoff = null },
+            title = { Text(stringResource(R.string.team_hindsight_confirm_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.team_hindsight_disclosure),
+                        style = MaterialTheme.typography.bodySmall)
+                    SelectionContainer {
+                        Text(preview, style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.heightIn(max = 240.dp)
+                                .verticalScroll(rememberScrollState()))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !sendingHandoff,
+                    modifier = Modifier.testTag("project-team-hindsight-confirm"),
+                    onClick = {
+                        val selected = run?.takeIf {
+                            it.projectId == projectId &&
+                                it.state == ProjectTeamRun.State.COMPLETE
+                        }
+                        if (selected == null ||
+                            ProjectTeamHandoff.approvedCheckpoint(selected, true) != preview) {
+                            handoffStatus = context.getString(R.string.team_hindsight_failed)
+                            pendingHandoff = null
+                        } else {
+                            sendingHandoff = true
+                            scope.launch {
+                                try {
+                                    memory.storeApprovedTeamHandoff(selected, approved = true)
+                                    handoffStatus = context.getString(R.string.team_hindsight_success)
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) {
+                                    handoffStatus = context.getString(R.string.team_hindsight_failed)
+                                } finally {
+                                    sendingHandoff = false
+                                    pendingHandoff = null
+                                }
+                            }
+                        }
+                    }
+                ) { Text(stringResource(R.string.team_hindsight_send)) }
+            },
+            dismissButton = {
+                TextButton(enabled = !sendingHandoff,
+                    onClick = { pendingHandoff = null }) {
+                    Text(stringResource(R.string.studio_cancel))
+                }
+            }
+        )
+    }
     ElevatedCard(modifier.fillMaxWidth().animateContentSize().testTag("project-team-panel")) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(stringResource(R.string.project_team_title), style = MaterialTheme.typography.titleMedium)
@@ -92,6 +158,27 @@ fun ProjectTeamRunPanel(projectId: String?, run: ProjectTeamRun?, message: Strin
                 }
                 selected.planner?.let { TeamEvidence(stringResource(R.string.project_team_planner), it) }
                 selected.reviewer?.let { TeamEvidence(stringResource(R.string.project_team_reviewer), it) }
+                if (selected.state == ProjectTeamRun.State.COMPLETE) {
+                    val shareable = remember(selected.id, selected.planner?.sha256,
+                        selected.reviewer?.sha256) {
+                        ProjectTeamHandoff.approvedCheckpoint(selected, approved = true)
+                    }
+                    if (shareable != null) {
+                        OutlinedButton(
+                            onClick = { pendingHandoff = shareable },
+                            enabled = !sendingHandoff && memory.enabled(),
+                            modifier = Modifier.testTag("project-team-hindsight-preview")
+                        ) { Text(stringResource(R.string.team_hindsight_review)) }
+                        if (!memory.enabled()) {
+                            Text(stringResource(R.string.team_hindsight_disabled),
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (sendingHandoff) LinearProgressIndicator(Modifier.fillMaxWidth())
+                        if (handoffStatus.isNotBlank()) {
+                            Text(handoffStatus, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
             }
         }
     }

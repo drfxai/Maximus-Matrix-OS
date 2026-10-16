@@ -770,4 +770,11 @@
     <string name="cloud_agent_ready">Облачный Worker доступен · команд: %1$d</string>
     <string name="cloud_agent_unavailable">Облачный Worker не подтверждён или недоступен.</string>
     <string name="cloud_agent_disconnect">Отключить</string>
+    <string name="team_hindsight_confirm_title">Передать результат завершённой команды в Hindsight?</string>
+    <string name="team_hindsight_disclosure">Приведённый ниже текст будет отправлен в выбранный сервис Hindsight и может содержать сведения проекта. Ответы моделей не подтверждают выполнение и не разрешают запуск кода.</string>
+    <string name="team_hindsight_send">Отправить в Hindsight</string>
+    <string name="team_hindsight_failed">Не удалось проверить проект, согласие или ответ Hindsight; сохранение не подтверждено.</string>
+    <string name="team_hindsight_success">Отправка результата команды в Hindsight подтверждена.</string>
+    <string name="team_hindsight_review">Проверить и передать результат команды</string>
+    <string name="team_hindsight_disabled">Включите Hindsight для этого проекта, чтобы отправить результат вручную.</string>
 </resources>

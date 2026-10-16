@@ -770,4 +770,11 @@
     <string name="cloud_agent_ready">العامل السحابي متاح · %1$d فرق مهيأة</string>
     <string name="cloud_agent_unavailable">لم يتم التحقق من العامل أو أنه غير متاح.</string>
     <string name="cloud_agent_disconnect">قطع الاتصال</string>
+    <string name="team_hindsight_confirm_title">هل تريد مشاركة نتيجة الفريق المكتملة مع Hindsight؟</string>
+    <string name="team_hindsight_disclosure">سيُرسل النص أدناه كما هو إلى خدمة Hindsight التي اخترتها، وقد يتضمن تفاصيل المشروع. المخرجات اقتراحات غير موثوقة وليست دليلاً على التنفيذ أو إذنًا بتشغيل التعليمات.</string>
+    <string name="team_hindsight_send">إرسال إلى Hindsight</string>
+    <string name="team_hindsight_failed">تعذر تأكيد المشروع أو إذن المشاركة أو رد Hindsight؛ لم يتم تأكيد التخزين.</string>
+    <string name="team_hindsight_success">أكد Hindsight إرسال ملخص الفريق.</string>
+    <string name="team_hindsight_review">مراجعة ومشاركة تسليم الفريق</string>
+    <string name="team_hindsight_disabled">فعّل Hindsight لهذا المشروع للسماح بالمشاركة اليدوية.</string>
 </resources>

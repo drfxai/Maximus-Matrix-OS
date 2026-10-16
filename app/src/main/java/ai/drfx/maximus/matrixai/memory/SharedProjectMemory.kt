@@ -1,6 +1,8 @@
 package ai.drfx.maximus.matrixai.memory
 
 import android.content.Context
+import ai.drfx.maximus.matrixai.agent.teams.ProjectTeamHandoff
+import ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRun
 import ai.drfx.maximus.matrixai.studio.ProjectContinuityStore
 import ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore
 import java.util.concurrent.ConcurrentHashMap
@@ -126,6 +128,31 @@ internal class SharedProjectMemory(context: Context) {
         remote.retain(access.scope.endpoint, access.token, projectId, memo, "project-checkpoint",
             beforeDispatch = { settings.requireCurrentAccess(access) })
         settings.withCurrentAccess(access) { cache.remove(projectId) }
+    }
+
+    /**
+     * Explicitly user-approved two-model handoff. Unlike automatic progress, this
+     * transmits only the exact text previously shown in a separate confirmation.
+     * A revoked project/account/consent stops the send at the HTTP boundary.
+     */
+    suspend fun storeApprovedTeamHandoff(run: ProjectTeamRun, approved: Boolean) {
+        val memo = ProjectTeamHandoff.approvedCheckpoint(run, approved)
+            ?: error("Team run is unfinished or its output must not be shared.")
+        val access = settings.accessSnapshot()
+        require(HindsightAccessPolicy.allowed(access.scope, run.projectId)) {
+            "Select this project and enable Hindsight before sharing."
+        }
+        check(workspace.projects().any { it.id == run.projectId }) {
+            "Project workspace was removed."
+        }
+        remote.retain(access.scope.endpoint, access.token, run.projectId, memo, "model-progress",
+            beforeDispatch = {
+                settings.requireCurrentAccess(access)
+                check(workspace.projects().any { it.id == run.projectId }) {
+                    "Project workspace was removed before sharing."
+                }
+            })
+        settings.withCurrentAccess(access) { cache.remove(run.projectId) }
     }
 
     /**
