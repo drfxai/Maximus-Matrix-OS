@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -22,6 +21,7 @@ import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import androidx.test.uiautomator.UiDevice
 import ai.drfx.maximus.matrixai.MainActivity
+import ai.drfx.maximus.matrixai.R
 import ai.drfx.maximus.matrixai.agent.teams.ProjectTeamExecutor
 import ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRun
 import ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRunStore
