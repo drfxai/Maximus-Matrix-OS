@@ -20,6 +20,14 @@ class CloudTeamHealthClientTest {
         }
     }
 
+    @Test fun savedBearerCanNeverBeProbedAgainstEditedOrigin() {
+        val pinned = "https://worker.example.org"
+        assertTrue(CloudTeamHealthClient.matchesSavedOrigin(pinned, pinned))
+        assertFalse(CloudTeamHealthClient.matchesSavedOrigin("https://other.example.org", pinned))
+        assertFalse(CloudTeamHealthClient.matchesSavedOrigin(pinned + "/", pinned))
+        assertFalse(CloudTeamHealthClient.matchesSavedOrigin(pinned, ""))
+    }
+
     @Test fun healthUsesOneAuthenticatedBoundedReadAndNeverFollowsRedirects() = runBlocking {
         var opened = 0
         val client = CloudTeamHealthClient { url ->
