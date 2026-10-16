@@ -4,7 +4,7 @@ import { webcrypto } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 if (!globalThis.crypto) Object.defineProperty(globalThis, 'crypto', { value: webcrypto });
-import worker, { validateTeam, releaseSource, collectRelease, executeScheduled } from '../agent-team-supervisor.mjs';
+import worker, { validateTeam, releaseSource, workflowSource, collectRelease, collectWorkflow, executeScheduled } from '../agent-team-supervisor.mjs';
 
 const secret = 'test-only-private-cloud-monitor-token-0123456789';
 const proposal = { job: 'GITHUB_RELEASES', repository: 'drfxai/Maximus-Matrix-OS', periodMinutes: 180 };
@@ -95,6 +95,44 @@ test('source collector validates publisher URL and never fabricates unavailable 
   assert.equal((await collectRelease(team, async () => new Response(null, {status:404}))).status, 'UNAVAILABLE');
 });
 
+test('CI collector validates real GitHub workflow URLs and reports failures truthfully', async () => {
+  const ci = { ...team, job: 'GITHUB_CI' };
+  assert.deepEqual(validateTeam({ ...proposal, job: 'GITHUB_CI' }), { ...proposal, job: 'GITHUB_CI' });
+  assert.equal(workflowSource(ci.repository),
+    'https://api.github.com/repos/drfxai/Maximus-Matrix-OS/actions/runs?per_page=1');
+  const failed = await collectWorkflow(ci, async (url, options) => {
+    assert.equal(url, workflowSource(ci.repository));
+    assert.equal(options.redirect, 'manual');
+    return Response.json({ workflow_runs: [{
+      id: 123456, status: 'completed', conclusion: 'failure',
+      html_url: 'https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/123456'
+    }] });
+  });
+  assert.equal(failed.status, 'VERIFIED');
+  assert.equal(failed.evidence, 1);
+  assert.match(failed.summary, /failure/);
+  assert.doesNotMatch(failed.summary, /success/);
+  const spoofed = await collectWorkflow(ci, async () => Response.json({ workflow_runs: [{
+    id: 123456, status: 'completed', conclusion: 'success',
+    html_url: 'https://evil.example/actions/runs/123456'
+  }] }));
+  assert.equal(spoofed.status, 'UNAVAILABLE');
+  assert.equal((await collectWorkflow(ci, async () => new Response(null, {status: 404}))).evidence, 0);
+});
+
+test('cloud scheduled dispatcher selects CI collector using the validated job allowlist', async () => {
+  const db = new Db();
+  const ci = { ...team, job: 'GITHUB_CI' };
+  const at = 1_800_000_000_000;
+  assert.equal(await executeScheduled(ci, at, db, async arg => {
+    assert.equal(arg.job, 'GITHUB_CI');
+    return { status: 'VERIFIED', evidence: 1, summary: 'GitHub CI: failed',
+      url: 'https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/123' };
+  }), true);
+  assert.equal(db.reports[0].summary, 'GitHub CI: failed');
+  assert.equal(db.reports[0].status, 'VERIFIED');
+});
+
 test('D1 per-team time-slot lease makes duplicate scheduled deliveries idempotent', async () => {
   const db = new Db();
   let calls = 0;
@@ -106,6 +144,24 @@ test('D1 per-team time-slot lease makes duplicate scheduled deliveries idempoten
   assert.deepEqual(db.reports.map(r => r.status), ['VERIFIED']);
   assert.equal(await executeScheduled(team, time + 180 * 60_000, db, evidence), true);
   assert.equal(calls, 2);
+});
+
+test('collector exception leaves a durable unavailable report and cannot replay the slot', async () => {
+  const db = new Db();
+  const now = 1_800_100_000_000;
+  let attempts = 0;
+  assert.equal(await executeScheduled(team, now, db, async () => {
+    attempts++;
+    throw new Error('publisher_offline');
+  }), true);
+  assert.equal(db.reports.length, 1);
+  assert.equal(db.reports[0].status, 'UNAVAILABLE');
+  assert.equal(db.reports[0].evidence, 0);
+  assert.equal(await executeScheduled(team, now + 15 * 60_000, db, async () => {
+    attempts++;
+    return { status: 'VERIFIED', evidence: 1, summary: 'must not run' };
+  }), false);
+  assert.equal(attempts, 1);
 });
 
 test('cloud team endpoints require strong bearer token and configured D1', async () => {

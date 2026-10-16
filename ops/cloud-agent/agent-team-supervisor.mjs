@@ -1,13 +1,14 @@
 // Cloudflare Worker + D1: authenticated, bounded cloud-side agent-team monitoring.
 // This is a scheduled evidence pipeline, not an arbitrary code/LLM execution service.
 const PERIODS = new Set([15, 180, 1440]);
+const JOBS = new Set(['GITHUB_RELEASES', 'GITHUB_CI']);
 const REPO = /^[A-Za-z0-9_.-]{1,39}\/[A-Za-z0-9_.-]{1,100}$/;
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' };
 
 export function validateTeam(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
   if (Object.keys(input).sort().join(',') !== 'job,periodMinutes,repository') return null;
-  if (input.job !== 'GITHUB_RELEASES' || !PERIODS.has(input.periodMinutes)) return null;
+  if (!JOBS.has(input.job) || !PERIODS.has(input.periodMinutes)) return null;
   if (typeof input.repository !== 'string' || !REPO.test(input.repository)) return null;
   const [owner, name] = input.repository.split('/');
   // Accept only real GitHub account-owner syntax; an IPv4 literal is not a user.
@@ -21,6 +22,15 @@ export function releaseSource(repository) {
   if (!v) throw new Error('invalid_repository');
   const [owner, name] = repository.split('/');
   return 'https://api.github.com/repos/' + encodeURIComponent(owner) + '/' + encodeURIComponent(name) + '/releases/latest';
+}
+
+/** Only the GitHub public actions API for a validated repository is queried. */
+export function workflowSource(repository) {
+  const v = validateTeam({ job: 'GITHUB_CI', periodMinutes: 15, repository });
+  if (!v) throw new Error('invalid_repository');
+  const [owner, name] = repository.split('/');
+  return 'https://api.github.com/repos/' + encodeURIComponent(owner) + '/' +
+    encodeURIComponent(name) + '/actions/runs?per_page=1';
 }
 
 const json = (status, data) => new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
@@ -98,9 +108,39 @@ export async function collectRelease(team, fetcher = fetch) {
   } catch (_) { return { status: 'UNAVAILABLE', summary: 'Source unavailable', evidence: 0 }; }
 }
 
-export async function executeScheduled(team, scheduledTime, db, collector = collectRelease) {
+/** A failed CI result is real publisher evidence, never reported as success. */
+export async function collectWorkflow(team, fetcher = fetch) {
+  try {
+    const response = await fetcher(workflowSource(team.repository), {
+      headers: { accept: 'application/vnd.github+json', 'user-agent': 'maximus-evidence-monitor' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(7000)
+    });
+    const body = await readSourceResponse(response);
+    const item = body?.workflow_runs?.[0];
+    const prefix = 'https://github.com/' + team.repository + '/actions/runs/';
+    if (!item || !Number.isSafeInteger(item.id) || item.id <= 0 ||
+        item.html_url !== prefix + item.id ||
+        !['queued', 'in_progress', 'completed'].includes(item.status)) {
+      return { status: 'UNAVAILABLE', summary: 'CI evidence unavailable', evidence: 0 };
+    }
+    const conclusion = item.status === 'completed'
+      ? (['success', 'failure', 'cancelled', 'timed_out', 'neutral', 'skipped', 'action_required'].includes(item.conclusion)
+        ? item.conclusion : 'unknown')
+      : item.status;
+    return {
+      status: 'VERIFIED', evidence: 1, url: item.html_url,
+      summary: ('GitHub CI #' + item.id + ': ' + conclusion).slice(0, 200)
+    };
+  } catch (_) {
+    return { status: 'UNAVAILABLE', summary: 'CI evidence unavailable', evidence: 0 };
+  }
+}
+
+export async function executeScheduled(team, scheduledTime, db, collector = null) {
   const period = Number(team.period_minutes);
   if (!PERIODS.has(period) || !validateTeam({ job: team.job, periodMinutes: period, repository: team.repository })) return false;
+  const evidenceCollector = collector || (team.job === 'GITHUB_CI' ? collectWorkflow : collectRelease);
   const slot = Math.floor(scheduledTime / (period * 60000));
   if (!Number.isSafeInteger(slot) || slot < 0) return false;
   // Durable slot uniqueness prevents duplicate Cron deliveries or overlapping workers
@@ -108,7 +148,15 @@ export async function executeScheduled(team, scheduledTime, db, collector = coll
   const claim = await db.prepare('INSERT OR IGNORE INTO agent_reports (team_id, slot, status, summary, evidence, observed_at) VALUES (?, ?, ?, ?, ?, ?)')
     .bind(team.id, slot, 'RUNNING', 'Awaiting source verification', 0, scheduledTime).run();
   if (!claim.meta || claim.meta.changes !== 1) return false;
-  const result = await collector(team);
+  // One failing provider/timeout must settle its claimed slot as unavailable
+  // and must not prevent other teams from running in this Cron tick.
+  // Never blindly retry: a claimed slot may have already observed an external effect.
+  let result;
+  try {
+    result = await evidenceCollector(team);
+  } catch (_) {
+    result = { status: 'UNAVAILABLE', summary: 'Source unavailable', evidence: 0 };
+  }
   const verified = result && result.status === 'VERIFIED' && result.evidence === 1;
   await db.prepare('UPDATE agent_reports SET status = ?, summary = ?, evidence = ?, url = ?, observed_at = ? WHERE team_id = ? AND slot = ?')
     .bind(verified ? 'VERIFIED' : 'UNAVAILABLE', String(result?.summary || 'Source unavailable').slice(0, 200), verified ? 1 : 0, verified ? String(result.url || '').slice(0, 512) : '', scheduledTime, team.id, slot).run();
@@ -204,7 +252,14 @@ export default {
     const scheduledTime = event.scheduledTime;
     if (!Number.isSafeInteger(scheduledTime)) return;
     const { results } = await env.AGENT_DB.prepare('SELECT id, job, repository, period_minutes FROM agent_teams WHERE enabled = 1 ORDER BY id LIMIT 8').all();
-    for (const team of results || []) await executeScheduled(team, scheduledTime, env.AGENT_DB);
+    for (const team of results || []) {
+      try {
+        await executeScheduled(team, scheduledTime, env.AGENT_DB);
+      } catch (_) {
+        // A database fault for one team cannot abort the remaining team's
+        // execution. The failed team's durable slot remains diagnosable in D1.
+      }
+    }
     // Stored evidence is bounded in time, preserving no prompts or secrets.
     await env.AGENT_DB.prepare('DELETE FROM agent_reports WHERE observed_at < ?').bind(scheduledTime - 30 * 86400000).run();
   }

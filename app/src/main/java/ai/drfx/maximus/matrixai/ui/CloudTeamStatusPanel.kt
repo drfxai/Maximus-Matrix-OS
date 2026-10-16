@@ -25,7 +25,8 @@ internal fun CloudTeamStatusPanel(modifier: Modifier = Modifier) {
     val vault = remember(context) { DeveloperCredentialVault(context) }
     val client = remember { CloudTeamHealthClient() }
     val scope = rememberCoroutineScope()
-    var origin by remember { mutableStateOf(prefs.getString("origin", "").orEmpty()) }
+    var savedOrigin by remember { mutableStateOf(prefs.getString("origin", "").orEmpty()) }
+    var origin by remember { mutableStateOf(savedOrigin) }
     var token by remember { mutableStateOf("") }
     var connected by remember { mutableStateOf(vault.configured(DevelopmentService.CLOUD_AGENT)) }
     var busy by remember { mutableStateOf(false) }
@@ -50,13 +51,28 @@ internal fun CloudTeamStatusPanel(modifier: Modifier = Modifier) {
                 OutlinedButton(onClick = {
                     try {
                         val verified = CloudTeamHealthClient.origin(origin)
+                        val differentHost = verified != savedOrigin
+                        // A saved bearer MUST NOT be silently forwarded to a new
+                        // user-typed origin. Replacing host requires a new token.
+                        if (differentHost && vault.configured(DevelopmentService.CLOUD_AGENT)) {
+                            require(token.isNotBlank()) { "New Cloud Agent origin requires a new key." }
+                        }
                         if (token.isNotBlank()) {
                             require(token.length in 32..128 && token.none { it.isWhitespace() })
+                        }
+                        if (differentHost) {
+                            // Revoke old bearer BEFORE persisting the new host.
+                            // A partial failure must never pair old bearer with new host.
+                            vault.clear(DevelopmentService.CLOUD_AGENT)
+                            connected = false
+                            check(prefs.edit().putString("origin", verified).commit())
+                            savedOrigin = verified
+                        }
+                        if (token.isNotBlank()) {
                             vault.save(DevelopmentService.CLOUD_AGENT, token)
                             token = ""
                         }
                         check(vault.configured(DevelopmentService.CLOUD_AGENT))
-                        check(prefs.edit().putString("origin", verified).commit())
                         origin = verified
                         connected = true
                         feedback = ""
@@ -69,13 +85,17 @@ internal fun CloudTeamStatusPanel(modifier: Modifier = Modifier) {
                     busy = true
                     scope.launch {
                         feedback = try {
-                            val result = client.health(origin,
+                            // Check only the pinned, saved origin; never an edited
+                            // text field supplied by untrusted UI state.
+                            check(origin == savedOrigin && savedOrigin.isNotBlank())
+                            val result = client.health(savedOrigin,
                                 vault.snapshot(DevelopmentService.CLOUD_AGENT).token)
                             context.getString(R.string.cloud_agent_ready, result.configuredTeams)
                         } catch (_: Exception) { unavailable }
                         finally { busy = false }
                     }
-                }, enabled = !busy && connected && origin.isNotBlank()) {
+                }, enabled = !busy && connected && origin == savedOrigin &&
+                    savedOrigin.isNotBlank()) {
                     Text(stringResource(R.string.cloud_agent_check))
                 }
             }
@@ -85,7 +105,7 @@ internal fun CloudTeamStatusPanel(modifier: Modifier = Modifier) {
                 runCatching {
                     vault.clear(DevelopmentService.CLOUD_AGENT)
                     check(prefs.edit().remove("origin").commit())
-                    origin = ""; token = ""; connected = false; feedback = ""
+                    origin = ""; savedOrigin = ""; token = ""; connected = false; feedback = ""
                 }.onFailure { feedback = unavailable }
             }, enabled = !busy && connected) {
                 Text(stringResource(R.string.cloud_agent_disconnect))
