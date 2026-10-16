@@ -918,6 +918,45 @@ fun MatrixGraphScreen(
                         modifier = Modifier.weight(1f), fontSize = 12.sp,
                         fontWeight = FontWeight.Bold, color = ink, maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    IconButton(onClick = {
+                        try {
+                            brainTts?.stop()
+                            recordingSpeechLanguage = speechLanguage
+                            voiceError = null
+                            recognitionInProgress = true
+                            voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, recordingSpeechLanguage.tag)
+                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, recordingSpeechLanguage.tag)
+                                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                                .putExtra(RecognizerIntent.EXTRA_PROMPT,
+                                    appContext.getString(R.string.brain_voice_hint)))
+                        } catch (_: Exception) {
+                            recognitionInProgress = false
+                            voiceError = appContext.getString(R.string.brain_voice_unavailable)
+                        }
+                    }, enabled = !recognitionInProgress, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Default.Mic, stringResource(R.string.brain_speak),
+                            tint = graphTone(GraphPurple, light))
+                    }
+                    IconButton(onClick = {
+                        if (brainSpokenReplies) {
+                            brainTts?.stop()
+                            brainVoiceSetupNeeded = false
+                        } else {
+                            // Enable for FUTURE answers only, never replay an old answer.
+                            speechPlaybackPolicy.skipExistingReply(brainMessages.lastOrNull()?.timestampMs)
+                        }
+                        brainSpokenReplies = !brainSpokenReplies
+                    }, modifier = Modifier.size(48.dp)) {
+                        Icon(
+                            if (brainSpokenReplies) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                            stringResource(if (brainSpokenReplies)
+                                R.string.brain_disable_spoken_replies
+                            else R.string.brain_enable_spoken_replies),
+                            tint = graphTone(GraphPurple, light)
+                        )
+                    }
                     IconButton(onClick = { brainExpanded = !brainExpanded }, enabled = !keyboardVisible,
                         modifier = Modifier.size(48.dp)) {
                         Icon(if (brainExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -968,8 +1007,8 @@ fun MatrixGraphScreen(
                 if (llm.isGenerating) {
                     LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
                 }
-                // Give the text field the full width in RTL and on compact phones.
-                // Icon buttons on a separate row prevent squeezed or overlapping input.
+                // Voice controls share the header; keep send beside the full-width input.
+                // Every action retains a 48dp touch target in either layout direction.
                 OutlinedTextField(
                     mission, {
                         mission = it.take(4000)
@@ -985,59 +1024,17 @@ fun MatrixGraphScreen(
                         focusManager.clearFocus()
                     }),
                     placeholder = { Text(stringResource(R.string.brain_prompt), fontSize = 12.sp) },
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(20.dp),
+                    trailingIcon = {
+                        IconButton(onClick = { submitBrain(mission) },
+                            enabled = mission.isNotBlank() && !llm.isGenerating &&
+                                status != "EXECUTING" && status != "PLANNING",
+                            modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Default.ArrowUpward, stringResource(R.string.brain_send),
+                                tint = if (mission.isBlank()) muted else graphTone(GraphAccent, light))
+                        }
+                    }
                 )
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = {
-                        try {
-                            brainTts?.stop()
-                            recordingSpeechLanguage = speechLanguage
-                            voiceError = null
-                            recognitionInProgress = true
-                            voiceLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, recordingSpeechLanguage.tag)
-                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, recordingSpeechLanguage.tag)
-                                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-                                .putExtra(RecognizerIntent.EXTRA_PROMPT,
-                                    appContext.getString(R.string.brain_voice_hint)))
-                        } catch (_: Exception) {
-                            recognitionInProgress = false
-                            voiceError = appContext.getString(R.string.brain_voice_unavailable)
-                        }
-                    }, enabled = !recognitionInProgress) {
-                        Icon(Icons.Default.Mic, stringResource(R.string.brain_speak),
-                            tint = graphTone(GraphPurple, light))
-                    }
-                    IconButton(onClick = {
-                        if (brainSpokenReplies) {
-                            brainTts?.stop()
-                            brainVoiceSetupNeeded = false
-                        } else {
-                            // Enable for FUTURE answers only, never replay an old answer.
-                            speechPlaybackPolicy.skipExistingReply(brainMessages.lastOrNull()?.timestampMs)
-                        }
-                        brainSpokenReplies = !brainSpokenReplies
-                    }) {
-                        Icon(
-                            if (brainSpokenReplies) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                            stringResource(if (brainSpokenReplies)
-                                R.string.brain_disable_spoken_replies
-                            else R.string.brain_enable_spoken_replies),
-                            tint = graphTone(GraphPurple, light)
-                        )
-                    }
-                    IconButton(onClick = { submitBrain(mission) },
-                        enabled = mission.isNotBlank() && !llm.isGenerating &&
-                            status != "EXECUTING" && status != "PLANNING") {
-                        Icon(Icons.Default.ArrowUpward, stringResource(R.string.brain_send),
-                            tint = if (mission.isBlank()) muted else graphTone(GraphAccent, light))
-                    }
-                }
                 voiceError?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
                 if (brainVoiceSetupNeeded) {
                     TextButton(onClick = {
