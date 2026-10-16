@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -20,9 +21,11 @@ import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import androidx.test.uiautomator.UiDevice
 import ai.drfx.maximus.matrixai.MainActivity
+import ai.drfx.maximus.matrixai.R
 import ai.drfx.maximus.matrixai.agent.teams.ProjectTeamExecutor
 import ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRun
 import ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRunStore
+import ai.drfx.maximus.matrixai.memory.HindsightMemorySettings
 import ai.drfx.maximus.matrixai.ui.theme.MaximusMatrixTheme
 import java.io.File
 import java.util.UUID
@@ -50,6 +53,13 @@ class ProjectTeamApprovalUiTest {
         val context = instrumentation.targetContext
         val file = File(context.cacheDir, "team-ui-" + UUID.randomUUID() + ".json")
         val project = UUID.randomUUID().toString()
+        // The test account is a local fixture; cancelling the preview must
+        // never dispatch any memory request or need a real Hindsight token.
+        val memorySettings = HindsightMemorySettings(context)
+        memorySettings.disconnect()
+        memorySettings.configure("https://memory.example.org", null)
+        memorySettings.setActiveProject(project)
+        memorySettings.setEnabled(true)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val state = MutableStateFlow<ProjectTeamRun?>(null)
         val store = ProjectTeamRunStore(file, "ui-process")
@@ -91,6 +101,12 @@ class ProjectTeamApprovalUiTest {
             compose.onNodeWithTag("project-team-approve").performScrollTo().performClick()
             compose.waitUntil(10_000) { state.value?.state == ProjectTeamRun.State.COMPLETE }
             assertEquals(listOf("planner", "reviewer"), calls.toList())
+            // A completed team result is only previewed; no memory upload is
+            // allowed until a second, explicit confirmation is pressed.
+            compose.onNodeWithTag("project-team-hindsight-preview").performScrollTo().performClick()
+            compose.onNodeWithTag("project-team-hindsight-confirm").assertExists()
+            compose.onNodeWithText(context.getString(R.string.studio_cancel)).performClick()
+            assertEquals("Preview cancellation must not send another model request", 2, calls.size)
             assertEquals(ProjectTeamRun.State.COMPLETE, ProjectTeamRunStore(file, "new-process").read()!!.state)
             // Reproduce death after a durable dispatch barrier, before any response was checkpointed.
             val pending = store.prepare(project, "b".repeat(64), "Second fixture metadata")
@@ -101,6 +117,7 @@ class ProjectTeamApprovalUiTest {
             assertEquals(2, calls.size)
             compose.onNodeWithTag("project-team-prepare").performScrollTo()
         } finally {
+            memorySettings.disconnect()
             scope.cancel()
             file.delete()
             File(file.parentFile, file.name + ".pending").delete()
