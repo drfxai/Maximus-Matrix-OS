@@ -64,6 +64,10 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
     val unknownCommand = stringResource(R.string.term_unknown)
     val submission = stringResource(R.string.term_mission_submitted)
     val limitText = stringResource(R.string.term_input_limit)
+    val eventCount = stringResource(R.string.term_observed_count, events.size)
+    val teamSelected = stringResource(R.string.term_team_selected)
+    val comboSelected = stringResource(R.string.term_combo_selected)
+    val unknownModel = stringResource(R.string.api_unknown)
 
     fun addLine(input: String, message: String) {
         val line = LocalConsoleLine(System.nanoTime(),
@@ -81,20 +85,20 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
             TerminalIntent.Help -> addLine(typed, help)
             TerminalIntent.Status -> addLine(typed, status)
             TerminalIntent.Model -> addLine(typed,
-                state.provider.displayName + " / " + state.selectedModel.ifBlank { "Unknown" })
+                state.provider.displayName + " / " + state.selectedModel.ifBlank { unknownModel })
             TerminalIntent.Tools -> addLine(typed, toolInfo)
             TerminalIntent.Events -> {
                 tab = ConsoleTab.EVENTS
-                addLine(typed, events.size.toString() + " verified runtime events")
+                addLine(typed, eventCount)
             }
             TerminalIntent.Clear -> history.clear()
             TerminalIntent.Team -> {
                 tab = ConsoleTab.TEAM
-                addLine(typed, "Agent workspace selected")
+                addLine(typed, teamSelected)
             }
             TerminalIntent.SmartCombo -> {
                 tab = ConsoleTab.ROUTING
-                addLine(typed, "Smart Combo telemetry selected")
+                addLine(typed, comboSelected)
             }
             TerminalIntent.ShellBlocked -> addLine(typed, unavailable)
             is TerminalIntent.Unsupported -> addLine(typed,
