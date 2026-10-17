@@ -31,8 +31,8 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text(stringResource(R.string.agents_title), style = MaterialTheme.typography.headlineSmall)
-            Text(
+            Text(stringResource(R.string.design_agents), style = MaterialTheme.typography.headlineSmall)
+            if (section == 1) Text(
                 stringResource(R.string.agents_description),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
@@ -58,7 +58,7 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
         items(AgentRegistry.agents) { agent ->
             val supported = agent.id in supportedIds
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(
                     1.dp,

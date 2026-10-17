@@ -100,7 +100,7 @@ class KeyboardLayoutTest {
             objectWithDescription("Project Studio").click()
             checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
-            assertFalse("Files must not render the build dashboard", device.hasObject(By.desc("Start server")))
+            assertFalse("Files must not render the build dashboard", device.hasObject(By.text(instrumentation.targetContext.getString(ai.drfx.maximus.matrixai.R.string.phone_harness_title))))
             objectWithDescription("Agents").click()
             checkNotNull(device.wait(Until.findObject(By.text("Independent")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("General Assistant")), 10_000))
