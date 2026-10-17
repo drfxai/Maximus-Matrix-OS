@@ -29,4 +29,7 @@
     <string name="term_safe_mode">POLICY GUARDED</string>
     <string name="term_combo_on">Smart Combo enabled</string>
     <string name="term_combo_off">Manual routing</string>
+    <string name="term_observed_count">%1$d observed runtime events</string>
+    <string name="term_team_selected">Agent workspace selected</string>
+    <string name="term_combo_selected">Smart Combo telemetry selected</string>
 </resources>
