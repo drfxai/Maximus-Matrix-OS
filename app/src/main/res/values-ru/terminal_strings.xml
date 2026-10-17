@@ -29,4 +29,7 @@
     <string name="term_safe_mode">ЗАЩИЩЕНО ПОЛИТИКОЙ</string>
     <string name="term_combo_on">Smart Combo включён</string>
     <string name="term_combo_off">Ручной маршрут</string>
+    <string name="term_observed_count">Наблюдаемых событий: %1$d</string>
+    <string name="term_team_selected">Выбрано пространство агентов</string>
+    <string name="term_combo_selected">Выбрана телеметрия Smart Combo</string>
 </resources>
