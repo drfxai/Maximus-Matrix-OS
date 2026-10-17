@@ -12,6 +12,7 @@ sealed interface TerminalIntent {
     data object Events : TerminalIntent
     data object Tools : TerminalIntent
     data object Clear : TerminalIntent
+    data object History : TerminalIntent
     data object Team : TerminalIntent
     data object SmartCombo : TerminalIntent
     data class Mission(val objective: String) : TerminalIntent
@@ -40,6 +41,7 @@ object TerminalCommandPolicy {
                 "/events" -> TerminalIntent.Events
                 "/tools" -> TerminalIntent.Tools
                 "/clear" -> TerminalIntent.Clear
+                "/history" -> TerminalIntent.History
                 "/team" -> TerminalIntent.Team
                 "/combo" -> TerminalIntent.SmartCombo
                 "/mission" -> if (tail.isBlank()) TerminalIntent.Unsupported("mission_requires_text")
