@@ -2,6 +2,8 @@ package ai.drfx.maximus.matrixai.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -27,6 +30,12 @@ import ai.drfx.maximus.matrixai.agent.MatrixEvent
 import ai.drfx.maximus.matrixai.agent.MatrixEventType
 import ai.drfx.maximus.matrixai.terminal.TerminalCommandPolicy
 import ai.drfx.maximus.matrixai.terminal.TerminalIntent
+import ai.drfx.maximus.matrixai.terminal.TerminalHistoryEntry
+import ai.drfx.maximus.matrixai.terminal.TerminalHistoryStore
+import ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -42,8 +51,7 @@ private val ConsoleCyan = Color(0xFF58C1D7)
 private val ConsoleAmber = Color(0xFFE4B34D)
 private val ConsoleError = Color(0xFFE96E91)
 
-private enum class ConsoleTab { EVENTS, ROUTING, TEAM }
-private data class LocalConsoleLine(val id: Long, val command: String, val output: String)
+private enum class ConsoleTab { EVENTS, ROUTING, TEAM, HOST }
 
 @Composable
 fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
@@ -52,10 +60,41 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
     val status by viewModel.status.collectAsState()
     val approval by viewModel.pendingAgentConfirmation.collectAsState()
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    val historyStore = remember(context) { TerminalHistoryStore(context.applicationContext) }
+    val availableProjects = remember(context) { ProjectWorkspaceStore(context.applicationContext).projects() }
+    var selectedHostProject by remember { mutableStateOf<String?>(null) }
+    var selectHostProject by remember { mutableStateOf(false) }
 
     var tab by remember { mutableStateOf(ConsoleTab.EVENTS) }
     var command by remember { mutableStateOf("") }
-    val history = remember { mutableStateListOf<LocalConsoleLine>() }
+    val history = remember { mutableStateListOf<TerminalHistoryEntry>() }
+    var sessionReady by remember { mutableStateOf(false) }
+    var sessionError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(historyStore) {
+        try {
+            val restored = withContext(Dispatchers.IO) { historyStore.load() }
+            history.clear()
+            history.addAll(restored)
+            sessionReady = true
+        } catch (_: Exception) {
+            sessionError = true
+        }
+    }
+    // Writes are coalesced; a failed/undecryptable session is never overwritten.
+    val historySnapshot = history.toList()
+    LaunchedEffect(sessionReady, historySnapshot) {
+        if (sessionReady) {
+            delay(250)
+            try {
+                withContext(Dispatchers.IO) { historyStore.save(historySnapshot) }
+                sessionError = false
+            } catch (_: Exception) {
+                sessionError = true
+            }
+        }
+    }
 
     val help = stringResource(R.string.term_help_text)
     val unavailable = stringResource(R.string.term_shell_blocked)
@@ -68,11 +107,13 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
     val teamSelected = stringResource(R.string.term_team_selected)
     val comboSelected = stringResource(R.string.term_combo_selected)
     val unknownModel = stringResource(R.string.api_unknown)
+    val savedCount = stringResource(R.string.term_history_count, history.size)
+    val historyEmpty = stringResource(R.string.term_history_empty)
 
     fun addLine(input: String, message: String) {
-        val line = LocalConsoleLine(System.nanoTime(),
-            TerminalCommandPolicy.redact(input).take(500),
-            TerminalCommandPolicy.redact(message).take(1200))
+        val line = TerminalHistoryEntry(
+            command = TerminalCommandPolicy.redact(input).take(500),
+            output = TerminalCommandPolicy.redact(message).take(1200))
         history.add(line)
         if (history.size > 30) history.removeAt(0)
     }
@@ -92,6 +133,8 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
                 addLine(typed, eventCount)
             }
             TerminalIntent.Clear -> history.clear()
+            TerminalIntent.History -> addLine(typed,
+                history.takeLast(10).joinToString("\n") { it.command }.ifBlank { historyEmpty })
             TerminalIntent.Team -> {
                 tab = ConsoleTab.TEAM
                 addLine(typed, teamSelected)
@@ -176,17 +219,19 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
                 }
             }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(
                         ConsoleTab.EVENTS to stringResource(R.string.term_tab_events),
                         ConsoleTab.ROUTING to stringResource(R.string.term_tab_combo),
-                        ConsoleTab.TEAM to stringResource(R.string.term_tab_team)
+                        ConsoleTab.TEAM to stringResource(R.string.term_tab_team),
+                        ConsoleTab.HOST to stringResource(R.string.term_tab_host)
                     ).forEach { (key, title) ->
                         FilterChip(
                             selected = tab == key,
                             onClick = { tab = key },
                             label = { Text(title, maxLines = 1) },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
                         )
                     }
                 }
@@ -196,7 +241,7 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
                     item {
                         ConsoleSectionHeading(
                             title = stringResource(R.string.term_runtime_title),
-                            subtitle = stringResource(R.string.term_runtime_subtitle),
+                            subtitle = stringResource(R.string.term_runtime_subtitle) + " • " + savedCount,
                             trailing = {
                                 IconButton(onClick = {
                                     clipboard.setText(AnnotatedString(
@@ -234,6 +279,37 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
                             style = MaterialTheme.typography.bodySmall)
                     }
                 }
+                ConsoleTab.HOST -> {
+                    item {
+                        Text(stringResource(R.string.term_host_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    item {
+                        Box {
+                            OutlinedButton(onClick = { selectHostProject = true },
+                                modifier = Modifier.fillMaxWidth()) {
+                                Text(availableProjects.firstOrNull { it.id == selectedHostProject }?.name
+                                    ?: stringResource(R.string.term_host_select_project))
+                                Spacer(Modifier.width(6.dp))
+                                Icon(Icons.Default.ArrowDropDown, null)
+                            }
+                            DropdownMenu(expanded = selectHostProject,
+                                onDismissRequest = { selectHostProject = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.term_host_no_project)) },
+                                    onClick = { selectedHostProject = null; selectHostProject = false }
+                                )
+                                availableProjects.forEach { project ->
+                                    DropdownMenuItem(text = { Text(project.name) },
+                                        onClick = { selectedHostProject = project.id; selectHostProject = false })
+                                }
+                            }
+                        }
+                    }
+                    item { PhoneHarnessPanel(projectId = selectedHostProject) }
+                    item { RemoteWorkerPanel(projectId = selectedHostProject) }
+                }
                 ConsoleTab.TEAM -> {
                     item {
                         Text(stringResource(R.string.term_team_explanation),
@@ -248,6 +324,12 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
         Surface(color = MaterialTheme.colorScheme.surface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .7f))) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp)) {
+                if (!sessionReady || sessionError) {
+                    Text(stringResource(if (sessionError) R.string.term_history_unavailable
+                        else R.string.term_history_loading),
+                        color = if (sessionError) ConsoleError else ConsoleAmber,
+                        style = MaterialTheme.typography.labelSmall)
+                }
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.Terminal, null, tint = ConsoleGreen, modifier = Modifier.size(22.dp))
                     OutlinedTextField(
@@ -263,7 +345,7 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
                         shape = RoundedCornerShape(14.dp)
                     )
                     FilledIconButton(onClick = { submit() },
-                        enabled = command.isNotBlank(),
+                        enabled = command.isNotBlank() && sessionReady,
                         modifier = Modifier.size(48.dp).testTag("terminal_submit")) {
                         Icon(Icons.Default.ArrowUpward, stringResource(R.string.term_send))
                     }
@@ -348,7 +430,7 @@ private fun ConsoleSectionHeading(
 }
 
 @Composable
-private fun ConsoleLocalOutput(line: LocalConsoleLine) {
+private fun ConsoleLocalOutput(line: TerminalHistoryEntry) {
     Surface(shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .5f)) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {

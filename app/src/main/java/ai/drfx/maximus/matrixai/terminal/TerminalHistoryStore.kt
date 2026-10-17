@@ -65,9 +65,13 @@ internal class TerminalHistoryStore(context: Context) {
     private val cipher = ChatContentCipher()
 
     fun load(): List<TerminalHistoryEntry> {
-        if (!file.baseFile.exists()) return emptyList()
-        require(file.baseFile.length() in 1..200_000L) { "Invalid console history file size." }
-        val payload = file.openRead().bufferedReader(Charsets.UTF_8).use { it.readText() }
+        if (!file.baseFile.exists() &&
+            !File(file.baseFile.path + ".bak").exists()) return emptyList()
+        val payload = file.openRead().use { stream ->
+            // AtomicFile.openRead() first restores an interrupted-write backup.
+            require(file.baseFile.length() in 1..200_000L) { "Invalid console history file size." }
+            stream.bufferedReader(Charsets.UTF_8).readText()
+        }
         require(cipher.isEncrypted(payload)) { "Unencrypted console history rejected." }
         return TerminalHistoryCodec.decode(cipher.decrypt(payload))
     }

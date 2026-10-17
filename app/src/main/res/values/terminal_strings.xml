@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="term_help_text">Commands: /help, /status, /model, /events, /tools, /team, /combo, /clear, /mission [objective]. Other text requests a governed Matrix mission.</string>
+    <string name="term_help_text">Commands: /help, /status, /model, /events, /tools, /team, /combo, /history, /clear, /mission [objective]. Other text requests a governed Matrix mission.</string>
     <string name="term_shell_blocked">Direct shell commands are disabled in this console. Use /mission followed by an objective. System execution requires a separate approved worker.</string>
     <string name="term_tools_explanation">Tools are handled by the existing Matrix policy engine. Sensitive actions require your explicit approval. No unrestricted shell is available.</string>
     <string name="term_busy">A mission is already running or awaiting approval.</string>
@@ -24,7 +24,7 @@
     <string name="term_team_explanation">Existing agent-team controls are shown here. Changes require the same approvals and permissions as elsewhere in Matrix.</string>
     <string name="term_hint">Mission or /help</string>
     <string name="term_send">Send to terminal</string>
-    <string name="term_composer_note">/help  /model  /team  /combo  /mission  •  No raw shell</string>
+    <string name="term_composer_note">/help  /history  /model  /team  /combo  /mission  •  No raw shell</string>
     <string name="term_subtitle">Governed agent workspace</string>
     <string name="term_safe_mode">POLICY GUARDED</string>
     <string name="term_combo_on">Smart Combo enabled</string>
@@ -32,4 +32,12 @@
     <string name="term_observed_count">%1$d observed runtime events</string>
     <string name="term_team_selected">Agent workspace selected</string>
     <string name="term_combo_selected">Smart Combo telemetry selected</string>
+    <string name="term_history_count">%1$d local entries</string>
+    <string name="term_history_empty">No local commands in this session.</string>
+    <string name="term_history_loading">Loading encrypted terminal session…</string>
+    <string name="term_history_unavailable">Encrypted session unavailable. Existing history will not be overwritten.</string>
+    <string name="term_tab_host">Linux / Worker</string>
+    <string name="term_host_note">Optional phone Linux harness and remote worker controls. Select a project explicitly; sharing and execution still require approval. ZimZilla Python is not installed by this panel.</string>
+    <string name="term_host_select_project">Choose project (not shared)</string>
+    <string name="term_host_no_project">No project selected</string>
 </resources>
