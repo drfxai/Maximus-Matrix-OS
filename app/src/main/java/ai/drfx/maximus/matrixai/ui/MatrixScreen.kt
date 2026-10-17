@@ -6,6 +6,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,7 +46,8 @@ private enum class Destination(val label: String) {
     CHAT("Chat"),
     AGENTS("Personas"),
     DATA("Data"),
-    CONTROL("Control")
+    CONTROL("Control"),
+    TERMINAL("Terminal")
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -68,7 +71,8 @@ fun MatrixScreen(
         Destination.CHAT,
         Destination.AGENTS,
         Destination.DATA,
-        Destination.CONTROL
+        Destination.CONTROL,
+        Destination.TERMINAL
     )
 
     Scaffold(
@@ -195,6 +199,7 @@ fun MatrixScreen(
                         Destination.AGENTS -> Icons.Default.Person
                         Destination.DATA -> Icons.Default.Storage
                         Destination.CONTROL -> Icons.Default.Settings
+                        Destination.TERMINAL -> Icons.Default.Terminal
                         else -> Icons.Default.Widgets
                     }
                     val moreLabel: String = when (destination) {
@@ -202,6 +207,7 @@ fun MatrixScreen(
                         Destination.AGENTS -> stringResource(R.string.nav_personas)
                         Destination.DATA -> stringResource(R.string.nav_data)
                         Destination.CONTROL -> stringResource(R.string.nav_control)
+                        Destination.TERMINAL -> stringResource(R.string.term_tab_events)
                         else -> stringResource(R.string.nav_more)
                     }
                     val moreScale by animateFloatAsState(
@@ -315,6 +321,10 @@ fun MatrixScreen(
                         onLanguageChange = onLanguageChange,
                         modifier = Modifier.fillMaxSize()
                     )
+                    Destination.TERMINAL -> TerminalConsoleScreen(
+                        viewModel = viewModel,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }
@@ -331,6 +341,7 @@ fun MatrixScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .verticalScroll(rememberScrollState())
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -405,6 +416,18 @@ fun MatrixScreen(
                     isSelected = destination == Destination.DATA,
                     onClick = {
                         destination = Destination.DATA
+                        showMoreSheet = false
+                    }
+                )
+
+                WorkspaceItemRow(
+                    title = stringResource(R.string.term_tab_events),
+                    subtitle = stringResource(R.string.term_subtitle),
+                    icon = Icons.Default.Terminal,
+                    accentColor = Color(0xFF5CF0BC),
+                    isSelected = destination == Destination.TERMINAL,
+                    onClick = {
+                        destination = Destination.TERMINAL
                         showMoreSheet = false
                     }
                 )

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="term_help_text">Komutlar: /help, /status, /model, /events, /tools, /team, /combo, /clear ve /mission [hedef]. Normal metin denetimli bir görev ister.</string>
+    <string name="term_shell_blocked">Doğrudan kabuk komutları devre dışıdır. Hedefinizi /mission ile belirtin. Sistem çalıştırması ayrı ve izinli bir çalışan gerektirir.</string>
+    <string name="term_tools_explanation">Araçlar mevcut Matrix ilke motorundan geçer. Hassas işlemler açık onayınızı gerektirir. Sınırsız kabuk yoktur.</string>
+    <string name="term_busy">Bir görev çalışıyor veya onay bekliyor.</string>
+    <string name="term_unknown">Desteklenmeyen komut. /help yazın</string>
+    <string name="term_mission_submitted">Görev Matrix ilke motoruna iletildi. Doğrulanmış olaylar aşağıda görünür; kabuk komutu çalıştırılmadı.</string>
+    <string name="term_input_limit">Girdi en fazla 4.000 karakter olmalıdır.</string>
+    <string name="term_approval_title">Matrix araç işlemi onaylansın mı?</string>
+    <string name="term_approval_description">Onaylamadan önce aracı ve bağımsız değişkenleri inceleyin. Beklenmiyorsa reddedin.</string>
+    <string name="term_route_title">Etkin model rotası</string>
+    <string name="term_session_tokens">Oturum tokenları</string>
+    <string name="term_context_remaining">Kalan bağlam</string>
+    <string name="term_usage_note">Kullanım sağlayıcı raporu veya tahmin olabilir. Kalan bağlam sağlayıcı kotası değildir.</string>
+    <string name="term_tab_events">Terminal</string>
+    <string name="term_tab_combo">Smart Combo</string>
+    <string name="term_tab_team">Ajanlar</string>
+    <string name="term_runtime_title">Çalışma zamanı olayları</string>
+    <string name="term_runtime_subtitle">Yalnızca gözlenen Matrix olayları, en yeniden eskiye</string>
+    <string name="term_copy_log">Olayları kopyala</string>
+    <string name="term_no_events">Henüz çalışma olayı yok. Yetkili bir iş akışı için görev hedefi girin.</string>
+    <string name="term_combo_note">Model kataloğu, hesap kotasını veya canlı bağlantıyı garanti etmez.</string>
+    <string name="term_team_explanation">Mevcut ajan ekibi kontrolleri, aynı onaylar ve izinlerle burada sunulur.</string>
+    <string name="term_hint">Görev hedefi veya /help</string>
+    <string name="term_send">Terminale gönder</string>
+    <string name="term_composer_note">/help  /model  /team  /combo  /mission  •  Kabuk erişimi yok</string>
+    <string name="term_subtitle">İlke korumalı ajan çalışma alanı</string>
+    <string name="term_safe_mode">İLKE KORUMALI</string>
+    <string name="term_combo_on">Smart Combo etkin</string>
+    <string name="term_combo_off">Manuel yönlendirme</string>
+    <string name="term_observed_count">%1$d gözlemlenmiş çalışma olayı</string>
+    <string name="term_team_selected">Ajan çalışma alanı seçildi</string>
+    <string name="term_combo_selected">Smart Combo telemetrisi seçildi</string>
+</resources>
