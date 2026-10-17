@@ -66,8 +66,8 @@ internal fun PluginStorePanel(onChanged: () -> Unit = {}) {
             confirmButton = { TextButton(onClick = {
                 failed = runCatching { registry.install(plugin.id, plugin.fingerprint, approved = true) }.isFailure
                 generation++; review = null; onChanged()
-            }) { Text(stringResource(R.string.plugin_install)) } },
-            dismissButton = { TextButton(onClick = { review = null }) { Text(stringResource(R.string.linux_cancel)) } })
+            }, modifier = Modifier.testTag("plugin_confirm_install")) { Text(stringResource(R.string.plugin_install)) } },
+            dismissButton = { TextButton(onClick = { review = null }, modifier = Modifier.testTag("plugin_cancel_review")) { Text(stringResource(R.string.linux_cancel)) } })
     }
     removal?.let { plugin ->
         AlertDialog(onDismissRequest = { removal = null }, title = { Text(stringResource(R.string.plugin_remove)) },
@@ -78,10 +78,11 @@ internal fun PluginStorePanel(onChanged: () -> Unit = {}) {
                     when (plugin.id) {
                         "github" -> vault.clear(DevelopmentService.GITHUB)
                         "cloudflare" -> vault.clear(DevelopmentService.CLOUDFLARE)
+                        else -> Unit
                     }
                 }.isFailure
                 generation++; removal = null; onChanged()
-            }) { Text(stringResource(R.string.plugin_remove)) } },
+            }, modifier = Modifier.testTag("plugin_confirm_remove")) { Text(stringResource(R.string.plugin_remove)) } },
             dismissButton = { TextButton(onClick = { removal = null }) { Text(stringResource(R.string.linux_cancel)) } })
     }
 }

@@ -29,3 +29,5 @@ The catalog has four fixed modules: GitHub, Cloudflare, APK builder and Linux. I
 ## Validation
 
 Pure Kotlin tests cover exclusive runtime ownership, concurrent acquisition, stale cleanup, command bounds, unbounded-line output protection, plugin consent, persisted revocation, corrupt state and manifest changes. Existing native provenance and localization checks remain required. Android compilation/lint, emulator UI tests and physical ARM64 acceptance are separate gates.
+
+The physical Linux instrumentation gate is `PhoneLinuxAcceptanceTest` with `approvedOwnerLinux=true`. It requires an already installed pinned runtime on a dedicated ARM64 test device and verifies actual aarch64 output, workspace persistence across commands, cancellation and lease release. `PhoneNativeApkBuildAcceptanceTest` retains its separate explicit build approval. Neither gate is part of the x86 emulator success claim.

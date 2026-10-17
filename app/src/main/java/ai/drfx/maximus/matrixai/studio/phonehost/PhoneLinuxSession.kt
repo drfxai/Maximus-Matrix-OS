@@ -34,6 +34,7 @@ internal class PhoneLinuxSession(context: Context) {
         cancelled = false
         mutable.value = PhoneLinuxState(id, "running")
         scope.launch {
+            var terminal: PhoneLinuxState? = null
             try {
                 check(Build.VERSION.SDK_INT >= 28 && "arm64-v8a" in Build.SUPPORTED_ABIS)
                 val root = File(app.filesDir, "phone-runtime/rootfs")
@@ -97,13 +98,13 @@ internal class PhoneLinuxSession(context: Context) {
                 child.waitFor(3, TimeUnit.SECONDS)
                 pump.join(1500)
                 synchronized(mutex) {
-                    mutable.value = mutable.value.copy(
+                    terminal = mutable.value.copy(
                         phase = if (cancelled) "cancelled" else if (!finished) "timeout" else "finished",
                         exitCode = if (finished && !cancelled) child.exitValue() else null)
                 }
             } catch (_: Exception) {
                 synchronized(mutex) {
-                    mutable.value = mutable.value.copy(phase = if (cancelled) "cancelled" else "failed")
+                    terminal = mutable.value.copy(phase = if (cancelled) "cancelled" else "failed")
                 }
             } finally {
                 synchronized(mutex) {
@@ -113,6 +114,7 @@ internal class PhoneLinuxSession(context: Context) {
                     }
                 }
                 lease.close()
+                synchronized(mutex) { terminal?.let { mutable.value = it } }
             }
         }
         Unit

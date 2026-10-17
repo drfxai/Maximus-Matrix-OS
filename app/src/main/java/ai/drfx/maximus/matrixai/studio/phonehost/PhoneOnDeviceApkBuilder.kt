@@ -89,6 +89,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
         }
         scope.launch {
             var lease: PhoneRuntimeCoordinator.Lease? = null
+            var terminal: PhoneBuildState? = null
             try {
                 lease = PhoneRuntimeCoordinator.acquire(PhoneRuntimeCoordinator.Operation.VERIFY)
                 requireDeviceAndTools()
@@ -106,19 +107,22 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                 check(proof.exit == 0 && !proof.cancelled) {
                     "The installed Gradle/JDK/SDK/AAPT2 tools did not pass execution checks."
                 }
-                _state.value = _state.value.copy(
+                terminal = _state.value.copy(
                     phase = "ready",
                     verifiedTools = true,
                     message = "Gradle, Java, Android SDK and ARM64 AAPT2 ran successfully on this phone.",
                     logTail = proof.log.takeLast(4000)
                 )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(
+                terminal = _state.value.copy(
                     phase = "unavailable",
                     message = (e.message ?: "On-phone runtime verification failed.").take(500),
                     verifiedTools = false
                 )
-            } finally { lease?.close() }
+            } finally {
+                lease?.close()
+                terminal?.let { _state.value = it }
+            }
         }
     }
 
@@ -151,6 +155,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
         }
         scope.launch {
             var jobRoot: File? = null
+            var terminal: PhoneBuildState? = null
             var lease: PhoneRuntimeCoordinator.Lease? = null
             try {
                 lease = PhoneRuntimeCoordinator.acquire(PhoneRuntimeCoordinator.Operation.BUILD)
@@ -194,7 +199,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                     allowed = { allowed() && (claim == null || claim.isValid()) }
                 )
                 if (result.cancelled || cancelled.get()) {
-                    _state.value = PhoneBuildState(
+                    terminal = PhoneBuildState(
                         phase = "cancelled", ownerJobId = ownerId, message = "Local build cancelled.",
                         projectId = projectId, logTail = result.log
                     )
@@ -217,7 +222,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                     "Generated APK could not be parsed as an Android package."
                 }
                 val artifact = artifacts.save(apk, projectId, archiveInfo.packageName)
-                _state.value = PhoneBuildState(
+                terminal = PhoneBuildState(
                     phase = "succeeded", ownerJobId = ownerId,
                     message = "Debug APK compiled ON THIS PHONE. Package: " + archiveInfo.packageName,
                     projectId = projectId, logTail = result.log,
@@ -225,7 +230,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                     verifiedTools = true, apkBytes = artifact.file.length()
                 )
             } catch (e: Exception) {
-                _state.value = PhoneBuildState(
+                terminal = PhoneBuildState(
                     phase = if (cancelled.get()) "cancelled" else "failed", ownerJobId = ownerId,
                     message = (e.message ?: "Local Android build failed.").take(500),
                     projectId = projectId, logTail = _state.value.logTail,
@@ -234,12 +239,16 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
             } finally {
                 // Keep only a successful APK, not potentially sensitive source snapshots.
                 synchronized(mutex) { if (ownerJobId == ownerId) ownerJobId = null }
-                jobRoot?.let { root ->
-                    File(root, "workspace").deleteRecursively()
-                    File(root, "project.zip").delete()
-                    root.deleteRecursively()
+                try {
+                    jobRoot?.let { root ->
+                        File(root, "workspace").deleteRecursively()
+                        File(root, "project.zip").delete()
+                        root.deleteRecursively()
+                    }
+                } finally {
+                    lease?.close()
+                    terminal?.let { _state.value = it }
                 }
-                lease?.close()
             }
         }
     }
@@ -252,6 +261,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
     fun exportVerifiedApk(output: java.io.OutputStream) = exportVerifiedApk(output, null)
 
     fun exportVerifiedApk(output: java.io.OutputStream, expectedSha256: String?) {
+        check(plugins.installed("phone-apk")) { "Install the APK Builder plugin first." }
         val ready = _state.value
         require(expectedSha256 == null || ready.apkSha256 == expectedSha256) {
             "The selected APK changed. Choose Save APK again."

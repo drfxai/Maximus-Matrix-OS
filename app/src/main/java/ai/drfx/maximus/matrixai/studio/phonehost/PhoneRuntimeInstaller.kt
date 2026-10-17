@@ -137,6 +137,7 @@ internal class PhoneRuntimeInstaller(context: Context) {
                 }
                 old.deleteRecursively()
                 archives.forEach { it.delete() }
+                lease.close()
                 finish("installed",
                     "Toolchain files verified. Run Verify tools to prove Gradle/JDK/AAPT2 execution.",
                     finished, total)
@@ -147,6 +148,7 @@ internal class PhoneRuntimeInstaller(context: Context) {
                 } else "failed"
                 val reason = if (stopped.get()) stopReason
                     else (e.message ?: "Runtime setup failed. Tap Resume to retry.")
+                lease.close()
                 finish(phase, reason)
             } finally { lease.close() }
         }
