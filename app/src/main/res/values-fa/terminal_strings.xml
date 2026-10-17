@@ -29,4 +29,7 @@
     <string name="term_safe_mode">تحت کنترل سیاست</string>
     <string name="term_combo_on">اسمارت کمبو فعال</string>
     <string name="term_combo_off">مسیر دستی</string>
+    <string name="term_observed_count">%1$d رویداد واقعی ثبت‌شده</string>
+    <string name="term_team_selected">محیط تیم ایجنت‌ها انتخاب شد</string>
+    <string name="term_combo_selected">داشبورد اسمارت کمبو انتخاب شد</string>
 </resources>
