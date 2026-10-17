@@ -69,6 +69,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardVoice
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
@@ -1745,6 +1746,7 @@ private fun ChatBubble(
         feedbackStore.key(sessionId, message.timestampMs, message.content)
     }
     var reaction by remember(key) { mutableStateOf(feedbackStore.get(key)) }
+    var reactionPickerOpen by remember(key) { mutableStateOf(false) }
     val draft = remember(message.content) { if (isUser) null else ChatPresentation.draft(message.content) }
     var entered by remember(message.timestampMs) { mutableStateOf(false) }
     LaunchedEffect(message.timestampMs) { entered = true }
@@ -1838,6 +1840,32 @@ private fun ChatBubble(
                         }
                         action(Icons.Default.Favorite, stringResource(R.string.chat_love), reaction == "love") {
                             reaction = if (reaction == "love") "" else "love"; feedbackStore.set(key, reaction)
+                        }
+                        Box {
+                            action(Icons.Default.MoreHoriz, stringResource(R.string.focus_details)) {
+                                reactionPickerOpen = !reactionPickerOpen
+                            }
+                            DropdownMenu(expanded = reactionPickerOpen,
+                                onDismissRequest = { reactionPickerOpen = false }) {
+                                Row(Modifier.padding(horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    action(Icons.Default.ThumbUp, stringResource(R.string.chat_helpful), reaction == "like") {
+                                        reaction = if (reaction == "like") "" else "like"
+                                        feedbackStore.set(key, reaction); reactionPickerOpen = false
+                                    }
+                                    action(Icons.Default.Favorite, stringResource(R.string.chat_love), reaction == "love") {
+                                        reaction = if (reaction == "love") "" else "love"
+                                        feedbackStore.set(key, reaction); reactionPickerOpen = false
+                                    }
+                                    action(Icons.Default.ThumbDown, stringResource(R.string.chat_not_helpful), reaction == "dislike") {
+                                        reaction = if (reaction == "dislike") "" else "dislike"
+                                        feedbackStore.set(key, reaction); reactionPickerOpen = false
+                                    }
+                                    action(Icons.Default.ContentCopy, stringResource(R.string.chat_copy)) {
+                                        onCopy(); reactionPickerOpen = false
+                                    }
+                                }
+                            }
                         }
                         action(Icons.Default.VolumeUp, stringResource(R.string.chat_speak_response), false, onSpeak)
                     }
