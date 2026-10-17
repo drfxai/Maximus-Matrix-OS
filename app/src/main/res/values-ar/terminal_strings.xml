@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="term_help_text">الأوامر: /help و/status و/model و/events و/tools و/team و/combo و/clear و/mission مع الهدف. النص العادي ينشئ مهمة خاضعة للسياسة.</string>
+    <string name="term_help_text">الأوامر: /help و/status و/model و/events و/tools و/team و/combo و/history و/clear و/mission مع الهدف. النص العادي ينشئ مهمة خاضعة للسياسة.</string>
     <string name="term_shell_blocked">أوامر الصدفة المباشرة معطلة. استخدم /mission مع الهدف. تنفيذ أوامر النظام يتطلب عاملاً منفصلاً مصرحاً به.</string>
     <string name="term_tools_explanation">تمر الأدوات عبر محرك سياسات Matrix الحالي. تتطلب الإجراءات الحساسة موافقتك الصريحة. لا توجد صدفة غير مقيدة.</string>
     <string name="term_busy">هناك مهمة قيد التنفيذ أو تنتظر الموافقة.</string>
@@ -24,7 +24,7 @@
     <string name="term_team_explanation">تظهر هنا أدوات فريق الوكلاء الحالية مع استمرار تطبيق الموافقات والأذونات.</string>
     <string name="term_hint">هدف المهمة أو /help</string>
     <string name="term_send">إرسال إلى الطرفية</string>
-    <string name="term_composer_note">/help  /model  /team  /combo  /mission  •  بلا أوامر صدفة مباشرة</string>
+    <string name="term_composer_note">/help  /history  /model  /team  /combo  /mission  •  بلا أوامر صدفة مباشرة</string>
     <string name="term_subtitle">مساحة عمل للوكلاء بصلاحيات محكومة</string>
     <string name="term_safe_mode">محمي بالسياسات</string>
     <string name="term_combo_on">المزيج الذكي نشط</string>
@@ -32,4 +32,12 @@
     <string name="term_observed_count">%1$d من أحداث التنفيذ المرصودة</string>
     <string name="term_team_selected">تم تحديد مساحة عمل الوكلاء</string>
     <string name="term_combo_selected">تم تحديد بيانات Smart Combo</string>
+    <string name="term_history_count">%1$d عناصر محلية</string>
+    <string name="term_history_empty">لا توجد أوامر محلية في هذه الجلسة.</string>
+    <string name="term_history_loading">جارٍ استعادة جلسة الطرفية المشفرة…</string>
+    <string name="term_history_unavailable">الجلسة المشفرة غير متاحة، ولن تتم الكتابة فوق السجل الحالي.</string>
+    <string name="term_tab_host">لينكس / عامل</string>
+    <string name="term_host_note">أدوات اختيارية لاستضافة لينكس على الهاتف والعامل البعيد. حدد المشروع صراحة؛ المشاركة والتنفيذ يتطلبان الموافقة. لا تثبت هذه اللوحة Python الخاص بـ ZimZilla.</string>
+    <string name="term_host_select_project">اختر مشروعًا (غير مشارك)</string>
+    <string name="term_host_no_project">لا يوجد مشروع</string>
 </resources>
