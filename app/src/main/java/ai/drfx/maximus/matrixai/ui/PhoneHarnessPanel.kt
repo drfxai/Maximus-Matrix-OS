@@ -120,11 +120,11 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier, showWor
         modifier.fillMaxWidth().testTag("phone_harness_panel").animateContentSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Compact visual identity: high contrast and battery-friendly static gradient.
+        // Keep this console header dark in both themes for its light foreground controls.
         Surface(shape = RoundedCornerShape(14.dp), color = harnessNight) {
             Column(
                 Modifier.fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .background(harnessNight)
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
