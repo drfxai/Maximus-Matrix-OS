@@ -20,13 +20,19 @@ test_args=(-Pandroid.testInstrumentationRunnerArguments.timeout_msec=120000)
 if [[ -n "${ANDROID_TEST_CLASSES:-}" ]]; then
   test_args+=("-Pandroid.testInstrumentationRunnerArguments.class=${ANDROID_TEST_CLASSES}")
 fi
-# Remove both copies of the two test-owned captures so fallback cannot publish stale evidence.
+# Remove both copies of every test-owned capture so fallback cannot publish stale evidence.
 if [[ -z "${ANDROID_TEST_CLASSES:-}" || "${ANDROID_TEST_CLASSES:-}" == *"KeyboardLayoutTest"* ]]; then
   timeout --kill-after=2s 10s adb shell rm -f \
     /data/local/tmp/maximus-keyboard-home-graph.png \
     /data/local/tmp/maximus-keyboard-chat-focus.png \
+    /data/local/tmp/maximus-keyboard-studio-overview.png \
+    /data/local/tmp/maximus-keyboard-agents-teams.png \
+    /data/local/tmp/maximus-keyboard-smart-combo.png \
     /sdcard/Android/data/ai.drfx.maximus.matrixai/files/home-graph.png \
-    /sdcard/Android/data/ai.drfx.maximus.matrixai/files/chat-focus.png || true
+    /sdcard/Android/data/ai.drfx.maximus.matrixai/files/chat-focus.png \
+    /sdcard/Android/data/ai.drfx.maximus.matrixai/files/studio-overview.png \
+    /sdcard/Android/data/ai.drfx.maximus.matrixai/files/agents-teams.png \
+    /sdcard/Android/data/ai.drfx.maximus.matrixai/files/smart-combo.png || true
 fi
 if [[ "$initial_status" -eq 0 ]] && [[ "$(cat keyboard-check/initial-device-state.txt)" == device ]]; then
   timeout --kill-after=30s 15m gradle connectedDebugAndroidTest --no-daemon --stacktrace \

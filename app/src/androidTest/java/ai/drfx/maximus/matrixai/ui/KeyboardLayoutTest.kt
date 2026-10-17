@@ -174,6 +174,8 @@ class KeyboardLayoutTest {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
         require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "agents-teams.png", "smart-combo.png"))
         runCatching {
+            // Let the destination crossfade finish before sampling the rendered frame.
+            SystemClock.sleep(350L)
             val file = java.io.File(instrumentation.targetContext.getExternalFilesDir(null), name)
             check(device.takeScreenshot(file)) { "Unable to save workspace screenshot" }
             val copyResult = device.executeShellCommand(
@@ -182,7 +184,7 @@ class KeyboardLayoutTest {
             )
             check(copyResult.isBlank()) { "Unable to retain workspace screenshot after uninstall" }
             phase("Workspace screenshot $name saved=true; retained outside app storage")
-        }.onFailure { phase("Workspace screenshot unavailable: " + it.javaClass.simpleName) }
+        }.onFailure { phase("Workspace screenshot unavailable: " + it.javaClass.simpleName) }.getOrThrow()
     }
 
     private fun withResumedActivity(block: (MainActivity) -> Unit) {
