@@ -24,6 +24,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -498,7 +505,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 Text(
                                     text = stringResource(R.string.conv_context_left, numberFormat.format(metrics.remainingContextTokens)),
                                     fontSize = 12.sp,
-                                    color = Color(0xFF00E676),
+                                    color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -598,7 +605,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             }
                         }
                         Text(stringResource(R.string.speech_conversation_label), fontSize = 12.sp)
-                        Switch(
+                        MotionSwitch(
                             checked = voiceConversation,
                             onCheckedChange = {
                                 voiceConversation = it
@@ -957,9 +964,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         // Compact message input field; screen-level IME insets keep it above the keyboard.
         Surface(
             modifier = Modifier.semantics { contentDescription = context.getString(R.string.chat_composer_description) },
-            color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .65f))
         ) {
             Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                 OutlinedTextField(
@@ -1206,7 +1213,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(stringResource(R.string.api_stat_context_left), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(stringResource(R.string.api_token_count, numberFormat.format(metrics.remainingContextTokens)), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E676))
+                            Text(stringResource(R.string.api_token_count, numberFormat.format(metrics.remainingContextTokens)), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(stringResource(R.string.api_stat_session), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1219,7 +1226,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         if (metrics.remainingBudgetTokens != null) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(stringResource(R.string.api_local_budget_remaining), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${numberFormat.format(metrics.remainingBudgetTokens)} / ${numberFormat.format(metrics.monthlyTokenBudget)}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E676))
+                                Text("${numberFormat.format(metrics.remainingBudgetTokens)} / ${numberFormat.format(metrics.monthlyTokenBudget)}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -1570,8 +1577,8 @@ private fun ChatProviderSwitcherBar(
             Surface(
                 onClick = { onConfigureKey(currentProvider) },
                 shape = RoundedCornerShape(6.dp),
-                color = if (hasSavedKey) Color(0xFF00E676).copy(alpha = 0.12f) else MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f),
-                border = BorderStroke(0.75.dp, if (hasSavedKey) Color(0xFF00E676).copy(alpha = 0.4f) else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f))
+                color = if (hasSavedKey) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f),
+                border = BorderStroke(0.75.dp, if (hasSavedKey) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f))
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp),
@@ -1580,7 +1587,7 @@ private fun ChatProviderSwitcherBar(
                     Icon(
                         if (hasSavedKey) Icons.Default.CheckCircle else Icons.Default.Key,
                         contentDescription = stringResource(R.string.chat_configure_key_description),
-                        tint = if (hasSavedKey) Color(0xFF00E676) else MaterialTheme.colorScheme.tertiary,
+                        tint = if (hasSavedKey) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(10.dp)
                     )
                     Spacer(Modifier.width(3.dp))
@@ -1588,7 +1595,7 @@ private fun ChatProviderSwitcherBar(
                         text = stringResource(if (hasSavedKey) R.string.conv_key_ready else R.string.conv_key_setup),
                         fontSize = 8.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (hasSavedKey) Color(0xFF00E676) else MaterialTheme.colorScheme.onTertiaryContainer
+                        color = if (hasSavedKey) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onTertiaryContainer
                     )
                 }
             }
@@ -1636,23 +1643,26 @@ private fun MicroProviderChip(
     onChipClick: () -> Unit,
     onDropdownClick: () -> Unit
 ) {
+    val chipColor by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        label = "provider-selection")
     Surface(
         onClick = onChipClick,
-        shape = RoundedCornerShape(8.dp),
-        color = if (selected) brandColor.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+        shape = RoundedCornerShape(12.dp),
+        color = chipColor,
         border = BorderStroke(
             width = if (selected) 1.dp else 0.75.dp,
-            color = if (selected) brandColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
         )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 icon,
                 contentDescription = null,
-                tint = if (selected) brandColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(11.dp)
             )
             Spacer(Modifier.width(4.dp))
@@ -1716,10 +1726,10 @@ private fun ChatBubble(
     val isUser = message.role == "user"
     val background = if (message.isError) MaterialTheme.colorScheme.errorContainer
     else if (isUser) MaterialTheme.colorScheme.primaryContainer
-    else MaterialTheme.colorScheme.surfaceVariant
+    else MaterialTheme.colorScheme.background
     val textColor = if (message.isError) MaterialTheme.colorScheme.onErrorContainer
     else if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
-    else MaterialTheme.colorScheme.onSurfaceVariant
+    else MaterialTheme.colorScheme.onSurface
     val key = remember(sessionId, message.timestampMs, message.content) {
         feedbackStore.key(sessionId, message.timestampMs, message.content)
     }
@@ -1733,7 +1743,7 @@ private fun ChatBubble(
                 bottomStart = if (isUser) 16.dp else 3.dp,
                 bottomEnd = if (isUser) 3.dp else 16.dp
             ),
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.94f else 1f)
+            modifier = Modifier.fillMaxWidth(if (isUser) 0.88f else 1f)
         ) {
             Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 message.attachment?.let { attachment ->
@@ -1788,8 +1798,14 @@ private fun ChatBubble(
                             icon: androidx.compose.ui.graphics.vector.ImageVector,
                             name: String, selected: Boolean = false, clicked: () -> Unit
                         ) {
-                            IconButton(onClick = clicked, modifier = Modifier.size(33.dp)) {
-                                Icon(icon, contentDescription = name, modifier = Modifier.size(18.dp),
+                            val interactions = remember { MutableInteractionSource() }
+                            val pressed by interactions.collectIsPressedAsState()
+                            val scale by animateFloatAsState(if (pressed) .86f else if (selected) 1.12f else 1f,
+                                animationSpec = spring(dampingRatio = .5f), label = "reaction-scale")
+                            val haptics = LocalHapticFeedback.current
+                            IconButton(onClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); clicked() },
+                                interactionSource = interactions, modifier = Modifier.size(48.dp).scale(scale)) {
+                                Icon(icon, contentDescription = name, modifier = Modifier.size(20.dp),
                                     tint = if (selected) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
                             }

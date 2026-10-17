@@ -40,7 +40,7 @@ timeout --kill-after=2s 10s adb get-state > keyboard-check/device-state.txt 2>&1
 # KeyboardLayoutTest saves its failure screenshot in the app external files area.
 timeout --kill-after=2s 15s adb pull /sdcard/Android/data/ai.drfx.maximus.matrixai/files/failure-state.png keyboard-check/test-failure-screen.png || true
 if [[ -z "${ANDROID_TEST_CLASSES:-}" || "${ANDROID_TEST_CLASSES:-}" == *"KeyboardLayoutTest"* ]]; then
-  for capture in home-graph.png chat-focus.png; do
+  for capture in home-graph.png chat-focus.png studio-overview.png agents-teams.png; do
     # The test copies these before Gradle's uninstall; retain external storage as a fallback.
     if ! timeout --kill-after=2s 10s adb pull "/data/local/tmp/maximus-keyboard-$capture" "keyboard-check/$capture"; then
       timeout --kill-after=2s 10s adb pull "/sdcard/Android/data/ai.drfx.maximus.matrixai/files/$capture" "keyboard-check/$capture" || true

@@ -51,13 +51,28 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
         }
         Text(smartComboStatusLabel(state), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            TokenOrbit(metrics.contextUsagePercent,
+                if (state.selectedModel.isBlank()) unknown else format.format(metrics.remainingContextTokens),
+                stringResource(R.string.dash_context_left))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CommandStatus(stringResource(if (metrics.contextUsagePercent >= .85f)
+                    R.string.motion_context_warning else R.string.dash_context_estimate), active != null)
+                Text(stringResource(R.string.motion_context_not_credit),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state.isGenerating) LinearProgressIndicator(Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.tertiary)
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CommandMetric(stringResource(R.string.dash_session_tokens),
                 format.format(metrics.consumedSessionTokens), stringResource(R.string.dash_reported_or_estimated),
                 Modifier.weight(1f))
             CommandMetric(stringResource(R.string.dash_context_left),
                 (if (state.selectedModel.isBlank()) unknown else format.format(metrics.remainingContextTokens)), stringResource(R.string.dash_context_estimate),
-                Modifier.weight(1f))
+                Modifier.weight(1f), attention = metrics.contextUsagePercent >= .85f)
         }
         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(5.dp),
             color = if (progress > .85f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)

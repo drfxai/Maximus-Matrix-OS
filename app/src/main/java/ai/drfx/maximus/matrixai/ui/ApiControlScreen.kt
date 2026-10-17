@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.DataUsage
 import androidx.compose.material.icons.filled.Memory
@@ -62,6 +63,41 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
         }
 
         item { SmartComboCommandDashboard(state) }
+        item {
+            CommandDashboardCard {
+                Text(stringResource(R.string.api_presets), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.api_provider_presets_info),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val providers = listOf(LlmProvider.GEMINI, LlmProvider.NVIDIA,
+                    LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO,
+                    LlmProvider.OPENAI, LlmProvider.ANTHROPIC)
+                providers.chunked(2).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { provider ->
+                            val selected = state.provider == provider
+                            val tone by androidx.compose.animation.animateColorAsState(
+                                if (selected) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceContainerLow, label = "provider-card")
+                            Surface(onClick = { viewModel.applyProviderPreset(provider) },
+                                modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.medium,
+                                color = tone, border = BorderStroke(1.dp,
+                                    if (selected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.outlineVariant)) {
+                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(if (selected) Icons.Default.CheckCircle else Icons.Default.Memory,
+                                        null, tint = if (selected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(provider.displayName, style = MaterialTheme.typography.labelLarge)
+                                    if (selected) Text(stringResource(R.string.motion_selected),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         item {
             ControlCard {
@@ -71,7 +107,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         Text(stringResource(R.string.api_combo_desc),
                             fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Switch(checked = state.smartComboEnabled, onCheckedChange = viewModel::setSmartComboEnabled,
+                    MotionSwitch(checked = state.smartComboEnabled, onCheckedChange = viewModel::setSmartComboEnabled,
                         enabled = !state.isGenerating)
                 }
                 Text(smartComboStatusLabel(state), fontSize = 12.sp,
@@ -121,65 +157,6 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                 }
                 Text(stringResource(R.string.api_free_only_caution),
                     fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-
-        // Quick Provider Presets Carousel
-        item {
-            ControlCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Bolt, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.api_presets), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                }
-                Text(
-                    stringResource(R.string.api_provider_presets_info),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ProviderPresetChip(
-                        name = "Google Gemini",
-                        selected = state.provider == LlmProvider.GEMINI,
-                        accentColor = Color(0xFF4285F4),
-                        onClick = { viewModel.applyProviderPreset(LlmProvider.GEMINI) }
-                    )
-                    ProviderPresetChip(
-                        name = "9Router",
-                        selected = state.provider == LlmProvider.ROUTER_9_SMART,
-                        accentColor = Color(0xFF00E5FF),
-                        onClick = { viewModel.applyProviderPreset(LlmProvider.ROUTER_9_SMART) }
-                    )
-                    ProviderPresetChip(
-                        name = "9Router (server combo)",
-                        selected = state.provider == LlmProvider.ROUTER_9_COMBO,
-                        accentColor = Color(0xFF7C4DFF),
-                        onClick = { viewModel.applyProviderPreset(LlmProvider.ROUTER_9_COMBO) }
-                    )
-                    ProviderPresetChip(
-                        name = "NVIDIA NIM",
-                        selected = state.provider == LlmProvider.NVIDIA,
-                        accentColor = Color(0xFF76B900),
-                        onClick = { viewModel.applyProviderPreset(LlmProvider.NVIDIA) }
-                    )
-                    ProviderPresetChip(
-                        name = "OpenAI",
-                        selected = state.provider == LlmProvider.OPENAI,
-                        accentColor = Color(0xFF10A37F),
-                        onClick = { viewModel.applyProviderPreset(LlmProvider.OPENAI) }
-                    )
-                    ProviderPresetChip(
-                        name = "Claude",
-                        selected = state.provider == LlmProvider.ANTHROPIC,
-                        accentColor = Color(0xFFD97706),
-                        onClick = { viewModel.applyProviderPreset(LlmProvider.ANTHROPIC) }
-                    )
-                }
             }
         }
 
