@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="term_help_text">Komutlar: /help, /status, /model, /events, /tools, /team, /combo, /clear ve /mission [hedef]. Normal metin denetimli bir görev ister.</string>
+    <string name="term_help_text">Komutlar: /help, /status, /model, /events, /tools, /team, /combo, /history, /clear ve /mission [hedef]. Normal metin denetimli bir görev ister.</string>
     <string name="term_shell_blocked">Doğrudan kabuk komutları devre dışıdır. Hedefinizi /mission ile belirtin. Sistem çalıştırması ayrı ve izinli bir çalışan gerektirir.</string>
     <string name="term_tools_explanation">Araçlar mevcut Matrix ilke motorundan geçer. Hassas işlemler açık onayınızı gerektirir. Sınırsız kabuk yoktur.</string>
     <string name="term_busy">Bir görev çalışıyor veya onay bekliyor.</string>
@@ -24,7 +24,7 @@
     <string name="term_team_explanation">Mevcut ajan ekibi kontrolleri, aynı onaylar ve izinlerle burada sunulur.</string>
     <string name="term_hint">Görev hedefi veya /help</string>
     <string name="term_send">Terminale gönder</string>
-    <string name="term_composer_note">/help  /model  /team  /combo  /mission  •  Kabuk erişimi yok</string>
+    <string name="term_composer_note">/help  /history  /model  /team  /combo  /mission  •  Kabuk erişimi yok</string>
     <string name="term_subtitle">İlke korumalı ajan çalışma alanı</string>
     <string name="term_safe_mode">İLKE KORUMALI</string>
     <string name="term_combo_on">Smart Combo etkin</string>
@@ -32,4 +32,12 @@
     <string name="term_observed_count">%1$d gözlemlenmiş çalışma olayı</string>
     <string name="term_team_selected">Ajan çalışma alanı seçildi</string>
     <string name="term_combo_selected">Smart Combo telemetrisi seçildi</string>
+    <string name="term_history_count">%1$d yerel kayıt</string>
+    <string name="term_history_empty">Bu oturumda yerel komut yok.</string>
+    <string name="term_history_loading">Şifreli terminal oturumu yükleniyor…</string>
+    <string name="term_history_unavailable">Şifreli oturum açılamıyor; mevcut geçmişin üzerine yazılmayacak.</string>
+    <string name="term_tab_host">Linux / Worker</string>
+    <string name="term_host_note">İsteğe bağlı telefon Linux ortamı ve uzak çalışan kontrolleri. Projeyi açıkça seçin; paylaşım ve yürütme yine onay gerektirir. Bu panel ZimZilla Python\'u yüklemez.</string>
+    <string name="term_host_select_project">Proje seç (paylaşılmadı)</string>
+    <string name="term_host_no_project">Proje seçilmedi</string>
 </resources>
