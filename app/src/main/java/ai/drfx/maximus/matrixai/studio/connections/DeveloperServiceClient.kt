@@ -91,6 +91,8 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         require(path.startsWith("/") && !path.startsWith("//") && '#' !in path)
         require(method in setOf("GET", "POST", "PUT"))
         require(body == null || body.size <= 512 * 1024)
+        val pluginId = if (service == DevelopmentService.GITHUB) "github" else "cloudflare"
+        check(vault.plugins.installed(pluginId)) { "Install this native plugin from the Plugin Store first." }
         val credentials = vault.snapshot(service)
         if (expectedCloudflareRevision != null) check(service == DevelopmentService.CLOUDFLARE &&
             credentials.revision == expectedCloudflareRevision) { "Connection changed." }
@@ -113,6 +115,10 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
             connection.setRequestProperty("User-Agent", "Maximus-Matrix-Mobile/1.0")
             if (service == DevelopmentService.GITHUB)
                 connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+            // Revoked plugins/credentials must not dispatch a queued operation.
+            check(vault.plugins.installed(pluginId) && vault.revision(service) == credentials.revision) {
+                "Connection or plugin changed."
+            }
             // Last check before either outputStream or responseCode can dispatch HTTP.
             if (expectedCloudflareRevision != null)
                 check(vault.revision(service) == expectedCloudflareRevision) { "Connection changed." }

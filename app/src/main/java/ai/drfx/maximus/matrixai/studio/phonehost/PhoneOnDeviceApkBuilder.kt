@@ -54,6 +54,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
     private val loader get() = File(app.applicationInfo.nativeLibraryDir, "libprootloader.so")
     private val jobs get() = File(app.cacheDir, "phone-apk-jobs")
 
+    private val plugins = ai.drfx.maximus.matrixai.plugins.NativePlugins.registry(app)
     private val artifacts = PhoneBuildArtifactStore(File(app.filesDir, "phone-build-artifacts"))
 
     init {
@@ -77,12 +78,19 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
     fun verifyTools() {
         synchronized(mutex) {
             if (_state.value.busy) return
+            if (!plugins.installed("phone-apk")) {
+                _state.value = _state.value.copy(phase = "unavailable", verifiedTools = false,
+                    message = "Install the APK Builder plugin from the Plugin Store first.")
+                return
+            }
             cancelled.set(false)
             ownerJobId = null
             _state.value = _state.value.copy(phase = "verifying", ownerJobId = null, message = "Running actual on-device tool probes…", verifiedTools = false, startedAtMs = System.currentTimeMillis())
         }
         scope.launch {
+            var lease: PhoneRuntimeCoordinator.Lease? = null
             try {
+                lease = PhoneRuntimeCoordinator.acquire(PhoneRuntimeCoordinator.Operation.VERIFY)
                 requireDeviceAndTools()
                 val probeWorkspace = File(app.cacheDir, "phone-android-probe").apply { mkdirs() }
                 val proof = execute(
@@ -110,7 +118,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                     message = (e.message ?: "On-phone runtime verification failed.").take(500),
                     verifiedTools = false
                 )
-            }
+            } finally { lease?.close() }
         }
     }
 
@@ -127,6 +135,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
 
     private fun buildInternal(projectId: String, claim: PhoneBuildJobs.Claim?, ownerId: String? = claim?.id, allowed: () -> Boolean = { true }) {
         synchronized(mutex) {
+            check(plugins.installed("phone-apk")) { "Install the APK Builder plugin first." }
             require(!_state.value.busy) { "Another local operation is running." }
             check(allowed() && (claim == null || claim.isValid())) { "Build approval was revoked." }
             require(_state.value.verifiedTools) { "Verify on-phone build tools first." }
@@ -142,7 +151,9 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
         }
         scope.launch {
             var jobRoot: File? = null
+            var lease: PhoneRuntimeCoordinator.Lease? = null
             try {
+                lease = PhoneRuntimeCoordinator.acquire(PhoneRuntimeCoordinator.Operation.BUILD)
                 requireDeviceAndTools()
                 val freeBytes = StatFs(app.cacheDir.absolutePath).availableBytes
                 require(freeBytes >= 2L * 1024 * 1024 * 1024) {
@@ -228,6 +239,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                     File(root, "project.zip").delete()
                     root.deleteRecursively()
                 }
+                lease?.close()
             }
         }
     }
@@ -275,7 +287,7 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
 
     private fun execute(workspace: File, command: String, timeoutSeconds: Int, allowed: () -> Boolean = { true }): Execution {
         val arguments = mutableListOf(
-            proot.absolutePath, "--link2symlink", "-0",
+            proot.absolutePath, "--kill-on-exit", "--link2symlink", "-0",
             "-r", rootfs.absolutePath, "-b", "/dev", "-b", "/proc", "-b", "/sys"
         )
         listOf("/system", "/apex", "/vendor", "/product").forEach {
@@ -308,15 +320,18 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
         val log = StringBuilder()
         val executionOwner = _state.value.ownerJobId
         val child = synchronized(mutex) {
-            check(!cancelled.get() && allowed()) { "Build cancelled or approval revoked before process start." }
+            check(!cancelled.get() && plugins.installed("phone-apk") && allowed()) { "Build cancelled or approval revoked before process start." }
             pb.start().also { process = it }
         }
         val pump = Thread {
             try {
-                child.inputStream.bufferedReader().useLines { lines ->
-                    lines.forEach { line ->
+                child.inputStream.reader().use { input ->
+                    val chars = CharArray(2048)
+                    while (true) {
+                        val count = input.read(chars)
+                        if (count < 0) break
                         synchronized(log) {
-                            log.append(line.take(512)).append('\n')
+                            log.append(chars, 0, count)
                             if (log.length > 48_000) log.delete(0, log.length - 40_000)
                             val current = _state.value
                             if (current.ownerJobId == executionOwner && (current.phase == "building" || current.phase == "verifying")) {
@@ -330,9 +345,11 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
         val deadline = System.nanoTime() + timeoutSeconds.toLong() * 1_000_000_000L
         try {
             while (true) {
-                if (cancelled.get() || !allowed() || System.nanoTime() >= deadline) {
-                    child.destroyForcibly()
-                    return Execution(-1, cancelled.get() || !allowed(), synchronized(log) { log.toString() }, timedOut = !cancelled.get() && allowed())
+                if (cancelled.get() || !plugins.installed("phone-apk") || !allowed() || System.nanoTime() >= deadline) {
+                    child.destroy()
+                    if (!child.waitFor(3, TimeUnit.SECONDS)) child.destroyForcibly()
+                    pump.join(1500)
+                    return Execution(-1, cancelled.get() || !plugins.installed("phone-apk") || !allowed(), synchronized(log) { log.toString() }, timedOut = !cancelled.get() && allowed())
                 }
                 if (child.waitFor(400L, TimeUnit.MILLISECONDS)) {
                     pump.join(1500)
@@ -340,7 +357,11 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
                 }
             }
         } finally {
-            if (child.isAlive) child.destroyForcibly()
+            if (child.isAlive) {
+                child.destroy()
+                if (!child.waitFor(3, TimeUnit.SECONDS)) child.destroyForcibly()
+                child.waitFor(3, TimeUnit.SECONDS)
+            }
             synchronized(mutex) { if (process === child) process = null }
         }
     }

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="linux_title">Linux çalışma alanı</string>
+    <string name="linux_description">Kurulu Linux kullanıcı ortamında elle, etkileşimsiz komutlar çalıştırın. Başlangıç /root/workspace; dosyalar kalıcıdır. Android çekirdek ve arka plan sınırları geçerlidir.</string>
+    <string name="linux_command">Komut</string>
+    <string name="linux_run">İncele ve çalıştır</string>
+    <string name="linux_stop">Durdur</string>
+    <string name="linux_running">Bu telefonda çalışıyor</string>
+    <string name="linux_finished">Komut tamamlandı</string>
+    <string name="linux_cancelled">İptal edildi</string>
+    <string name="linux_failed">Tamamlanamadı. Linux eklentisini ve ortamı kurun, diğer işlemleri durdurun ve çıktıyı inceleyin.</string>
+    <string name="linux_idle">Çalışan komut yok</string>
+    <string name="linux_exit">Çıkış kodu: %1$d</string>
+    <string name="linux_review">Linux komutunu incele</string>
+    <string name="linux_consent">Yalnızca güvendiğiniz komutları çalıştırın. PRoot uygulamanın Android UID kimliğini paylaşır ve güvenlik yalıtımı sağlamaz; komutlar özel verilere ve ağa erişebilir. API belirteçleri aktarılmaz. En fazla 15 dakika. Alt işlemler oturumla durur.</string>
+    <string name="linux_cancel">İptal</string>
+    <string name="plugin_store_title">Eklenti mağazası</string>
+    <string name="plugin_store_description">Bu imzalı uygulamayla gelen yerel eklentiler. Etkinleştirmek için izinleri inceleyin. Kurulum dış kod veya kimlik bilgisi eklemez.</string>
+    <string name="plugin_github">GitHub projeleri</string>
+    <string name="plugin_cloudflare">Cloudflare Workers</string>
+    <string name="plugin_apk">Telefonda APK oluşturucu</string>
+    <string name="plugin_linux">Linux çalışma alanı</string>
+    <string name="plugin_installed">Kurulu</string>
+    <string name="plugin_available">Kullanılabilir</string>
+    <string name="plugin_remove">Kaldır</string>
+    <string name="plugin_install">Kur</string>
+    <string name="plugin_failed">Eklenti işlemi başarısız.</string>
+    <string name="plugin_permissions">Eklenti izinlerini incele</string>
+    <string name="plugin_github_permissions">Kısıtlı GitHub belirtecinizle dosyaları okuyun; açık incelemeden sonra geliştirme dallarına yazın ve taslak çekme istekleri oluşturun.</string>
+    <string name="plugin_cloudflare_permissions">Kısıtlı Cloudflare belirtecinizle Workers okuyun ve incelenen değişiklikleri dağıtın. Her dağıtım ayrı onay gerektirir.</string>
+    <string name="plugin_apk_permissions">Güvenilir proje betiklerini uygulama UID kimliğiyle çalıştırın ve Debug APK dışa aktarın. Her derlemeyi inceleyin.</string>
+    <string name="plugin_linux_permissions">Elle onaylanan Linux komutlarını uygulama UID ve ağ erişimiyle çalıştırın. Android root veya ayrı çekirdek sağlamaz. Her komutu inceleyin.</string>
+    <string name="plugin_remove_description">Eklentiyi kaldırır, sonraki işlemleri engeller ve kayıtlı hizmet belirtecini siler. Önceden gönderilen uzak işlemleri geri almaz.</string>
+</resources>

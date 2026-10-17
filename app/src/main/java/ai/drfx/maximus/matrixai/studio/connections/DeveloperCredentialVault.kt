@@ -21,6 +21,7 @@ internal class DeveloperCredentialVault(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
         "maximus_developer_connections", Context.MODE_PRIVATE
     )
+    internal val plugins = ai.drfx.maximus.matrixai.plugins.NativePlugins.registry(context)
     private val alias = "maximus_developer_connection_credentials_v1"
 
     fun configured(service: DevelopmentService): Boolean =

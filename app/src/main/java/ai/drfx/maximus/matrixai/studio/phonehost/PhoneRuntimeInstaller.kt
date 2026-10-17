@@ -81,6 +81,8 @@ internal class PhoneRuntimeInstaller(context: Context) {
 
     @Synchronized fun install() {
         if (stateValue.value.busy) return
+        val lease = try { PhoneRuntimeCoordinator.acquire(PhoneRuntimeCoordinator.Operation.INSTALL) }
+        catch (e: IllegalStateException) { finish("failed", e.message.orEmpty()); return }
         stopped.set(false)
         stopReason = "Installation stopped. Tap Resume to keep using downloaded archive chunks."
         progressStore.edit().remove("phase").remove("message").apply()
@@ -146,7 +148,7 @@ internal class PhoneRuntimeInstaller(context: Context) {
                 val reason = if (stopped.get()) stopReason
                     else (e.message ?: "Runtime setup failed. Tap Resume to retry.")
                 finish(phase, reason)
-            }
+            } finally { lease.close() }
         }
     }
 

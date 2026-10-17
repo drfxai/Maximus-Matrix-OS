@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="linux_title">Linux workspace</string>
+    <string name="linux_description">Run manual, noninteractive commands in the installed Linux userspace. Commands start in /root/workspace; files persist. Android kernel and background limits still apply.</string>
+    <string name="linux_command">Command</string>
+    <string name="linux_run">Review and run</string>
+    <string name="linux_stop">Stop</string>
+    <string name="linux_running">Running on this phone</string>
+    <string name="linux_finished">Command finished</string>
+    <string name="linux_cancelled">Cancelled</string>
+    <string name="linux_failed">Could not complete. Install the Linux plugin and runtime, stop other runtime operations, and inspect the output.</string>
+    <string name="linux_idle">No command running</string>
+    <string name="linux_exit">Exit code: %1$d</string>
+    <string name="linux_review">Review Linux command</string>
+    <string name="linux_consent">Execute only commands you trust. PRoot shares this app’s Android UID and is not a sandbox; commands can access app-private data and the network. No API tokens are injected. Maximum duration: 15 minutes. Background child processes stop with the session.</string>
+    <string name="linux_cancel">Cancel</string>
+    <string name="plugin_store_title">Plugin Store</string>
+    <string name="plugin_store_description">Native plugins included in this signed app. Review permissions to activate. Installation adds no external code or credentials.</string>
+    <string name="plugin_github">GitHub projects</string>
+    <string name="plugin_cloudflare">Cloudflare Workers</string>
+    <string name="plugin_apk">On-phone APK builder</string>
+    <string name="plugin_linux">Linux workspace</string>
+    <string name="plugin_installed">Installed</string>
+    <string name="plugin_available">Available</string>
+    <string name="plugin_remove">Remove</string>
+    <string name="plugin_install">Install</string>
+    <string name="plugin_failed">Plugin operation failed.</string>
+    <string name="plugin_permissions">Review plugin permissions</string>
+    <string name="plugin_github_permissions">Read GitHub files; write feature branches and create draft pull requests after explicit review. Uses your scoped GitHub token.</string>
+    <string name="plugin_cloudflare_permissions">Read Workers and deploy reviewed changes with your scoped Cloudflare token. Each deployment requires separate approval.</string>
+    <string name="plugin_apk_permissions">Run trusted project build scripts with the app’s Android UID and export Debug APKs. Review every build.</string>
+    <string name="plugin_linux_permissions">Run manually approved Linux commands with app UID and network access. No Android root or separate kernel. Review every command.</string>
+    <string name="plugin_remove_description">Remove the plugin and block further operations. Its saved service token is deleted. Already submitted remote operations cannot be undone by removal.</string>
+</resources>

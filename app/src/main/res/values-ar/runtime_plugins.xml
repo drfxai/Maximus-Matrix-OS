@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="linux_title">بيئة Linux</string>
+    <string name="linux_description">نفّذ أوامر يدوية غير تفاعلية داخل بيئة Linux المثبتة. تبدأ في /root/workspace وتبقى الملفات محفوظة. تستمر قيود نواة Android والخلفية.</string>
+    <string name="linux_command">الأمر</string>
+    <string name="linux_run">مراجعة وتشغيل</string>
+    <string name="linux_stop">إيقاف</string>
+    <string name="linux_running">يعمل على هذا الهاتف</string>
+    <string name="linux_finished">انتهى الأمر</string>
+    <string name="linux_cancelled">أُلغي</string>
+    <string name="linux_failed">تعذر الإكمال. ثبّت إضافة Linux والبيئة وأوقف العمليات الأخرى وافحص المخرجات.</string>
+    <string name="linux_idle">لا يوجد أمر قيد التشغيل</string>
+    <string name="linux_exit">رمز الخروج: %1$d</string>
+    <string name="linux_review">مراجعة أمر Linux</string>
+    <string name="linux_consent">نفّذ أوامر موثوقة فقط. يعمل PRoot بمعرّف تطبيق Android نفسه وليس بيئة أمنية معزولة؛ قد تصل الأوامر إلى بيانات التطبيق والشبكة. لا تُحقن رموز API. الحد الأقصى ١٥ دقيقة. تتوقف العمليات التابعة مع الجلسة.</string>
+    <string name="linux_cancel">إلغاء</string>
+    <string name="plugin_store_title">متجر الإضافات</string>
+    <string name="plugin_store_description">إضافات أصلية مضمنة في هذا التطبيق الموقّع. راجع الأذونات للتفعيل. لا يضيف التثبيت كودًا خارجيًا أو بيانات اعتماد.</string>
+    <string name="plugin_github">مشاريع GitHub</string>
+    <string name="plugin_cloudflare">عمال Cloudflare</string>
+    <string name="plugin_apk">إنشاء APK على الهاتف</string>
+    <string name="plugin_linux">بيئة Linux</string>
+    <string name="plugin_installed">مثبّتة</string>
+    <string name="plugin_available">متاحة</string>
+    <string name="plugin_remove">إزالة</string>
+    <string name="plugin_install">تثبيت</string>
+    <string name="plugin_failed">فشلت عملية الإضافة.</string>
+    <string name="plugin_permissions">مراجعة أذونات الإضافة</string>
+    <string name="plugin_github_permissions">قراءة ملفات GitHub والكتابة في فروع التطوير وإنشاء طلبات سحب مسودة بعد المراجعة الصريحة باستخدام رمزك محدود الصلاحيات.</string>
+    <string name="plugin_cloudflare_permissions">قراءة العمال ونشر التغييرات المراجعة باستخدام رمز Cloudflare المحدود. يتطلب كل نشر موافقة منفصلة.</string>
+    <string name="plugin_apk_permissions">تشغيل نصوص بناء موثوقة بمعرّف التطبيق وتصدير APK تجريبي. راجع كل عملية بناء.</string>
+    <string name="plugin_linux_permissions">تشغيل أوامر Linux يدوية معتمدة بمعرّف التطبيق والوصول إلى الشبكة. لا تمنح جذر Android أو نواة مستقلة. راجع كل أمر.</string>
+    <string name="plugin_remove_description">تُزال الإضافة وتُحظر العمليات التالية ويُحذف رمز الخدمة المحفوظ. لا يمكن التراجع عن العمليات المرسلة مسبقًا بمجرد الإزالة.</string>
+</resources>

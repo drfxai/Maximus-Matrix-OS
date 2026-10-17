@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="linux_title">محیط لینوکس</string>
+    <string name="linux_description">دستورهای دستی و غیرتعاملی را در محیط لینوکس نصب‌شده اجرا کنید. مسیر آغاز /root/workspace است و فایل‌ها باقی می‌مانند. محدودیت‌های کرنل اندروید و پس‌زمینه برقرار است.</string>
+    <string name="linux_command">دستور</string>
+    <string name="linux_run">بررسی و اجرا</string>
+    <string name="linux_stop">توقف</string>
+    <string name="linux_running">در حال اجرا روی این گوشی</string>
+    <string name="linux_finished">دستور پایان یافت</string>
+    <string name="linux_cancelled">لغو شد</string>
+    <string name="linux_failed">اجرا کامل نشد. پلاگین لینوکس و محیط را نصب کنید، عملیات دیگر محیط را متوقف و خروجی را بررسی کنید.</string>
+    <string name="linux_idle">دستوری در حال اجرا نیست</string>
+    <string name="linux_exit">کد خروج: %1$d</string>
+    <string name="linux_review">بررسی دستور لینوکس</string>
+    <string name="linux_consent">فقط دستورهای مورد اعتماد را اجرا کنید. PRoot با شناسه همین برنامه اجرا می‌شود و محیط ایزوله امنیتی نیست؛ دستورها می‌توانند به داده‌های خصوصی برنامه و شبکه دسترسی داشته باشند. توکن‌های API به محیط تزریق نمی‌شوند. حداکثر زمان ۱۵ دقیقه است. فرایندهای فرزند با نشست متوقف می‌شوند.</string>
+    <string name="linux_cancel">لغو</string>
+    <string name="plugin_store_title">پلاگین استور</string>
+    <string name="plugin_store_description">پلاگین‌های بومی همراه همین برنامه امضاشده هستند. برای فعال‌سازی مجوزها را بررسی کنید. نصب، کد خارجی یا اطلاعات ورود اضافه نمی‌کند.</string>
+    <string name="plugin_github">پروژه‌های GitHub</string>
+    <string name="plugin_cloudflare">ورکرهای Cloudflare</string>
+    <string name="plugin_apk">ساخت APK روی گوشی</string>
+    <string name="plugin_linux">محیط لینوکس</string>
+    <string name="plugin_installed">نصب‌شده</string>
+    <string name="plugin_available">آماده نصب</string>
+    <string name="plugin_remove">حذف</string>
+    <string name="plugin_install">نصب</string>
+    <string name="plugin_failed">عملیات پلاگین ناموفق بود.</string>
+    <string name="plugin_permissions">بررسی مجوزهای پلاگین</string>
+    <string name="plugin_github_permissions">خواندن فایل‌های گیت‌هاب؛ نوشتن شاخه توسعه و ایجاد درخواست ادغام پیش‌نویس پس از بررسی صریح. از توکن محدود گیت‌هاب شما استفاده می‌شود.</string>
+    <string name="plugin_cloudflare_permissions">خواندن ورکرها و استقرار تغییرات بررسی‌شده با توکن محدود کلادفلر شما. هر استقرار تأیید جداگانه می‌خواهد.</string>
+    <string name="plugin_apk_permissions">اجرای اسکریپت‌های ساخت پروژه مورد اعتماد با شناسه اندرویدی برنامه و خروجی APK دیباگ. هر ساخت را بررسی کنید.</string>
+    <string name="plugin_linux_permissions">اجرای دستورهای دستی تأییدشده با شناسه برنامه و دسترسی شبکه. روت اندروید یا کرنل مستقل فراهم نمی‌کند. هر دستور را بررسی کنید.</string>
+    <string name="plugin_remove_description">پلاگین حذف و عملیات بعدی مسدود می‌شود. توکن ذخیره‌شده سرویس نیز حذف می‌شود. حذف، عملیات ارسال‌شده به سرویس را بازنمی‌گرداند.</string>
+</resources>
