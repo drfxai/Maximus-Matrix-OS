@@ -74,7 +74,8 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
                 Modifier.weight(1f))
             CommandMetric(stringResource(R.string.dash_context_left),
                 (if (state.selectedModel.isBlank()) unknown else format.format(metrics.remainingContextTokens)), stringResource(R.string.dash_context_estimate),
-                Modifier.weight(1f), attention = metrics.contextUsagePercent >= .85f)
+                Modifier.weight(1f), attention = metrics.contextUsagePercent >= .85f,
+                remainingValue = metrics.remainingContextTokens.toLong().takeIf { state.selectedModel.isNotBlank() })
         }
         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(5.dp),
             color = if (progress > .85f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
@@ -86,10 +87,15 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CommandMetric(stringResource(R.string.dash_provider_tokens),
                 metrics.verifiedRateTokensRemaining?.let(format::format) ?: unknown,
-                stringResource(R.string.dash_rate_snapshot), Modifier.weight(1f))
+                stringResource(R.string.dash_rate_snapshot), Modifier.weight(1f),
+                remainingValue = metrics.verifiedRateTokensRemaining,
+                attention = metrics.verifiedRateTokensRemaining == 0L)
             CommandMetric(stringResource(R.string.dash_local_budget),
                 metrics.remainingBudgetTokens?.let(format::format) ?: stringResource(R.string.dash_not_set),
-                stringResource(R.string.dash_user_budget), Modifier.weight(1f))
+                stringResource(R.string.dash_user_budget), Modifier.weight(1f),
+                remainingValue = metrics.remainingBudgetTokens,
+                attention = metrics.monthlyTokenBudget > 0 &&
+                    (metrics.remainingBudgetTokens ?: Long.MAX_VALUE) <= metrics.monthlyTokenBudget * .15)
         }
         if (metrics.rateEvidenceAtEpochMs != null) {
             Text((metrics.rateProvider?.displayName ?: unknown) + " · " +

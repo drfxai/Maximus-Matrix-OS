@@ -781,4 +781,5 @@
     <string name="motion_context_warning">Bağlam dolmak üzere</string>
     <string name="motion_context_not_credit">Tahmini sohbet kapasitesi, sağlayıcı kredisinden ayrıdır.</string>
     <string name="motion_selected">Seçili</string>
+    <string name="motion_team_scope">Zamanlanmış haber ve cihaz sağlığı görevleri. Proje ekipleri Studio bölümünde.</string>
 </resources>

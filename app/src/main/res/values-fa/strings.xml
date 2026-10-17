@@ -781,4 +781,5 @@
     <string name="motion_context_warning">ظرفیت متن رو به پایان است</string>
     <string name="motion_context_not_credit">ظرفیت تخمینی گفتگو، جدا از اعتبار پرووایدر است.</string>
     <string name="motion_selected">انتخاب‌شده</string>
+    <string name="motion_team_scope">وظایف زمان‌بندی‌شدهٔ اخبار و سلامت دستگاه. تیم‌های پروژه در استودیو هستند.</string>
 </resources>

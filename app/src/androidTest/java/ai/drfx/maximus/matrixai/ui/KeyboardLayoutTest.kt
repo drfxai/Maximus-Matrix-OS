@@ -117,6 +117,23 @@ class KeyboardLayoutTest {
         }
     }
 
+    @Test fun smartComboWorkspaceIsReachableAndCapturesObservedEmptyState() {
+        withLaunchedActivity {
+            objectWithDescription("More").click()
+            val title = instrumentation.targetContext.getString(ai.drfx.maximus.matrixai.R.string.workspaces_control_title)
+            repeat(3) {
+                if (!device.hasObject(By.text(title))) {
+                    device.swipe(device.displayWidth / 2, device.displayHeight * 4 / 5,
+                        device.displayWidth / 2, device.displayHeight / 3, 20)
+                }
+            }
+            checkNotNull(device.wait(Until.findObject(By.text(title)), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text(instrumentation.targetContext.getString(
+                ai.drfx.maximus.matrixai.R.string.dash_combo_title))), 10_000))
+            captureWorkspace("smart-combo.png")
+        }
+    }
+
     /** ActivityScenario's launch/close wait for a globally idle main queue. The
      * continuously animated graph intentionally has no such idle condition.
      * Shell launch and explicit UI predicates retain the real Activity/IME checks.
@@ -155,7 +172,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "agents-teams.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "agents-teams.png", "smart-combo.png"))
         runCatching {
             val file = java.io.File(instrumentation.targetContext.getExternalFilesDir(null), name)
             check(device.takeScreenshot(file)) { "Unable to save workspace screenshot" }

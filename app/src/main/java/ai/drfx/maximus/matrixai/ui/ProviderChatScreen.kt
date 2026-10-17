@@ -366,9 +366,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     }
 
     Column(
-        modifier = modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 4.dp),
+        modifier = modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        if (!keyboardVisible) WorkspaceBrand()
         ConversationTelemetryRibbon(
             state = state,
             onProviderSettings = { settingsOpen = true },
@@ -711,7 +712,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.background,
                 border = null,
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -969,16 +970,26 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .65f))
         ) {
             Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
-                OutlinedTextField(
+                androidx.compose.foundation.text.BasicTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = context.getString(R.string.chat_input_description) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 38.dp, max = 88.dp)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .semantics { contentDescription = context.getString(R.string.chat_input_description) },
                     maxLines = 3,
                     enabled = !recording,
-                    placeholder = { Text(stringResource(R.string.speech_input_hint), fontSize = 13.sp) },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                    decorationBox = { inner ->
+                        Box {
+                            if (prompt.isEmpty()) Text(stringResource(R.string.speech_input_hint),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            inner()
+                        }
+                    },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { send() }),
-                    shape = RoundedCornerShape(12.dp)
+                    keyboardActions = KeyboardActions(onSend = { send() })
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -1509,7 +1520,7 @@ private fun ChatProviderSwitcherBar(
                     name = "Gemini",
                     modelSuffix = if (currentProvider == LlmProvider.GEMINI) currentModel.removePrefix("gemini-").take(10) else null,
                     icon = Icons.Default.AutoAwesome,
-                    brandColor = Color(0xFF4285F4),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.GEMINI,
                     onChipClick = { onSelectProvider(LlmProvider.GEMINI) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1520,7 +1531,7 @@ private fun ChatProviderSwitcherBar(
                     name = "NVIDIA NIM",
                     modelSuffix = if (currentProvider == LlmProvider.NVIDIA) currentModel.substringAfterLast("/").take(10) else null,
                     icon = Icons.Default.Memory,
-                    brandColor = Color(0xFF76B900),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.NVIDIA,
                     onChipClick = { onSelectProvider(LlmProvider.NVIDIA) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1531,7 +1542,7 @@ private fun ChatProviderSwitcherBar(
                     name = "9Router",
                     modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_SMART) currentModel.take(10) else null,
                     icon = Icons.Default.Hub,
-                    brandColor = Color(0xFF00E5FF),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.ROUTER_9_SMART,
                     onChipClick = { onSelectProvider(LlmProvider.ROUTER_9_SMART) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1542,7 +1553,7 @@ private fun ChatProviderSwitcherBar(
                     name = stringResource(R.string.chat_server_combo),
                     modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_COMBO) currentModel.take(10) else null,
                     icon = Icons.Default.AltRoute,
-                    brandColor = Color(0xFF7C4DFF),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.ROUTER_9_COMBO,
                     onChipClick = { onSelectProvider(LlmProvider.ROUTER_9_COMBO) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1553,7 +1564,7 @@ private fun ChatProviderSwitcherBar(
                     name = "OpenAI",
                     modelSuffix = if (currentProvider == LlmProvider.OPENAI) currentModel.take(8) else null,
                     icon = Icons.Default.Bolt,
-                    brandColor = Color(0xFF10A37F),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.OPENAI,
                     onChipClick = { onSelectProvider(LlmProvider.OPENAI) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1564,7 +1575,7 @@ private fun ChatProviderSwitcherBar(
                     name = "Claude",
                     modelSuffix = if (currentProvider == LlmProvider.ANTHROPIC) currentModel.removePrefix("claude-").take(8) else null,
                     icon = Icons.Default.Psychology,
-                    brandColor = Color(0xFFD97706),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.ANTHROPIC,
                     onChipClick = { onSelectProvider(LlmProvider.ANTHROPIC) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1698,15 +1709,15 @@ private fun MicroProviderChip(
 @Composable
 private fun GeneratingPulse(provider: String) {
     val animation = rememberInfiniteTransition(label = "generation")
-    val opacity by animation.animateFloat(
-        initialValue = 0.25f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(820, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "thinking_alpha"
-    )
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         repeat(3) { index ->
-            Box(Modifier.size((6 + index * 2).dp).graphicsLayer(alpha = opacity)
-                .background(MaterialTheme.colorScheme.primary, CircleShape))
+            val opacity by animation.animateFloat(
+                initialValue = .25f, targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(600, easing = FastOutSlowInEasing),
+                    RepeatMode.Reverse, initialStartOffset = StartOffset(index * 150)),
+                label = "thinking-dot-$index")
+            Box(Modifier.size(6.dp).graphicsLayer(alpha = opacity, scaleX = .8f + opacity * .2f,
+                scaleY = .8f + opacity * .2f).background(MaterialTheme.colorScheme.tertiary, CircleShape))
         }
         Text(stringResource(R.string.chat_generating_provider, provider), color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
     }
@@ -1830,8 +1841,10 @@ private fun ChatBubble(
                         }
                         action(Icons.Default.VolumeUp, stringResource(R.string.chat_speak_response), false, onSpeak)
                     }
-                    if (copied) Text(stringResource(R.string.chat_copied_clipboard), fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.primary)
+                    AnimatedVisibility(copied) {
+                        Text(stringResource(R.string.chat_copied_clipboard), fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
         }

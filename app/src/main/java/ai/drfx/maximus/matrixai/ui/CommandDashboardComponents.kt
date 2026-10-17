@@ -13,6 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,7 +37,18 @@ internal fun CommandDashboardCard(
 
 @Composable
 internal fun CommandMetric(label: String, value: String, detail: String,
-                           modifier: Modifier = Modifier, attention: Boolean = false) {
+                           modifier: Modifier = Modifier, attention: Boolean = false,
+                           remainingValue: Long? = null) {
+    var previous by remember { mutableStateOf(remainingValue) }
+    var decreased by remember { mutableStateOf(false) }
+    LaunchedEffect(remainingValue) {
+        decreased = remainingValue != null && previous != null && remainingValue < previous!!
+        previous = remainingValue
+        if (decreased) { delay(900); decreased = false }
+    }
+    val readingColor by animateColorAsState(
+        if (attention || decreased) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        label = "remaining-token-direction")
     Surface(modifier, shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.padding(9.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -44,7 +57,7 @@ internal fun CommandMetric(label: String, value: String, detail: String,
             AnimatedContent(targetState = value, label = "metric-value") { displayed ->
                 Text(displayed, maxLines = 2, style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (attention) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                    color = readingColor)
             }
             Text(detail, maxLines = 2, style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)

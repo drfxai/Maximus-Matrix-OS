@@ -151,8 +151,8 @@ fun ProjectStudioScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("MAXIMUS MATRIX OS", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = studioCyan)
-                Text(stringResource(R.string.studio_title), style = MaterialTheme.typography.titleMedium)
+                WorkspaceBrand()
+                Text(stringResource(R.string.studio_title), style = MaterialTheme.typography.headlineSmall)
                 Text(stringResource(R.string.studio_subtitle),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -163,12 +163,10 @@ fun ProjectStudioScreen(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.FolderOpen, null, tint = studioCyan)
                     Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.studio_active_project), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                         Text(active?.name ?: stringResource(R.string.studio_no_project), fontWeight = FontWeight.Bold,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(if (active == null) stringResource(R.string.studio_create_import) else
-                            stringResource(R.string.studio_files_count, active.fileCount), fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (active != null) Text(stringResource(R.string.studio_files_count, active.fileCount),
+                            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Box {
                         TextButton(onClick = { showSelector = true }, enabled = projects.isNotEmpty()) {
@@ -204,21 +202,50 @@ fun ProjectStudioScreen(
                         StudioShortcut(stringResource(R.string.plugin_apk), Icons.Default.Android,
                             Modifier.weight(1f)) { section = 2 }
                         StudioShortcut(stringResource(R.string.linux_title), Icons.Default.Terminal,
-                            Modifier.weight(1f)) { section = 3 }
+                            Modifier.weight(1f), accent = studioPurple) { section = 3 }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StudioShortcut(stringResource(R.string.plugin_github), Icons.Default.Code,
-                            Modifier.weight(1f)) { section = 4 }
+                            Modifier.weight(1f), accent = MaterialTheme.colorScheme.onSurface) { section = 4 }
                         StudioShortcut(stringResource(R.string.plugin_cloudflare), Icons.Default.Cloud,
-                            Modifier.weight(1f)) { section = 4 }
+                            Modifier.weight(1f), accent = studioPurple) { section = 4 }
                     }
-                    OutlinedButton(onClick = { section = 4 }, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = { section = 4 }, modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Icon(Icons.Default.Extension, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.plugin_store_title))
                     }
                 }
             }
+        }
+        if (section == 0) {
+        item {
+            StudioPanel {
+                Text(stringResource(R.string.studio_pipeline), fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(9.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    listOf(stringResource(R.string.studio_step_plan), stringResource(R.string.studio_step_files),
+                        stringResource(R.string.studio_step_tests), stringResource(R.string.studio_step_build),
+                        stringResource(R.string.studio_step_review)).forEachIndexed { index, label ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Surface(shape = RoundedCornerShape(50),
+                                color = if (index == 0 && active != null) studioGreen else MaterialTheme.colorScheme.surfaceVariant) {
+                                Text(if (index == 0 && active != null) "✓" else (index + 1).toString(),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                    color = if (index == 0 && active != null) Color.Black else MaterialTheme.colorScheme.onSurface)
+                            }
+                            Spacer(Modifier.height(5.dp))
+                            Text(label, fontSize = 11.sp)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(9.dp))
+                Text(stringResource(R.string.studio_pipeline_notice), fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         }
         if (section == 0) {
         item {
@@ -383,33 +410,6 @@ fun ProjectStudioScreen(
             }
         }
         }
-        if (section == 0) {
-        item {
-            StudioPanel {
-                Text(stringResource(R.string.studio_pipeline), fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(9.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    listOf(stringResource(R.string.studio_step_plan), stringResource(R.string.studio_step_files),
-                        stringResource(R.string.studio_step_tests), stringResource(R.string.studio_step_build),
-                        stringResource(R.string.studio_step_review)).forEachIndexed { index, label ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Surface(shape = RoundedCornerShape(50),
-                                color = if (index == 0 && active != null) studioGreen else MaterialTheme.colorScheme.surfaceVariant) {
-                                Text(if (index == 0 && active != null) "✓" else (index + 1).toString(),
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                    color = if (index == 0 && active != null) Color.Black else MaterialTheme.colorScheme.onSurface)
-                            }
-                            Spacer(Modifier.height(5.dp))
-                            Text(label, fontSize = 11.sp)
-                        }
-                    }
-                }
-                Spacer(Modifier.height(9.dp))
-                Text(stringResource(R.string.studio_pipeline_notice), fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        }
         if (section == 1) {
         item {
             StudioPanel {
@@ -547,6 +547,7 @@ private fun StudioShortcut(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     modifier: Modifier = Modifier,
+    accent: Color = MaterialTheme.colorScheme.primary,
     onClick: () -> Unit
 ) {
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
@@ -557,11 +558,14 @@ private fun StudioShortcut(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Column(Modifier.padding(12.dp).heightIn(min = 56.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 2,
-                overflow = TextOverflow.Ellipsis)
+        Row(Modifier.padding(12.dp).heightIn(min = 46.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, null, tint = accent, modifier = Modifier.size(24.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 2,
+                modifier = Modifier.weight(1f), overflow = TextOverflow.Ellipsis)
+            Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

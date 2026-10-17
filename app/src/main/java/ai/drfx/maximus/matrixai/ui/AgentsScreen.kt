@@ -31,6 +31,7 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
+            WorkspaceBrand()
             Text(stringResource(R.string.design_agents), style = MaterialTheme.typography.headlineSmall)
             if (section == 1) Text(
                 stringResource(R.string.agents_description),

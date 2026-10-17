@@ -53,6 +53,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
+            WorkspaceBrand()
             Text(stringResource(R.string.api_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
                 stringResource(R.string.api_intro),
