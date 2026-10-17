@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.0 (build 10025)
+
+- Added the AMOLED workspace palette: pure-black canvas, balanced navy cards, white text, gold confirmations, orange activity and red warnings.
+- Redesigned Chat, Agents and Studio presentation with compact panels, consistent branding, focused project shortcuts and retained Android approvals.
+- Added an accessible animated context gauge, provider selection grid, observed token transitions and low-budget indicators. Context capacity, local budgets and dated provider rate snapshots remain separate.
+- Added message arrival, staggered generation, reaction spring/haptic, copy confirmation and Studio press feedback.
+- Extended real Android visual evidence to Brain, Chat, Agents, Studio and Smart Combo; required fresh captures after screen transitions.
+- Preserved public version 1.0.0 and the permanent signing identity.
+
 ## v1.0.0 (build 10012)
 
 - Added Hindsight Shared Project Memory (opt-in) to Project Studio, with a separate HTTPS endpoint and independently encrypted user-owned API key. Each project uses a stable bank across inference models.
