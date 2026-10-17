@@ -1,6 +1,7 @@
 package ai.drfx.maximus.matrixai.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +20,7 @@ import java.util.Date
 /** Context, local budgets and provider rate snapshots are deliberately separate quantities. */
 @Composable
 internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = Modifier) {
+    var detailsOpen by remember { mutableStateOf(false) }
     val metrics = state.tokenMetrics
     val active = state.activeRequest?.takeIf { state.isGenerating }
     val format = NumberFormat.getIntegerInstance()
@@ -76,6 +78,11 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
         }
         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(5.dp),
             color = if (progress > .85f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+        TextButton(onClick = { detailsOpen = !detailsOpen }, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(if (detailsOpen) R.string.focus_controls_hide else R.string.focus_controls_show))
+        }
+        AnimatedVisibility(detailsOpen) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CommandMetric(stringResource(R.string.dash_provider_tokens),
                 metrics.verifiedRateTokensRemaining?.let(format::format) ?: unknown,
@@ -122,5 +129,7 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
         }
         Text(stringResource(R.string.dash_usage_scope_note), style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }

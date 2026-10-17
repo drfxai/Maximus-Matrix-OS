@@ -1033,9 +1033,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             sendable && state.selectedAgentId.isNotBlank() &&
                             (attachment?.mimeType?.startsWith("audio/") != true ||
                                 state.provider == LlmProvider.GEMINI || state.provider == LlmProvider.OPENAI),
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(48.dp),
                         contentPadding = PaddingValues(0.dp),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = CircleShape
                     ) {
                         Icon(Icons.Default.Send, stringResource(R.string.speech_send), modifier = Modifier.size(16.dp))
                     }
@@ -1663,12 +1663,12 @@ private fun MicroProviderChip(
                 icon,
                 contentDescription = null,
                 tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(11.dp)
+                modifier = Modifier.size(18.dp)
             )
             Spacer(Modifier.width(4.dp))
             Text(
                 text = name,
-                fontSize = 9.5.sp,
+                fontSize = 12.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1677,7 +1677,7 @@ private fun MicroProviderChip(
                 Spacer(Modifier.width(3.dp))
                 Text(
                     text = "· $modelSuffix",
-                    fontSize = 8.5.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = brandColor
                 )
@@ -1735,7 +1735,13 @@ private fun ChatBubble(
     }
     var reaction by remember(key) { mutableStateOf(feedbackStore.get(key)) }
     val draft = remember(message.content) { if (isUser) null else ChatPresentation.draft(message.content) }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
+    var entered by remember(message.timestampMs) { mutableStateOf(false) }
+    LaunchedEffect(message.timestampMs) { entered = true }
+    val arrival by animateFloatAsState(if (entered) 1f else 0f, tween(200), label = "message-arrival")
+    Row(Modifier.fillMaxWidth().graphicsLayer {
+        alpha = arrival
+        translationY = (1f - arrival) * 12.dp.toPx()
+    }, horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
         Surface(
             color = background,
             shape = RoundedCornerShape(

@@ -22,5 +22,6 @@ internal fun MotionSwitch(
         uncheckedBorderColor = MaterialTheme.colorScheme.error.copy(alpha = .6f)
     )
 ) {
-    Switch(checked, onCheckedChange, modifier, thumbContent, enabled, colors, interactionSource)
+    Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier,
+        thumbContent = thumbContent, enabled = enabled, colors = colors, interactionSource = interactionSource)
 }

@@ -78,7 +78,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                             val tone by androidx.compose.animation.animateColorAsState(
                                 if (selected) MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceContainerLow, label = "provider-card")
-                            Surface(onClick = { viewModel.applyProviderPreset(provider) },
+                            Surface(onClick = { viewModel.applyProviderPreset(provider) }, enabled = !state.isGenerating,
                                 modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.medium,
                                 color = tone, border = BorderStroke(1.dp,
                                     if (selected) MaterialTheme.colorScheme.primary
@@ -277,7 +277,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         title = stringResource(R.string.api_stat_context_left),
                         value = numberFormat.format(metrics.remainingContextTokens),
                         subtext = stringResource(R.string.api_stat_max, numberFormat.format(metrics.contextCapacity)),
-                        valueColor = Color(0xFF00E676),
+                        valueColor = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -307,7 +307,7 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
                         stringResource(R.string.api_local_budget_remaining),
                         "${numberFormat.format(metrics.remainingBudgetTokens)} / ${numberFormat.format(metrics.monthlyTokenBudget)}",
                         if (metrics.remainingBudgetTokens < (metrics.monthlyTokenBudget * 0.15)) MaterialTheme.colorScheme.error
-                        else Color(0xFF00E676)
+                        else MaterialTheme.colorScheme.primary
                     )
                 }
 
