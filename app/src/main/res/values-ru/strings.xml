@@ -778,4 +778,7 @@
     <string name="team_hindsight_review">Проверить и передать результат команды</string>
     <string name="team_hindsight_disabled">Включите Hindsight для этого проекта, чтобы отправить результат вручную.</string>
     <string name="cloud_agent_recent_reports">Последние отчёты с проверяемыми источниками</string>
+    <string name="motion_context_warning">Контекст почти заполнен</string>
+    <string name="motion_context_not_credit">Оценка ёмкости диалога не является балансом провайдера.</string>
+    <string name="motion_selected">Выбрано</string>
 </resources>

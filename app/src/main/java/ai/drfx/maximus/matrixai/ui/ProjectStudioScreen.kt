@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,9 +41,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val studioCyan = Color(0xFF48CEE8)
-private val studioPurple = Color(0xFFAA86F7)
-private val studioGreen = Color(0xFF54D9B0)
+private val studioCyan = Color(0xFFF4C35A)
+private val studioPurple = Color(0xFFFF8D38)
+private val studioGreen = Color(0xFFFFE079)
 
 /**
  * Real on-device workspace operations, rendered mobile-first.
@@ -519,7 +521,7 @@ fun ProjectStudioScreen(
 private fun StudioPanel(content: @Composable ColumnScope.() -> Unit) {
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, studioCyan.copy(alpha = 0.32f)),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -547,7 +549,11 @@ private fun StudioShortcut(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Surface(onClick = onClick, modifier = modifier,
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(if (pressed) .96f else 1f,
+        label = "studio-shortcut-press")
+    Surface(onClick = onClick, interactionSource = interaction, modifier = modifier.scale(scale),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {

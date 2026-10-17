@@ -778,4 +778,7 @@
     <string name="team_hindsight_review">مراجعة ومشاركة تسليم الفريق</string>
     <string name="team_hindsight_disabled">فعّل Hindsight لهذا المشروع للسماح بالمشاركة اليدوية.</string>
     <string name="cloud_agent_recent_reports">التقارير الأخيرة بمصادر قابلة للتحقق</string>
+    <string name="motion_context_warning">سعة السياق قاربت الامتلاء</string>
+    <string name="motion_context_not_credit">سعة المحادثة تقديرية ومنفصلة عن رصيد المزود.</string>
+    <string name="motion_selected">محدد</string>
 </resources>

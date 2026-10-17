@@ -14,27 +14,27 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+/** AMOLED canvas with deliberately limited, visibly navy raised surfaces. */
 private val MatrixDarkColors = darkColorScheme(
-    primary = Color(0xFF58E0BA),
-    secondary = Color(0xFFA995E8),
-    tertiary = Color(0xFFE4B34D),
-    background = Color(0xFF080B10),
-    surface = Color(0xFF101720),
-    surfaceVariant = Color(0xFF192330),
-    surfaceContainerLowest = Color(0xFF080B10),
-    surfaceContainerLow = Color(0xFF101720),
-    surfaceContainer = Color(0xFF151D28),
-    surfaceContainerHigh = Color(0xFF1B2532),
-    surfaceContainerHighest = Color(0xFF243140),
-    primaryContainer = Color(0xFF173B33),
-    secondaryContainer = Color(0xFF302B45),
-    outlineVariant = Color(0xFF283443),
-    onPrimary = Color(0xFF00140D),
-    onBackground = Color(0xFFE2E8F0),
-    onSurface = Color(0xFFE2E8F0),
-    onSurfaceVariant = Color(0xFF94A3B8),
-    outline = Color(0xFF1E293B),
-    error = Color(0xFFE96E91)
+    primary = Color(0xFFF4C35A), onPrimary = Color(0xFF211700),
+    primaryContainer = Color(0xFF142C4C), onPrimaryContainer = Color(0xFFFAFAFC),
+    secondary = Color(0xFFFFE079), onSecondary = Color(0xFF211700),
+    secondaryContainer = Color(0xFF302710), onSecondaryContainer = Color(0xFFFFE079),
+    tertiary = Color(0xFFFF8D38), onTertiary = Color(0xFF271200),
+    tertiaryContainer = Color(0xFF38200D), onTertiaryContainer = Color(0xFFFFBE8C),
+    background = Color.Black, onBackground = Color(0xFFFAFAFC),
+    surface = Color(0xFF070B11), onSurface = Color(0xFFFAFAFC),
+    surfaceVariant = Color(0xFF142C4C), onSurfaceVariant = Color(0xFFB9C5D6),
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = Color(0xFF10213A),
+    surfaceContainer = Color(0xFF0A111B),
+    surfaceContainerHigh = Color(0xFF142C4C),
+    surfaceContainerHighest = Color(0xFF1A3659),
+    outline = Color(0xFF52657E), outlineVariant = Color(0xFF24334A),
+    error = Color(0xFFF05262), onError = Color(0xFF210007),
+    errorContainer = Color(0xFF300D15), onErrorContainer = Color(0xFFFFD9DE),
+    inverseSurface = Color(0xFFFAFAFC), inverseOnSurface = Color(0xFF10213A),
+    surfaceTint = Color.Transparent
 )
 
 private val MatrixLightColors = lightColorScheme(

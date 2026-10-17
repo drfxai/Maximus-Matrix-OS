@@ -778,4 +778,7 @@
     <string name="team_hindsight_review">Ekip devrini incele ve paylaş</string>
     <string name="team_hindsight_disabled">Elle paylaşım için bu projede Hindsight\'ı etkinleştirin.</string>
     <string name="cloud_agent_recent_reports">Kaynağı doğrulanabilir son raporlar</string>
+    <string name="motion_context_warning">Bağlam dolmak üzere</string>
+    <string name="motion_context_not_credit">Tahmini sohbet kapasitesi, sağlayıcı kredisinden ayrıdır.</string>
+    <string name="motion_selected">Seçili</string>
 </resources>

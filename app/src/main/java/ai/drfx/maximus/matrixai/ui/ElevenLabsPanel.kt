@@ -119,7 +119,7 @@ fun ElevenLabsPanel(modifier: Modifier = Modifier) {
                 Text(stringResource(R.string.eleven_auto_local),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Switch(checked = active, enabled = hasKey && voiceId.isNotBlank() && !busy,
+            MotionSwitch(checked = active, enabled = hasKey && voiceId.isNotBlank() && !busy,
                 onCheckedChange = {
                     store.selectEleven(it)
                     active = it

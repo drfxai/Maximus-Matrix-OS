@@ -58,7 +58,7 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
         }
     }
 
-    var showCreate by remember { mutableStateOf(teams.isEmpty()) }
+    var showCreate by remember { mutableStateOf(false) }
     // RUNNING is observed from WorkManager; an enabled periodic schedule is never counted as live.
     val workInfos by produceState<List<WorkInfo>?>(null, context) {
         try {
@@ -95,7 +95,8 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
             Text(stringResource(R.string.team_supervisor_disclaimer),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = { showCreate = !showCreate }, modifier = Modifier.fillMaxWidth()
+            TeamWorkflowSteps()
+            Button(onClick = { showCreate = !showCreate }, modifier = Modifier.fillMaxWidth()
                 .testTag("agent_team_create_toggle")) {
                 Text(stringResource(if (showCreate) R.string.dash_hide_setup else R.string.dash_new_team))
             }
@@ -297,5 +298,28 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
                 }
             }
         )
+    }
+}
+
+/** Planning labels are structural, never presented as executed stages. */
+@Composable
+private fun TeamWorkflowSteps() {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly) {
+        listOf(R.string.studio_step_plan, R.string.studio_step_build, R.string.studio_step_review)
+            .forEachIndexed { index, label ->
+                Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Surface(shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, if (index == 1) MaterialTheme.colorScheme.tertiary
+                            else MaterialTheme.colorScheme.primary),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        Text((index + 1).toString(), Modifier.padding(horizontal = 15.dp, vertical = 10.dp),
+                            color = if (index == 1) MaterialTheme.colorScheme.tertiary
+                                else MaterialTheme.colorScheme.primary)
+                    }
+                    Text(stringResource(label), style = MaterialTheme.typography.labelMedium)
+                }
+            }
     }
 }

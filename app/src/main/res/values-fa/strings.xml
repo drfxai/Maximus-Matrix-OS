@@ -778,4 +778,7 @@
     <string name="team_hindsight_review">بررسی و اشتراک نتیجه تیم</string>
     <string name="team_hindsight_disabled">برای اشتراک‌گذاری دستی نتیجه، Hindsight را برای این پروژه فعال کنید.</string>
     <string name="cloud_agent_recent_reports">گزارش‌های اخیر با منبع قابل بررسی</string>
+    <string name="motion_context_warning">ظرفیت متن رو به پایان است</string>
+    <string name="motion_context_not_credit">ظرفیت تخمینی گفتگو، جدا از اعتبار پرووایدر است.</string>
+    <string name="motion_selected">انتخاب‌شده</string>
 </resources>

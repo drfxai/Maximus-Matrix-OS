@@ -778,4 +778,7 @@
     <string name="team_hindsight_review">Review and share team handoff</string>
     <string name="team_hindsight_disabled">Enable Hindsight for this project to review a manual handoff.</string>
     <string name="cloud_agent_recent_reports">Recent reports from verified sources</string>
+    <string name="motion_context_warning">Context nearly full</string>
+    <string name="motion_context_not_credit">Estimated conversation capacity, separate from provider credit.</string>
+    <string name="motion_selected">Selected</string>
 </resources>

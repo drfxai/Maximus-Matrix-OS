@@ -104,7 +104,7 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                 Text(stringResource(R.string.hindsight_privacy_local_only),
                     style = MaterialTheme.typography.bodySmall)
             }
-            Switch(
+            MotionSwitch(
                 checked = enabled,
                 onCheckedChange = { checked ->
                     try {
@@ -142,7 +142,7 @@ internal fun HindsightMemoryPanel(projectId: String?, modifier: Modifier = Modif
                 Text(stringResource(R.string.hindsight_autoshare_privacy),
                     style = MaterialTheme.typography.bodySmall)
             }
-            Switch(checked = autoShare, enabled = enabled, onCheckedChange = {
+            MotionSwitch(checked = autoShare, enabled = enabled, onCheckedChange = {
                 settings.setAutoShare(it)
                 autoShare = it
                 status = context.getString(if (it)

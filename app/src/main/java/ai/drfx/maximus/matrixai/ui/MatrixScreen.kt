@@ -79,7 +79,7 @@ fun MatrixScreen(
             if (!isImeVisible) {
                 NavigationBar(
                     modifier = Modifier.testTag("main_navigation_bar").semantics { contentDescription = "Main navigation" },
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = MaterialTheme.colorScheme.background,
                     tonalElevation = 0.dp
                 ) {
                     val primaryDestinations = listOf(
@@ -216,7 +216,7 @@ fun MatrixScreen(
     if (showMoreSheet) {
         ModalBottomSheet(
             onDismissRequest = { showMoreSheet = false },
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = MaterialTheme.colorScheme.background,
             tonalElevation = 6.dp
         ) {
             Column(
