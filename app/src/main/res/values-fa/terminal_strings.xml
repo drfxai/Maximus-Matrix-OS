@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="term_help_text">دستورها: /help، /status، /model، /events، /tools، /team، /combo، /clear و /mission به‌همراه هدف. متن معمولی یک مأموریت کنترل‌شده در ماتریکس ایجاد می‌کند.</string>
+    <string name="term_shell_blocked">اجرای مستقیم دستورات شل در این کنسول غیرفعال است. با /mission هدف خود را بنویسید. اجرای سیستمی به محیط مجزا و مجوز نیاز دارد.</string>
+    <string name="term_tools_explanation">ابزارها از موتور سیاست‌گذاری فعلی ماتریکس استفاده می‌کنند. اقدامات حساس به تأیید صریح شما نیاز دارند. شل نامحدود فعال نیست.</string>
+    <string name="term_busy">مأموریتی در حال اجرا یا در انتظار تأیید است.</string>
+    <string name="term_unknown">دستور پشتیبانی نمی‌شود. /help را وارد کنید</string>
+    <string name="term_mission_submitted">مأموریت برای بررسی به موتور سیاست‌گذاری ارسال شد. فقط رویدادهای تأییدشده در پایین نمایش داده می‌شوند.</string>
+    <string name="term_input_limit">حداکثر طول ورودی ۴۰۰۰ نویسه است.</string>
+    <string name="term_approval_title">اقدام ابزار ماتریکس تأیید شود؟</string>
+    <string name="term_approval_description">پیش از تأیید، نام ابزار و پارامترها را بررسی کنید. اگر غیرمنتظره است رد کنید.</string>
+    <string name="term_route_title">مسیر مدل فعال</string>
+    <string name="term_session_tokens">توکن‌های نشست</string>
+    <string name="term_context_remaining">ظرفیت باقی‌مانده متن</string>
+    <string name="term_usage_note">مصرف ممکن است گزارش‌شده یا تخمینی باشد؛ ظرفیت متن با سهمیه ارائه‌دهنده تفاوت دارد.</string>
+    <string name="term_tab_events">ترمینال</string>
+    <string name="term_tab_combo">اسمارت کمبو</string>
+    <string name="term_tab_team">ایجنت‌ها</string>
+    <string name="term_runtime_title">رویدادهای زنده اجرا</string>
+    <string name="term_runtime_subtitle">فقط رویدادهای واقعی موتور ماتریکس، از جدید به قدیم</string>
+    <string name="term_copy_log">کپی رویدادهای ثبت‌شده</string>
+    <string name="term_no_events">هنوز رویدادی وجود ندارد. برای شروع یک گردش کار مجاز، هدف مأموریت را بنویسید.</string>
+    <string name="term_combo_note">وجود مدل در فهرست به معنای تأیید سهمیه حساب یا اتصال زنده نیست.</string>
+    <string name="term_team_explanation">کنترل‌های فعلی تیم ایجنت‌ها در این صفحه در دسترس‌اند و همان مجوزهای امنیتی برقرار است.</string>
+    <string name="term_hint">هدف مأموریت یا /help</string>
+    <string name="term_send">ارسال به ترمینال</string>
+    <string name="term_composer_note">/help  /model  /team  /combo  /mission  •  بدون شل مستقیم</string>
+    <string name="term_subtitle">محیط ایجنت با کنترل دسترسی</string>
+    <string name="term_safe_mode">تحت کنترل سیاست</string>
+    <string name="term_combo_on">اسمارت کمبو فعال</string>
+    <string name="term_combo_off">مسیر دستی</string>
+</resources>
