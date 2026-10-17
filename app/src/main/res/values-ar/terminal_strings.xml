@@ -29,4 +29,7 @@
     <string name="term_safe_mode">محمي بالسياسات</string>
     <string name="term_combo_on">المزيج الذكي نشط</string>
     <string name="term_combo_off">توجيه يدوي</string>
+    <string name="term_observed_count">%1$d من أحداث التنفيذ المرصودة</string>
+    <string name="term_team_selected">تم تحديد مساحة عمل الوكلاء</string>
+    <string name="term_combo_selected">تم تحديد بيانات Smart Combo</string>
 </resources>
