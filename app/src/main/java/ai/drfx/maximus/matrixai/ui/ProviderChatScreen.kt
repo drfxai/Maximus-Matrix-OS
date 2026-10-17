@@ -1699,15 +1699,15 @@ private fun MicroProviderChip(
 @Composable
 private fun GeneratingPulse(provider: String) {
     val animation = rememberInfiniteTransition(label = "generation")
-    val opacity by animation.animateFloat(
-        initialValue = 0.25f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(820, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "thinking_alpha"
-    )
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         repeat(3) { index ->
-            Box(Modifier.size((6 + index * 2).dp).graphicsLayer(alpha = opacity)
-                .background(MaterialTheme.colorScheme.primary, CircleShape))
+            val opacity by animation.animateFloat(
+                initialValue = .25f, targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(600, easing = FastOutSlowInEasing),
+                    RepeatMode.Reverse, initialStartOffset = StartOffset(index * 150)),
+                label = "thinking-dot-$index")
+            Box(Modifier.size(6.dp).graphicsLayer(alpha = opacity, scaleX = .8f + opacity * .2f,
+                scaleY = .8f + opacity * .2f).background(MaterialTheme.colorScheme.tertiary, CircleShape))
         }
         Text(stringResource(R.string.chat_generating_provider, provider), color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
     }
@@ -1831,8 +1831,10 @@ private fun ChatBubble(
                         }
                         action(Icons.Default.VolumeUp, stringResource(R.string.chat_speak_response), false, onSpeak)
                     }
-                    if (copied) Text(stringResource(R.string.chat_copied_clipboard), fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.primary)
+                    AnimatedVisibility(copied) {
+                        Text(stringResource(R.string.chat_copied_clipboard), fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
         }
