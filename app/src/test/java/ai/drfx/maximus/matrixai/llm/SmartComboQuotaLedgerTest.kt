@@ -285,4 +285,56 @@ class SmartComboQuotaLedgerTest {
         assertEquals(6000L, ledger.capacities("shared-account").single().safeAvailable)
     }
 
+    @Test fun delayedConfirmedUsageReplacesEstimateWithoutDoubleCountingNewSnapshot() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        ledger.observe("shared-account", listOf(quota()))
+        assertTrue(ledger.reserve(plan("late-usage")).accepted)
+        assertTrue(ledger.dispatch("late-usage"))
+        time += 100
+        assertTrue(ledger.completedWithoutUsage("late-usage"))
+        val completedAt = time
+        assertEquals(8000L, ledger.capacities("shared-account").single().safeAvailable)
+        time += 100
+        val usage = SmartComboQuotaLedger.Usage(1000, 300, 1300)
+        assertTrue(ledger.reconcile("late-usage", usage))
+        assertEquals(completedAt, ledger.entry("late-usage")?.settledAt)
+        assertEquals(8700L, ledger.capacities("shared-account").single().safeAvailable)
+        time += 100
+        ledger.observe("shared-account", listOf(quota(remaining = 8700, observed = time)))
+        time += 100
+        assertTrue(ledger.reconcile("late-usage", usage))
+        assertEquals(8700L, ledger.capacities("shared-account").single().safeAvailable)
+        assertEquals(0L, ledger.capacities("shared-account").single().locallyReservedOrSpent)
+        assertFalse(ledger.reconcile("late-usage", usage.copy(total = 1400)))
+        assertFalse(ledger.dispatch("late-usage"))
+        assertFalse(ledger.releaseUndispatched("late-usage"))
+    }
+
+    @Test fun usageArrivingAfterNewSnapshotKeepsOriginalCompletionBoundary() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        assertTrue(ledger.reserve(plan("late")).accepted)
+        assertTrue(ledger.dispatch("late"))
+        assertTrue(ledger.completedWithoutUsage("late"))
+        val completedAt = time
+        time += 100
+        ledger.observe("shared-account", listOf(quota(remaining = 8700, observed = time)))
+        time += 100
+        assertTrue(ledger.reconcile("late", SmartComboQuotaLedger.Usage(1000, 300, 1300)))
+        assertEquals(completedAt, ledger.entry("late")?.settledAt)
+        assertEquals(8700L, ledger.capacities("shared-account").single().safeAvailable)
+        assertEquals(0L, ledger.capacities("shared-account").single().locallyReservedOrSpent)
+    }
+
+    @Test fun unexecutedRequestsCannotBeReconciledByLateCallbacks() {
+        val ledger = SmartComboQuotaLedger(now = { clock })
+        val usage = SmartComboQuotaLedger.Usage(1000, 300, 1300)
+        assertFalse(ledger.reconcile("missing", usage))
+        assertTrue(ledger.reserve(plan("reserved")).accepted)
+        assertFalse(ledger.reconcile("reserved", usage))
+        assertTrue(ledger.releaseUndispatched("reserved"))
+        assertFalse(ledger.reconcile("reserved", usage))
+    }
+
 }
