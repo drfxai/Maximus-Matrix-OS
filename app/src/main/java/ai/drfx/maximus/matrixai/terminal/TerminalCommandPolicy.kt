@@ -22,7 +22,7 @@ sealed interface TerminalIntent {
 object TerminalCommandPolicy {
     private const val MAX_OBJECTIVE = 4_000
     private val shellPrefixes = Regex(
-        """^(?:\$\s*|(?:sudo|su|rm|curl|wget|ssh|scp|adb|bash|sh|zsh|ls|cd|pwd|cat|chmod|chown|python[0-9.]*|pip[0-9.]*|npm|npx|node|git|gradle|\.\/)(?:\s|$))""",
+        """^(?:\$\s*|\.\/\S+|(?:sudo|su|rm|curl|wget|ssh|scp|adb|bash|sh|zsh|ls|cd|pwd|cat|chmod|chown|python[0-9.]*|pip[0-9.]*|npm|npx|node|git|gradle)(?:\s|$))""",
         RegexOption.IGNORE_CASE
     )
 
