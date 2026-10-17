@@ -2,6 +2,8 @@ package ai.drfx.maximus.matrixai.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -217,7 +219,8 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
                 }
             }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(
                         ConsoleTab.EVENTS to stringResource(R.string.term_tab_events),
                         ConsoleTab.ROUTING to stringResource(R.string.term_tab_combo),
@@ -228,7 +231,7 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
                             selected = tab == key,
                             onClick = { tab = key },
                             label = { Text(title, maxLines = 1) },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
                         )
                     }
                 }
