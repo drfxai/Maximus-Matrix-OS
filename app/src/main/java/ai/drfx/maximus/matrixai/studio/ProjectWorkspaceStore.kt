@@ -28,79 +28,8 @@ class ProjectWorkspaceStore(context: Context) {
         val dir = newDirectory(safeName)
         try {
             val namespace = "ai.drfx.generated." + safeName.lowercase().replace(Regex("[^a-z0-9]"), "").take(20)
-            write(dir, "settings.gradle.kts",
-                "pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }\n" +
-                "dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }\n" +
-                "rootProject.name = \"" + safeName + "\"\ninclude(\":app\")\n")
-            write(dir, "build.gradle.kts",
-                "plugins {\n" +
-                "    id(\"com.android.application\") version \"8.10.1\" apply false\n" +
-                "    id(\"org.jetbrains.kotlin.android\") version \"2.2.0\" apply false\n" +
-                "    id(\"org.jetbrains.kotlin.plugin.compose\") version \"2.2.0\" apply false\n}\n")
-            write(dir, "gradle.properties", "org.gradle.jvmargs=-Xmx2048m\nandroid.useAndroidX=true\n")
-            write(dir, "app/build.gradle.kts", """
-                plugins {
-                    id("com.android.application")
-                    id("org.jetbrains.kotlin.android")
-                    id("org.jetbrains.kotlin.plugin.compose")
-                }
-                android {
-                    namespace = "$namespace"
-                    compileSdk = 36
-                    defaultConfig {
-                        applicationId = "$namespace"
-                        minSdk = 26
-                        targetSdk = 35
-                        versionCode = 1
-                        versionName = "1.0.0"
-                    }
-                    buildFeatures { compose = true }
-                    compileOptions {
-                        sourceCompatibility = JavaVersion.VERSION_17
-                        targetCompatibility = JavaVersion.VERSION_17
-                    }
-                }
-                kotlin {
-                    compilerOptions {
-                        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-                    }
-                }
-                dependencies {
-                    implementation(platform("androidx.compose:compose-bom:2024.09.00"))
-                    implementation("androidx.activity:activity-compose:1.10.1")
-                    implementation("androidx.compose.material3:material3")
-                }
-            """.trimIndent())
-            write(dir, "app/src/main/AndroidManifest.xml", """
-                <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-                    <application android:label="$safeName" android:theme="@android:style/Theme.Material.Light.NoActionBar">
-                        <activity android:name=".MainActivity" android:exported="true">
-                            <intent-filter>
-                                <action android:name="android.intent.action.MAIN" />
-                                <category android:name="android.intent.category.LAUNCHER" />
-                            </intent-filter>
-                        </activity>
-                    </application>
-                </manifest>
-            """.trimIndent())
-            write(dir, "app/src/main/java/" + namespace.replace('.', '/') + "/MainActivity.kt", """
-                package $namespace
-
-                import android.os.Bundle
-                import androidx.activity.ComponentActivity
-                import androidx.activity.compose.setContent
-                import androidx.compose.material3.MaterialTheme
-                import androidx.compose.material3.Surface
-                import androidx.compose.material3.Text
-
-                class MainActivity : ComponentActivity() {
-                    override fun onCreate(savedInstanceState: Bundle?) {
-                        super.onCreate(savedInstanceState)
-                        setContent { MaterialTheme { Surface { Text("Welcome to $safeName") } } }
-                    }
-                }
-            """.trimIndent())
-            write(dir, "README.md", "# $safeName\n\nJetpack Compose starter project. No APK has been compiled or tested yet.\n")
+            ai.drfx.maximus.matrixai.studio.phonehost.PhoneAndroidStarter.files(safeName, namespace)
+                .forEach { (path, contents) -> write(dir, path, contents) }
             return summary(dir)
         } catch (t: Throwable) { dir.deleteRecursively(); throw t }
     }
