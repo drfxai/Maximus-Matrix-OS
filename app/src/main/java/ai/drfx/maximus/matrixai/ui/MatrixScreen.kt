@@ -95,25 +95,31 @@ fun MatrixScreen(
                             Destination.AGENTS -> "nav_item_agents"
                             else -> "nav_item_studio"
                         }
+                        val accessibilityLabel = when (target) {
+                            Destination.MATRIX -> "Neural Brain"
+                            Destination.STUDIO -> "Project Studio"
+                            else -> stringResource(label)
+                        }
                         NavigationBarItem(
                             selected = destination == target,
                             onClick = { destination = target },
-                            icon = { Icon(icon, when (target) { Destination.MATRIX -> "Neural Brain"; Destination.STUDIO -> "Project Studio"; else -> stringResource(label) }) },
+                            icon = { Icon(icon, contentDescription = null) },
                             label = { Text(stringResource(label), maxLines = 1, fontSize = 11.sp) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
                                 indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = .12f)
                             ),
-                            modifier = Modifier.testTag(tag)
+                            modifier = Modifier.testTag(tag).semantics { contentDescription = accessibilityLabel }
                         )
                     }
+                    val moreLabel = stringResource(R.string.nav_more)
                     NavigationBarItem(
                         selected = destination !in primaryDestinations.map { it.first },
                         onClick = { showMoreSheet = true },
                         icon = { Icon(Icons.Default.Widgets, stringResource(R.string.nav_more)) },
                         label = { Text(stringResource(R.string.nav_more), fontSize = 11.sp) },
-                        modifier = Modifier.testTag("nav_item_more")
+                        modifier = Modifier.testTag("nav_item_more").semantics { contentDescription = moreLabel }
                     )
                 }
             }
