@@ -276,6 +276,37 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
                             style = MaterialTheme.typography.bodySmall)
                     }
                 }
+                ConsoleTab.HOST -> {
+                    item {
+                        Text(stringResource(R.string.term_host_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    item {
+                        Box {
+                            OutlinedButton(onClick = { selectHostProject = true },
+                                modifier = Modifier.fillMaxWidth()) {
+                                Text(availableProjects.firstOrNull { it.id == selectedHostProject }?.name
+                                    ?: stringResource(R.string.term_host_select_project))
+                                Spacer(Modifier.width(6.dp))
+                                Icon(Icons.Default.ArrowDropDown, null)
+                            }
+                            DropdownMenu(expanded = selectHostProject,
+                                onDismissRequest = { selectHostProject = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.term_host_no_project)) },
+                                    onClick = { selectedHostProject = null; selectHostProject = false }
+                                )
+                                availableProjects.forEach { project ->
+                                    DropdownMenuItem(text = { Text(project.name) },
+                                        onClick = { selectedHostProject = project.id; selectHostProject = false })
+                                }
+                            }
+                        }
+                    }
+                    item { PhoneHarnessPanel(projectId = selectedHostProject) }
+                    item { RemoteWorkerPanel(projectId = selectedHostProject) }
+                }
                 ConsoleTab.TEAM -> {
                     item {
                         Text(stringResource(R.string.term_team_explanation),
@@ -290,6 +321,12 @@ fun TerminalConsoleScreen(viewModel: MatrixViewModel, modifier: Modifier = Modif
         Surface(color = MaterialTheme.colorScheme.surface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .7f))) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp)) {
+                if (!sessionReady || sessionError) {
+                    Text(stringResource(if (sessionError) R.string.term_history_unavailable
+                        else R.string.term_history_loading),
+                        color = if (sessionError) ConsoleError else ConsoleAmber,
+                        style = MaterialTheme.typography.labelSmall)
+                }
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.Terminal, null, tint = ConsoleGreen, modifier = Modifier.size(22.dp))
                     OutlinedTextField(
