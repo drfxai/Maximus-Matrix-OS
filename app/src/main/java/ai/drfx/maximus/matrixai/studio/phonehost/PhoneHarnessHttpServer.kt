@@ -47,6 +47,7 @@ internal class PhoneHarnessHttpServer(
         { id -> PhoneBuildSession.forContext(application).cancelOwned(id) }
     )
     private val socket = ServerSocket()
+    private val acceptThread: Thread
     // Keep track of live/queued sockets so a restart never races outstanding
     // loopback clients or leaves the fixed development port pinned.
     private val clients = ConcurrentHashMap.newKeySet<Socket>()
@@ -77,7 +78,7 @@ internal class PhoneHarnessHttpServer(
         socket.bind(
             InetSocketAddress(InetAddress.getByName("127.0.0.1"), PhoneHostPolicy.PORT), 4
         )
-        thread(start = true, isDaemon = true, name = "phone-harness-loop") {
+        acceptThread = thread(start = true, isDaemon = true, name = "phone-harness-loop") {
             while (!stopped) {
                 try {
                     val client = socket.accept()
@@ -372,6 +373,12 @@ internal class PhoneHarnessHttpServer(
         // The old server must be fully detached before a new listener can bind
         // the same 127.0.0.1 port after the user restarts Phone Host.
         invalidate()
+        // Android may retain the listening file descriptor until accept() unwinds.
+        // Join admission before draining clients and before a caller can rebind.
+        if (Thread.currentThread() !== acceptThread) {
+            try { acceptThread.join(1500) }
+            catch (_: InterruptedException) { Thread.currentThread().interrupt() }
+        }
         clients.forEach { runCatching { it.close() } }
         executor.shutdownNow()
         // This is called by the lifecycle IO thread in production.
