@@ -74,10 +74,8 @@ class KeyboardLayoutTest {
     @Test fun chatComposerStaysAboveKeyboard() {
         device.executeShellCommand("settings put secure show_ime_with_hard_keyboard 1")
         withLaunchedActivity {
-            phase("More navigation lookup")
-            checkNotNull(device.wait(Until.findObject(By.desc("More")), 10_000)).click()
-            phase("chat workspace selection")
-            checkNotNull(device.wait(Until.findObject(By.text("Maximus AI Chat")), 10_000)).click()
+            phase("direct chat navigation")
+            objectWithDescription("Chat").click()
             checkNotNull(device.wait(Until.findObject(By.text("Workspace controls")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Hide controls")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Workspace controls")), 10_000))
@@ -94,6 +92,24 @@ class KeyboardLayoutTest {
             awaitCondition("Chat keyboard did not close") { !isImeVisible() }
             awaitCondition("Navigation did not return") { device.hasObject(By.desc("Neural Brain")) }
             assertTrue("Chat text was lost", device.hasObject(By.text("Chat keyboard test")))
+        }
+    }
+
+    @Test fun primaryWorkspacesKeepFixedNavigationAndFocusedStudioSections() {
+        withLaunchedActivity {
+            objectWithDescription("Project Studio").click()
+            checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
+            assertFalse("Files must not render the build dashboard", device.hasObject(By.desc("Start server")))
+            objectWithDescription("Agents").click()
+            checkNotNull(device.wait(Until.findObject(By.text("Independent")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("General Assistant")), 10_000))
+            objectWithDescription("Neural Brain").click()
+            objectWithDescription("MAXIMUS assistant composer")
+            objectWithDescription("Chat")
+            objectWithDescription("Agents")
+            objectWithDescription("Project Studio")
+            objectWithDescription("More")
         }
     }
 

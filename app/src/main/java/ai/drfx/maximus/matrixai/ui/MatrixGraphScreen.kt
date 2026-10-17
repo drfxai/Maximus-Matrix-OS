@@ -162,9 +162,10 @@ fun MatrixGraphScreen(
         )
     }
     val events by viewModel.events.collectAsState()
-    val status by viewModel.status.collectAsState()
+    val runtimeStatus by viewModel.status.collectAsState()
     val llm by viewModel.llmState.collectAsState()
     val brainMessages by viewModel.chatMessages.collectAsState()
+    val status = if (!llm.isGenerating && brainMessages.lastOrNull()?.isError == true) "ATTENTION" else runtimeStatus
     var brainExpanded by remember { mutableStateOf(false) }
     // The graph is the home screen's primary canvas. Lobe chips take screen
     // space only when the user explicitly asks to filter anatomical groups.
@@ -921,7 +922,7 @@ fun MatrixGraphScreen(
         Surface(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp)
             .semantics { contentDescription = appContext.getString(R.string.conv_brain_composer) }, color = panelColor,
             shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, border)) {
-            Column(Modifier.heightIn(max = if (keyboardVisible) 220.dp else 300.dp)
+            Column(Modifier.heightIn(max = if (keyboardVisible) 220.dp else 176.dp)
                 .verticalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

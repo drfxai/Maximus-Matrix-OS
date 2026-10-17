@@ -60,6 +60,7 @@ fun ProjectStudioScreen(
     onCancelTeam: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var section by remember { mutableStateOf(0) }
     val context = LocalContext.current
     val store = remember(context) { ProjectWorkspaceStore(context.applicationContext) }
     val continuity = remember(context) { ProjectContinuityStore(context.applicationContext, store) }
@@ -139,7 +140,7 @@ fun ProjectStudioScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize().testTag("project_studio_screen"),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
@@ -179,8 +180,22 @@ fun ProjectStudioScreen(
             }
         }
         item {
+            ScrollableTabRow(selectedTabIndex = section, edgePadding = 0.dp,
+                containerColor = MaterialTheme.colorScheme.background,
+                divider = {}) {
+                listOf(R.string.design_overview, R.string.studio_step_files,
+                    R.string.studio_step_build, R.string.design_runtime, R.string.design_connections).forEachIndexed { index, label ->
+                    Tab(selected = section == index, onClick = { section = index },
+                        text = { Text(stringResource(label)) },
+                        modifier = Modifier.testTag("studio_section_$index"))
+                }
+            }
+        }
+        if (section == 0) {
+        item {
             ProjectTeamRunPanel(activeId, projectTeamRun, projectTeamMessage,
                 onPrepareTeam, onApproveTeam, onCancelTeam, projectTeamInvalid, onDiscardInvalidTeam)
+        }
         }
         item {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -196,6 +211,7 @@ fun ProjectStudioScreen(
                 }
             }
         }
+        if (section == 0) {
         item {
             StudioPanel {
                 Text(stringResource(R.string.studio_ai_brief), fontWeight = FontWeight.SemiBold, color = studioPurple)
@@ -272,11 +288,15 @@ fun ProjectStudioScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        }
+        if (section == 0) {
         item {
             StudioPanel {
                 HindsightMemoryPanel(activeId)
             }
         }
+        }
+        if (section == 0) {
         item {
             StudioPanel {
                 Text(stringResource(R.string.project_continuity), fontWeight = FontWeight.Bold, color = studioCyan)
@@ -333,6 +353,8 @@ fun ProjectStudioScreen(
                 }
             }
         }
+        }
+        if (section == 0) {
         item {
             StudioPanel {
                 Text(stringResource(R.string.studio_pipeline), fontWeight = FontWeight.SemiBold)
@@ -358,6 +380,8 @@ fun ProjectStudioScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        }
+        if (section == 1) {
         item {
             StudioPanel {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -393,8 +417,18 @@ fun ProjectStudioScreen(
                 if (files.size > 80) Text(stringResource(R.string.studio_show_files), fontSize = 11.sp)
             }
         }
-        item { PhoneHarnessPanel(projectId = activeId) }
+        }
+        if (section == 2) {
+        item { PhoneHarnessPanel(projectId = activeId, showWorkspaceTools = false) }
+        }
+        if (section == 3) {
+        item { PhoneLinuxPanel() }
         item { RemoteWorkerPanel(projectId = activeId) }
+        }
+        if (section == 4) {
+            item { DeveloperConnectionsPanel() }
+            item { PluginStorePanel() }
+        }
         item {
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             Text(message, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

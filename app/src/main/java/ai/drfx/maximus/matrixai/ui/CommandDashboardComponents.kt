@@ -23,14 +23,10 @@ internal fun CommandDashboardCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(modifier, shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .22f)),
+    Surface(modifier, shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         color = MaterialTheme.colorScheme.surfaceContainer) {
-        Column(Modifier.background(Brush.linearGradient(listOf(
-            MaterialTheme.colorScheme.primary.copy(alpha = .09f),
-            MaterialTheme.colorScheme.surfaceContainer,
-            MaterialTheme.colorScheme.tertiary.copy(alpha = .05f)
-        ))).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
     }
 }
 

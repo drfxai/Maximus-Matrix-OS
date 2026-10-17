@@ -31,40 +31,39 @@ internal fun ConversationTelemetryRibbon(
         .firstOrNull { it.id == state.selectedAgentId }?.name.orEmpty()
     val metrics = state.tokenMetrics
     val format = NumberFormat.getNumberInstance(Locale.US)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        RibbonTile(
-            stringResource(if (dispatched != null) R.string.focus_provider_active else R.string.focus_provider_configured),
-            if (provider == LlmProvider.UNKNOWN) stringResource(R.string.focus_unknown) else provider.displayName,
-            model.ifBlank { "—" }, Modifier.weight(1.12f), onProviderSettings
-        )
-        RibbonTile(stringResource(R.string.focus_agent), agent.ifBlank { "—" },
-            stringResource(when {
-                dispatched != null -> R.string.focus_running
-                state.isGenerating -> R.string.focus_preparing
-                else -> R.string.focus_idle
-            }), Modifier.weight(.9f), onProviderSettings)
-        RibbonTile(
-            stringResource(when {
-                metrics.streamingEstimateActive -> R.string.focus_tokens_live
-                metrics.turnUsageEstimated -> R.string.focus_tokens_estimated
-                else -> R.string.focus_tokens_reported
-            }),
-            if (metrics.streamingEstimateActive)
-                stringResource(R.string.focus_live_output, format.format(metrics.streamingOutputTokensEstimate))
-            else stringResource(R.string.focus_used, format.format(metrics.consumedTurnTotalTokens)),
-            if (model.isBlank()) stringResource(R.string.focus_unknown)
-            else stringResource(R.string.focus_context_left, format.format(metrics.remainingContextTokens)),
-            Modifier.weight(1.15f), onTokenDetails
-        )
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            RibbonTile(
+                if (provider == LlmProvider.UNKNOWN) stringResource(R.string.focus_unknown) else provider.displayName,
+                model.ifBlank { "—" }, agent.ifBlank { "—" },
+                Modifier.weight(1.65f), onProviderSettings
+            )
+            RibbonTile(
+                stringResource(when {
+                    metrics.streamingEstimateActive -> R.string.focus_tokens_live
+                    metrics.turnUsageEstimated -> R.string.focus_tokens_estimated
+                    else -> R.string.focus_tokens_reported
+                }),
+                if (metrics.streamingEstimateActive)
+                    stringResource(R.string.focus_live_output, format.format(metrics.streamingOutputTokensEstimate))
+                else stringResource(R.string.focus_used, format.format(metrics.consumedTurnTotalTokens)),
+                if (model.isBlank()) stringResource(R.string.focus_unknown)
+                else stringResource(R.string.focus_context_left, format.format(metrics.remainingContextTokens)),
+                Modifier.weight(1f), onTokenDetails
+            )
+        }
     }
 }
 
 @Composable
 private fun RibbonTile(label: String, value: String, detail: String, modifier: Modifier, onClick: () -> Unit) {
     Surface(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .55f))) {
+        color = androidx.compose.ui.graphics.Color.Transparent) {
         Column(Modifier.padding(horizontal = 7.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(label, fontSize = 10.sp, lineHeight = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,

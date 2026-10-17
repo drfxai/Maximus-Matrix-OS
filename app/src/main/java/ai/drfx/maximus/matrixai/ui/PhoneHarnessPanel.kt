@@ -55,7 +55,7 @@ private val harnessNight = Color(0xFF16243B)
  * User consent remains distinct for starting the server and sharing source.
  */
 @Composable
-fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
+fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier, showWorkspaceTools: Boolean = true) {
     val context = LocalContext.current
     var running by remember { mutableStateOf(PhoneHostSession.active != null) }
     var shared by remember { mutableStateOf(PhoneHostSession.sharedProject()) }
@@ -190,8 +190,10 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
             }
         }
 
-        PluginStorePanel()
-        PhoneLinuxPanel()
+        if (showWorkspaceTools) {
+            PluginStorePanel()
+            PhoneLinuxPanel()
+        }
         PhoneBuildRequestsPanel()
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
             HarnessCapabilityTile(

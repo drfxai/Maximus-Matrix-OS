@@ -21,6 +21,7 @@ import ai.drfx.maximus.matrixai.llm.AgentRegistry
 
 @Composable
 fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
+    var section by remember { mutableStateOf(0) }
     val state by viewModel.llmState.collectAsState()
     val supportedIds = state.supportedAgents.map { it.id }.toSet()
 
@@ -38,10 +39,22 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
                 lineHeight = 17.sp
             )
         }
-        item { AgentTeamPanel() }
-        item { CloudTeamStatusPanel() }
-        item { DeveloperConnectionsPanel() }
-        item { HorizontalDivider() }
+        item {
+            ScrollableTabRow(selectedTabIndex = section, edgePadding = 0.dp,
+                containerColor = MaterialTheme.colorScheme.background) {
+                listOf(R.string.design_teams, R.string.design_independent, R.string.design_connections)
+                    .forEachIndexed { index, label ->
+                        Tab(selected = section == index, onClick = { section = index },
+                            text = { Text(stringResource(label)) })
+                    }
+            }
+        }
+        if (section == 0) {
+            item { AgentTeamPanel() }
+            item { CloudTeamStatusPanel() }
+        }
+        if (section == 2) { item { DeveloperConnectionsPanel() } }
+        if (section == 1) {
         items(AgentRegistry.agents) { agent ->
             val supported = agent.id in supportedIds
             Surface(
@@ -102,6 +115,7 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
                     }
                 }
             }
+        }
         }
     }
 }

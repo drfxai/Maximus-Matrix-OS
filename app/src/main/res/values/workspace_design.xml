@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="design_overview">Overview</string>
+    <string name="design_runtime">Runtime</string>
+    <string name="design_teams">Teams</string>
+    <string name="design_independent">Independent</string>
+    <string name="design_connections">Connections</string>
+    <string name="design_agents">Agents</string>
+</resources>
