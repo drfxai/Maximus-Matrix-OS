@@ -43,6 +43,7 @@ internal class PhoneLinuxSession(context: Context) {
                 val executable = File(native, "libproot.so")
                 check(executable.canExecute() && File(native, "libprootloader.so").isFile)
                 val workspace = File(app.filesDir, "phone-linux-workspace").apply { check(isDirectory || mkdirs()) }
+                File(root, "root/workspace").apply { check(isDirectory || mkdirs()) }
                 val args = mutableListOf(executable.absolutePath, "--kill-on-exit", "--link2symlink",
                     "-0", "-r", root.absolutePath, "-b", "/dev", "-b", "/proc", "-b", "/sys")
                 for (host in listOf("/system", "/apex", "/vendor", "/product")) {

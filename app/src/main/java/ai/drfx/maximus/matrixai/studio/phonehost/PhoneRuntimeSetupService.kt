@@ -50,6 +50,9 @@ class PhoneRuntimeSetupService : Service() {
             return START_NOT_STICKY
         }
         startForeground(NOTIFICATION, notice("Preparing private Linux and Android toolchain", 0))
+        // Start before observing: a persisted failed/installed outcome from an older
+        // attempt must not stop this new foreground service before resume begins.
+        installer.install()
         if (!observing) {
             observing = true
             scope.launch {
@@ -66,7 +69,6 @@ class PhoneRuntimeSetupService : Service() {
                 }
             }
         }
-        installer.install()
         return START_NOT_STICKY
     }
 
