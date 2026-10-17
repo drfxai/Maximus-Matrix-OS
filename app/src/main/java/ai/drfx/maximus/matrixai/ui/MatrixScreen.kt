@@ -44,7 +44,8 @@ private enum class Destination(val label: String) {
     CHAT("Chat"),
     AGENTS("Personas"),
     DATA("Data"),
-    CONTROL("Control")
+    CONTROL("Control"),
+    TERMINAL("Terminal")
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -68,7 +69,8 @@ fun MatrixScreen(
         Destination.CHAT,
         Destination.AGENTS,
         Destination.DATA,
-        Destination.CONTROL
+        Destination.CONTROL,
+        Destination.TERMINAL
     )
 
     Scaffold(
@@ -195,6 +197,7 @@ fun MatrixScreen(
                         Destination.AGENTS -> Icons.Default.Person
                         Destination.DATA -> Icons.Default.Storage
                         Destination.CONTROL -> Icons.Default.Settings
+                        Destination.TERMINAL -> Icons.Default.Terminal
                         else -> Icons.Default.Widgets
                     }
                     val moreLabel: String = when (destination) {
@@ -202,6 +205,7 @@ fun MatrixScreen(
                         Destination.AGENTS -> stringResource(R.string.nav_personas)
                         Destination.DATA -> stringResource(R.string.nav_data)
                         Destination.CONTROL -> stringResource(R.string.nav_control)
+                        Destination.TERMINAL -> stringResource(R.string.term_tab_events)
                         else -> stringResource(R.string.nav_more)
                     }
                     val moreScale by animateFloatAsState(
@@ -315,6 +319,10 @@ fun MatrixScreen(
                         onLanguageChange = onLanguageChange,
                         modifier = Modifier.fillMaxSize()
                     )
+                    Destination.TERMINAL -> TerminalConsoleScreen(
+                        viewModel = viewModel,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }
@@ -405,6 +413,18 @@ fun MatrixScreen(
                     isSelected = destination == Destination.DATA,
                     onClick = {
                         destination = Destination.DATA
+                        showMoreSheet = false
+                    }
+                )
+
+                WorkspaceItemRow(
+                    title = stringResource(R.string.term_tab_events),
+                    subtitle = stringResource(R.string.term_subtitle),
+                    icon = Icons.Default.Terminal,
+                    accentColor = Color(0xFF5CF0BC),
+                    isSelected = destination == Destination.TERMINAL,
+                    onClick = {
+                        destination = Destination.TERMINAL
                         showMoreSheet = false
                     }
                 )
