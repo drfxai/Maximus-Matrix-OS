@@ -29,4 +29,7 @@
     <string name="term_safe_mode">İLKE KORUMALI</string>
     <string name="term_combo_on">Smart Combo etkin</string>
     <string name="term_combo_off">Manuel yönlendirme</string>
+    <string name="term_observed_count">%1$d gözlemlenmiş çalışma olayı</string>
+    <string name="term_team_selected">Ajan çalışma alanı seçildi</string>
+    <string name="term_combo_selected">Smart Combo telemetrisi seçildi</string>
 </resources>
