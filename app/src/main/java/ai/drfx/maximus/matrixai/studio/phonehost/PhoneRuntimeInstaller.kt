@@ -81,6 +81,8 @@ internal class PhoneRuntimeInstaller(context: Context) {
 
     @Synchronized fun install() {
         if (stateValue.value.busy) return
+        val lease = try { PhoneRuntimeCoordinator.acquire(PhoneRuntimeCoordinator.Operation.INSTALL) }
+        catch (e: IllegalStateException) { finish("failed", e.message.orEmpty()); return }
         stopped.set(false)
         stopReason = "Installation stopped. Tap Resume to keep using downloaded archive chunks."
         progressStore.edit().remove("phase").remove("message").apply()
@@ -135,6 +137,7 @@ internal class PhoneRuntimeInstaller(context: Context) {
                 }
                 old.deleteRecursively()
                 archives.forEach { it.delete() }
+                lease.close()
                 finish("installed",
                     "Toolchain files verified. Run Verify tools to prove Gradle/JDK/AAPT2 execution.",
                     finished, total)
@@ -145,8 +148,9 @@ internal class PhoneRuntimeInstaller(context: Context) {
                 } else "failed"
                 val reason = if (stopped.get()) stopReason
                     else (e.message ?: "Runtime setup failed. Tap Resume to retry.")
+                lease.close()
                 finish(phase, reason)
-            }
+            } finally { lease.close() }
         }
     }
 

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="linux_title">Среда Linux</string>
+    <string name="linux_description">Выполняйте ручные неинтерактивные команды в установленной среде Linux. Начальная папка /root/workspace; файлы сохраняются. Действуют ограничения ядра Android и фоновой работы.</string>
+    <string name="linux_command">Команда</string>
+    <string name="linux_run">Проверить и запустить</string>
+    <string name="linux_stop">Остановить</string>
+    <string name="linux_running">Выполняется на телефоне</string>
+    <string name="linux_finished">Команда завершена</string>
+    <string name="linux_cancelled">Отменено</string>
+    <string name="linux_failed">Не удалось завершить. Установите плагин Linux и среду, остановите другие операции и проверьте вывод.</string>
+    <string name="linux_idle">Нет активной команды</string>
+    <string name="linux_exit">Код выхода: %1$d</string>
+    <string name="linux_review">Проверка команды Linux</string>
+    <string name="linux_consent">Выполняйте только доверенные команды. PRoot использует UID приложения Android и не является защитной песочницей; команды могут читать данные приложения и использовать сеть. Токены API не передаются. Не более 15 минут. Дочерние процессы останавливаются вместе с сеансом.</string>
+    <string name="linux_cancel">Отмена</string>
+    <string name="plugin_store_title">Магазин плагинов</string>
+    <string name="plugin_store_description">Встроенные плагины этого подписанного приложения. Проверьте разрешения для активации. Установка не добавляет внешний код или учётные данные.</string>
+    <string name="plugin_github">Проекты GitHub</string>
+    <string name="plugin_cloudflare">Cloudflare Workers</string>
+    <string name="plugin_apk">Сборка APK на телефоне</string>
+    <string name="plugin_linux">Среда Linux</string>
+    <string name="plugin_installed">Установлен</string>
+    <string name="plugin_available">Доступен</string>
+    <string name="plugin_remove">Удалить</string>
+    <string name="plugin_install">Установить</string>
+    <string name="plugin_failed">Ошибка операции с плагином.</string>
+    <string name="plugin_permissions">Разрешения плагина</string>
+    <string name="plugin_github_permissions">Чтение файлов GitHub, запись в рабочие ветки и создание черновиков запросов после явной проверки. Используется ваш токен с ограниченными правами.</string>
+    <string name="plugin_cloudflare_permissions">Чтение Workers и развёртывание проверенных изменений с вашим ограниченным токеном Cloudflare. Каждое развёртывание требует отдельного одобрения.</string>
+    <string name="plugin_apk_permissions">Запуск доверенных сценариев сборки с UID приложения и экспорт Debug APK. Проверяйте каждую сборку.</string>
+    <string name="plugin_linux_permissions">Запуск вручную одобренных команд Linux с UID приложения и доступом к сети. Не предоставляет root Android или отдельное ядро. Проверяйте каждую команду.</string>
+    <string name="plugin_remove_description">Удаляет плагин, блокирует дальнейшие операции и удаляет сохранённый токен сервиса. Уже отправленные удалённые операции не отменяются.</string>
+</resources>

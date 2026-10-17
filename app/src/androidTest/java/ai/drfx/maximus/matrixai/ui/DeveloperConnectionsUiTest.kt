@@ -141,6 +141,55 @@ class DeveloperConnectionsUiTest {
         }
     }
 
+    @Test fun pluginPermissionReviewAndRemovalRevokeTheSavedServiceToken() {
+        val registryFile = java.io.File(context.filesDir, "plugins/native-v1.json")
+        val originalRegistry = registryFile.takeIf { it.isFile }?.readBytes()
+        val preferences = context.getSharedPreferences("maximus_developer_connections", Context.MODE_PRIVATE)
+        val originalPreferences = preferences.all.toMap()
+        val languages = LanguagePreferenceStore(context)
+        val originalLanguage = languages.load()
+        val originalLocale = Locale.getDefault()
+        val registry = ai.drfx.maximus.matrixai.plugins.NativePlugins.registry(context)
+        val vault = ai.drfx.maximus.matrixai.studio.connections.DeveloperCredentialVault(context)
+        try {
+            check(registryFile.delete() || !registryFile.exists())
+            check(preferences.edit().clear().commit())
+            languages.save(AppLanguage.ENGLISH)
+            device.executeShellCommand("am start -W -f 0x10008000 -n ${context.packageName}/${MainActivity::class.java.name}")
+            onActivity { activity -> activity.setContent {
+                MaximusMatrixTheme { Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    PluginStorePanel()
+                } }
+            } }
+            compose.onNodeWithTag("plugin_github").performScrollTo().performClick()
+            compose.onNodeWithText(text(R.string.plugin_github_permissions)).assertIsDisplayed()
+            assertFalse(registry.installed("github"))
+            compose.onNodeWithTag("plugin_cancel_review").performClick()
+            assertFalse(registry.installed("github"))
+            compose.onNodeWithTag("plugin_github").performScrollTo().performClick()
+            compose.onNodeWithTag("plugin_confirm_install").performClick()
+            compose.waitUntil(5000) { registry.installed("github") }
+            vault.save(ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB,
+                "fixture-not-a-real-api-token-00000000")
+            compose.onNodeWithTag("plugin_github").performScrollTo().performClick()
+            compose.onNodeWithTag("plugin_confirm_remove").performClick()
+            compose.waitUntil(5000) { !registry.installed("github") }
+            assertFalse(vault.configured(ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB))
+        } finally {
+            runCatching { onActivity { it.finish() } }
+            if (originalRegistry == null) registryFile.delete() else {
+                registryFile.parentFile?.mkdirs(); registryFile.writeBytes(originalRegistry)
+            }
+            val editor = preferences.edit().clear()
+            originalPreferences.forEach { (key, value) ->
+                check(value is String); editor.putString(key, value)
+            }
+            check(editor.commit())
+            languages.save(originalLanguage)
+            Locale.setDefault(originalLocale)
+        }
+    }
+
     private fun text(id: Int, vararg args: Any): String =
         LanguagePreferenceStore.localizedContext(context, AppLanguage.ENGLISH).getString(id, *args)
 

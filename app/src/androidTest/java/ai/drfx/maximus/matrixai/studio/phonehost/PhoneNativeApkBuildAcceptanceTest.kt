@@ -32,6 +32,9 @@ class PhoneNativeApkBuildAcceptanceTest {
         val evidence = File(context.getExternalFilesDir(null), "physical-acceptance").apply { mkdirs() }
         val proofFile = File(evidence, "result.json")
         proofFile.delete() // An earlier success must never survive this attempt.
+        val plugin = ai.drfx.maximus.matrixai.plugins.PluginCatalog.find("phone-apk")
+        ai.drfx.maximus.matrixai.plugins.NativePlugins.registry(context)
+            .install(plugin.id, plugin.fingerprint, approved = true)
         val builder = PhoneOnDeviceApkBuilder(context)
         await(30_000) { !builder.state.value.busy }
         builder.verifyTools()

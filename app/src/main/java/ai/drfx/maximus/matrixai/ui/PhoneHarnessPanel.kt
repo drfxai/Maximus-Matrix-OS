@@ -190,6 +190,8 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
             }
         }
 
+        PluginStorePanel()
+        PhoneLinuxPanel()
         PhoneBuildRequestsPanel()
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
             HarnessCapabilityTile(

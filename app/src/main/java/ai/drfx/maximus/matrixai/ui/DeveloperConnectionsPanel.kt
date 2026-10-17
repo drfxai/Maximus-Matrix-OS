@@ -113,6 +113,11 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
     ElevatedCard(modifier.fillMaxWidth().testTag("developer_connection_panel"),
         shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.padding(14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            PluginStorePanel(onChanged = {
+                connection = connection.reset(vault.configured(selected))
+                prReview = null; prUrl = ""; loaded = null; accounts = emptyList()
+                deployReview = null; deploymentDone = false
+            })
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Default.Cloud, null, tint = MaterialTheme.colorScheme.primary)
                 Text(stringResource(R.string.dev_connections),

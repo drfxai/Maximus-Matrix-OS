@@ -1,0 +1,42 @@
+# Phone development runtime and native plugin store
+
+## Scope and readiness
+
+Public version remains V1.0.0 and the permanent release signing configuration is unchanged. This change implements phone-runtime and integration functionality in the existing screens. The application UI redesign is explicitly deferred until the owner consultation.
+
+The implementation is not physical-device acceptance. A real ARM64 Android 9+ device must still pass the native PRoot/Gradle build/export/install gate and Linux command tests. An x86 emulator, unit test or successful archive download cannot establish this.
+
+## User workflow
+
+1. Open Project Studio → Phone Harness → Plugin Store. Review and install **On-phone APK builder** and **Linux workspace**. These activate native modules already included in the signed APK, not downloaded executable plugins.
+2. Install the pinned runtime (about 612 MiB downloaded; at least 3 GiB free storage required). Downloaded archives retain resume state and must pass their pinned SHA-256 checks.
+3. Choose **Verify tools**; this actually executes the phone's Java/Gradle/AAPT2. Create a Studio Android starter, review **Build Debug APK**, and build locally. After success, **Save verified APK** exports the actual parsed APK and rechecks its digest. Production signing keys are never used for project Debug builds.
+4. In **Linux workspace**, review a noninteractive command and choose **Review and run**. For example: `pwd; uname -m; cat /etc/os-release`. Inspect real output and exit code. **Stop** or the notification cancels the session. Output is bounded to 32K characters, there is no stdin/PTY, and each session lasts at most 15 minutes. This is a command workspace, not a 24/7 daemon host.
+5. Commands start in `/root/workspace`, a bind of persistent app-private `phone-linux-workspace` outside the replaceable toolchain. Files in this workspace survive runtime replacement. Other guest directories belong to the installed toolchain. No host API credentials are injected into environment variables.
+6. Open Agents → Developer connections. In Plugin Store, install **GitHub projects** and **Cloudflare Workers** after permission review. Enter your own restricted service token and verify it. GitHub supports source reads, feature-branch writes and reviewed draft pull requests; Cloudflare supports Worker discovery and reviewed deployments through the existing clients. Installing a native plugin does not connect or authenticate an account.
+7. Removing a plugin blocks subsequent requests. Removing GitHub/Cloudflare deletes that service's encrypted token. Removing a local execution plugin cancels its active operation at the next check. Already submitted remote operations cannot be undone by removal.
+
+## Runtime ownership
+
+Installation, tool verification, APK builds and manual Linux commands share a process-wide exclusive lease. A toolchain cannot be replaced while a guest process is active. Stale cleanup cannot release another operation's lease. PRoot `--kill-on-exit` is present in the pinned binary and is enabled for build and shell processes so child workloads do not silently remain after normal session termination.
+
+PRoot is Linux userspace on Android's kernel under the application's UID. It is not Android root, a VM or a security sandbox. Trusted manual commands and Gradle scripts can access the app's private data; only owner-trusted code should execute here. The manual command service is not exported, has a foreground notification and is not exposed through the loopback HTTP gateway or model/agent tools. Android may still interrupt foreground work; no continuous availability is claimed.
+
+## Native catalog boundary
+
+The catalog has four fixed modules: GitHub, Cloudflare, APK builder and Linux. Install records contain the exact reviewed ID, version and permission fingerprint. Unknown IDs, corrupt registry files and mismatched fingerprints grant no permissions. Installation is atomic and shared between screens; manifest changes require new review. SHA-256 identifies the reviewed built-in manifest, not an independent publisher signature. Arbitrary marketplace packages, remote MCP plugins and downloaded code execution are outside this release.
+
+## Validation
+
+Pure Kotlin tests cover exclusive runtime ownership, concurrent acquisition, stale cleanup, command bounds, unbounded-line output protection, plugin consent, persisted revocation, corrupt state and manifest changes. Existing native provenance and localization checks remain required. Android compilation/lint, emulator UI tests and physical ARM64 acceptance are separate gates.
+
+The physical Linux instrumentation gate is `PhoneLinuxAcceptanceTest` with `approvedOwnerLinux=true`. It requires an already installed pinned runtime on a dedicated ARM64 test device and verifies actual aarch64 output, workspace persistence across commands, cancellation and lease release. `PhoneNativeApkBuildAcceptanceTest` retains its separate explicit build approval. Neither gate is part of the x86 emulator success claim.
+
+
+## Offline starter compatibility
+
+The verified Android bundle contains SDK 36, build tools 35.0.0, AGP 8.11.0, Kotlin 1.9.22, Compose compiler 1.5.10, Compose BOM 2022.10.00 and Activity Compose 1.5.1. The new-project template uses that profile and explicit available transitive versions. The previous template requested SDK 35, AGP 8.10.1, Kotlin 2.2.0 and uncached Compose dependencies, so it could not build offline from this bundle. Existing/imported projects are not silently rewritten; use a newly created starter for this acceptance test, or explicitly adapt an existing project to the available dependency set.
+
+The template versions are scoped to generated sample projects. They do not downgrade the Matrix application, its AGP/Kotlin versions or its UI libraries. Pinned bundle source: `techjarves/Mobile-Harness`, release `runtime-2026.09.4`, Android archive SHA-256 `01bea058ebcb17416d1eb08c0211b3782da3228eb3c8348eb3719f2d61dd3ec6`.
+
+A full `:app:assembleDebug --offline` of the exact generated template was validated on the Linux x86_64 engineering host using the verified bundle Maven repository/SDK, a host JDK and checksum-verified official host AAPT2. The resulting APK passed package parsing and APK signature verification. This verifies dependency closure and template compilation; it does not establish ARM64 PRoot execution, physical-phone build time or installation acceptance.

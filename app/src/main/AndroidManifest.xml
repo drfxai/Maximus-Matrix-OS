@@ -29,6 +29,11 @@
         android:theme="@style/Theme.MaximusMatrix"
         android:supportsRtl="true">
         <receiver android:name=".news.EconomicEventAlarmReceiver" android:exported="false" />
+        <service android:name=".studio.phonehost.PhoneLinuxService"
+            android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-approved local Linux command session with visible stop control" />
+        </service>
         <service
             android:name=".studio.phonehost.PhoneLocalBuildService"
             android:exported="false"
