@@ -149,8 +149,14 @@ internal class SmartComboQuotaLedger(
     @Synchronized fun reconcile(requestId: String, usage: Usage): Boolean {
         val current = entries[requestId] ?: return false
         if (current.state == State.RECONCILED) return current.confirmed == usage
-        if (current.state != State.DISPATCHED && current.state != State.UNCERTAIN) return false
-        entries[requestId] = current.copy(state = State.RECONCILED, confirmed = usage, settledAt = now())
+        if (current.state !in setOf(State.DISPATCHED, State.UNCERTAIN, State.FINISHED_UNVERIFIED)) return false
+        // A delayed final usage callback may follow an estimated stream completion.
+        // Preserve the original completion boundary: newer quota snapshots already
+        // cover that request and must not be charged for it a second time.
+        entries[requestId] = current.copy(
+            state = State.RECONCILED, confirmed = usage,
+            settledAt = current.settledAt ?: now()
+        )
         return true
     }
 
