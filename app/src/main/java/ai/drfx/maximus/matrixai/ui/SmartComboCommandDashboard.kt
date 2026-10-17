@@ -88,11 +88,14 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
             CommandMetric(stringResource(R.string.dash_provider_tokens),
                 metrics.verifiedRateTokensRemaining?.let(format::format) ?: unknown,
                 stringResource(R.string.dash_rate_snapshot), Modifier.weight(1f),
-                remainingValue = metrics.verifiedRateTokensRemaining)
+                remainingValue = metrics.verifiedRateTokensRemaining,
+                attention = metrics.verifiedRateTokensRemaining == 0L)
             CommandMetric(stringResource(R.string.dash_local_budget),
                 metrics.remainingBudgetTokens?.let(format::format) ?: stringResource(R.string.dash_not_set),
                 stringResource(R.string.dash_user_budget), Modifier.weight(1f),
-                remainingValue = metrics.remainingBudgetTokens)
+                remainingValue = metrics.remainingBudgetTokens,
+                attention = metrics.monthlyTokenBudget > 0 &&
+                    (metrics.remainingBudgetTokens ?: Long.MAX_VALUE) <= metrics.monthlyTokenBudget * .15)
         }
         if (metrics.rateEvidenceAtEpochMs != null) {
             Text((metrics.rateProvider?.displayName ?: unknown) + " · " +

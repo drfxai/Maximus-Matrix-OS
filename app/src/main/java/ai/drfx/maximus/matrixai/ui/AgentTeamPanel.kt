@@ -59,6 +59,7 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
     }
 
     var showCreate by remember { mutableStateOf(false) }
+    var showSupervisorDetails by remember { mutableStateOf(false) }
     // RUNNING is observed from WorkManager; an enabled periodic schedule is never counted as live.
     val workInfos by produceState<List<WorkInfo>?>(null, context) {
         try {
@@ -74,29 +75,32 @@ fun AgentTeamPanel(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(11.dp)) {
         CommandDashboardCard(Modifier.fillMaxWidth().testTag("agent_team_supervisor")) {
             Text(stringResource(R.string.dash_team_title),
-                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             CommandStatus(stringResource(R.string.dash_android_scheduler), workInfos != null)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CommandMetric(stringResource(R.string.dash_running_jobs),
+                CompactTeamMetric(stringResource(R.string.dash_running_jobs),
                     workInfos?.count { it.state == WorkInfo.State.RUNNING }?.toString()
-                        ?: stringResource(R.string.api_unknown),
-                    stringResource(R.string.dash_observed_workmanager), Modifier.weight(1f))
-                CommandMetric(stringResource(R.string.dash_enabled_schedules),
-                    supervisor.active.toString(), stringResource(R.string.dash_of_teams, teams.size),
-                    Modifier.weight(1f))
+                        ?: stringResource(R.string.api_unknown), Modifier.weight(1f))
+                CompactTeamMetric(stringResource(R.string.dash_enabled_schedules),
+                    supervisor.active.toString(), Modifier.weight(1f))
+                CompactTeamMetric(stringResource(R.string.dash_attention),
+                    supervisor.attention.toString(), Modifier.weight(1f), supervisor.attention > 0)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CommandMetric(stringResource(R.string.dash_verified_reports), supervisor.healthy.toString(),
-                    stringResource(R.string.dash_last_report_evidence), Modifier.weight(1f))
-                CommandMetric(stringResource(R.string.dash_attention), supervisor.attention.toString(),
-                    stringResource(R.string.dash_attention_detail), Modifier.weight(1f),
-                    attention = supervisor.attention > 0)
-            }
-            Text(stringResource(R.string.team_supervisor_disclaimer),
-                style = MaterialTheme.typography.bodySmall,
+            Text(stringResource(R.string.motion_team_scope), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = { showSupervisorDetails = !showSupervisorDetails }) {
+                Text(stringResource(R.string.focus_details))
+            }
+            AnimatedVisibility(showSupervisorDetails) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.team_supervisor_disclaimer),
+                        style = MaterialTheme.typography.bodySmall)
+                    CommandMetric(stringResource(R.string.dash_verified_reports), supervisor.healthy.toString(),
+                        stringResource(R.string.dash_last_report_evidence), Modifier.fillMaxWidth())
+                }
+            }
             TeamWorkflowSteps()
-            Button(onClick = { showCreate = !showCreate }, modifier = Modifier.fillMaxWidth()
+            Button(onClick = { showCreate = !showCreate }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()
                 .testTag("agent_team_create_toggle")) {
                 Text(stringResource(if (showCreate) R.string.dash_hide_setup else R.string.dash_new_team))
             }
@@ -321,5 +325,19 @@ private fun TeamWorkflowSteps() {
                     Text(stringResource(label), style = MaterialTheme.typography.labelMedium)
                 }
             }
+    }
+}
+
+@Composable
+private fun CompactTeamMetric(label: String, value: String, modifier: Modifier, warning: Boolean = false) {
+    Surface(modifier, shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            androidx.compose.animation.AnimatedContent(value, label = "team-metric") { reading ->
+                Text(reading, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                    color = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            }
+            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 2,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }

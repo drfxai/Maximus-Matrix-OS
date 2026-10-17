@@ -163,12 +163,10 @@ fun ProjectStudioScreen(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.FolderOpen, null, tint = studioCyan)
                     Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.studio_active_project), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                         Text(active?.name ?: stringResource(R.string.studio_no_project), fontWeight = FontWeight.Bold,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(if (active == null) stringResource(R.string.studio_create_import) else
-                            stringResource(R.string.studio_files_count, active.fileCount), fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (active != null) Text(stringResource(R.string.studio_files_count, active.fileCount),
+                            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Box {
                         TextButton(onClick = { showSelector = true }, enabled = projects.isNotEmpty()) {
@@ -204,15 +202,17 @@ fun ProjectStudioScreen(
                         StudioShortcut(stringResource(R.string.plugin_apk), Icons.Default.Android,
                             Modifier.weight(1f)) { section = 2 }
                         StudioShortcut(stringResource(R.string.linux_title), Icons.Default.Terminal,
-                            Modifier.weight(1f)) { section = 3 }
+                            Modifier.weight(1f), accent = studioPurple) { section = 3 }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StudioShortcut(stringResource(R.string.plugin_github), Icons.Default.Code,
-                            Modifier.weight(1f)) { section = 4 }
+                            Modifier.weight(1f), accent = MaterialTheme.colorScheme.onSurface) { section = 4 }
                         StudioShortcut(stringResource(R.string.plugin_cloudflare), Icons.Default.Cloud,
-                            Modifier.weight(1f)) { section = 4 }
+                            Modifier.weight(1f), accent = studioPurple) { section = 4 }
                     }
-                    OutlinedButton(onClick = { section = 4 }, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = { section = 4 }, modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Icon(Icons.Default.Extension, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.plugin_store_title))
@@ -547,6 +547,7 @@ private fun StudioShortcut(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     modifier: Modifier = Modifier,
+    accent: Color = MaterialTheme.colorScheme.primary,
     onClick: () -> Unit
 ) {
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
@@ -557,11 +558,14 @@ private fun StudioShortcut(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Column(Modifier.padding(12.dp).heightIn(min = 56.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 2,
-                overflow = TextOverflow.Ellipsis)
+        Row(Modifier.padding(12.dp).heightIn(min = 46.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, null, tint = accent, modifier = Modifier.size(24.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 2,
+                modifier = Modifier.weight(1f), overflow = TextOverflow.Ellipsis)
+            Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

@@ -712,7 +712,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.background,
                 border = null,
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -970,16 +970,26 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .65f))
         ) {
             Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
-                OutlinedTextField(
+                androidx.compose.foundation.text.BasicTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = context.getString(R.string.chat_input_description) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 38.dp, max = 88.dp)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .semantics { contentDescription = context.getString(R.string.chat_input_description) },
                     maxLines = 3,
                     enabled = !recording,
-                    placeholder = { Text(stringResource(R.string.speech_input_hint), fontSize = 13.sp) },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                    decorationBox = { inner ->
+                        Box {
+                            if (prompt.isEmpty()) Text(stringResource(R.string.speech_input_hint),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            inner()
+                        }
+                    },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { send() }),
-                    shape = RoundedCornerShape(12.dp)
+                    keyboardActions = KeyboardActions(onSend = { send() })
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
