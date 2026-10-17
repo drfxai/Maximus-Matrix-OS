@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="term_help_text">Commands: /help, /status, /model, /events, /tools, /team, /combo, /clear, /mission [objective]. Other text requests a governed Matrix mission.</string>
+    <string name="term_shell_blocked">Direct shell commands are disabled in this console. Use /mission followed by an objective. System execution requires a separate approved worker.</string>
+    <string name="term_tools_explanation">Tools are handled by the existing Matrix policy engine. Sensitive actions require your explicit approval. No unrestricted shell is available.</string>
+    <string name="term_busy">A mission is already running or awaiting approval.</string>
+    <string name="term_unknown">Unsupported command. Enter /help</string>
+    <string name="term_mission_submitted">Mission requested through the Matrix policy engine. Verified events appear below; no shell command was run.</string>
+    <string name="term_input_limit">Input must be 4,000 characters or fewer.</string>
+    <string name="term_approval_title">Approve Matrix tool action?</string>
+    <string name="term_approval_description">Review the tool and arguments before approving. Deny if unexpected.</string>
+    <string name="term_route_title">Active model route</string>
+    <string name="term_session_tokens">Session tokens</string>
+    <string name="term_context_remaining">Context available</string>
+    <string name="term_usage_note">Usage may be provider-reported or estimated. Remaining context is not the provider quota.</string>
+    <string name="term_tab_events">Terminal</string>
+    <string name="term_tab_combo">Smart Combo</string>
+    <string name="term_tab_team">Agents</string>
+    <string name="term_runtime_title">Runtime event stream</string>
+    <string name="term_runtime_subtitle">Only observed events from Matrix runtime; newest first</string>
+    <string name="term_copy_log">Copy observed events</string>
+    <string name="term_no_events">No runtime events yet. Enter a mission objective to start an approved workflow.</string>
+    <string name="term_combo_note">Catalog listings do not guarantee account quota or live connectivity.</string>
+    <string name="term_team_explanation">Existing agent-team controls are shown here. Changes require the same approvals and permissions as elsewhere in Matrix.</string>
+    <string name="term_hint">Mission or /help</string>
+    <string name="term_send">Send to terminal</string>
+    <string name="term_composer_note">/help  /model  /team  /combo  /mission  •  No raw shell</string>
+    <string name="term_subtitle">Governed agent workspace</string>
+    <string name="term_safe_mode">POLICY GUARDED</string>
+    <string name="term_combo_on">Smart Combo enabled</string>
+    <string name="term_combo_off">Manual routing</string>
+</resources>
