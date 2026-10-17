@@ -275,7 +275,7 @@ fun MatrixScreen(
                     title = stringResource(R.string.workspaces_chat_title),
                     subtitle = stringResource(R.string.workspaces_chat_desc),
                     icon = Icons.AutoMirrored.Filled.Chat,
-                    accentColor = Color(0xFFB388FF),
+                    accentColor = MaterialTheme.colorScheme.primary,
                     isSelected = destination == Destination.CHAT,
                     onClick = {
                         destination = Destination.CHAT
@@ -299,7 +299,7 @@ fun MatrixScreen(
                     title = stringResource(R.string.workspaces_persona_title),
                     subtitle = stringResource(R.string.workspaces_persona_desc),
                     icon = Icons.Default.Person,
-                    accentColor = Color(0xFF38C79B),
+                    accentColor = MaterialTheme.colorScheme.primary,
                     isSelected = destination == Destination.AGENTS,
                     onClick = {
                         destination = Destination.AGENTS
@@ -311,7 +311,7 @@ fun MatrixScreen(
                     title = stringResource(R.string.workspaces_data_title),
                     subtitle = stringResource(R.string.workspaces_data_desc),
                     icon = Icons.Default.Storage,
-                    accentColor = Color(0xFFAAC56A),
+                    accentColor = MaterialTheme.colorScheme.primary,
                     isSelected = destination == Destination.DATA,
                     onClick = {
                         destination = Destination.DATA
@@ -323,7 +323,7 @@ fun MatrixScreen(
                     title = stringResource(R.string.term_tab_events),
                     subtitle = stringResource(R.string.term_subtitle),
                     icon = Icons.Default.Terminal,
-                    accentColor = Color(0xFF5CF0BC),
+                    accentColor = MaterialTheme.colorScheme.primary,
                     isSelected = destination == Destination.TERMINAL,
                     onClick = {
                         destination = Destination.TERMINAL
@@ -335,7 +335,7 @@ fun MatrixScreen(
                     title = stringResource(R.string.workspaces_control_title),
                     subtitle = stringResource(R.string.workspaces_control_desc),
                     icon = Icons.Default.Settings,
-                    accentColor = Color(0xFFD664A2),
+                    accentColor = MaterialTheme.colorScheme.primary,
                     isSelected = destination == Destination.CONTROL,
                     onClick = {
                         destination = Destination.CONTROL

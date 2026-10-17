@@ -366,9 +366,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     }
 
     Column(
-        modifier = modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 4.dp),
+        modifier = modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        if (!keyboardVisible) WorkspaceBrand()
         ConversationTelemetryRibbon(
             state = state,
             onProviderSettings = { settingsOpen = true },
@@ -1509,7 +1510,7 @@ private fun ChatProviderSwitcherBar(
                     name = "Gemini",
                     modelSuffix = if (currentProvider == LlmProvider.GEMINI) currentModel.removePrefix("gemini-").take(10) else null,
                     icon = Icons.Default.AutoAwesome,
-                    brandColor = Color(0xFF4285F4),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.GEMINI,
                     onChipClick = { onSelectProvider(LlmProvider.GEMINI) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1520,7 +1521,7 @@ private fun ChatProviderSwitcherBar(
                     name = "NVIDIA NIM",
                     modelSuffix = if (currentProvider == LlmProvider.NVIDIA) currentModel.substringAfterLast("/").take(10) else null,
                     icon = Icons.Default.Memory,
-                    brandColor = Color(0xFF76B900),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.NVIDIA,
                     onChipClick = { onSelectProvider(LlmProvider.NVIDIA) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1531,7 +1532,7 @@ private fun ChatProviderSwitcherBar(
                     name = "9Router",
                     modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_SMART) currentModel.take(10) else null,
                     icon = Icons.Default.Hub,
-                    brandColor = Color(0xFF00E5FF),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.ROUTER_9_SMART,
                     onChipClick = { onSelectProvider(LlmProvider.ROUTER_9_SMART) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1542,7 +1543,7 @@ private fun ChatProviderSwitcherBar(
                     name = stringResource(R.string.chat_server_combo),
                     modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_COMBO) currentModel.take(10) else null,
                     icon = Icons.Default.AltRoute,
-                    brandColor = Color(0xFF7C4DFF),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.ROUTER_9_COMBO,
                     onChipClick = { onSelectProvider(LlmProvider.ROUTER_9_COMBO) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1553,7 +1554,7 @@ private fun ChatProviderSwitcherBar(
                     name = "OpenAI",
                     modelSuffix = if (currentProvider == LlmProvider.OPENAI) currentModel.take(8) else null,
                     icon = Icons.Default.Bolt,
-                    brandColor = Color(0xFF10A37F),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.OPENAI,
                     onChipClick = { onSelectProvider(LlmProvider.OPENAI) },
                     onDropdownClick = { modelPickerOpen = true }
@@ -1564,7 +1565,7 @@ private fun ChatProviderSwitcherBar(
                     name = "Claude",
                     modelSuffix = if (currentProvider == LlmProvider.ANTHROPIC) currentModel.removePrefix("claude-").take(8) else null,
                     icon = Icons.Default.Psychology,
-                    brandColor = Color(0xFFD97706),
+                    brandColor = MaterialTheme.colorScheme.primary,
                     selected = currentProvider == LlmProvider.ANTHROPIC,
                     onChipClick = { onSelectProvider(LlmProvider.ANTHROPIC) },
                     onDropdownClick = { modelPickerOpen = true }

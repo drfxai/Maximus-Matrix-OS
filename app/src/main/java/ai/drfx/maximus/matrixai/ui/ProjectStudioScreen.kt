@@ -151,8 +151,8 @@ fun ProjectStudioScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("MAXIMUS MATRIX OS", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = studioCyan)
-                Text(stringResource(R.string.studio_title), style = MaterialTheme.typography.titleMedium)
+                WorkspaceBrand()
+                Text(stringResource(R.string.studio_title), style = MaterialTheme.typography.headlineSmall)
                 Text(stringResource(R.string.studio_subtitle),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -219,6 +219,33 @@ fun ProjectStudioScreen(
                     }
                 }
             }
+        }
+        if (section == 0) {
+        item {
+            StudioPanel {
+                Text(stringResource(R.string.studio_pipeline), fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(9.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    listOf(stringResource(R.string.studio_step_plan), stringResource(R.string.studio_step_files),
+                        stringResource(R.string.studio_step_tests), stringResource(R.string.studio_step_build),
+                        stringResource(R.string.studio_step_review)).forEachIndexed { index, label ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Surface(shape = RoundedCornerShape(50),
+                                color = if (index == 0 && active != null) studioGreen else MaterialTheme.colorScheme.surfaceVariant) {
+                                Text(if (index == 0 && active != null) "✓" else (index + 1).toString(),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                    color = if (index == 0 && active != null) Color.Black else MaterialTheme.colorScheme.onSurface)
+                            }
+                            Spacer(Modifier.height(5.dp))
+                            Text(label, fontSize = 11.sp)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(9.dp))
+                Text(stringResource(R.string.studio_pipeline_notice), fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         }
         if (section == 0) {
         item {
@@ -380,33 +407,6 @@ fun ProjectStudioScreen(
                         Spacer(Modifier.width(5.dp)); Text(stringResource(R.string.project_resume))
                     }
                 }
-            }
-        }
-        }
-        if (section == 0) {
-        item {
-            StudioPanel {
-                Text(stringResource(R.string.studio_pipeline), fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(9.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    listOf(stringResource(R.string.studio_step_plan), stringResource(R.string.studio_step_files),
-                        stringResource(R.string.studio_step_tests), stringResource(R.string.studio_step_build),
-                        stringResource(R.string.studio_step_review)).forEachIndexed { index, label ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Surface(shape = RoundedCornerShape(50),
-                                color = if (index == 0 && active != null) studioGreen else MaterialTheme.colorScheme.surfaceVariant) {
-                                Text(if (index == 0 && active != null) "✓" else (index + 1).toString(),
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                    color = if (index == 0 && active != null) Color.Black else MaterialTheme.colorScheme.onSurface)
-                            }
-                            Spacer(Modifier.height(5.dp))
-                            Text(label, fontSize = 11.sp)
-                        }
-                    }
-                }
-                Spacer(Modifier.height(9.dp))
-                Text(stringResource(R.string.studio_pipeline_notice), fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         }
