@@ -166,6 +166,29 @@ class PhoneHarnessIntegrationTest {
         assertEquals(phase, builder.state.value.phase)
     }
 
+    @Test fun approvedBuildStillRequiresTheNativePluginWithoutChangingBuilderState() {
+        val file = File(context.filesDir, "plugins/native-v1.json")
+        val previous = file.takeIf { it.isFile }?.readBytes()
+        val plugins = ai.drfx.maximus.matrixai.plugins.NativePlugins.registry(context)
+        try {
+            plugins.remove("phone-apk")
+            val builder = PhoneOnDeviceApkBuilder(context)
+            val deadline = android.os.SystemClock.elapsedRealtime() + 10_000
+            while (builder.state.value.busy && android.os.SystemClock.elapsedRealtime() < deadline) {
+                android.os.SystemClock.sleep(50)
+            }
+            assertFalse(builder.state.value.busy)
+            val before = builder.state.value
+            val failure = assertThrows(IllegalStateException::class.java) {
+                builder.buildForService("12345678-abcd-abcd-abcd-abcdefabcdef", "approved-direct") { true }
+            }
+            assertTrue(failure.message.orEmpty().contains("plugin"))
+            assertEquals(before, builder.state.value)
+        } finally {
+            if (previous == null) file.delete() else { file.parentFile?.mkdirs(); file.writeBytes(previous) }
+        }
+    }
+
     @Test fun serverRejectsMissingAuthAndRequiresPerProjectSharing() {
         val project = ProjectWorkspaceStore(context).newProject("HostedWorkspace")
         PhoneHarnessHttpServer(context).use { server ->

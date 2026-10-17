@@ -139,9 +139,10 @@ internal class PhoneOnDeviceApkBuilder(private val app: Context) {
 
     private fun buildInternal(projectId: String, claim: PhoneBuildJobs.Claim?, ownerId: String? = claim?.id, allowed: () -> Boolean = { true }) {
         synchronized(mutex) {
-            check(plugins.installed("phone-apk")) { "Install the APK Builder plugin first." }
             require(!_state.value.busy) { "Another local operation is running." }
+            // Revocation is the first authorization boundary, independent of plugin/tool state.
             check(allowed() && (claim == null || claim.isValid())) { "Build approval was revoked." }
+            check(plugins.installed("phone-apk")) { "Install the APK Builder plugin first." }
             require(_state.value.verifiedTools) { "Verify on-phone build tools first." }
             require(projectId.matches(Regex("[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}"))) {
                 "Choose an existing Studio project."
