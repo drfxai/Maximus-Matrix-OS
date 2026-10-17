@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="term_help_text">الأوامر: /help و/status و/model و/events و/tools و/team و/combo و/clear و/mission مع الهدف. النص العادي ينشئ مهمة خاضعة للسياسة.</string>
+    <string name="term_shell_blocked">أوامر الصدفة المباشرة معطلة. استخدم /mission مع الهدف. تنفيذ أوامر النظام يتطلب عاملاً منفصلاً مصرحاً به.</string>
+    <string name="term_tools_explanation">تمر الأدوات عبر محرك سياسات Matrix الحالي. تتطلب الإجراءات الحساسة موافقتك الصريحة. لا توجد صدفة غير مقيدة.</string>
+    <string name="term_busy">هناك مهمة قيد التنفيذ أو تنتظر الموافقة.</string>
+    <string name="term_unknown">أمر غير مدعوم. أدخل /help</string>
+    <string name="term_mission_submitted">أُرسلت المهمة إلى محرك سياسات Matrix. تظهر الأحداث المثبتة أدناه دون تشغيل أمر صدفة.</string>
+    <string name="term_input_limit">الحد الأقصى للإدخال هو ٤٠٠٠ حرف.</string>
+    <string name="term_approval_title">هل توافق على إجراء أداة Matrix؟</string>
+    <string name="term_approval_description">راجع الأداة والوسائط قبل الموافقة. ارفض إذا كان الإجراء غير متوقع.</string>
+    <string name="term_route_title">مسار النموذج النشط</string>
+    <string name="term_session_tokens">رموز الجلسة</string>
+    <string name="term_context_remaining">السياق المتبقي</string>
+    <string name="term_usage_note">قد يكون الاستخدام مبلغاً عنه أو تقديرياً. السياق المتبقي ليس حصة المزود.</string>
+    <string name="term_tab_events">الطرفية</string>
+    <string name="term_tab_combo">المزيج الذكي</string>
+    <string name="term_tab_team">الوكلاء</string>
+    <string name="term_runtime_title">أحداث التنفيذ</string>
+    <string name="term_runtime_subtitle">أحداث Matrix الملاحظة فقط، الأحدث أولاً</string>
+    <string name="term_copy_log">نسخ الأحداث</string>
+    <string name="term_no_events">لا توجد أحداث بعد. أدخل هدف المهمة لبدء سير عمل مصرح به.</string>
+    <string name="term_combo_note">قائمة النماذج لا تضمن حصة الحساب أو الاتصال الفعلي.</string>
+    <string name="term_team_explanation">تظهر هنا أدوات فريق الوكلاء الحالية مع استمرار تطبيق الموافقات والأذونات.</string>
+    <string name="term_hint">هدف المهمة أو /help</string>
+    <string name="term_send">إرسال إلى الطرفية</string>
+    <string name="term_composer_note">/help  /model  /team  /combo  /mission  •  بلا أوامر صدفة مباشرة</string>
+    <string name="term_subtitle">مساحة عمل للوكلاء بصلاحيات محكومة</string>
+    <string name="term_safe_mode">محمي بالسياسات</string>
+    <string name="term_combo_on">المزيج الذكي نشط</string>
+    <string name="term_combo_off">توجيه يدوي</string>
+</resources>
