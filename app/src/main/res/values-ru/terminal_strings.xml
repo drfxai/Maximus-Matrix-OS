@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="term_help_text">Команды: /help, /status, /model, /events, /tools, /team, /combo, /clear, /mission [цель]. Обычный текст создаёт задачу с контролем разрешений.</string>
+    <string name="term_shell_blocked">Прямые команды оболочки здесь отключены. Используйте /mission с целью. Системное исполнение требует отдельного авторизованного исполнителя.</string>
+    <string name="term_tools_explanation">Инструменты проходят через действующий модуль политик Matrix. Для опасных действий требуется явное согласие. Свободной оболочки нет.</string>
+    <string name="term_busy">Задача уже выполняется или ожидает подтверждения.</string>
+    <string name="term_unknown">Неизвестная команда. Введите /help</string>
+    <string name="term_mission_submitted">Задача передана модулю политик Matrix. Подтверждённые события появятся ниже. Команда оболочки не выполнялась.</string>
+    <string name="term_input_limit">Максимальная длина ввода — 4000 символов.</string>
+    <string name="term_approval_title">Разрешить действие инструмента Matrix?</string>
+    <string name="term_approval_description">Перед разрешением проверьте инструмент и аргументы. При сомнениях отклоните.</string>
+    <string name="term_route_title">Текущий маршрут модели</string>
+    <string name="term_session_tokens">Токены сессии</string>
+    <string name="term_context_remaining">Остаток контекста</string>
+    <string name="term_usage_note">Расход может быть отчётным или оценочным. Остаток контекста не равен квоте провайдера.</string>
+    <string name="term_tab_events">Терминал</string>
+    <string name="term_tab_combo">Smart Combo</string>
+    <string name="term_tab_team">Агенты</string>
+    <string name="term_runtime_title">События выполнения</string>
+    <string name="term_runtime_subtitle">Только наблюдаемые события Matrix, новые сначала</string>
+    <string name="term_copy_log">Копировать события</string>
+    <string name="term_no_events">Событий пока нет. Введите цель задачи для разрешённого процесса.</string>
+    <string name="term_combo_note">Каталог моделей не гарантирует квоты аккаунта или доступности соединения.</string>
+    <string name="term_team_explanation">Здесь доступны текущие функции команды агентов с прежними разрешениями.</string>
+    <string name="term_hint">Цель задачи или /help</string>
+    <string name="term_send">Отправить в терминал</string>
+    <string name="term_composer_note">/help  /model  /team  /combo  /mission  •  Без прямой оболочки</string>
+    <string name="term_subtitle">Рабочее пространство агентов с политиками</string>
+    <string name="term_safe_mode">ЗАЩИЩЕНО ПОЛИТИКОЙ</string>
+    <string name="term_combo_on">Smart Combo включён</string>
+    <string name="term_combo_off">Ручной маршрут</string>
+</resources>
