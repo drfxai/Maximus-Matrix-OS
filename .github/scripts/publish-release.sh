@@ -40,6 +40,9 @@ cat > dist/release-notes.md <<NOTES
 
 - Public Android version: 1.0.0; internal version code: $version_code.
 - Application ID: ai.drfx.maximus.matrixai.
+- Redesigned native mobile workspaces use fixed Brain, Chat, Agents, Studio and More navigation, compact conversation telemetry, a larger home graph area, and focused Studio sections for files, builds, runtime and connections.
+- Navigation accessibility names remain exposed after keyboard dismissal; direct Chat, Studio and independent-agent navigation are covered by emulator tests.
+- Bundled native plugins require explicit permission review. The Linux workspace runs manually approved, bounded noninteractive commands in the installed PRoot userspace; it does not provide a separate kernel or Android root.
 - Provider credentials and conversation contexts are isolated.
 - News and chart analysis show verified sources or explicit unavailable states.
 - News Intelligence includes manual and in-screen automatic refresh, an optional authorized calendar feed, daily and weekly views, and advance high-impact event reminders.
