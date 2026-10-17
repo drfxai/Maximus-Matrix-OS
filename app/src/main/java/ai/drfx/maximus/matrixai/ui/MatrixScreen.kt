@@ -67,13 +67,6 @@ fun MatrixScreen(
         destination = Destination.MATRIX
     }
 
-    val isSubDestination = destination in listOf(
-        Destination.CHAT,
-        Destination.AGENTS,
-        Destination.DATA,
-        Destination.CONTROL,
-        Destination.TERMINAL
-    )
 
     Scaffold(
         modifier = Modifier
@@ -87,147 +80,40 @@ fun MatrixScreen(
                 NavigationBar(
                     modifier = Modifier.testTag("main_navigation_bar").semantics { contentDescription = "Main navigation" },
                     containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 2.dp
+                    tonalElevation = 0.dp
                 ) {
-                    val isMatrixSelected = destination == Destination.MATRIX
-                    val matrixScale by animateFloatAsState(
-                        targetValue = if (isMatrixSelected) 1.15f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-                        label = "matrix_scale"
+                    val primaryDestinations = listOf(
+                        Triple(Destination.MATRIX, R.string.nav_brain, Icons.Default.Hub),
+                        Triple(Destination.CHAT, R.string.nav_chat, Icons.AutoMirrored.Filled.Chat),
+                        Triple(Destination.AGENTS, R.string.design_agents, Icons.Default.Groups),
+                        Triple(Destination.STUDIO, R.string.nav_studio, Icons.Default.Code)
                     )
-                    NavigationBarItem(
-                        selected = isMatrixSelected,
-                        onClick = { destination = Destination.MATRIX },
-                        icon = {
-                            Box {
-                                Icon(
-                                    Icons.Default.Hub,
-                                    contentDescription = "Neural Brain",
-                                    modifier = Modifier.scale(matrixScale)
-                                )
-                                NavPulsingBeacon(
-                                    color = Color(0xFF38C79B),
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .offset(x = 4.dp, y = (-2).dp)
-                                )
-                            }
-                        },
-                        label = { Text(stringResource(R.string.nav_brain), fontWeight = if (isMatrixSelected) FontWeight.Bold else FontWeight.Normal) },
-                        modifier = Modifier.testTag("nav_item_matrix").semantics { contentDescription = "Neural Brain" }
-                    )
-
-                    val isSignalsSelected = destination == Destination.SIGNALS
-                    val signalsScale by animateFloatAsState(
-                        targetValue = if (isSignalsSelected) 1.15f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-                        label = "signals_scale"
-                    )
-                    NavigationBarItem(
-                        selected = isSignalsSelected,
-                        onClick = { destination = Destination.SIGNALS },
-                        icon = {
-                            Box {
-                                Icon(
-                                    Icons.Default.Bolt,
-                                    contentDescription = "Live Signals",
-                                    modifier = Modifier.scale(signalsScale)
-                                )
-                                // Animated glowing live indicator
-                                NavPulsingBeacon(
-                                    color = Color(0xFF00E676),
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .offset(x = 4.dp, y = (-2).dp)
-                                )
-                            }
-                        },
-                        label = { Text(stringResource(R.string.nav_signals), fontWeight = if (isSignalsSelected) FontWeight.Bold else FontWeight.Normal) },
-                        modifier = Modifier.testTag("nav_item_signals")
-                    )
-
-                    val isVisionSelected = destination == Destination.VISION
-                    val visionScale by animateFloatAsState(
-                        targetValue = if (isVisionSelected) 1.15f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-                        label = "vision_scale"
-                    )
-                    NavigationBarItem(
-                        selected = isVisionSelected,
-                        onClick = { destination = Destination.VISION },
-                        icon = {
-                            Box {
-                                Icon(
-                                    Icons.Default.Visibility,
-                                    contentDescription = "Chart Vision",
-                                    modifier = Modifier.scale(visionScale)
-                                )
-                                NavPulsingBeacon(
-                                    color = Color(0xFF00E5FF),
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .offset(x = 4.dp, y = (-2).dp)
-                                )
-                            }
-                        },
-                        label = { Text(stringResource(R.string.nav_vision), fontWeight = if (isVisionSelected) FontWeight.Bold else FontWeight.Normal) },
-                        modifier = Modifier.testTag("nav_item_vision")
-                    )
-
-                    val isStudioSelected = destination == Destination.STUDIO
-                    val studioScale by animateFloatAsState(
-                        targetValue = if (isStudioSelected) 1.15f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessMediumLow),
-                        label = "studio_scale"
-                    )
-                    NavigationBarItem(
-                        selected = isStudioSelected,
-                        onClick = { destination = Destination.STUDIO },
-                        icon = {
-                            Icon(Icons.Default.Code, contentDescription = "Project Studio",
-                                modifier = Modifier.scale(studioScale))
-                        },
-                        label = { Text(stringResource(R.string.nav_studio), fontWeight =
-                            if (isStudioSelected) FontWeight.Bold else FontWeight.Normal) },
-                        modifier = Modifier.testTag("nav_item_studio")
-                    )
-
-                    // 5th Destination: Contextual "More / Sub-Workspace" item
-                    val moreIcon: ImageVector = when (destination) {
-                        Destination.CHAT -> Icons.AutoMirrored.Filled.Chat
-                        Destination.AGENTS -> Icons.Default.Person
-                        Destination.DATA -> Icons.Default.Storage
-                        Destination.CONTROL -> Icons.Default.Settings
-                        Destination.TERMINAL -> Icons.Default.Terminal
-                        else -> Icons.Default.Widgets
+                    primaryDestinations.forEach { (target, label, icon) ->
+                        val tag = when (target) {
+                            Destination.MATRIX -> "nav_item_matrix"
+                            Destination.CHAT -> "nav_item_chat"
+                            Destination.AGENTS -> "nav_item_agents"
+                            else -> "nav_item_studio"
+                        }
+                        NavigationBarItem(
+                            selected = destination == target,
+                            onClick = { destination = target },
+                            icon = { Icon(icon, when (target) { Destination.MATRIX -> "Neural Brain"; Destination.STUDIO -> "Project Studio"; else -> stringResource(label) }) },
+                            label = { Text(stringResource(label), maxLines = 1, fontSize = 11.sp) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = .12f)
+                            ),
+                            modifier = Modifier.testTag(tag)
+                        )
                     }
-                    val moreLabel: String = when (destination) {
-                        Destination.CHAT -> stringResource(R.string.nav_chat)
-                        Destination.AGENTS -> stringResource(R.string.nav_personas)
-                        Destination.DATA -> stringResource(R.string.nav_data)
-                        Destination.CONTROL -> stringResource(R.string.nav_control)
-                        Destination.TERMINAL -> stringResource(R.string.term_tab_events)
-                        else -> stringResource(R.string.nav_more)
-                    }
-                    val moreScale by animateFloatAsState(
-                        targetValue = if (isSubDestination) 1.15f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-                        label = "more_scale"
-                    )
-
                     NavigationBarItem(
-                        selected = isSubDestination,
+                        selected = destination !in primaryDestinations.map { it.first },
                         onClick = { showMoreSheet = true },
-                        icon = {
-                            Icon(
-                                moreIcon,
-                                contentDescription = moreLabel,
-                                modifier = Modifier.scale(moreScale)
-                            )
-                        },
-                        label = { Text(moreLabel, fontWeight = if (isSubDestination) FontWeight.Bold else FontWeight.Normal) },
-                        modifier = Modifier.testTag("nav_item_more").semantics { contentDescription = moreLabel }
+                        icon = { Icon(Icons.Default.Widgets, stringResource(R.string.nav_more)) },
+                        label = { Text(stringResource(R.string.nav_more), fontSize = 11.sp) },
+                        modifier = Modifier.testTag("nav_item_more")
                     )
                 }
             }
@@ -242,17 +128,7 @@ fun MatrixScreen(
             AnimatedContent(
                 targetState = destination,
                 transitionSpec = {
-                    val forward = targetState.ordinal > initialState.ordinal
-                    (slideInHorizontally(
-                        animationSpec = spring(dampingRatio = 0.88f, stiffness = Spring.StiffnessMediumLow),
-                        initialOffsetX = { fullWidth -> if (forward) fullWidth / 4 else -fullWidth / 4 }
-                    ) + fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f))
-                    .togetherWith(
-                        slideOutHorizontally(
-                            animationSpec = spring(dampingRatio = 0.88f, stiffness = Spring.StiffnessMediumLow),
-                            targetOffsetX = { fullWidth -> if (forward) -fullWidth / 5 else fullWidth / 5 }
-                        ) + fadeOut(animationSpec = tween(160)) + scaleOut(targetScale = 0.98f)
-                    )
+                    fadeIn(tween(160)).togetherWith(fadeOut(tween(100)))
                 },
                 label = "workspace_screen_transition",
                 modifier = Modifier.fillMaxSize()
@@ -371,6 +247,23 @@ fun MatrixScreen(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
+                WorkspaceItemRow(
+                    title = stringResource(R.string.nav_signals),
+                    subtitle = stringResource(R.string.brain_graph_action_signals),
+                    icon = Icons.Default.Bolt,
+                    accentColor = MaterialTheme.colorScheme.primary,
+                    isSelected = destination == Destination.SIGNALS,
+                    onClick = { destination = Destination.SIGNALS; showMoreSheet = false }
+                )
+                WorkspaceItemRow(
+                    title = stringResource(R.string.nav_vision),
+                    subtitle = stringResource(R.string.brain_graph_action_vision),
+                    icon = Icons.Default.Visibility,
+                    accentColor = MaterialTheme.colorScheme.secondary,
+                    isSelected = destination == Destination.VISION,
+                    onClick = { destination = Destination.VISION; showMoreSheet = false }
+                )
+
                 // Workspace Cards
                 WorkspaceItemRow(
                     title = stringResource(R.string.workspaces_chat_title),
@@ -449,30 +342,6 @@ fun MatrixScreen(
 }
 
 @Composable
-private fun NavPulsingBeacon(
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "nav_beacon_anim")
-    val beaconAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1100, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "nav_beacon_alpha"
-    )
-
-    Box(
-        modifier = modifier
-            .size(6.dp)
-            .clip(CircleShape)
-            .background(color.copy(alpha = beaconAlpha))
-    )
-}
-
-@Composable
 private fun WorkspaceItemRow(
     title: String,
     subtitle: String,
@@ -481,16 +350,6 @@ private fun WorkspaceItemRow(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "workspace_active_anim")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "active_tag_pulse"
-    )
 
     Surface(
         onClick = onClick,
@@ -534,12 +393,12 @@ private fun WorkspaceItemRow(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(accentColor.copy(alpha = pulseAlpha))
+                                .background(accentColor.copy(alpha = .18f))
                                 .padding(horizontal = 5.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 "ACTIVE",
-                                color = Color.White,
+                                color = accentColor,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )

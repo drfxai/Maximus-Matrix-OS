@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="design_overview">Genel bakış</string>
+    <string name="design_runtime">Çalışma ortamı</string>
+    <string name="design_teams">Takımlar</string>
+    <string name="design_independent">Bağımsız</string>
+    <string name="design_connections">Bağlantılar</string>
+    <string name="design_agents">Ajanlar</string>
+</resources>

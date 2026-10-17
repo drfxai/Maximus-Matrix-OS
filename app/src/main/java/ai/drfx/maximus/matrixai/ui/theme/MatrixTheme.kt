@@ -3,6 +3,9 @@ package ai.drfx.maximus.matrixai.ui.theme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
+import androidx.compose.material3.Shapes
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -12,12 +15,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 private val MatrixDarkColors = darkColorScheme(
-    primary = Color(0xFF5CF0BC),
-    secondary = Color(0xFF58C1D7),
+    primary = Color(0xFF58E0BA),
+    secondary = Color(0xFFA995E8),
     tertiary = Color(0xFFE4B34D),
-    background = Color(0xFF020409),
-    surface = Color(0xFF060B18),
-    surfaceVariant = Color(0xFF0B1428),
+    background = Color(0xFF080B10),
+    surface = Color(0xFF101720),
+    surfaceVariant = Color(0xFF192330),
+    surfaceContainerLowest = Color(0xFF080B10),
+    surfaceContainerLow = Color(0xFF101720),
+    surfaceContainer = Color(0xFF151D28),
+    surfaceContainerHigh = Color(0xFF1B2532),
+    surfaceContainerHighest = Color(0xFF243140),
+    primaryContainer = Color(0xFF173B33),
+    secondaryContainer = Color(0xFF302B45),
+    outlineVariant = Color(0xFF283443),
     onPrimary = Color(0xFF00140D),
     onBackground = Color(0xFFE2E8F0),
     onSurface = Color(0xFFE2E8F0),
@@ -62,6 +73,13 @@ fun MaximusMatrixTheme(
     MaterialTheme(
         colorScheme = if (dark) MatrixDarkColors else MatrixLightColors,
         typography = MatrixTypography,
+        shapes = Shapes(
+            extraSmall = RoundedCornerShape(6.dp),
+            small = RoundedCornerShape(10.dp),
+            medium = RoundedCornerShape(14.dp),
+            large = RoundedCornerShape(18.dp),
+            extraLarge = RoundedCornerShape(24.dp)
+        ),
         content = content
     )
 }

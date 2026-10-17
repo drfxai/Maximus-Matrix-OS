@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="design_overview">نظرة عامة</string>
+    <string name="design_runtime">بيئة التشغيل</string>
+    <string name="design_teams">الفرق</string>
+    <string name="design_independent">مستقل</string>
+    <string name="design_connections">الاتصالات</string>
+    <string name="design_agents">الوكلاء</string>
+</resources>

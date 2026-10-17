@@ -705,11 +705,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                shape = RoundedCornerShape(16.dp)
+                border = null,
+                shape = RoundedCornerShape(12.dp)
             ) {
             if (messages.isEmpty()) {
-                Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 32.dp), contentAlignment = Alignment.TopCenter) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp)

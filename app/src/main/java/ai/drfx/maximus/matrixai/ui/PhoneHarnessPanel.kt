@@ -55,7 +55,7 @@ private val harnessNight = Color(0xFF16243B)
  * User consent remains distinct for starting the server and sharing source.
  */
 @Composable
-fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
+fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier, showWorkspaceTools: Boolean = true) {
     val context = LocalContext.current
     var running by remember { mutableStateOf(PhoneHostSession.active != null) }
     var shared by remember { mutableStateOf(PhoneHostSession.sharedProject()) }
@@ -120,13 +120,13 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
         modifier.fillMaxWidth().testTag("phone_harness_panel").animateContentSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Compact visual identity: high contrast and battery-friendly static gradient.
-        Surface(shape = RoundedCornerShape(22.dp), color = harnessNight) {
+        // Keep this console header dark in both themes for its light foreground controls.
+        Surface(shape = RoundedCornerShape(14.dp), color = harnessNight) {
             Column(
                 Modifier.fillMaxWidth()
-                    .background(Brush.linearGradient(listOf(harnessNight, Color(0xFF273E60), Color(0xFF244957))))
-                    .padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(13.dp)
+                    .background(harnessNight)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(13.dp)) {
@@ -190,8 +190,10 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier) {
             }
         }
 
-        PluginStorePanel()
-        PhoneLinuxPanel()
+        if (showWorkspaceTools) {
+            PluginStorePanel()
+            PhoneLinuxPanel()
+        }
         PhoneBuildRequestsPanel()
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
             HarnessCapabilityTile(

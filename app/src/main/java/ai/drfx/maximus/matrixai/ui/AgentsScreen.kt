@@ -21,6 +21,7 @@ import ai.drfx.maximus.matrixai.llm.AgentRegistry
 
 @Composable
 fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
+    var section by remember { mutableStateOf(0) }
     val state by viewModel.llmState.collectAsState()
     val supportedIds = state.supportedAgents.map { it.id }.toSet()
 
@@ -30,22 +31,34 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text(stringResource(R.string.agents_title), style = MaterialTheme.typography.headlineSmall)
-            Text(
+            Text(stringResource(R.string.design_agents), style = MaterialTheme.typography.headlineSmall)
+            if (section == 1) Text(
                 stringResource(R.string.agents_description),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 lineHeight = 17.sp
             )
         }
-        item { AgentTeamPanel() }
-        item { CloudTeamStatusPanel() }
-        item { DeveloperConnectionsPanel() }
-        item { HorizontalDivider() }
+        item {
+            ScrollableTabRow(selectedTabIndex = section, edgePadding = 0.dp,
+                containerColor = MaterialTheme.colorScheme.background) {
+                listOf(R.string.design_teams, R.string.design_independent, R.string.design_connections)
+                    .forEachIndexed { index, label ->
+                        Tab(selected = section == index, onClick = { section = index },
+                            text = { Text(stringResource(label)) })
+                    }
+            }
+        }
+        if (section == 0) {
+            item { AgentTeamPanel() }
+            item { CloudTeamStatusPanel() }
+        }
+        if (section == 2) { item { DeveloperConnectionsPanel() } }
+        if (section == 1) {
         items(AgentRegistry.agents) { agent ->
             val supported = agent.id in supportedIds
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(
                     1.dp,
@@ -102,6 +115,7 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
                     }
                 }
             }
+        }
         }
     }
 }

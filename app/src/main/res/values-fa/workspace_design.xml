@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="design_overview">نمای کلی</string>
+    <string name="design_runtime">محیط اجرا</string>
+    <string name="design_teams">تیم‌ها</string>
+    <string name="design_independent">مستقل</string>
+    <string name="design_connections">اتصال‌ها</string>
+    <string name="design_agents">ایجنت‌ها</string>
+</resources>
