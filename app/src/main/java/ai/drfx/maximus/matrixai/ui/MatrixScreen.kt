@@ -67,13 +67,6 @@ fun MatrixScreen(
         destination = Destination.MATRIX
     }
 
-    val isSubDestination = destination in listOf(
-        Destination.CHAT,
-        Destination.AGENTS,
-        Destination.DATA,
-        Destination.CONTROL,
-        Destination.TERMINAL
-    )
 
     Scaffold(
         modifier = Modifier
@@ -135,17 +128,7 @@ fun MatrixScreen(
             AnimatedContent(
                 targetState = destination,
                 transitionSpec = {
-                    val forward = targetState.ordinal > initialState.ordinal
-                    (slideInHorizontally(
-                        animationSpec = spring(dampingRatio = 0.88f, stiffness = Spring.StiffnessMediumLow),
-                        initialOffsetX = { fullWidth -> if (forward) fullWidth / 4 else -fullWidth / 4 }
-                    ) + fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f))
-                    .togetherWith(
-                        slideOutHorizontally(
-                            animationSpec = spring(dampingRatio = 0.88f, stiffness = Spring.StiffnessMediumLow),
-                            targetOffsetX = { fullWidth -> if (forward) -fullWidth / 5 else fullWidth / 5 }
-                        ) + fadeOut(animationSpec = tween(160)) + scaleOut(targetScale = 0.98f)
-                    )
+                    fadeIn(tween(160)).togetherWith(fadeOut(tween(100)))
                 },
                 label = "workspace_screen_transition",
                 modifier = Modifier.fillMaxSize()
@@ -266,7 +249,7 @@ fun MatrixScreen(
 
                 WorkspaceItemRow(
                     title = stringResource(R.string.nav_signals),
-                    subtitle = stringResource(R.string.nav_signals),
+                    subtitle = stringResource(R.string.brain_graph_action_signals),
                     icon = Icons.Default.Bolt,
                     accentColor = MaterialTheme.colorScheme.primary,
                     isSelected = destination == Destination.SIGNALS,
@@ -274,7 +257,7 @@ fun MatrixScreen(
                 )
                 WorkspaceItemRow(
                     title = stringResource(R.string.nav_vision),
-                    subtitle = stringResource(R.string.nav_vision),
+                    subtitle = stringResource(R.string.brain_graph_action_vision),
                     icon = Icons.Default.Visibility,
                     accentColor = MaterialTheme.colorScheme.secondary,
                     isSelected = destination == Destination.VISION,
@@ -359,30 +342,6 @@ fun MatrixScreen(
 }
 
 @Composable
-private fun NavPulsingBeacon(
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "nav_beacon_anim")
-    val beaconAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1100, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "nav_beacon_alpha"
-    )
-
-    Box(
-        modifier = modifier
-            .size(6.dp)
-            .clip(CircleShape)
-            .background(color.copy(alpha = beaconAlpha))
-    )
-}
-
-@Composable
 private fun WorkspaceItemRow(
     title: String,
     subtitle: String,
@@ -391,16 +350,6 @@ private fun WorkspaceItemRow(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "workspace_active_anim")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "active_tag_pulse"
-    )
 
     Surface(
         onClick = onClick,
@@ -444,12 +393,12 @@ private fun WorkspaceItemRow(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(accentColor.copy(alpha = pulseAlpha))
+                                .background(accentColor.copy(alpha = .18f))
                                 .padding(horizontal = 5.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 "ACTIVE",
-                                color = Color.White,
+                                color = accentColor,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )

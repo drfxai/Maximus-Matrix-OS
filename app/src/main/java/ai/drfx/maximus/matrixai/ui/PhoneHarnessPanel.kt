@@ -121,12 +121,12 @@ fun PhoneHarnessPanel(projectId: String?, modifier: Modifier = Modifier, showWor
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Compact visual identity: high contrast and battery-friendly static gradient.
-        Surface(shape = RoundedCornerShape(22.dp), color = harnessNight) {
+        Surface(shape = RoundedCornerShape(14.dp), color = harnessNight) {
             Column(
                 Modifier.fillMaxWidth()
-                    .background(Brush.linearGradient(listOf(harnessNight, Color(0xFF273E60), Color(0xFF244957))))
-                    .padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(13.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(13.dp)) {

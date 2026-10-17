@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,6 +62,8 @@ fun ProjectStudioScreen(
     modifier: Modifier = Modifier
 ) {
     var section by remember { mutableStateOf(0) }
+    val workspaceListState = rememberLazyListState()
+    LaunchedEffect(section) { workspaceListState.scrollToItem(0) }
     val context = LocalContext.current
     val store = remember(context) { ProjectWorkspaceStore(context.applicationContext) }
     val continuity = remember(context) { ProjectContinuityStore(context.applicationContext, store) }
@@ -140,6 +143,7 @@ fun ProjectStudioScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize().testTag("project_studio_screen"),
+        state = workspaceListState,
         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -188,6 +192,29 @@ fun ProjectStudioScreen(
                     Tab(selected = section == index, onClick = { section = index },
                         text = { Text(stringResource(label)) },
                         modifier = Modifier.testTag("studio_section_$index"))
+                }
+            }
+        }
+        if (section == 0) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StudioShortcut(stringResource(R.string.plugin_apk), Icons.Default.Android,
+                            Modifier.weight(1f)) { section = 2 }
+                        StudioShortcut(stringResource(R.string.linux_title), Icons.Default.Terminal,
+                            Modifier.weight(1f)) { section = 3 }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StudioShortcut(stringResource(R.string.plugin_github), Icons.Default.Code,
+                            Modifier.weight(1f)) { section = 4 }
+                        StudioShortcut(stringResource(R.string.plugin_cloudflare), Icons.Default.Cloud,
+                            Modifier.weight(1f)) { section = 4 }
+                    }
+                    OutlinedButton(onClick = { section = 4 }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Extension, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.plugin_store_title))
+                    }
                 }
             }
         }
@@ -510,5 +537,25 @@ private fun StudioAction(label: String, icon: androidx.compose.ui.graphics.vecto
         Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(5.dp))
         Text(label, color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun StudioShortcut(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(onClick = onClick, modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(12.dp).heightIn(min = 56.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 2,
+                overflow = TextOverflow.Ellipsis)
+        }
     }
 }

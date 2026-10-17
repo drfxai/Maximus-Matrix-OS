@@ -2,6 +2,10 @@ package ai.drfx.maximus.matrixai.ui
 
 import android.content.Intent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,7 +19,7 @@ import ai.drfx.maximus.matrixai.R
 import ai.drfx.maximus.matrixai.studio.phonehost.*
 import java.util.UUID
 
-/** Functional controls in the existing Harness layout; no application redesign. */
+/** Focused manual command workspace backed by the observed Linux session. */
 @Composable
 internal fun PhoneLinuxPanel() {
     val context = LocalContext.current
@@ -24,13 +28,14 @@ internal fun PhoneLinuxPanel() {
     var command by remember { mutableStateOf("pwd; uname -m; cat /etc/os-release") }
     var review by remember { mutableStateOf<String?>(null) }
     var failed by remember { mutableStateOf(false) }
-    ElevatedCard(Modifier.fillMaxWidth().testTag("phone_linux_panel")) {
+    ElevatedCard(Modifier.fillMaxWidth().testTag("phone_linux_panel"), shape = RoundedCornerShape(14.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.linux_title), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.linux_description), style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(command, { if (it.length <= PhoneLinuxCommand.MAX_CHARS) command = it },
                 enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("phone_linux_command"),
-                label = { Text(stringResource(R.string.linux_command)) }, minLines = 2, maxLines = 5)
+                label = { Text(stringResource(R.string.linux_command)) }, minLines = 2, maxLines = 5,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { review = command }, enabled = !state.busy && command.isNotBlank(),
                     modifier = Modifier.testTag("phone_linux_run")) { Text(stringResource(R.string.linux_run)) }
@@ -47,8 +52,14 @@ internal fun PhoneLinuxPanel() {
             }))
             state.exitCode?.let { Text(stringResource(R.string.linux_exit, it)) }
             if (failed) Text(stringResource(R.string.linux_failed), color = MaterialTheme.colorScheme.error)
-            SelectionContainer { Text(state.output, fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("phone_linux_output")) }
+            Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest) {
+                SelectionContainer {
+                    Text(state.output.ifBlank { stringResource(R.string.linux_idle) },
+                        fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 260.dp)
+                            .verticalScroll(rememberScrollState()).padding(10.dp).testTag("phone_linux_output"))
+                }
+            }
         }
     }
     review?.let { captured ->
