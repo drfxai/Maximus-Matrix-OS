@@ -73,6 +73,8 @@ cat > dist/release-notes.md <<NOTES
 - Verified News now supports RSS/Atom and publisher-authentic images with secure fallback and retry. Vision supports bounded, sampled image uploads using available Android codecs; actual provider vision capabilities remain subject to live verification.
 - Hindsight Shared Project Memory supports opt-in per-project memory banks, encrypted user-configured credentials, background recall across model changes, and user-approved checkpoint Retain. Short model-progress summaries are encrypted on-device as offline continuity, while cloud auto-sharing requires separate consent; local validated checkpoints remain offline.
 - ElevenLabs Voice Studio supports separately encrypted user-owned credentials, verified subscription and voice discovery, and explicit text-to-speech playback in Chat. Automatic voice remains on-device; account allowance and model token usage are separate.
+- Added a policy-governed ZimZilla-inspired native terminal workspace with observed Matrix runtime events, Smart Combo diagnostics and agent-team panels; no unrestricted shell or third-party Python executable is bundled.
+- Terminal sessions retain a bounded, encrypted local command/output history and an opt-in Linux/Remote Worker panel. Project sharing and executable actions remain subject to the existing explicit approval controls.
 - Permanent release signing certificate and Android upgrade identity verified against the previous release.
 - Unit tests, Android lint and emulator smoke checks passed before publication.
 - Validated source commit: $GITHUB_SHA.
