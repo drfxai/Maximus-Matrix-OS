@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="term_help_text">دستورها: /help، /status، /model، /events، /tools، /team، /combo، /clear و /mission به‌همراه هدف. متن معمولی یک مأموریت کنترل‌شده در ماتریکس ایجاد می‌کند.</string>
+    <string name="term_help_text">دستورها: /help، /status، /model، /events، /tools، /team، /combo، /history، /clear و /mission به‌همراه هدف. متن معمولی یک مأموریت کنترل‌شده در ماتریکس ایجاد می‌کند.</string>
     <string name="term_shell_blocked">اجرای مستقیم دستورات شل در این کنسول غیرفعال است. با /mission هدف خود را بنویسید. اجرای سیستمی به محیط مجزا و مجوز نیاز دارد.</string>
     <string name="term_tools_explanation">ابزارها از موتور سیاست‌گذاری فعلی ماتریکس استفاده می‌کنند. اقدامات حساس به تأیید صریح شما نیاز دارند. شل نامحدود فعال نیست.</string>
     <string name="term_busy">مأموریتی در حال اجرا یا در انتظار تأیید است.</string>
@@ -24,7 +24,7 @@
     <string name="term_team_explanation">کنترل‌های فعلی تیم ایجنت‌ها در این صفحه در دسترس‌اند و همان مجوزهای امنیتی برقرار است.</string>
     <string name="term_hint">هدف مأموریت یا /help</string>
     <string name="term_send">ارسال به ترمینال</string>
-    <string name="term_composer_note">/help  /model  /team  /combo  /mission  •  بدون شل مستقیم</string>
+    <string name="term_composer_note">/help  /history  /model  /team  /combo  /mission  •  بدون شل مستقیم</string>
     <string name="term_subtitle">محیط ایجنت با کنترل دسترسی</string>
     <string name="term_safe_mode">تحت کنترل سیاست</string>
     <string name="term_combo_on">اسمارت کمبو فعال</string>
@@ -32,4 +32,12 @@
     <string name="term_observed_count">%1$d رویداد واقعی ثبت‌شده</string>
     <string name="term_team_selected">محیط تیم ایجنت‌ها انتخاب شد</string>
     <string name="term_combo_selected">داشبورد اسمارت کمبو انتخاب شد</string>
+    <string name="term_history_count">%1$d مورد محلی</string>
+    <string name="term_history_empty">هنوز فرمان محلی در این نشست ثبت نشده است.</string>
+    <string name="term_history_loading">در حال بازیابی نشست رمزنگاری‌شده…</string>
+    <string name="term_history_unavailable">نشست رمزنگاری‌شده در دسترس نیست؛ تاریخچه موجود بازنویسی نمی‌شود.</string>
+    <string name="term_tab_host">لینوکس / ورکر</string>
+    <string name="term_host_note">مدیریت اختیاری محیط لینوکس موبایل و ورکر راه‌دور. پروژه را آگاهانه انتخاب کنید؛ اشتراک‌گذاری و اجرا همچنان نیازمند تأیید هستند. این صفحه Python زیم‌زیلا را نصب نمی‌کند.</string>
+    <string name="term_host_select_project">انتخاب پروژه (بدون اشتراک)</string>
+    <string name="term_host_no_project">بدون پروژه</string>
 </resources>
