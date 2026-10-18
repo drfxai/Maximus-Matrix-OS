@@ -35,4 +35,5 @@
     <string name="design_step_complete">Complete</string>
     <string name="design_step_review">Review now</string>
     <string name="design_step_pending">Pending</string>
+    <string name="design_proposed_edit">Proposed edit</string>
 </resources>
