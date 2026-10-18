@@ -72,7 +72,7 @@ private val GraphSignalsGreen = Color(0xFF00E676)
 private val GraphChatViolet = Color(0xFFB388FF)
 private val GraphBlue = Color(0xFF578CDB)
 private val GraphPurple = Color(0xFF9B72DA)
-private val GraphGold = Color(0xFFE4B739)
+private val GraphGold = Color(0xFFF4C35A)
 private val GraphRed = Color(0xFFD664A2)
 private val GraphCyan = Color(0xFF6ABCC9)
 private val GraphOrange = Color(0xFFE99148)
@@ -142,11 +142,11 @@ fun MatrixGraphScreen(
     }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val light = MaterialTheme.colorScheme.background.luminance() > .5f
-    val bg = if (light) Color(0xFFF4F7FA) else Color(0xFF050608)
-    val panelColor = if (light) Color(0xF5FFFFFF) else Color(0xF5101217)
+    val bg = if (light) Color(0xFFF4F7FA) else Color.Black
+    val panelColor = if (light) Color(0xF5FFFFFF) else Color(0xF510213A)
     val ink = if (light) Color(0xFF182434) else Color(0xFFE5E9EF)
     val muted = if (light) Color(0xFF586778) else Color(0xFF8D939F)
-    val border = if (light) Color(0xFFD7DFE8) else Color(0xFF262930)
+    val border = if (light) Color(0xFFD7DFE8) else Color(0xFF234265)
     val pendingApproval by viewModel.pendingAgentConfirmation.collectAsState()
     pendingApproval?.let { request ->
         AlertDialog(
@@ -170,6 +170,8 @@ fun MatrixGraphScreen(
     // The graph is the home screen's primary canvas. Lobe chips take screen
     // space only when the user explicitly asks to filter anatomical groups.
     var lobeFiltersExpanded by remember { mutableStateOf(false) }
+    // Hide secondary panels only on deliberate user request; graph scene remains live.
+    var immersiveGraph by remember { mutableStateOf(false) }
     val dataCenter by viewModel.dataCenter.collectAsState()
     val recentAlerts by viewModel.notificationService.recentAlerts.collectAsState()
     val watchlist by viewModel.notificationService.activeWatchlist.collectAsState()
@@ -607,7 +609,7 @@ fun MatrixGraphScreen(
         ) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("MAXIMUS AI", color = ink, fontSize = 16.sp, letterSpacing = 1.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("MAXIMUS", color = graphTone(GraphGold, light), fontSize = 18.sp, letterSpacing = 2.8.sp, fontWeight = FontWeight.ExtraBold)
                     Spacer(Modifier.width(6.dp))
                     Surface(
                         color = graphTone(GraphAccent, light).copy(alpha = 0.15f),
@@ -624,6 +626,15 @@ fun MatrixGraphScreen(
                     }
                 }
                 Text(stringResource(R.string.brain_subtitle), color = muted, fontSize = 8.5.sp, letterSpacing = .6.sp)
+            }
+            IconButton(
+                onClick = { immersiveGraph = !immersiveGraph },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(if (immersiveGraph) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                    stringResource(if (immersiveGraph) R.string.design_graph_restore
+                        else R.string.design_graph_expand),
+                    tint = graphTone(GraphGold, light), modifier = Modifier.size(19.dp))
             }
             IconButton(
                 onClick = { lobeFiltersExpanded = !lobeFiltersExpanded },
@@ -648,7 +659,7 @@ fun MatrixGraphScreen(
             )
         }
 
-        if (!keyboardVisible) ConversationTelemetryRibbon(llm, onNavigateToControl, onNavigateToControl)
+        if (!keyboardVisible && !immersiveGraph) ConversationTelemetryRibbon(llm, onNavigateToControl, onNavigateToControl)
 
         // Horizontal Anatomical Lobe Filter Chips
         val lobeFilters = listOf(
@@ -660,7 +671,7 @@ fun MatrixGraphScreen(
             "LIMBIC SYSTEM" to stringResource(R.string.brain_lobe_limbic),
             "CEREBELLAR" to stringResource(R.string.brain_lobe_cerebellar)
         )
-        if (!keyboardVisible && lobeFiltersExpanded) LazyRow(
+        if (!keyboardVisible && !immersiveGraph && lobeFiltersExpanded) LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 2.dp),
@@ -919,10 +930,10 @@ fun MatrixGraphScreen(
                 text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { if (openPanel == GraphPanel.INSPECTOR) inspector() else filters() } },
                 confirmButton = { TextButton(onClick = { openPanel = null }) { Text(stringResource(R.string.graph_done)) } })
         }
-        Surface(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp)
+        if (!immersiveGraph) Surface(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp)
             .semantics { contentDescription = appContext.getString(R.string.conv_brain_composer) }, color = panelColor,
             shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, border)) {
-            Column(Modifier.heightIn(max = if (keyboardVisible) 220.dp else if (brainExpanded) 300.dp else 176.dp)
+            Column(Modifier.heightIn(max = if (keyboardVisible) 220.dp else if (brainExpanded) 258.dp else 126.dp)
                 .verticalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
