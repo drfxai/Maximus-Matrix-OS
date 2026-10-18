@@ -122,7 +122,7 @@ internal fun ToolsHubScreen(
                             Modifier.weight(1f), fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium)
                         TextButton(onClick = { showPluginManagement = !showPluginManagement }) {
-                            Text(stringResource(R.string.plugin_manage))
+                            Text(stringResource(R.string.design_manage_tools))
                             Icon(if (showPluginManagement) Icons.Default.ExpandLess else Icons.Default.ChevronRight, null)
                         }
                     }
