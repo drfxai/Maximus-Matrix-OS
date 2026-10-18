@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_conversations">المحادثات</string>
+    <string name="ui_search">بحث…</string>
+    <string name="ui_close">إغلاق</string>
+    <string name="ui_tools">الأدوات والإضافات</string>
+    <string name="ui_companion">رفيق مساحة العمل</string>
+    <string name="ui_open">فتح</string>
+    <string name="ui_work">العمل</string>
+    <string name="ui_hub">المركز</string>
+</resources>

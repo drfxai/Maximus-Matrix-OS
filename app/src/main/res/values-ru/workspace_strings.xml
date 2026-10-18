@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_conversations">Разговоры</string>
+    <string name="ui_search">Поиск…</string>
+    <string name="ui_close">Закрыть</string>
+    <string name="ui_tools">Инструменты и плагины</string>
+    <string name="ui_companion">Помощник рабочего пространства</string>
+    <string name="ui_open">Открыть</string>
+    <string name="ui_work">Работа</string>
+    <string name="ui_hub">Центр</string>
+</resources>

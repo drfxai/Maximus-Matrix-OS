@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_conversations">Sohbetler</string>
+    <string name="ui_search">Ara…</string>
+    <string name="ui_close">Kapat</string>
+    <string name="ui_tools">Araçlar ve Eklentiler</string>
+    <string name="ui_companion">Çalışma alanı yardımcısı</string>
+    <string name="ui_open">Aç</string>
+    <string name="ui_work">Çalışma</string>
+    <string name="ui_hub">Merkez</string>
+</resources>

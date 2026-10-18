@@ -55,9 +55,7 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            TokenOrbit(metrics.contextUsagePercent,
-                if (state.selectedModel.isBlank()) unknown else format.format(metrics.remainingContextTokens),
-                stringResource(R.string.dash_context_left))
+            WorkspaceCompanion(working = state.isGenerating)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 CommandStatus(stringResource(if (metrics.contextUsagePercent >= .85f)
                     R.string.motion_context_warning else R.string.dash_context_estimate), active != null)
