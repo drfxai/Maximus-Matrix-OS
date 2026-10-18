@@ -30,4 +30,9 @@
     <string name="design_combo_detail">پیکربندی مسیریابی هوشمند مدل‌ها</string>
     <string name="design_search_conversations">جست‌وجوی گفتگوها</string>
     <string name="design_new_chat">گفتگوی جدید</string>
+    <string name="design_graph_expand">بزرگ‌نمایی گراف نودها</string>
+    <string name="design_graph_restore">بازگرداندن کنترل‌های مغز</string>
+    <string name="design_step_complete">تکمیل</string>
+    <string name="design_step_review">در انتظار بررسی</string>
+    <string name="design_step_pending">در انتظار</string>
 </resources>
