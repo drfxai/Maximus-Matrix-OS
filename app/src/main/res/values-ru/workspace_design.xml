@@ -35,4 +35,5 @@
     <string name="design_step_complete">Готово</string>
     <string name="design_step_review">Проверьте изменения</string>
     <string name="design_step_pending">Ожидание</string>
+    <string name="design_proposed_edit">Предлагаемое изменение</string>
 </resources>
