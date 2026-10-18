@@ -76,9 +76,9 @@ class KeyboardLayoutTest {
         withLaunchedActivity {
             phase("direct chat navigation")
             objectWithDescription("Chat").click()
-            checkNotNull(device.wait(Until.findObject(By.text("Workspace controls")), 10_000)).click()
-            checkNotNull(device.wait(Until.findObject(By.text("Hide controls")), 10_000)).click()
-            checkNotNull(device.wait(Until.findObject(By.text("Workspace controls")), 10_000))
+            objectWithDescription("Workspace controls").click()
+            objectWithDescription("Hide controls").click()
+            objectWithDescription("Workspace controls")
             captureWorkspace("chat-focus.png")
             phase("chat input click")
             objectWithDescription("Chat input").click()
@@ -166,7 +166,6 @@ class KeyboardLayoutTest {
     }
 
     private fun captureWorkspace(name: String) {
-        android.os.SystemClock.sleep(350) // Allow the destination fade to finish before retaining visual evidence.
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
         require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "agents-teams.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
