@@ -120,6 +120,10 @@ class KeyboardLayoutTest {
     @Test fun smartComboWorkspaceIsReachableAndCapturesObservedEmptyState() {
         withLaunchedActivity {
             objectWithDescription("More").click()
+            awaitCondition("Tools Hub did not finish navigating") {
+                device.hasObject(By.text(instrumentation.targetContext.getString(
+                    ai.drfx.maximus.matrixai.R.string.ui_tools)))
+            }
             captureWorkspace("tools-hub.png")
             objectWithDescription(instrumentation.targetContext.getString(
                 ai.drfx.maximus.matrixai.R.string.nav_control)).click()
