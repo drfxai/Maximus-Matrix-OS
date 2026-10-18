@@ -83,6 +83,8 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
         }
         Text(stringResource(R.string.motion_context_not_credit), style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.ui_provider_credit) + ": " + unknown,
+            style = MaterialTheme.typography.labelMedium)
         ContextSegments(metrics.contextUsagePercent)
         TextButton(onClick = { detailsOpen = !detailsOpen }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(if (detailsOpen) R.string.focus_controls_hide else R.string.focus_controls_show))

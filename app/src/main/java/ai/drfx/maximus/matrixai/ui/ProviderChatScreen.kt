@@ -1457,8 +1457,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                             title = stringResource(R.string.chat_select_model),
                                             choices = state.models.map { WorkspaceChoice(it.id, it.id,
                                                 it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() } + " · " +
-                                                (it.catalogContextTokens?.let { count -> numberFormat.format(count) } ?: context.getString(R.string.api_unknown))) },
+                                                (it.catalogContextTokens?.let { count -> numberFormat.format(count) } ?: context.getString(R.string.api_unknown)), it.capabilities.map { capability -> capability.name.lowercase() }) },
                                             selected = state.selectedModel,
+                                            confirmSelection = true,
                                             onDismiss = { modelExpanded = false },
                                             onSelect = { viewModel.selectModel(it); modelExpanded = false }
                                         )
@@ -1640,8 +1641,9 @@ private fun ChatProviderSwitcherBar(
 
             if (modelPickerOpen) WorkspaceChoiceSheet(
                 title = stringResource(R.string.chat_select_model),
-                choices = models.map { WorkspaceChoice(it.id, it.id, it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() }) },
+                choices = models.map { WorkspaceChoice(it.id, it.id, it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() }, it.capabilities.map { capability -> capability.name.lowercase() }) },
                 selected = currentModel,
+                confirmSelection = true,
                 onDismiss = { modelPickerOpen = false },
                 onSelect = { onSelectModel(it); modelPickerOpen = false }
             )

@@ -17,4 +17,10 @@
     <string name="ui_web_search">Web Araması</string>
     <string name="ui_image_studio">Görsel Stüdyosu</string>
     <string name="ui_tool_unavailable">Bu sürümde kullanılamıyor</string>
+    <string name="ui_advanced">Gelişmiş</string>
+    <string name="ui_code">Kod</string>
+    <string name="ui_source_preview">Kaynak önizleme</string>
+    <string name="ui_all">Tümü</string>
+    <string name="ui_use_model">Seçili modeli kullan</string>
+    <string name="ui_provider_credit">Sağlayıcı kredisi</string>
 </resources>

@@ -17,4 +17,10 @@
     <string name="ui_web_search">جست‌وجوی وب</string>
     <string name="ui_image_studio">استودیوی تصویر</string>
     <string name="ui_tool_unavailable">در این نسخه در دسترس نیست</string>
+    <string name="ui_advanced">پیشرفته</string>
+    <string name="ui_code">کد</string>
+    <string name="ui_source_preview">پیش‌نمایش کد</string>
+    <string name="ui_all">همه</string>
+    <string name="ui_use_model">استفاده از مدل انتخاب‌شده</string>
+    <string name="ui_provider_credit">اعتبار ارائه‌دهنده</string>
 </resources>

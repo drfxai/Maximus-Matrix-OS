@@ -17,4 +17,10 @@
     <string name="ui_web_search">البحث في الويب</string>
     <string name="ui_image_studio">استوديو الصور</string>
     <string name="ui_tool_unavailable">غير متاح في هذا الإصدار</string>
+    <string name="ui_advanced">متقدم</string>
+    <string name="ui_code">الكود</string>
+    <string name="ui_source_preview">معاينة المصدر</string>
+    <string name="ui_all">الكل</string>
+    <string name="ui_use_model">استخدام النموذج المحدد</string>
+    <string name="ui_provider_credit">رصيد المزود</string>
 </resources>
