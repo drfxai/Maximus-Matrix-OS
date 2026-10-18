@@ -30,4 +30,9 @@
     <string name="design_combo_detail">Akıllı model yönlendirmesini ayarla</string>
     <string name="design_search_conversations">Sohbetlerde ara</string>
     <string name="design_new_chat">Yeni sohbet</string>
+    <string name="design_graph_expand">Nöral grafiği genişlet</string>
+    <string name="design_graph_restore">Beyin denetimlerini göster</string>
+    <string name="design_step_complete">Tamamlandı</string>
+    <string name="design_step_review">İncele</string>
+    <string name="design_step_pending">Bekliyor</string>
 </resources>
