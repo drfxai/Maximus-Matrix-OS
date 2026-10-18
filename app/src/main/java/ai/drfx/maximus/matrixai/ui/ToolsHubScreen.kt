@@ -24,6 +24,8 @@ internal fun ToolsHubScreen(onWork: (Int) -> Unit, onChat: () -> Unit, onControl
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("workspace_appearance", 0) }
     var companion by remember { mutableStateOf(prefs.getBoolean("companion", true)) }
+    val searchTitle = stringResource(R.string.ui_web_search)
+    val imageTitle = stringResource(R.string.ui_image_studio)
     val github = stringResource(R.string.plugin_github)
     val cloudflare = stringResource(R.string.plugin_cloudflare)
     val apk = stringResource(R.string.plugin_apk)
@@ -38,6 +40,12 @@ internal fun ToolsHubScreen(onWork: (Int) -> Unit, onChat: () -> Unit, onControl
         item { OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(), singleLine = true,
             shape = RoundedCornerShape(16.dp), placeholder = { Text(stringResource(R.string.ui_search)) },
             leadingIcon = { Icon(Icons.Default.Search, null) }) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (searchTitle.contains(search, true)) HubUnavailableTool(searchTitle, Icons.Default.Search, Modifier.weight(1f))
+                if (imageTitle.contains(search, true)) HubUnavailableTool(imageTitle, Icons.Default.Image, Modifier.weight(1f))
+            }
+        }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (github.contains(search, true)) HubTool(github, Icons.Default.Code, Modifier.weight(1f)) { onWork(4) }
@@ -76,6 +84,20 @@ private fun HubTool(title: String, icon: ImageVector, modifier: Modifier, onClic
             Text(title, fontWeight = FontWeight.SemiBold)
             Text(stringResource(R.string.ui_open), style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun HubUnavailableTool(title: String, icon: ImageVector, modifier: Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(title, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.ui_tool_unavailable), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.tertiary)
         }
     }
 }

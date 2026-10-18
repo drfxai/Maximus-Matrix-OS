@@ -55,6 +55,7 @@ private val studioGreen = Color(0xFFFFE079)
 fun ProjectStudioScreen(
     onPlanWithAi: (String) -> Boolean,
     initialSection: Int = 0,
+    onChat: () -> Unit = {},
     projectTeamRun: ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRun? = null,
     projectTeamMessage: String = "",
     projectTeamInvalid: Boolean = false,
@@ -87,6 +88,9 @@ fun ProjectStudioScreen(
     var showSelector by remember { mutableStateOf(false) }
     var editingFile by remember { mutableStateOf<String?>(null) }
     var editor by remember { mutableStateOf("") }
+    var originalEditor by remember { mutableStateOf("") }
+    var pendingEdit by remember(activeId) { mutableStateOf<Triple<String, String, String>?>(null) }
+    var previewExpanded by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf(context.getString(R.string.studio_initial_status)) }
 
@@ -153,9 +157,11 @@ fun ProjectStudioScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 WorkspaceBrand()
-                Text(stringResource(R.string.studio_title), style = MaterialTheme.typography.headlineSmall)
-                Text(stringResource(R.string.studio_subtitle),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    FilterChip(selected = false, onClick = onChat, label = { Text(stringResource(R.string.nav_chat)) })
+                    Spacer(Modifier.width(8.dp))
+                    FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.ui_work)) })
+                }
             }
         }
 
@@ -173,13 +179,12 @@ fun ProjectStudioScreen(
                         TextButton(onClick = { showSelector = true }, enabled = projects.isNotEmpty()) {
                             Text(stringResource(R.string.studio_select)); Icon(Icons.Default.ArrowDropDown, null)
                         }
-                        DropdownMenu(expanded = showSelector, onDismissRequest = { showSelector = false }) {
-                            projects.forEach { project ->
-                                DropdownMenuItem(text = { Text(project.name) }, onClick = {
-                                    activeId = project.id; showSelector = false
-                                })
-                            }
-                        }
+                        if (showSelector) WorkspaceChoiceSheet(
+                            title = stringResource(R.string.studio_select),
+                            choices = projects.map { WorkspaceChoice(it.id, it.name, "") },
+                            selected = activeId.orEmpty(),
+                            onDismiss = { showSelector = false },
+                            onSelect = { activeId = it; showSelector = false })
                     }
                 }
             }
@@ -193,6 +198,45 @@ fun ProjectStudioScreen(
                     Tab(selected = section == index, onClick = { section = index },
                         text = { Text(stringResource(label)) },
                         modifier = Modifier.testTag("studio_section_$index"))
+                }
+            }
+        }
+        if (section == 0 && pendingEdit != null) {
+            item {
+                val change = pendingEdit!!
+                StudioPanel {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Description, null, tint = studioCyan)
+                        Spacer(Modifier.width(8.dp))
+                        Text(change.first, Modifier.weight(1f), fontWeight = FontWeight.Bold, maxLines = 2)
+                        WorkspaceCompanion(modifier = Modifier.size(48.dp))
+                    }
+                    Text(stringResource(R.string.ui_review), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.ui_local_edit), style = MaterialTheme.typography.bodySmall)
+                    androidx.compose.animation.AnimatedVisibility(previewExpanded) {
+                        WorkspaceDiffCard(change.second, change.third)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { previewExpanded = !previewExpanded }) {
+                            Text(stringResource(R.string.ui_changes))
+                        }
+                        Button(enabled = !busy, onClick = {
+                            val id = activeId ?: return@Button
+                            busy = true
+                            scope.launch {
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        check(store.readFile(id, change.first) == change.second) { context.getString(R.string.ui_edit_conflict) }
+                                        store.saveFile(id, change.first, change.third)
+                                    }
+                                    pendingEdit = null; refresh(id)
+                                    message = context.getString(R.string.studio_file_saved, change.first)
+                                } catch (error: Exception) { message = error.message.orEmpty() }
+                                finally { busy = false }
+                            }
+                        }) { Text(stringResource(R.string.studio_save_file)) }
+                    }
+                    TextButton(onClick = { pendingEdit = null }) { Text(stringResource(R.string.studio_cancel)) }
                 }
             }
         }
@@ -430,6 +474,7 @@ fun ProjectStudioScreen(
                             scope.launch {
                                 try {
                                     editor = withContext(Dispatchers.IO) { store.readFile(id, file.path) }
+                                    originalEditor = editor
                                     editingFile = file.path
                                 } catch (e: Exception) { message = e.message ?: "Cannot preview file." }
                             }
@@ -504,16 +549,11 @@ fun ProjectStudioScreen(
                 )
             },
             confirmButton = { TextButton(onClick = {
-                val id = activeId
+                pendingEdit = Triple(path, originalEditor, editor)
+                previewExpanded = true
                 editingFile = null
-                if (id != null) scope.launch {
-                    try {
-                        withContext(Dispatchers.IO) { store.saveFile(id, path, editor) }
-                        refresh(id)
-                        message = context.getString(R.string.studio_file_saved, path)
-                    } catch (e: Exception) { message = e.message ?: "Edit failed." }
-                }
-            }) { Text(stringResource(R.string.studio_save_file)) } },
+                section = 0
+            }) { Text(stringResource(R.string.ui_review)) } },
             dismissButton = { TextButton(onClick = { editingFile = null }) { Text(stringResource(R.string.studio_cancel)) } })
     }
 }

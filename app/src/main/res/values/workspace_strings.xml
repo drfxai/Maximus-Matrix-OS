@@ -8,4 +8,13 @@
     <string name="ui_open">Open</string>
     <string name="ui_work">Work</string>
     <string name="ui_hub">Hub</string>
+    <string name="ui_camera_unavailable">Camera unavailable.</string>
+    <string name="ui_camera_permission">Camera permission is required.</string>
+    <string name="ui_review">Review before applying</string>
+    <string name="ui_local_edit">Local workspace edit · first 100 lines</string>
+    <string name="ui_changes">View changes</string>
+    <string name="ui_edit_conflict">The file changed. Reopen it before saving.</string>
+    <string name="ui_web_search">Web Search</string>
+    <string name="ui_image_studio">Image Studio</string>
+    <string name="ui_tool_unavailable">Not available in this build</string>
 </resources>

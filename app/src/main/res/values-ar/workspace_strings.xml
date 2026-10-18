@@ -8,4 +8,13 @@
     <string name="ui_open">فتح</string>
     <string name="ui_work">العمل</string>
     <string name="ui_hub">المركز</string>
+    <string name="ui_camera_unavailable">الكاميرا غير متاحة.</string>
+    <string name="ui_camera_permission">يلزم إذن الكاميرا.</string>
+    <string name="ui_review">مراجعة قبل التطبيق</string>
+    <string name="ui_local_edit">تعديل محلي · أول 100 سطر</string>
+    <string name="ui_changes">عرض التغييرات</string>
+    <string name="ui_edit_conflict">تغير الملف. أعد فتحه قبل الحفظ.</string>
+    <string name="ui_web_search">البحث في الويب</string>
+    <string name="ui_image_studio">استوديو الصور</string>
+    <string name="ui_tool_unavailable">غير متاح في هذا الإصدار</string>
 </resources>

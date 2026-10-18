@@ -173,6 +173,7 @@ fun MatrixScreen(
                     )
                     Destination.STUDIO -> ProjectStudioScreen(
                         initialSection = workSection,
+                        onChat = { destination = Destination.CHAT },
                         projectTeamRun = viewModel.projectTeamRun.collectAsState().value,
                         projectTeamInvalid = viewModel.projectTeamInvalid.collectAsState().value,
                         onDiscardInvalidTeam = viewModel::discardInvalidProjectTeam,

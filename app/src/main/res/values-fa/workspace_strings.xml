@@ -8,4 +8,13 @@
     <string name="ui_open">باز کردن</string>
     <string name="ui_work">محیط کار</string>
     <string name="ui_hub">هاب</string>
+    <string name="ui_camera_unavailable">دوربین در دسترس نیست.</string>
+    <string name="ui_camera_permission">اجازه دسترسی به دوربین لازم است.</string>
+    <string name="ui_review">بررسی پیش از اعمال</string>
+    <string name="ui_local_edit">ویرایش فایل محلی · ۱۰۰ خط اول</string>
+    <string name="ui_changes">نمایش تغییرات</string>
+    <string name="ui_edit_conflict">فایل تغییر کرده است. پیش از ذخیره دوباره آن را باز کنید.</string>
+    <string name="ui_web_search">جست‌وجوی وب</string>
+    <string name="ui_image_studio">استودیوی تصویر</string>
+    <string name="ui_tool_unavailable">در این نسخه در دسترس نیست</string>
 </resources>

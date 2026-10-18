@@ -166,6 +166,7 @@ class KeyboardLayoutTest {
     }
 
     private fun captureWorkspace(name: String) {
+        android.os.SystemClock.sleep(350) // Allow the destination fade to finish before retaining visual evidence.
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
         require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "agents-teams.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
