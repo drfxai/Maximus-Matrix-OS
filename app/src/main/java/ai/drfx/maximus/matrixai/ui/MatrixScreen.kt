@@ -167,6 +167,7 @@ fun MatrixScreen(
                         modifier = Modifier.fillMaxSize()
                     )
                     Destination.TOOLS -> ToolsHubScreen(
+                        viewModel = viewModel,
                         onWork = { workSection = it; destination = Destination.STUDIO },
                         onChat = { destination = Destination.CHAT },
                         onControl = { destination = Destination.CONTROL },
