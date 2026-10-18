@@ -272,18 +272,11 @@ fun ProjectStudioScreen(
                 }
             }
             item {
-                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    listOf(R.string.studio_step_plan, R.string.studio_step_files, R.string.ui_code, R.string.studio_step_review).forEachIndexed { index, label ->
-                        val selected = index == if (pendingEdit != null) 3 else if (active != null) 1 else 0
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Surface(shape = RoundedCornerShape(50), color = if (selected) studioCyan else MaterialTheme.colorScheme.surfaceContainerLow) {
-                                Text((index + 1).toString(), Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
-                                    color = if (selected) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Text(stringResource(label), fontSize = 11.sp)
-                        }
-                    }
-                }
+                StudioProgressTracker(
+                    projectReady = active != null,
+                    filesReady = files.isNotEmpty(),
+                    editReady = pendingEdit != null
+                )
             }
             if (previewText.isNotBlank() && pendingEdit == null) item {
                 WorkspaceCodeCard(MessagePart(previewText, previewPath.substringAfterLast('.', "text")), previewPath.substringAfterLast('/'))
@@ -590,6 +583,60 @@ fun ProjectStudioScreen(
                 section = 0
             }) { Text(stringResource(R.string.ui_review)) } },
             dismissButton = { TextButton(onClick = { editingFile = null }) { Text(stringResource(R.string.studio_cancel)) } })
+    }
+}
+
+/** Progress reflects only local evidence, never fabricated remote commits or deployments. */
+@Composable
+private fun StudioProgressTracker(projectReady: Boolean, filesReady: Boolean, editReady: Boolean) {
+    val labels = listOf(
+        stringResource(R.string.studio_step_plan),
+        stringResource(R.string.studio_step_files),
+        stringResource(R.string.ui_code),
+        stringResource(R.string.studio_step_review)
+    )
+    val complete = listOf(projectReady, filesReady, editReady, false)
+    val reviewing = editReady
+    Box(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        HorizontalDivider(Modifier.fillMaxWidth().padding(top = 15.dp),
+            color = if (projectReady) studioCyan.copy(alpha = .9f)
+                    else MaterialTheme.colorScheme.outlineVariant,
+            thickness = 2.dp)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            labels.forEachIndexed { index, title ->
+                val done = complete[index]
+                val active = index == 3 && reviewing
+                val tint = when {
+                    done -> studioCyan
+                    active -> studioPurple
+                    else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                }
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Surface(shape = RoundedCornerShape(50),
+                        color = if (active) MaterialTheme.colorScheme.surface else tint,
+                        border = androidx.compose.foundation.BorderStroke(
+                            if (active) 2.dp else 1.dp,
+                            if (active) studioPurple else tint)) {
+                        Box(Modifier.size(30.dp), contentAlignment = Alignment.Center) {
+                            if (done) Icon(Icons.Default.Check, null, tint = Color.Black,
+                                modifier = Modifier.size(18.dp))
+                            else Text((index + 1).toString(), fontSize = 12.sp,
+                                color = if (active) studioPurple else MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                    Text(title, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        color = if (active) studioPurple else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1)
+                    Text(stringResource(when {
+                        done -> R.string.design_step_complete
+                        active -> R.string.design_step_review
+                        else -> R.string.design_step_pending
+                    }), fontSize = 9.sp, maxLines = 1,
+                        color = if (active) studioPurple else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
 
