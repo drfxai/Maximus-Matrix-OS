@@ -47,6 +47,7 @@ private enum class Destination(val label: String) {
     AGENTS("Personas"),
     DATA("Data"),
     CONTROL("Control"),
+    TOOLS("Tools"),
     TERMINAL("Terminal")
 }
 
@@ -60,6 +61,7 @@ fun MatrixScreen(
     viewModel: MatrixViewModel = viewModel()
 ) {
     var destination by remember { mutableStateOf(Destination.MATRIX) }
+    var workSection by remember { mutableIntStateOf(0) }
     var showMoreSheet by remember { mutableStateOf(false) }
     val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
@@ -85,8 +87,8 @@ fun MatrixScreen(
                     val primaryDestinations = listOf(
                         Triple(Destination.MATRIX, R.string.nav_brain, Icons.Default.Hub),
                         Triple(Destination.CHAT, R.string.nav_chat, Icons.AutoMirrored.Filled.Chat),
-                        Triple(Destination.AGENTS, R.string.design_agents, Icons.Default.Groups),
-                        Triple(Destination.STUDIO, R.string.nav_studio, Icons.Default.Code)
+                        Triple(Destination.STUDIO, R.string.ui_work, Icons.Default.WorkOutline),
+                        Triple(Destination.AGENTS, R.string.design_agents, Icons.Default.Groups)
                     )
                     primaryDestinations.forEach { (target, label, icon) ->
                         val tag = when (target) {
@@ -116,9 +118,9 @@ fun MatrixScreen(
                     val moreLabel = stringResource(R.string.nav_more)
                     NavigationBarItem(
                         selected = destination !in primaryDestinations.map { it.first },
-                        onClick = { showMoreSheet = true },
+                        onClick = { destination = Destination.TOOLS },
                         icon = { Icon(Icons.Default.Widgets, stringResource(R.string.nav_more)) },
-                        label = { Text(stringResource(R.string.nav_more), fontSize = 11.sp) },
+                        label = { Text(stringResource(R.string.ui_hub), fontSize = 11.sp) },
                         modifier = Modifier.testTag("nav_item_more").semantics { contentDescription = moreLabel }
                     )
                 }
@@ -163,7 +165,14 @@ fun MatrixScreen(
                         onNavigateToAgents = { destination = Destination.AGENTS },
                         modifier = Modifier.fillMaxSize()
                     )
+                    Destination.TOOLS -> ToolsHubScreen(
+                        onWork = { workSection = it; destination = Destination.STUDIO },
+                        onChat = { destination = Destination.CHAT },
+                        onControl = { destination = Destination.CONTROL },
+                        onMore = { showMoreSheet = true }
+                    )
                     Destination.STUDIO -> ProjectStudioScreen(
+                        initialSection = workSection,
                         projectTeamRun = viewModel.projectTeamRun.collectAsState().value,
                         projectTeamInvalid = viewModel.projectTeamInvalid.collectAsState().value,
                         onDiscardInvalidTeam = viewModel::discardInvalidProjectTeam,
@@ -185,6 +194,8 @@ fun MatrixScreen(
                     )
                     Destination.CHAT -> ProviderChatScreen(
                         viewModel = viewModel,
+                        onWork = { destination = Destination.STUDIO },
+                        onHub = { destination = Destination.TOOLS },
                         modifier = Modifier.fillMaxSize()
                     )
                     Destination.AGENTS -> AgentsScreen(

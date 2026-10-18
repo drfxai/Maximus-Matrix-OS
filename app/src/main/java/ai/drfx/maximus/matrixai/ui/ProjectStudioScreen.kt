@@ -54,6 +54,7 @@ private val studioGreen = Color(0xFFFFE079)
 @Composable
 fun ProjectStudioScreen(
     onPlanWithAi: (String) -> Boolean,
+    initialSection: Int = 0,
     projectTeamRun: ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRun? = null,
     projectTeamMessage: String = "",
     projectTeamInvalid: Boolean = false,
@@ -63,7 +64,7 @@ fun ProjectStudioScreen(
     onCancelTeam: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var section by remember { mutableStateOf(0) }
+    var section by remember { mutableStateOf(initialSection.coerceIn(0, 4)) }
     val workspaceListState = rememberLazyListState()
     LaunchedEffect(section) { workspaceListState.scrollToItem(0) }
     val context = LocalContext.current

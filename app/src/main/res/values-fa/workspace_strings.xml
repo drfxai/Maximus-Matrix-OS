@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_conversations">گفتگوها</string>
+    <string name="ui_search">جست‌وجو…</string>
+    <string name="ui_close">بستن</string>
+    <string name="ui_tools">ابزارها و افزونه‌ها</string>
+    <string name="ui_companion">ربات همراه</string>
+    <string name="ui_open">باز کردن</string>
+    <string name="ui_work">محیط کار</string>
+    <string name="ui_hub">هاب</string>
+</resources>

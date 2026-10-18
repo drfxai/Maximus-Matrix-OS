@@ -50,6 +50,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.WorkOutline
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FileDownload
@@ -119,7 +123,8 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) {
+fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier,
+    onWork: () -> Unit = {}, onHub: () -> Unit = {}) {
     val state by viewModel.llmState.collectAsState()
     val pendingAction by viewModel.pendingAgentConfirmation.collectAsState()
     pendingAction?.let { request ->
@@ -133,6 +138,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     val sessions by viewModel.chatSessions.collectAsState()
     val activeSessionId by viewModel.activeChatSessionId.collectAsState()
     var sessionsOpen by remember { mutableStateOf(false) }
+    var attachmentMenuOpen by remember { mutableStateOf(false) }
     var workspaceControlsOpen by remember { mutableStateOf(false) }
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
@@ -370,7 +376,18 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         modifier = modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        if (!keyboardVisible) WorkspaceBrand()
+        if (!keyboardVisible) Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { sessionsOpen = true }) { Icon(Icons.Default.Menu, stringResource(R.string.ui_conversations)) }
+            WorkspaceBrand(Modifier.weight(1f))
+            IconButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) {
+                Icon(Icons.Default.Add, stringResource(R.string.speech_new))
+            }
+        }
+        if (!keyboardVisible) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.nav_chat)) })
+            FilterChip(selected = false, onClick = onWork, label = { Text(stringResource(R.string.ui_work)) },
+                leadingIcon = { Icon(Icons.Default.WorkOutline, null, Modifier.size(16.dp)) })
+        }
         ConversationTelemetryRibbon(
             state = state,
             onProviderSettings = { settingsOpen = true },
@@ -387,26 +404,25 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         modifier = Modifier.weight(1f), fontSize = 12.sp)
                     Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(18.dp))
                 }
-                DropdownMenu(expanded = sessionsOpen, onDismissRequest = { sessionsOpen = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.speech_new)) },
-                        enabled = !state.isGenerating,
-                        onClick = { sessionsOpen = false; viewModel.createChatSession() })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.speech_rename)) },
-                        enabled = sessions.any { it.id == activeSessionId },
-                        onClick = {
-                            sessionsOpen = false
+                if (sessionsOpen) WorkspaceChoiceSheet(
+                    title = stringResource(R.string.ui_conversations),
+                    choices = sessions.map { WorkspaceChoice(it.id, it.title, it.provider) },
+                    selected = activeSessionId.orEmpty(),
+                    onDismiss = { sessionsOpen = false },
+                    onSelect = { viewModel.switchChatSession(it); sessionsOpen = false },
+                    actions = {
+                        TextButton(enabled = !state.isGenerating, onClick = {
+                            sessionsOpen = false; viewModel.createChatSession()
+                        }) { Text(stringResource(R.string.speech_new)) }
+                        TextButton(enabled = sessions.any { it.id == activeSessionId }, onClick = {
                             sessionTitle = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty()
-                            renameOpen = true
-                        })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.speech_delete)) },
-                        enabled = sessions.any { it.id == activeSessionId },
-                        onClick = { sessionsOpen = false; deleteOpen = true })
-                    if (sessions.isNotEmpty()) HorizontalDivider()
-                    sessions.forEach { session ->
-                        DropdownMenuItem(text = { Text(session.title + " · " + session.provider) },
-                            onClick = { viewModel.switchChatSession(session.id); sessionsOpen = false })
+                            sessionsOpen = false; renameOpen = true
+                        }) { Text(stringResource(R.string.speech_rename)) }
+                        TextButton(enabled = sessions.any { it.id == activeSessionId }, onClick = {
+                            sessionsOpen = false; deleteOpen = true
+                        }) { Text(stringResource(R.string.speech_delete), color = MaterialTheme.colorScheme.error) }
                     }
-                }
+                )
             }
             TextButton(onClick = { workspaceControlsOpen = !workspaceControlsOpen },
                 modifier = Modifier.testTag("chat_workspace_controls_toggle"),
@@ -996,11 +1012,21 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { imagePicker.launch("image/*") }, enabled = !recording, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Image, stringResource(R.string.speech_attach_image), modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = { filePicker.launch(arrayOf("text/*", "application/pdf", "application/json")) }, enabled = !recording, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.AttachFile, stringResource(R.string.speech_attach_document), modifier = Modifier.size(18.dp))
+                    Box {
+                        IconButton(onClick = { attachmentMenuOpen = !attachmentMenuOpen }, enabled = !recording) {
+                            Icon(Icons.Default.Add, stringResource(R.string.speech_attach_document), Modifier.size(24.dp))
+                        }
+                        DropdownMenu(attachmentMenuOpen, { attachmentMenuOpen = false }) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.speech_attach_image)) },
+                                leadingIcon = { Icon(Icons.Default.Image, null) },
+                                onClick = { attachmentMenuOpen = false; imagePicker.launch("image/*") })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.speech_attach_document)) },
+                                leadingIcon = { Icon(Icons.Default.AttachFile, null) },
+                                onClick = { attachmentMenuOpen = false; filePicker.launch(arrayOf("text/*", "application/pdf", "application/json")) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.plugin_store_title)) },
+                                leadingIcon = { Icon(Icons.Default.Extension, null) },
+                                onClick = { attachmentMenuOpen = false; onHub() })
+                        }
                     }
                     IconButton(onClick = {
                         tts?.stop()
@@ -1370,20 +1396,24 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                     if (state.hasSavedKey) {
                                         Text(
                                             stringResource(R.string.chat_keystore_encryption),
+                                            modifier = Modifier.weight(1f),
                                             color = MaterialTheme.colorScheme.primary,
                                             fontSize = 11.sp
                                         )
                                     } else {
                                         Text(
                                             stringResource(R.string.chat_aes_encryption),
+                                            modifier = Modifier.weight(1f),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 11.sp
                                         )
                                     }
-                                    Button(onClick = { viewModel.detectApi(baseUrl, apiKey) }) {
-                                        Icon(Icons.Default.Refresh, stringResource(R.string.chat_detect_api))
+                                    Button(onClick = { viewModel.detectApi(baseUrl, apiKey) },
+                                        enabled = state.status != ConnectionStatus.DETECTING,
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+                                        Icon(Icons.Default.Refresh, null, Modifier.size(17.dp))
                                         Spacer(Modifier.width(6.dp))
-                                        Text(stringResource(if (state.status == ConnectionStatus.DETECTING) R.string.conv_detecting else R.string.chat_detect_api))
+                                        Text(stringResource(if (state.status == ConnectionStatus.DETECTING) R.string.conv_detecting else R.string.chat_detect_api), maxLines = 1, fontSize = 12.sp)
                                     }
                                 }
                             }
@@ -1406,29 +1436,15 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                         ) {
                                             Text(state.selectedModel.ifBlank { stringResource(R.string.chat_select_model) }, maxLines = 1)
                                         }
-                                        DropdownMenu(
-                                            expanded = modelExpanded,
-                                            onDismissRequest = { modelExpanded = false }
-                                        ) {
-                                            state.models.forEach { model ->
-                                                DropdownMenuItem(
-                                                    text = {
-                                                        Column {
-                                                            Text(model.id, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                                            Text(
-                                                                "${model.displayName} (${numberFormat.format(model.contextWindowTokens)} tokens)",
-                                                                fontSize = 10.sp,
-                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                            )
-                                                        }
-                                                    },
-                                                    onClick = {
-                                                        viewModel.selectModel(model.id)
-                                                        modelExpanded = false
-                                                    }
-                                                )
-                                            }
-                                        }
+                                        if (modelExpanded) WorkspaceChoiceSheet(
+                                            title = stringResource(R.string.chat_select_model),
+                                            choices = state.models.map { WorkspaceChoice(it.id, it.id,
+                                                it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() } + " · " +
+                                                (it.catalogContextTokens?.let { count -> numberFormat.format(count) } ?: context.getString(R.string.api_unknown))) },
+                                            selected = state.selectedModel,
+                                            onDismiss = { modelExpanded = false },
+                                            onSelect = { viewModel.selectModel(it); modelExpanded = false }
+                                        )
                                     }
 
                                     Box(Modifier.fillMaxWidth()) {
@@ -1442,20 +1458,13 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                                 maxLines = 1
                                             )
                                         }
-                                        DropdownMenu(
-                                            expanded = agentExpanded,
-                                            onDismissRequest = { agentExpanded = false }
-                                        ) {
-                                            state.supportedAgents.forEach { agent ->
-                                                DropdownMenuItem(
-                                                    text = { Text(agent.name + " · persona") },
-                                                    onClick = {
-                                                        viewModel.selectAgent(agent.id)
-                                                        agentExpanded = false
-                                                    }
-                                                )
-                                            }
-                                        }
+                                        if (agentExpanded) WorkspaceChoiceSheet(
+                                            title = stringResource(R.string.chat_select_agent),
+                                            choices = state.supportedAgents.map { WorkspaceChoice(it.id, it.name, "") },
+                                            selected = state.selectedAgentId,
+                                            onDismiss = { agentExpanded = false },
+                                            onSelect = { viewModel.selectAgent(it); agentExpanded = false }
+                                        )
                                     }
                                 }
                             }
@@ -1612,35 +1621,13 @@ private fun ChatProviderSwitcherBar(
                 }
             }
 
-            // Model Dropdown menu anchored to the switcher bar
-            DropdownMenu(
-                expanded = modelPickerOpen,
-                onDismissRequest = { modelPickerOpen = false }
-            ) {
-                models.forEach { model ->
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(
-                                    model.id,
-                                    fontWeight = if (model.id == currentModel) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 11.sp,
-                                    color = if (model.id == currentModel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    "${model.displayName} · ${(model.contextWindowTokens / 1_000)}k ctx",
-                                    fontSize = 9.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        },
-                        onClick = {
-                            onSelectModel(model.id)
-                            modelPickerOpen = false
-                        }
-                    )
-                }
-            }
+            if (modelPickerOpen) WorkspaceChoiceSheet(
+                title = stringResource(R.string.chat_select_model),
+                choices = models.map { WorkspaceChoice(it.id, it.id, it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() }) },
+                selected = currentModel,
+                onDismiss = { modelPickerOpen = false },
+                onSelect = { onSelectModel(it); modelPickerOpen = false }
+            )
         }
     }
 }
@@ -1720,6 +1707,7 @@ private fun GeneratingPulse(provider: String) {
             Box(Modifier.size(6.dp).graphicsLayer(alpha = opacity, scaleX = .8f + opacity * .2f,
                 scaleY = .8f + opacity * .2f).background(MaterialTheme.colorScheme.tertiary, CircleShape))
         }
+        WorkspaceCompanion(working = true, modifier = Modifier.size(42.dp))
         Text(stringResource(R.string.chat_generating_provider, provider), color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
     }
 }
@@ -1784,7 +1772,8 @@ private fun ChatBubble(
                     }
                 }
                 if (draft == null) {
-                    Text(message.content, color = textColor, fontSize = 13.sp, lineHeight = 19.sp)
+                    if (isUser) Text(message.content, color = textColor, fontSize = 15.sp, lineHeight = 23.sp)
+                    else WorkspaceMessageContent(message.content, textColor)
                 } else {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -1811,7 +1800,7 @@ private fun ChatBubble(
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        horizontalArrangement = Arrangement.End
                     ) {
                         @Composable fun action(
                             icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -1824,7 +1813,7 @@ private fun ChatBubble(
                             val haptics = LocalHapticFeedback.current
                             IconButton(onClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); clicked() },
                                 interactionSource = interactions, modifier = Modifier.size(48.dp).scale(scale)) {
-                                Icon(icon, contentDescription = name, modifier = Modifier.size(20.dp),
+                                Icon(icon, contentDescription = name, modifier = Modifier.size(17.dp),
                                     tint = if (selected) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -1838,15 +1827,14 @@ private fun ChatBubble(
                         action(Icons.Default.ThumbDown, stringResource(R.string.chat_not_helpful), reaction == "dislike") {
                             reaction = if (reaction == "dislike") "" else "dislike"; feedbackStore.set(key, reaction)
                         }
-                        action(Icons.Default.Favorite, stringResource(R.string.chat_love), reaction == "love") {
-                            reaction = if (reaction == "love") "" else "love"; feedbackStore.set(key, reaction)
-                        }
                         Box {
                             action(Icons.Default.MoreHoriz, stringResource(R.string.focus_details)) {
                                 reactionPickerOpen = !reactionPickerOpen
                             }
                             DropdownMenu(expanded = reactionPickerOpen,
                                 onDismissRequest = { reactionPickerOpen = false }) {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.chat_speak_response)) },
+                                    onClick = { reactionPickerOpen = false; onSpeak() })
                                 Row(Modifier.padding(horizontal = 4.dp),
                                     horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                                     action(Icons.Default.ThumbUp, stringResource(R.string.chat_helpful), reaction == "like") {
@@ -1867,7 +1855,7 @@ private fun ChatBubble(
                                 }
                             }
                         }
-                        action(Icons.Default.VolumeUp, stringResource(R.string.chat_speak_response), false, onSpeak)
+
                     }
                     AnimatedVisibility(copied) {
                         Text(stringResource(R.string.chat_copied_clipboard), fontSize = 11.sp,

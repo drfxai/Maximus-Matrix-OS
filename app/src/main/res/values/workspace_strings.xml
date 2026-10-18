@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_conversations">Conversations</string>
+    <string name="ui_search">Search…</string>
+    <string name="ui_close">Close</string>
+    <string name="ui_tools">Tools &amp; Plugins</string>
+    <string name="ui_companion">Workspace companion</string>
+    <string name="ui_open">Open</string>
+    <string name="ui_work">Work</string>
+    <string name="ui_hub">Hub</string>
+</resources>

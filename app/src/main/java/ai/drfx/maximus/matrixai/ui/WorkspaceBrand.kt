@@ -13,10 +13,9 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 internal fun WorkspaceBrand(modifier: Modifier = Modifier) {
-    Row(modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(Icons.Default.Hub, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+    Row(modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center) {
         Text("MAXIMUS", color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
     }
 }
