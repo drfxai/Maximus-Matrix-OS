@@ -35,4 +35,5 @@
     <string name="design_step_complete">تکمیل</string>
     <string name="design_step_review">در انتظار بررسی</string>
     <string name="design_step_pending">در انتظار</string>
+    <string name="design_proposed_edit">تغییر پیشنهادی</string>
 </resources>
