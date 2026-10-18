@@ -30,4 +30,9 @@
     <string name="design_combo_detail">Настройка умной маршрутизации моделей</string>
     <string name="design_search_conversations">Поиск диалогов</string>
     <string name="design_new_chat">Новый чат</string>
+    <string name="design_graph_expand">Развернуть граф нейронов</string>
+    <string name="design_graph_restore">Вернуть управление</string>
+    <string name="design_step_complete">Готово</string>
+    <string name="design_step_review">Проверьте изменения</string>
+    <string name="design_step_pending">Ожидание</string>
 </resources>
