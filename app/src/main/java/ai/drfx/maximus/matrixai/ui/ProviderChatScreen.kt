@@ -1396,20 +1396,24 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                     if (state.hasSavedKey) {
                                         Text(
                                             stringResource(R.string.chat_keystore_encryption),
+                                            modifier = Modifier.weight(1f),
                                             color = MaterialTheme.colorScheme.primary,
                                             fontSize = 11.sp
                                         )
                                     } else {
                                         Text(
                                             stringResource(R.string.chat_aes_encryption),
+                                            modifier = Modifier.weight(1f),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 11.sp
                                         )
                                     }
-                                    Button(onClick = { viewModel.detectApi(baseUrl, apiKey) }) {
-                                        Icon(Icons.Default.Refresh, stringResource(R.string.chat_detect_api))
+                                    Button(onClick = { viewModel.detectApi(baseUrl, apiKey) },
+                                        enabled = state.status != ConnectionStatus.DETECTING,
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+                                        Icon(Icons.Default.Refresh, null, Modifier.size(17.dp))
                                         Spacer(Modifier.width(6.dp))
-                                        Text(stringResource(if (state.status == ConnectionStatus.DETECTING) R.string.conv_detecting else R.string.chat_detect_api))
+                                        Text(stringResource(if (state.status == ConnectionStatus.DETECTING) R.string.conv_detecting else R.string.chat_detect_api), maxLines = 1, fontSize = 12.sp)
                                     }
                                 }
                             }
@@ -1435,7 +1439,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                         if (modelExpanded) WorkspaceChoiceSheet(
                                             title = stringResource(R.string.chat_select_model),
                                             choices = state.models.map { WorkspaceChoice(it.id, it.id,
-                                                it.displayName + " · " + numberFormat.format(it.contextWindowTokens)) },
+                                                it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() } + " · " +
+                                                (it.catalogContextTokens?.let { count -> numberFormat.format(count) } ?: context.getString(R.string.api_unknown))) },
                                             selected = state.selectedModel,
                                             onDismiss = { modelExpanded = false },
                                             onSelect = { viewModel.selectModel(it); modelExpanded = false }
@@ -1618,7 +1623,7 @@ private fun ChatProviderSwitcherBar(
 
             if (modelPickerOpen) WorkspaceChoiceSheet(
                 title = stringResource(R.string.chat_select_model),
-                choices = models.map { WorkspaceChoice(it.id, it.id, it.displayName) },
+                choices = models.map { WorkspaceChoice(it.id, it.id, it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() }) },
                 selected = currentModel,
                 onDismiss = { modelPickerOpen = false },
                 onSelect = { onSelectModel(it); modelPickerOpen = false }

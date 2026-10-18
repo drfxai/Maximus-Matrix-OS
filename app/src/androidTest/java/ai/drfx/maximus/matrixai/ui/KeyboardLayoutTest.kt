@@ -120,14 +120,9 @@ class KeyboardLayoutTest {
     @Test fun smartComboWorkspaceIsReachableAndCapturesObservedEmptyState() {
         withLaunchedActivity {
             objectWithDescription("More").click()
-            val title = instrumentation.targetContext.getString(ai.drfx.maximus.matrixai.R.string.workspaces_control_title)
-            repeat(3) {
-                if (!device.hasObject(By.text(title))) {
-                    device.swipe(device.displayWidth / 2, device.displayHeight * 4 / 5,
-                        device.displayWidth / 2, device.displayHeight / 3, 20)
-                }
-            }
-            checkNotNull(device.wait(Until.findObject(By.text(title)), 10_000)).click()
+            captureWorkspace("tools-hub.png")
+            objectWithDescription(instrumentation.targetContext.getString(
+                ai.drfx.maximus.matrixai.R.string.nav_control)).click()
             checkNotNull(device.wait(Until.findObject(By.text(instrumentation.targetContext.getString(
                 ai.drfx.maximus.matrixai.R.string.dash_combo_title))), 10_000))
             captureWorkspace("smart-combo.png")
@@ -172,7 +167,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "agents-teams.png", "smart-combo.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "agents-teams.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)

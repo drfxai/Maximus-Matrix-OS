@@ -13,6 +13,9 @@ object ChatPresentation {
     private val contents = Regex("""<parameter\s+name=["']contents["']\s*>(.*?)</parameter>""", RegexOption.DOT_MATCHES_ALL)
 
     fun draft(raw: String): ToolDraft? {
+        val plainTool = Regex("<((?:web_search|image_gen|execute_code))>.*?</\\1>", RegexOption.DOT_MATCHES_ALL).find(raw)
+        if (plainTool != null) return ToolDraft(plainTool.groupValues[1], null,
+            "Suggested tool operation — not executed or verified")
         if (!raw.contains("<function_calls>") && !raw.contains("<invoke ")) return null
         val action = invoke.find(raw)?.groupValues?.get(1) ?: return null
         val file = path.find(raw)?.groupValues?.get(1)?.trim()?.take(220)

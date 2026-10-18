@@ -75,8 +75,9 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
                 Modifier.weight(1f), attention = metrics.contextUsagePercent >= .85f,
                 remainingValue = metrics.remainingContextTokens.toLong().takeIf { state.selectedModel.isNotBlank() })
         }
-        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(5.dp),
-            color = if (progress > .85f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.motion_context_not_credit), style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ContextSegments(metrics.contextUsagePercent)
         TextButton(onClick = { detailsOpen = !detailsOpen }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(if (detailsOpen) R.string.focus_controls_hide else R.string.focus_controls_show))
         }
