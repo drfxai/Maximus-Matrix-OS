@@ -30,4 +30,9 @@
     <string name="design_combo_detail">Configure smart model routing</string>
     <string name="design_search_conversations">Search conversations</string>
     <string name="design_new_chat">New chat</string>
+    <string name="design_graph_expand">Expand neural graph</string>
+    <string name="design_graph_restore">Restore Brain controls</string>
+    <string name="design_step_complete">Complete</string>
+    <string name="design_step_review">Review now</string>
+    <string name="design_step_pending">Pending</string>
 </resources>
