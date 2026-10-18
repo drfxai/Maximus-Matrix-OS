@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -62,7 +63,7 @@ internal fun WorkspaceMessageContent(text: String, color: Color) {
 }
 
 @Composable
-private fun WorkspaceCodeCard(part: MessagePart) {
+internal fun WorkspaceCodeCard(part: MessagePart, title: String? = null) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     var copied by remember(part.text) { mutableStateOf(false) }
@@ -91,7 +92,7 @@ private fun WorkspaceCodeCard(part: MessagePart) {
             Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Code, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                Text(part.language.orEmpty().ifBlank { "Code" }, Modifier.weight(1f), maxLines = 1, fontSize = 12.sp)
+                Text(title ?: part.language.orEmpty().ifBlank { "Code" }, Modifier.weight(1f), maxLines = 1, fontSize = 12.sp)
                 IconButton(onClick = { clipboard.setText(AnnotatedString(part.text)); copied = true }) {
                     Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
                         stringResource(R.string.chat_copy), Modifier.size(18.dp), tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
@@ -103,12 +104,12 @@ private fun WorkspaceCodeCard(part: MessagePart) {
                         "typescript", "ts" -> "ts"; "json" -> "json"; "html" -> "html"
                         "css" -> "css"; "bash", "sh" -> "sh"; else -> "txt"
                     }
-                    export.launch("maximus-code.$extension")
+                    export.launch(title?.takeIf { it.matches(Regex("[A-Za-z0-9_.-]{1,80}")) && !it.startsWith(".") } ?: "maximus-code.$extension")
                 }) { Icon(Icons.Default.FileDownload, stringResource(R.string.chat_download), Modifier.size(18.dp)) }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SelectionContainer {
-                Row(Modifier.horizontalScroll(rememberScrollState()).padding(12.dp)) {
+                Row(Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()).padding(12.dp)) {
                     Text((1..part.text.lines().size).joinToString("\n"), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 20.sp)
                     Spacer(Modifier.width(16.dp))

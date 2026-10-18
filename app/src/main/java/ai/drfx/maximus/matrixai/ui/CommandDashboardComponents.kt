@@ -30,7 +30,7 @@ internal fun CommandDashboardCard(
 ) {
     Surface(modifier.animateContentSize(), shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        color = MaterialTheme.colorScheme.surfaceContainer) {
+        color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
     }
 }

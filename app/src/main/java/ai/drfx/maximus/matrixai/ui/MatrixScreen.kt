@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -85,10 +86,10 @@ fun MatrixScreen(
                     tonalElevation = 0.dp
                 ) {
                     val primaryDestinations = listOf(
-                        Triple(Destination.MATRIX, R.string.nav_brain, Icons.Default.Hub),
-                        Triple(Destination.CHAT, R.string.nav_chat, Icons.AutoMirrored.Filled.Chat),
+                        Triple(Destination.MATRIX, R.string.nav_brain, Icons.Outlined.Psychology),
+                        Triple(Destination.CHAT, R.string.nav_chat, Icons.Outlined.ChatBubbleOutline),
                         Triple(Destination.STUDIO, R.string.ui_work, Icons.Default.WorkOutline),
-                        Triple(Destination.AGENTS, R.string.design_agents, Icons.Default.Groups)
+                        Triple(Destination.AGENTS, R.string.design_agents, Icons.Outlined.Groups)
                     )
                     primaryDestinations.forEach { (target, label, icon) ->
                         val tag = when (target) {
@@ -110,7 +111,7 @@ fun MatrixScreen(
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = .12f)
+                                indicatorColor = Color.Transparent
                             ),
                             modifier = Modifier.testTag(tag).semantics { contentDescription = accessibilityLabel }
                         )
@@ -119,7 +120,7 @@ fun MatrixScreen(
                     NavigationBarItem(
                         selected = destination !in primaryDestinations.map { it.first },
                         onClick = { destination = Destination.TOOLS },
-                        icon = { Icon(Icons.Default.Widgets, stringResource(R.string.nav_more)) },
+                        icon = { Icon(Icons.Outlined.GridView, stringResource(R.string.nav_more)) },
                         label = { Text(stringResource(R.string.ui_hub), fontSize = 11.sp) },
                         modifier = Modifier.testTag("nav_item_more").semantics { contentDescription = moreLabel }
                     )
@@ -173,6 +174,7 @@ fun MatrixScreen(
                     )
                     Destination.STUDIO -> ProjectStudioScreen(
                         initialSection = workSection,
+                        onChat = { destination = Destination.CHAT },
                         projectTeamRun = viewModel.projectTeamRun.collectAsState().value,
                         projectTeamInvalid = viewModel.projectTeamInvalid.collectAsState().value,
                         onDiscardInvalidTeam = viewModel::discardInvalidProjectTeam,

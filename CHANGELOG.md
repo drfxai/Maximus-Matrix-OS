@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.0 (build 10027)
+
+- Rebuilt the mobile Chat/Work/Hub navigation with compact chat controls, an inline composer and searchable conversation, project, model and persona sheets.
+- Added capability filters and explicit model selection, syntax-colored fenced code with independent copy/download, small reaction icons and a native animated navy/gold companion with an off switch.
+- Added staged local file review with a bounded change preview and a check against intervening file edits before saving.
+- Work now shows actual source previews, compact service entry points and a focused composer; memory and continuity controls remain in Advanced.
+- Added a segmented context meter and explicit unknown provider credit; no sample quotas or connected states are fabricated.
+- Camera thumbnails, photos, documents and plugin navigation share the attachment menu. Generic web search and image generation remain unavailable and are labelled accordingly.
+- Public version and permanent signing identity remain unchanged. Physical Linux setup/build acceptance is still outstanding.
+
 ## v1.0.0 (build 10026)
 
 - Fixed installation of the pinned ARM64 Ubuntu runtime: valid multiarch metadata such as `libc6:arm64.list` is accepted, while absolute archive members, traversal, NUL, backslash and Windows drive paths remain rejected. Existing verified downloads can be reused with Resume.

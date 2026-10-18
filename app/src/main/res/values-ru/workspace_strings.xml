@@ -8,4 +8,19 @@
     <string name="ui_open">Открыть</string>
     <string name="ui_work">Работа</string>
     <string name="ui_hub">Центр</string>
+    <string name="ui_camera_unavailable">Камера недоступна.</string>
+    <string name="ui_camera_permission">Требуется разрешение на камеру.</string>
+    <string name="ui_review">Проверка перед применением</string>
+    <string name="ui_local_edit">Локальное изменение · первые 100 строк</string>
+    <string name="ui_changes">Показать изменения</string>
+    <string name="ui_edit_conflict">Файл изменился. Откройте его заново перед сохранением.</string>
+    <string name="ui_web_search">Поиск в интернете</string>
+    <string name="ui_image_studio">Студия изображений</string>
+    <string name="ui_tool_unavailable">Недоступно в этой сборке</string>
+    <string name="ui_advanced">Дополнительно</string>
+    <string name="ui_code">Код</string>
+    <string name="ui_source_preview">Просмотр исходников</string>
+    <string name="ui_all">Все</string>
+    <string name="ui_use_model">Использовать выбранную модель</string>
+    <string name="ui_provider_credit">Баланс провайдера</string>
 </resources>

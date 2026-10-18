@@ -54,16 +54,10 @@ fun ApiControlScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier) 
     ) {
         item {
             WorkspaceBrand()
-            Text(stringResource(R.string.api_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(
-                stringResource(R.string.api_intro),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                lineHeight = 17.sp
-            )
+
         }
 
-        item { SmartComboCommandDashboard(state) }
+        item { SmartComboCommandDashboard(state, onRoutingChange = viewModel::setSmartComboEnabled) }
         item {
             CommandDashboardCard {
                 Text(stringResource(R.string.api_presets), style = MaterialTheme.typography.titleMedium)

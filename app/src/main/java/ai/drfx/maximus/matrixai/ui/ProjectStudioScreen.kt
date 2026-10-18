@@ -55,6 +55,7 @@ private val studioGreen = Color(0xFFFFE079)
 fun ProjectStudioScreen(
     onPlanWithAi: (String) -> Boolean,
     initialSection: Int = 0,
+    onChat: () -> Unit = {},
     projectTeamRun: ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRun? = null,
     projectTeamMessage: String = "",
     projectTeamInvalid: Boolean = false,
@@ -68,6 +69,7 @@ fun ProjectStudioScreen(
     val workspaceListState = rememberLazyListState()
     LaunchedEffect(section) { workspaceListState.scrollToItem(0) }
     val context = LocalContext.current
+    val connectionVault = remember(context) { ai.drfx.maximus.matrixai.studio.connections.DeveloperCredentialVault(context) }
     val store = remember(context) { ProjectWorkspaceStore(context.applicationContext) }
     val continuity = remember(context) { ProjectContinuityStore(context.applicationContext, store) }
     val sharedMemory = remember(context) { SharedProjectMemory(context.applicationContext) }
@@ -87,6 +89,11 @@ fun ProjectStudioScreen(
     var showSelector by remember { mutableStateOf(false) }
     var editingFile by remember { mutableStateOf<String?>(null) }
     var editor by remember { mutableStateOf("") }
+    var originalEditor by remember { mutableStateOf("") }
+    var pendingEdit by remember(activeId) { mutableStateOf<Triple<String, String, String>?>(null) }
+    var previewPath by remember(activeId) { mutableStateOf("") }
+    var previewText by remember(activeId) { mutableStateOf("") }
+    var previewExpanded by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf(context.getString(R.string.studio_initial_status)) }
 
@@ -112,6 +119,11 @@ fun ProjectStudioScreen(
     LaunchedEffect(activeId) {
         files = withContext(Dispatchers.IO) {
             if (activeId == null) emptyList() else runCatching { store.listFiles(activeId!!) }.getOrDefault(emptyList())
+        }
+        previewPath = files.firstOrNull { it.path.endsWith(".kt") }?.path ?: files.firstOrNull()?.path.orEmpty()
+        previewText = withContext(Dispatchers.IO) {
+            val id = activeId
+            if (id != null && previewPath.isNotBlank()) runCatching { store.readFile(id, previewPath) }.getOrDefault("") else ""
         }
         brief = projects.firstOrNull { it.id == activeId }?.brief.orEmpty()
     }
@@ -153,9 +165,11 @@ fun ProjectStudioScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 WorkspaceBrand()
-                Text(stringResource(R.string.studio_title), style = MaterialTheme.typography.headlineSmall)
-                Text(stringResource(R.string.studio_subtitle),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    FilterChip(selected = false, onClick = onChat, label = { Text(stringResource(R.string.nav_chat)) })
+                    Spacer(Modifier.width(8.dp))
+                    FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.ui_work)) })
+                }
             }
         }
 
@@ -173,13 +187,12 @@ fun ProjectStudioScreen(
                         TextButton(onClick = { showSelector = true }, enabled = projects.isNotEmpty()) {
                             Text(stringResource(R.string.studio_select)); Icon(Icons.Default.ArrowDropDown, null)
                         }
-                        DropdownMenu(expanded = showSelector, onDismissRequest = { showSelector = false }) {
-                            projects.forEach { project ->
-                                DropdownMenuItem(text = { Text(project.name) }, onClick = {
-                                    activeId = project.id; showSelector = false
-                                })
-                            }
-                        }
+                        if (showSelector) WorkspaceChoiceSheet(
+                            title = stringResource(R.string.studio_select),
+                            choices = projects.map { WorkspaceChoice(it.id, it.name, "") },
+                            selected = activeId.orEmpty(),
+                            onDismiss = { showSelector = false },
+                            onSelect = { activeId = it; showSelector = false })
                     }
                 }
             }
@@ -189,66 +202,132 @@ fun ProjectStudioScreen(
                 containerColor = MaterialTheme.colorScheme.background,
                 divider = {}) {
                 listOf(R.string.design_overview, R.string.studio_step_files,
-                    R.string.studio_step_build, R.string.design_runtime, R.string.design_connections).forEachIndexed { index, label ->
+                    R.string.studio_step_build, R.string.design_runtime, R.string.design_connections, R.string.ui_advanced).forEachIndexed { index, label ->
                     Tab(selected = section == index, onClick = { section = index },
                         text = { Text(stringResource(label)) },
                         modifier = Modifier.testTag("studio_section_$index"))
                 }
             }
         }
-        if (section == 0) {
+        if (section == 0 && pendingEdit != null) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StudioShortcut(stringResource(R.string.plugin_apk), Icons.Default.Android,
-                            Modifier.weight(1f)) { section = 2 }
-                        StudioShortcut(stringResource(R.string.linux_title), Icons.Default.Terminal,
-                            Modifier.weight(1f), accent = studioPurple) { section = 3 }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StudioShortcut(stringResource(R.string.plugin_github), Icons.Default.Code,
-                            Modifier.weight(1f), accent = MaterialTheme.colorScheme.onSurface) { section = 4 }
-                        StudioShortcut(stringResource(R.string.plugin_cloudflare), Icons.Default.Cloud,
-                            Modifier.weight(1f), accent = studioPurple) { section = 4 }
-                    }
-                    OutlinedButton(onClick = { section = 4 }, modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                        Icon(Icons.Default.Extension, null, Modifier.size(18.dp))
+                val change = pendingEdit!!
+                StudioPanel {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Description, null, tint = studioCyan)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.plugin_store_title))
+                        Text(change.first, Modifier.weight(1f), fontWeight = FontWeight.Bold, maxLines = 2)
+                        WorkspaceCompanion(modifier = Modifier.size(48.dp))
                     }
+                    Text(stringResource(R.string.ui_review), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.ui_local_edit), style = MaterialTheme.typography.bodySmall)
+                    androidx.compose.animation.AnimatedVisibility(previewExpanded) {
+                        WorkspaceDiffCard(change.second, change.third)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { previewExpanded = !previewExpanded }) {
+                            Text(stringResource(R.string.ui_changes))
+                        }
+                        Button(enabled = !busy, onClick = {
+                            val id = activeId ?: return@Button
+                            busy = true
+                            scope.launch {
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        check(store.readFile(id, change.first) == change.second) { context.getString(R.string.ui_edit_conflict) }
+                                        store.saveFile(id, change.first, change.third)
+                                    }
+                                    pendingEdit = null; refresh(id)
+                                    message = context.getString(R.string.studio_file_saved, change.first)
+                                } catch (error: Exception) { message = error.message.orEmpty() }
+                                finally { busy = false }
+                            }
+                        }) { Text(stringResource(R.string.studio_save_file)) }
+                    }
+                    TextButton(onClick = { pendingEdit = null }) { Text(stringResource(R.string.studio_cancel)) }
                 }
             }
         }
         if (section == 0) {
-        item {
-            StudioPanel {
-                Text(stringResource(R.string.studio_pipeline), fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(9.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    listOf(stringResource(R.string.studio_step_plan), stringResource(R.string.studio_step_files),
-                        stringResource(R.string.studio_step_tests), stringResource(R.string.studio_step_build),
-                        stringResource(R.string.studio_step_review)).forEachIndexed { index, label ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Surface(shape = RoundedCornerShape(50),
-                                color = if (index == 0 && active != null) studioGreen else MaterialTheme.colorScheme.surfaceVariant) {
-                                Text(if (index == 0 && active != null) "✓" else (index + 1).toString(),
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                    color = if (index == 0 && active != null) Color.Black else MaterialTheme.colorScheme.onSurface)
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB,
+                        ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.CLOUDFLARE).forEach { service ->
+                        Surface(onClick = { section = 4 }, modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                            Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(if (service == ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB)
+                                    Icons.Default.Code else Icons.Default.Cloud, null, Modifier.size(20.dp), tint = studioCyan)
+                                Spacer(Modifier.width(8.dp))
+                                Column {
+                                    Text(if (service == ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB) "GitHub" else "Cloudflare",
+                                        style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(if (connectionVault.configured(service)) R.string.dev_saved else R.string.dev_not_connected),
+                                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
-                            Spacer(Modifier.height(5.dp))
-                            Text(label, fontSize = 11.sp)
                         }
                     }
                 }
-                Spacer(Modifier.height(9.dp))
-                Text(stringResource(R.string.studio_pipeline_notice), fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            item {
+                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    listOf(R.string.studio_step_plan, R.string.studio_step_files, R.string.ui_code, R.string.studio_step_review).forEachIndexed { index, label ->
+                        val selected = index == if (pendingEdit != null) 3 else if (active != null) 1 else 0
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Surface(shape = RoundedCornerShape(50), color = if (selected) studioCyan else MaterialTheme.colorScheme.surfaceContainerLow) {
+                                Text((index + 1).toString(), Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                                    color = if (selected) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(stringResource(label), fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+            if (previewText.isNotBlank() && pendingEdit == null) item {
+                WorkspaceCodeCard(MessagePart(previewText, previewPath.substringAfterLast('.', "text")), previewPath.substringAfterLast('/'))
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StudioShortcut(stringResource(R.string.ui_source_preview), Icons.Default.PlayCircleOutline, Modifier.weight(1f)) { section = 1 }
+                    StudioShortcut(stringResource(R.string.plugin_apk), Icons.Default.Android, Modifier.weight(1f)) { section = 2 }
+                }
+            }
+            item {
+                StudioShortcut(stringResource(R.string.plugin_cloudflare), Icons.Default.CloudUpload, Modifier.fillMaxWidth()) { section = 4 }
+            }
+            item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(message, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    WorkspaceCompanion(working = busy)
+                }
+            }
+            item {
+                Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, studioCyan.copy(alpha = .5f))) {
+                    Row(Modifier.fillMaxWidth().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(brief, { brief = it.take(12000) }, Modifier.weight(1f), maxLines = 3,
+                            placeholder = { Text(stringResource(R.string.studio_describe)) }, enabled = active != null && !busy,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent))
+                        IconButton(enabled = active != null && !busy && brief.isNotBlank(), onClick = {
+                            val id = activeId ?: return@IconButton
+                            scope.launch {
+                                try {
+                                    val plan = withContext(Dispatchers.IO) {
+                                        store.saveBrief(id, brief)
+                                        ProjectTaskModePolicy.enrichPlan(store.aiPlanPrompt(id), projectTaskMode)
+                                    }
+                                    val sent = onPlanWithAi(plan)
+                                    message = context.getString(if (sent) R.string.studio_plan_sent else R.string.studio_connect_model)
+                                } catch (error: Exception) { message = error.message.orEmpty() }
+                            }
+                        }) { Icon(Icons.Default.Send, stringResource(R.string.studio_plan_with_ai), tint = studioCyan) }
+                    }
+                }
             }
         }
-        }
-        if (section == 0) {
+        if (section == 5) {
         item {
             ProjectTeamRunPanel(activeId, projectTeamRun, projectTeamMessage,
                 onPrepareTeam, onApproveTeam, onCancelTeam, projectTeamInvalid, onDiscardInvalidTeam)
@@ -268,7 +347,7 @@ fun ProjectStudioScreen(
                 }
             }
         }
-        if (section == 0) {
+        if (section == 5) {
         item {
             StudioPanel {
                 Text(stringResource(R.string.studio_ai_brief), fontWeight = FontWeight.SemiBold, color = studioPurple)
@@ -346,14 +425,14 @@ fun ProjectStudioScreen(
             }
         }
         }
-        if (section == 0) {
+        if (section == 5) {
         item {
             StudioPanel {
                 HindsightMemoryPanel(activeId)
             }
         }
         }
-        if (section == 0) {
+        if (section == 5) {
         item {
             StudioPanel {
                 Text(stringResource(R.string.project_continuity), fontWeight = FontWeight.Bold, color = studioCyan)
@@ -430,6 +509,7 @@ fun ProjectStudioScreen(
                             scope.launch {
                                 try {
                                     editor = withContext(Dispatchers.IO) { store.readFile(id, file.path) }
+                                    originalEditor = editor
                                     editingFile = file.path
                                 } catch (e: Exception) { message = e.message ?: "Cannot preview file." }
                             }
@@ -504,16 +584,11 @@ fun ProjectStudioScreen(
                 )
             },
             confirmButton = { TextButton(onClick = {
-                val id = activeId
+                pendingEdit = Triple(path, originalEditor, editor)
+                previewExpanded = true
                 editingFile = null
-                if (id != null) scope.launch {
-                    try {
-                        withContext(Dispatchers.IO) { store.saveFile(id, path, editor) }
-                        refresh(id)
-                        message = context.getString(R.string.studio_file_saved, path)
-                    } catch (e: Exception) { message = e.message ?: "Edit failed." }
-                }
-            }) { Text(stringResource(R.string.studio_save_file)) } },
+                section = 0
+            }) { Text(stringResource(R.string.ui_review)) } },
             dismissButton = { TextButton(onClick = { editingFile = null }) { Text(stringResource(R.string.studio_cancel)) } })
     }
 }

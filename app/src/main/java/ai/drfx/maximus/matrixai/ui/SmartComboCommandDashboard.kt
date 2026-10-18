@@ -19,7 +19,8 @@ import java.util.Date
 
 /** Context, local budgets and provider rate snapshots are deliberately separate quantities. */
 @Composable
-internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = Modifier) {
+internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = Modifier,
+    onRoutingChange: ((Boolean) -> Unit)? = null) {
     var detailsOpen by remember { mutableStateOf(false) }
     val metrics = state.tokenMetrics
     val active = state.activeRequest?.takeIf { state.isGenerating }
@@ -37,6 +38,11 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
                     state.isGenerating -> R.string.dash_request_preparing
                     else -> R.string.dash_request_idle
                 }), active != null)
+            }
+            if (onRoutingChange != null) Row(Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(stringResource(R.string.api_combo_title), Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                MotionSwitch(state.smartComboEnabled, onRoutingChange, enabled = !state.isGenerating)
             }
             Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primaryContainer) {
                 Text(stringResource(if (state.smartComboEnabled) R.string.dash_free_first else R.string.dash_manual_route), Modifier.padding(9.dp),
@@ -77,6 +83,8 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
         }
         Text(stringResource(R.string.motion_context_not_credit), style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.ui_provider_credit) + ": " + unknown,
+            style = MaterialTheme.typography.labelMedium)
         ContextSegments(metrics.contextUsagePercent)
         TextButton(onClick = { detailsOpen = !detailsOpen }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(if (detailsOpen) R.string.focus_controls_hide else R.string.focus_controls_show))

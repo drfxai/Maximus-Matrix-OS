@@ -50,6 +50,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.WorkOutline
@@ -194,6 +195,19 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
 
     var attachment by remember { mutableStateOf<ChatAttachment?>(null) }
     var attachmentError by remember { mutableStateOf<String?>(null) }
+    val cameraPreview = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        if (bitmap != null) {
+            val bytes = java.io.ByteArrayOutputStream().also { bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+            attachment = ChatAttachment("camera.jpg", "image/jpeg", Base64.encodeToString(bytes, Base64.NO_WRAP), false)
+            attachmentError = null
+        }
+    }
+    val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) runCatching { cameraPreview.launch(null) }.onFailure {
+            attachmentError = context.getString(R.string.ui_camera_unavailable)
+        } else attachmentError = context.getString(R.string.ui_camera_permission)
+    }
+
     LaunchedEffect(state.provider) { apiKey = ""; quickKeyInput = ""; attachment = null }
     val listState = rememberLazyListState()
     var followLatest by remember(activeSessionId) { mutableStateOf(true) }
@@ -383,27 +397,32 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 Icon(Icons.Default.Add, stringResource(R.string.speech_new))
             }
         }
-        if (!keyboardVisible) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.nav_chat)) })
-            FilterChip(selected = false, onClick = onWork, label = { Text(stringResource(R.string.ui_work)) },
-                leadingIcon = { Icon(Icons.Default.WorkOutline, null, Modifier.size(16.dp)) })
-        }
-        ConversationTelemetryRibbon(
-            state = state,
-            onProviderSettings = { settingsOpen = true },
-            onTokenDetails = { tokenDetailsOpen = true }
-        )
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)) {
-                TextButton(onClick = { sessionsOpen = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                    Text(sessions.firstOrNull { it.id == activeSessionId }?.title
-                        ?: stringResource(R.string.speech_conversation_default),
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f), fontSize = 12.sp)
-                    Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(18.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (!keyboardVisible) {
+                FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.nav_chat), fontSize = 11.sp) })
+                FilterChip(selected = false, onClick = onWork, label = { Text(stringResource(R.string.ui_work), fontSize = 11.sp) })
+            }
+            Surface(onClick = { settingsOpen = true }, modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Row(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(state.provider.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 11.sp)
+                        Text(state.selectedModel.ifBlank { stringResource(R.string.api_unknown) }, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(16.dp))
                 }
+            }
+            IconButton(onClick = { tokenDetailsOpen = true }) {
+                Icon(Icons.Default.DataUsage, stringResource(R.string.dash_session_tokens), Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+            IconButton(onClick = { workspaceControlsOpen = !workspaceControlsOpen },
+                modifier = Modifier.testTag("chat_workspace_controls_toggle")) {
+                Icon(Icons.Default.Tune, stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show), Modifier.size(19.dp))
+            }
+        }
                 if (sessionsOpen) WorkspaceChoiceSheet(
                     title = stringResource(R.string.ui_conversations),
                     choices = sessions.map { WorkspaceChoice(it.id, it.title, it.provider) },
@@ -423,16 +442,6 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         }) { Text(stringResource(R.string.speech_delete), color = MaterialTheme.colorScheme.error) }
                     }
                 )
-            }
-            TextButton(onClick = { workspaceControlsOpen = !workspaceControlsOpen },
-                modifier = Modifier.testTag("chat_workspace_controls_toggle"),
-                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                Icon(Icons.Default.Tune, null, Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide
-                    else R.string.focus_controls_show), fontSize = 12.sp)
-            }
-        }
         if (messages.lastOrNull()?.isError == true && !state.isGenerating && sendable) {
             TextButton(onClick = {
                 messages.lastOrNull { it.role == "user" }?.let { viewModel.sendChat(it.content, it.attachment, false) }
@@ -987,10 +996,38 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .65f))
         ) {
             Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box {
+                        IconButton(onClick = { attachmentMenuOpen = !attachmentMenuOpen }, enabled = !recording) {
+                            Icon(Icons.Default.Add, stringResource(R.string.speech_attach_document), Modifier.size(24.dp))
+                        }
+                        DropdownMenu(attachmentMenuOpen, { attachmentMenuOpen = false }) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.vision_photo)) },
+                                leadingIcon = { Icon(androidx.compose.material.icons.Icons.Default.PhotoCamera, null) },
+                                onClick = {
+                                    attachmentMenuOpen = false
+                                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+                                        runCatching { cameraPreview.launch(null) }.onFailure { attachmentError = context.getString(R.string.ui_camera_unavailable) }
+                                    else cameraPermission.launch(Manifest.permission.CAMERA)
+                                })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.speech_attach_image)) },
+                                leadingIcon = { Icon(Icons.Default.Image, null) },
+                                onClick = { attachmentMenuOpen = false; imagePicker.launch("image/*") })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.speech_attach_document)) },
+                                leadingIcon = { Icon(Icons.Default.AttachFile, null) },
+                                onClick = { attachmentMenuOpen = false; filePicker.launch(arrayOf("text/*", "application/pdf", "application/json")) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.plugin_store_title)) },
+                                leadingIcon = { Icon(Icons.Default.Extension, null) },
+                                onClick = { attachmentMenuOpen = false; onHub() })
+                        }
+                    }
                 androidx.compose.foundation.text.BasicTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 38.dp, max = 88.dp)
+                    modifier = Modifier.weight(1f).heightIn(min = 38.dp, max = 100.dp)
                         .padding(horizontal = 10.dp, vertical = 8.dp)
                         .semantics { contentDescription = context.getString(R.string.chat_input_description) },
                     maxLines = 3,
@@ -1008,26 +1045,6 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { send() })
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box {
-                        IconButton(onClick = { attachmentMenuOpen = !attachmentMenuOpen }, enabled = !recording) {
-                            Icon(Icons.Default.Add, stringResource(R.string.speech_attach_document), Modifier.size(24.dp))
-                        }
-                        DropdownMenu(attachmentMenuOpen, { attachmentMenuOpen = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.speech_attach_image)) },
-                                leadingIcon = { Icon(Icons.Default.Image, null) },
-                                onClick = { attachmentMenuOpen = false; imagePicker.launch("image/*") })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.speech_attach_document)) },
-                                leadingIcon = { Icon(Icons.Default.AttachFile, null) },
-                                onClick = { attachmentMenuOpen = false; filePicker.launch(arrayOf("text/*", "application/pdf", "application/json")) })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.plugin_store_title)) },
-                                leadingIcon = { Icon(Icons.Default.Extension, null) },
-                                onClick = { attachmentMenuOpen = false; onHub() })
-                        }
-                    }
                     IconButton(onClick = {
                         tts?.stop()
                         voicePlayback.stop()
@@ -1063,7 +1080,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             modifier = Modifier.size(18.dp))
                     }
 
-                    Spacer(Modifier.weight(1f))
+
 
                     Button(
                         onClick = { send() },
@@ -1440,8 +1457,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                             title = stringResource(R.string.chat_select_model),
                                             choices = state.models.map { WorkspaceChoice(it.id, it.id,
                                                 it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() } + " · " +
-                                                (it.catalogContextTokens?.let { count -> numberFormat.format(count) } ?: context.getString(R.string.api_unknown))) },
+                                                (it.catalogContextTokens?.let { count -> numberFormat.format(count) } ?: context.getString(R.string.api_unknown)), it.capabilities.map { capability -> capability.name.lowercase() }) },
                                             selected = state.selectedModel,
+                                            confirmSelection = true,
                                             onDismiss = { modelExpanded = false },
                                             onSelect = { viewModel.selectModel(it); modelExpanded = false }
                                         )
@@ -1623,8 +1641,9 @@ private fun ChatProviderSwitcherBar(
 
             if (modelPickerOpen) WorkspaceChoiceSheet(
                 title = stringResource(R.string.chat_select_model),
-                choices = models.map { WorkspaceChoice(it.id, it.id, it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() }) },
+                choices = models.map { WorkspaceChoice(it.id, it.id, it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() }, it.capabilities.map { capability -> capability.name.lowercase() }) },
                 selected = currentModel,
+                confirmSelection = true,
                 onDismiss = { modelPickerOpen = false },
                 onSelect = { onSelectModel(it); modelPickerOpen = false }
             )
