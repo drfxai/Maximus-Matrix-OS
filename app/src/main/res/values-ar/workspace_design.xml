@@ -30,4 +30,9 @@
     <string name="design_combo_detail">تهيئة التوجيه الذكي للنماذج</string>
     <string name="design_search_conversations">البحث في المحادثات</string>
     <string name="design_new_chat">محادثة جديدة</string>
+    <string name="design_graph_expand">تكبير مخطط العقد</string>
+    <string name="design_graph_restore">استعادة أدوات العقل</string>
+    <string name="design_step_complete">مكتمل</string>
+    <string name="design_step_review">بانتظار المراجعة</string>
+    <string name="design_step_pending">قيد الانتظار</string>
 </resources>
