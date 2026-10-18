@@ -32,7 +32,7 @@ class KeyboardLayoutTest {
         withLaunchedActivity {
             phase("mission composer lookup")
             val closed = objectWithDescription("MAXIMUS assistant composer").visibleBounds
-            assertTrue("Home header must be visible", device.hasObject(By.text("MAXIMUS AI")))
+            awaitCondition("Brain header must be visible") { device.hasObject(By.text("MAXIMUS")) }
             val graph = objectWithDescription("Interactive node graph").visibleBounds
             assertTrue("The graph should dominate the collapsed home assistant", graph.height() > closed.height())
             objectWithDescription("Expand assistant details").click()
@@ -55,7 +55,7 @@ class KeyboardLayoutTest {
 
 
                 assertComposerAboveIme("MAXIMUS assistant composer")
-                assertTrue("Home header moved off screen", device.hasObject(By.text("MAXIMUS AI")))
+                assertTrue("Home header moved off screen", device.hasObject(By.text("MAXIMUS")))
                 assertFalse("Navigation should hide while typing", device.hasObject(By.desc("Neural Brain")))
                 device.pressBack()
                 awaitCondition("Keyboard did not close") { !isImeVisible() }
@@ -120,6 +120,10 @@ class KeyboardLayoutTest {
     @Test fun smartComboWorkspaceIsReachableAndCapturesObservedEmptyState() {
         withLaunchedActivity {
             objectWithDescription("More").click()
+            awaitCondition("Tools Hub did not finish navigating") {
+                device.hasObject(By.text(instrumentation.targetContext.getString(
+                    ai.drfx.maximus.matrixai.R.string.ui_tools)))
+            }
             captureWorkspace("tools-hub.png")
             objectWithDescription(instrumentation.targetContext.getString(
                 ai.drfx.maximus.matrixai.R.string.nav_control)).click()
