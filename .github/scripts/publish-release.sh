@@ -40,6 +40,8 @@ cat > dist/release-notes.md <<NOTES
 
 - Public Android version: 1.0.0; internal version code: $version_code.
 - Application ID: ai.drfx.maximus.matrixai.
+- Pinned Ubuntu runtime installation accepts valid Unix multiarch filenames such as libc6:arm64.list; existing verified downloads are reusable with Resume. Runtime cleanup does not follow guest symlinks on the host.
+- Complete checksum-verified Linux and Android toolchain archives are extracted by the production extractor in required CI; physical ARM64 tool execution and on-phone build acceptance remain separate.
 - AMOLED workspaces use a pure-black canvas, balanced navy cards, white text, gold confirmations, orange activity and red warnings, with fixed Brain, Chat, Agents, Studio and More navigation.
 - Smart Combo includes an animated accessible context gauge, provider selection cards and observed token transitions. Context capacity, local budgets and dated provider rate snapshots remain separate; unknown quota is not fabricated.
 - Chat includes message arrival, staggered generation, persisted reaction spring/haptic feedback and animated copy confirmation. Studio uses compact project shortcuts and press feedback. Native animations follow Android animation settings.

@@ -17,7 +17,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
-import java.nio.file.Files
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -108,14 +107,21 @@ internal class PhoneRuntimeInstaller(context: Context) {
                     archive
                 }
                 check(!stopped.get()) { "Cancelled." }
-                staging.deleteRecursively()
+                PhoneRuntimeFiles.deleteTree(staging)
                 check(staging.mkdirs())
                 val links = linkedMapOf<String, String>()
                 archives.forEachIndexed { index, file ->
                     stateValue.value = PhoneToolchainProgress("extracting",
                         "Unpacking " + bundles[index].title + "…",
                         .7f + index * .1f, finished, total)
-                    unpack(file, staging, links, bundles[index].expandedLimit)
+                    PhoneRuntimeArchiveExtractor(
+                        cancelled = stopped::get,
+                        chmod = { path, mode -> Os.chmod(path.absolutePath, mode) },
+                        symlink = { link, path -> Os.symlink(link, path.absolutePath) }
+                    ).unpack({
+                        TarArchiveInputStream(ZstdCompressorInputStream(
+                            BufferedInputStream(file.inputStream(), 131072)), 131072)
+                    }, staging, links, bundles[index].expandedLimit)
                 }
                 check(!stopped.get()) { "Cancelled." }
                 check(File(staging, "usr/bin/bash").isFile)
@@ -126,7 +132,7 @@ internal class PhoneRuntimeInstaller(context: Context) {
                     bundles.joinToString("\n") { it.name + " " + it.hash })
                 stateValue.value = PhoneToolchainProgress("activating",
                     "Activating verified toolchain…", .95f, finished, total)
-                old.deleteRecursively()
+                PhoneRuntimeFiles.deleteTree(old)
                 val previous = target.exists()
                 if (previous) check(target.renameTo(old)) { "Cannot backup previous runtime." }
                 try {
@@ -135,14 +141,15 @@ internal class PhoneRuntimeInstaller(context: Context) {
                     if (previous) old.renameTo(target)
                     throw e
                 }
-                old.deleteRecursively()
+                PhoneRuntimeFiles.deleteTree(old)
                 archives.forEach { it.delete() }
                 lease.close()
                 finish("installed",
                     "Toolchain files verified. Run Verify tools to prove Gradle/JDK/AAPT2 execution.",
                     finished, total)
             } catch (e: Exception) {
-                staging.deleteRecursively()
+                // Cleanup must not hide the original failure or leave setup permanently busy.
+                runCatching { PhoneRuntimeFiles.deleteTree(staging) }
                 val phase = if (stopped.get()) {
                     if (stopReason.startsWith("Cancelled by user")) "cancelled" else "interrupted"
                 } else "failed"
@@ -314,113 +321,7 @@ internal class PhoneRuntimeInstaller(context: Context) {
         Os.chmod(File(root, "opt/gradle/gradle-8.14.3/bin/gradle").absolutePath, 493)
     }
 
-    private fun tar(file: File, process: (TarArchiveInputStream) -> Unit) {
-        ZstdCompressorInputStream(BufferedInputStream(file.inputStream(), 131072)).use { zstd ->
-            TarArchiveInputStream(zstd, 131072).use(process)
-        }
-    }
 
-    private fun member(path: String): String = PhoneRuntimePathPolicy.member(path)
-    private fun linkTarget(guest: String, link: String): String =
-        PhoneRuntimePathPolicy.linkTarget(guest, link)
-
-    private fun destination(root: File, member: String, links: Map<String, String>): File {
-        val safeRelative = PhoneRuntimePathPolicy.mappedRelative(member, links)
-        val rootPath = root.absoluteFile.toPath().normalize()
-        val path = rootPath.resolve(safeRelative).normalize()
-        check(path != rootPath && path.startsWith(rootPath)) { "Escaping Linux staging root." }
-        return path.toFile()
-    }
-
-    /**
-     * Two sequential passes: validate bounds and discover symlinks, then extract.
-     * Symlink parents are resolved in GUEST space; no Android-host absolute links
-     * are traversed while writing data. No scripts are executed during install.
-     */
-    private fun unpack(
-        archive: File, root: File, links: MutableMap<String, String>, maximum: Long
-    ) {
-        val newLinks = linkedMapOf<String, String>()
-        var seen = 0
-        var expanded = 0L
-        tar(archive) { stream ->
-            while (true) {
-                check(!stopped.get()) { "Cancelled." }
-                val e = stream.nextTarEntry ?: break
-                val name = member(e.name)
-                if (name.isEmpty()) continue
-                check(++seen <= 250_000) { "Too many Linux files." }
-                check(e.size in 0L..300_000_000L)
-                expanded += e.size
-                check(expanded <= maximum) { "Bundle decompressed beyond allowed size." }
-                if (e.isSymbolicLink) {
-                    linkTarget(name, e.linkName)
-                    newLinks[name] = e.linkName
-                } else check(e.isFile || e.isDirectory || e.isLink) {
-                    "Unsupported Linux archive entry type."
-                }
-            }
-        }
-        links.putAll(newLinks)
-        val hardlinks = mutableListOf<Pair<String, String>>()
-        tar(archive) { stream ->
-            var written = 0L
-            while (true) {
-                check(!stopped.get()) { "Cancelled." }
-                val e = stream.nextTarEntry ?: break
-                val name = member(e.name)
-                if (name.isEmpty() || e.isSymbolicLink) continue
-                if (e.isLink) {
-                    hardlinks += name to member(e.linkName)
-                    continue
-                }
-                val path = destination(root, name, links)
-                if (e.isDirectory) {
-                    if (!Files.isSymbolicLink(path.toPath())) {
-                        check(path.isDirectory || path.mkdirs())
-                    }
-                    continue
-                }
-                check(e.isFile)
-                check(path.parentFile?.isDirectory == true || path.parentFile?.mkdirs() == true)
-                if (Files.isSymbolicLink(path.toPath())) check(path.delete())
-                FileOutputStream(path, false).use { output ->
-                    var remain = e.size
-                    val buffer = ByteArray(131072)
-                    while (remain > 0) {
-                        check(!stopped.get()) { "Cancelled." }
-                        val n = stream.read(buffer, 0, minOf(remain, buffer.size.toLong()).toInt())
-                        check(n > 0) { "Truncated runtime bundle." }
-                        output.write(buffer, 0, n)
-                        remain -= n
-                        written += n
-                        check(written <= maximum) { "Runtime exceeded expanded size." }
-                    }
-                }
-                Os.chmod(path.absolutePath, e.mode and 511)
-            }
-        }
-        for ((name, target) in newLinks) {
-            check(!stopped.get()) { "Cancelled." }
-            val file = destination(root, name, links)
-            file.parentFile?.mkdirs()
-            if (file.exists() || Files.isSymbolicLink(file.toPath())) {
-                check(!file.isDirectory || file.list().isNullOrEmpty()) {
-                    "Conflicting runtime symlink."
-                }
-                check(file.delete())
-            }
-            Os.symlink(target, file.absolutePath)
-        }
-        for ((name, original) in hardlinks) {
-            val file = destination(root, name, links)
-            val source = destination(root, original, links)
-            check(source.isFile && !Files.isSymbolicLink(source.toPath()))
-            file.parentFile?.mkdirs()
-            if (file.exists()) check(file.delete())
-            Files.createLink(file.toPath(), source.toPath())
-        }
-    }
 }
 
 internal object PhoneRuntimeInstallSession {

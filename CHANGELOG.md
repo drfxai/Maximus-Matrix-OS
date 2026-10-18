@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.0 (build 10026)
+
+- Fixed installation of the pinned ARM64 Ubuntu runtime: valid multiarch metadata such as `libc6:arm64.list` is accepted, while absolute archive members, traversal, NUL, backslash and Windows drive paths remain rejected. Existing verified downloads can be reused with Resume.
+- Moved the unchanged two-pass extractor into a host-testable production component and tested complete checksum-verified Linux and Android SDK/Gradle bundles, not only synthetic paths.
+- Added a required CI regression using both pinned upstream archives, including expected Bash, Gradle, AAPT2 and local Maven paths.
+- Runtime staging and previous-install cleanup no longer follow guest symlinks into host directories. Cleanup failure cannot obscure the original setup error or leave progress busy.
+- Physical ARM64 tool execution, APK build/export/install, Persian speech and live account/provider acceptance remain separate device/account checks; host extraction does not certify them.
+
 ## v1.0.0 (build 10025)
 
 - Added the AMOLED workspace palette: pure-black canvas, balanced navy cards, white text, gold confirmations, orange activity and red warnings.

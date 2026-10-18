@@ -59,7 +59,12 @@ jobs:
         run: python3 -m unittest discover -s remote-worker/tests -t remote-worker -v
       - name: Check every shell script
         run: for script in .github/scripts/*.sh; do bash -n "$script"; done
-      - run: gradle testDebugUnitTest lintRelease assembleDebug --no-daemon --stacktrace
+      - name: Prepare checksum-verified Linux and Android archive fixtures
+        run: python3 .github/scripts/prepare-phone-runtime-fixtures.py "$RUNNER_TEMP/phone-runtime-fixtures"
+      - name: Test, lint and assemble including complete pinned runtime extraction
+        env:
+          MAXIMUS_RUNTIME_FIXTURES: ${{ runner.temp }}/phone-runtime-fixtures
+        run: gradle testDebugUnitTest lintRelease assembleDebug --no-daemon --stacktrace
       - name: Verify packaged PRoot ELF bytes
         run: python3 .github/scripts/verify-phone-native-packaging.py
       - uses: actions/upload-artifact@v4

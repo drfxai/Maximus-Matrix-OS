@@ -2,6 +2,9 @@ package ai.drfx.maximus.matrixai.studio.phonehost
 
 /** Pure, testable Unix guest path resolver: never follows Android-host symlinks. */
 internal object PhoneRuntimePathPolicy {
+    // A colon is a legal Unix filename character (dpkg uses package:arm64).
+    // Reject Windows drive syntax at the beginning, not every Unix colon.
+    private val drivePrefix = Regex("^[A-Za-z]:")
     private fun components(path: String): List<String> {
         val parts = mutableListOf<String>()
         for (p in path.split('/')) when (p) {
@@ -11,7 +14,7 @@ internal object PhoneRuntimePathPolicy {
                 parts.removeAt(parts.lastIndex)
             }
             else -> {
-                check(p.none { it == '\\' || it == '\u0000' || it == ':' })
+                check(p.none { it == '\\' || it == '\u0000' })
                 parts.add(p)
             }
         }
@@ -22,7 +25,7 @@ internal object PhoneRuntimePathPolicy {
         var value = input
         while (value.startsWith("./")) value = value.substring(2)
         require(value.length <= 512 && !value.startsWith("/") &&
-            '\\' !in value && '\u0000' !in value && ':' !in value) {
+            '\\' !in value && '\u0000' !in value && !drivePrefix.containsMatchIn(value)) {
             "Unsafe Linux archive member."
         }
         return components(value).joinToString("/")
@@ -30,7 +33,7 @@ internal object PhoneRuntimePathPolicy {
 
     fun linkTarget(guest: String, link: String): String {
         require(link.length in 1..512 && '\\' !in link && '\u0000' !in link &&
-            ':' !in link) { "Invalid Linux symlink." }
+            !drivePrefix.containsMatchIn(link)) { "Invalid Linux symlink." }
         val path = if (link.startsWith("/")) link else
             guest.substringBeforeLast('/', "").let { if (it.isEmpty()) link else it + "/" + link }
         return components(path).joinToString("/")
