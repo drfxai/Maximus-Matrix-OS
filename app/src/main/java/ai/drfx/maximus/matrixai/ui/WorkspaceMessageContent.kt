@@ -59,6 +59,16 @@ internal fun WorkspaceMessageContent(text: String, color: Color) {
                 Text(part.text, color = color, fontSize = 15.sp, lineHeight = 23.sp)
             } else WorkspaceCodeCard(part)
         }
+        val html = parts.firstOrNull {
+            it.language != null && CodeLanguageCatalog.resolve(it.language, it.text).canPreviewHtml
+        }
+        if (html != null) {
+            val css = parts.firstOrNull { it.language?.lowercase() in setOf("css", "scss") }?.text.orEmpty()
+            val js = parts.firstOrNull {
+                it.language?.lowercase() in setOf("js", "javascript")
+            }?.text.orEmpty()
+            WorkspaceOfflineHtmlPreview(html.text, css, js)
+        }
     }
 }
 
@@ -78,7 +88,10 @@ internal fun WorkspaceCodeCard(part: MessagePart, title: String? = null) {
         payload = ""
     }
     LaunchedEffect(copied) { if (copied) { kotlinx.coroutines.delay(1800); copied = false } }
-    val accent = MaterialTheme.colorScheme.tertiary
+    val language = remember(part.language, part.text) {
+        CodeLanguageCatalog.resolve(part.language, part.text)
+    }
+    val accent = MaximusReference.gold
     val highlighted = remember(part.text, accent) {
         buildAnnotatedString {
             append(part.text)
@@ -86,28 +99,33 @@ internal fun WorkspaceCodeCard(part: MessagePart, title: String? = null) {
                 .findAll(part.text).forEach { addStyle(SpanStyle(color = accent), it.range.first, it.range.last + 1) }
         }
     }
-    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth().animateContentSize()) {
+    Surface(shape = RoundedCornerShape(12.dp), color = MaximusReference.navy,
+        border = BorderStroke(1.dp, MaximusReference.stroke), modifier = Modifier.fillMaxWidth().animateContentSize()) {
         Column {
             Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Code, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                Text(title ?: part.language.orEmpty().ifBlank { "Code" }, Modifier.weight(1f), maxLines = 1, fontSize = 12.sp)
+                Text(title ?: "source.${language.extension}", Modifier.weight(1f),
+                    maxLines = 1, fontSize = 12.sp, color = MaximusReference.white)
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF142E49),
+                    border = BorderStroke(1.dp, MaximusReference.stroke)
+                ) {
+                    Text(language.label, Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                        color = MaximusReference.gold, fontSize = 10.sp)
+                }
                 IconButton(onClick = { clipboard.setText(AnnotatedString(part.text)); copied = true }) {
                     Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
                         stringResource(R.string.chat_copy), Modifier.size(18.dp), tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                 }
                 IconButton(onClick = {
                     payload = part.text
-                    val extension = when (part.language?.lowercase()) {
-                        "kotlin", "kt" -> "kt"; "python", "py" -> "py"; "javascript", "js" -> "js"
-                        "typescript", "ts" -> "ts"; "json" -> "json"; "html" -> "html"
-                        "css" -> "css"; "bash", "sh" -> "sh"; else -> "txt"
-                    }
+                    val extension = language.extension
                     export.launch(title?.takeIf { it.matches(Regex("[A-Za-z0-9_.-]{1,80}")) && !it.startsWith(".") } ?: "maximus-code.$extension")
                 }) { Icon(Icons.Default.FileDownload, stringResource(R.string.chat_download), Modifier.size(18.dp)) }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaximusReference.stroke)
             SelectionContainer {
                 Row(Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()).padding(12.dp)) {
                     Text((1..part.text.lines().size).joinToString("\n"), color = MaterialTheme.colorScheme.onSurfaceVariant,
