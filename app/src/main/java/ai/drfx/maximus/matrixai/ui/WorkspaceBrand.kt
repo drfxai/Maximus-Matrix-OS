@@ -12,12 +12,12 @@ import androidx.compose.ui.unit.sp
 /** Shared compact wordmark for Brain, Chat, Work and Hub. */
 @Composable
 internal fun WorkspaceBrand(modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().padding(vertical = 5.dp),
+    Column(modifier.fillMaxWidth().padding(vertical = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(0.dp)) {
-        Text("MAXIMUS", color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold, letterSpacing = 3.sp,
+        Text("MAXIMUS", color = MaximusReference.gold,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.ExtraBold, letterSpacing = 3.5.sp,
             maxLines = 1)
     }
 }
