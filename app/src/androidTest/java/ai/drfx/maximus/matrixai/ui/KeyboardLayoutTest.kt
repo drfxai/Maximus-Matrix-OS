@@ -136,6 +136,53 @@ class KeyboardLayoutTest {
         }
     }
 
+    /**
+     * Capture populated UI from genuine app-private project files.
+     * These are local test fixtures, not fabricated GitHub branches or connections.
+     */
+    @Test fun localProjectWorkspaceShowsRealFilesAndEditorState() {
+        val context = instrumentation.targetContext
+        val store = ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore(context)
+        val project = store.newProject("Visual Acceptance Workspace")
+        try {
+            withLaunchedActivity {
+                objectWithDescription("Project Studio").click()
+                awaitCondition("Local project not visible in Work") {
+                    device.hasObject(By.text("Visual Acceptance Workspace"))
+                }
+                captureWorkspace("studio-populated.png")
+                checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
+                checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
+                captureWorkspace("studio-files-populated.png")
+                assertTrue("Local project starter files missing", store.listFiles(project.id).isNotEmpty())
+            }
+        } finally {
+            java.io.File(context.filesDir, "studio/projects/${project.id}").deleteRecursively()
+        }
+    }
+
+    /** Verify actual persisted agent instructions in the editable Agents panel. */
+    @Test fun savedAgentProfileRendersEditablePanel() {
+        val store = PersonalAgentStore(instrumentation.targetContext)
+        val agent = store.create("Visual Test Code Engineer")
+        try {
+            store.save(agent.copy(
+                instructions = "Review Kotlin and Pine Script changes before applying edits.",
+                tasks = listOf("Audit code changes", "Verify Pine Script syntax")
+            ))
+            withLaunchedActivity {
+                objectWithDescription("Agents").click()
+                checkNotNull(device.wait(Until.findObject(By.text("Visual Test Code Engineer")), 10_000))
+                captureWorkspace("agents-populated.png")
+                checkNotNull(device.wait(Until.findObject(By.desc("Edit agent")), 10_000)).click()
+                checkNotNull(device.wait(Until.findObject(By.text("Edit agent")), 10_000))
+                checkNotNull(device.wait(Until.findObject(
+                    By.text("Review Kotlin and Pine Script changes before applying edits.")), 10_000))
+                captureWorkspace("agents-edit-populated.png")
+            }
+        } finally { store.delete(agent.id) }
+    }
+
     @Test fun smartComboWorkspaceIsReachableAndCapturesObservedEmptyState() {
         withLaunchedActivity {
             objectWithDescription("More").click()
@@ -190,7 +237,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "studio-changes.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "smart-combo.png", "tools-hub.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "studio-changes.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)
