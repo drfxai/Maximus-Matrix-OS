@@ -124,7 +124,8 @@ class KeyboardLayoutTest {
             checkNotNull(device.wait(Until.findObject(By.text("Market chart · OHLCV")), 10_000))
             val pinned = checkNotNull(device.wait(Until.findObject(By.desc("Pine AI composer")), 10_000))
             val visibleCandles = device.findObject(By.desc("OHLCV price candles"))
-            if (visibleCandles != null && !visibleCandles.visibleBounds.isEmpty) {
+            if (visibleCandles != null && visibleCandles.visibleBounds.width() > 0 &&
+                visibleCandles.visibleBounds.height() > 0) {
                 assertTrue("Pine chart is obscured by the pinned composer",
                     visibleCandles.visibleBounds.bottom <= pinned.visibleBounds.top + 4)
             }
