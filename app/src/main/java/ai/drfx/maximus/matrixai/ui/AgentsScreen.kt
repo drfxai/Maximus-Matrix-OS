@@ -23,7 +23,8 @@ import ai.drfx.maximus.matrixai.llm.AgentRegistry
 @Composable
 fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onChat: () -> Unit = {}) {
     var section by remember { mutableStateOf(0) }
-    val store = remember { PersonalAgentStore(LocalContext.current) }
+    val context = LocalContext.current
+    val store = remember(context) { PersonalAgentStore(context) }
     var personal by remember { mutableStateOf(store.list()) }
     var search by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<PersonalAgent?>(null) }
