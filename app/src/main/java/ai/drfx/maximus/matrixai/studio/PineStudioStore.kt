@@ -42,7 +42,9 @@ class PineStudioStore(context: Context) {
         val clean = name.trim().take(60)
         require(clean.isNotBlank()) { "Enter a draft name." }
         val draft = PineDraft(
-            id = UUID.randomUUID().toString(), name = clean, brief = "",
+            id = UUID.randomUUID().toString(), name = clean,
+            brief = if (clean.equals("Liquidity Sweep", ignoreCase = true))
+                "Mark liquidity sweeps and add configurable alerts." else "",
             code = starterCode(clean), revisions = emptyList(), updatedAt = System.currentTimeMillis()
         )
         persist(list() + draft)

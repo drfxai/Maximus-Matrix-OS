@@ -99,8 +99,8 @@ fun PineStudioScreen(
     Box(modifier.fillMaxSize().background(Color.Black)) {
     LazyColumn(
         Modifier.fillMaxSize().testTag("pine_studio_screen"),
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 114.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 84.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -143,6 +143,9 @@ fun PineStudioScreen(
         item {
             MaximusTabs(listOf("Brief", "Code", "Versions"), tab, { tab = it })
         }
+        if (status.isNotBlank()) item {
+            Text(status, color = pineMuted, fontSize = 11.sp)
+        }
         if (draft != null) {
             item {
                 PinePanel {
@@ -164,7 +167,8 @@ fun PineStudioScreen(
                             Icon(Icons.Default.Description, null, tint = pineMuted)
                             Spacer(Modifier.width(8.dp))
                             val fileName = draft.name.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifBlank { "indicator" } + ".pine"
-                            Text(fileName, Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.SemiBold)
+                            Text(fileName, Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.SemiBold,
+                                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, fontSize = 12.sp)
                             Surface(shape = RoundedCornerShape(16.dp),
                                 color = Color(0xFF1C170B),
                                 border = BorderStroke(1.dp, pineGold)) {
@@ -172,16 +176,16 @@ fun PineStudioScreen(
                                     color = pineGold, fontSize = 11.sp)
                             }
                             IconButton(onClick = { clipboard.setText(AnnotatedString(draft.code)); status = "Pine code copied." },
-                                modifier = Modifier.size(38.dp)) {
+                                modifier = Modifier.size(32.dp)) {
                                 Icon(Icons.Default.ContentCopy, "Copy Pine code", tint = pineMuted,
                                     modifier = Modifier.size(20.dp))
                             }
-                            IconButton(onClick = ::export, modifier = Modifier.size(38.dp)) {
+                            IconButton(onClick = ::export, modifier = Modifier.size(32.dp)) {
                                 Icon(Icons.Default.FileDownload, "Export Pine code", tint = pineMuted,
                                     modifier = Modifier.size(20.dp))
                             }
                             IconButton(onClick = { editText = draft.code; editCodeOpen = true },
-                                modifier = Modifier.size(38.dp)) {
+                                modifier = Modifier.size(32.dp)) {
                                 Icon(Icons.Default.Edit, "Edit Pine code", tint = pineMuted,
                                     modifier = Modifier.size(18.dp))
                             }
@@ -250,27 +254,61 @@ fun PineStudioScreen(
             }
         }
     }
-    Box(Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal = 10.dp, vertical = 4.dp)) {
-            PinePanel {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    WorkspaceCompanion(modifier = Modifier.size(40.dp))
-                    OutlinedTextField(value = nextChange, onValueChange = { nextChange = it.take(2000) },
-                        modifier = Modifier.weight(1f), maxLines = 3,
-                        placeholder = { Text("Describe the next change…") })
-                    IconButton(onClick = {
-                        runCatching {
-                            speech.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                            })
-                        }.onFailure { status = "Speech recognition is unavailable." }
-                    }) { Icon(Icons.Default.Mic, "Dictate change", tint = pineMuted) }
-                    IconButton(onClick = ::requestAi, enabled = nextChange.isNotBlank() && draft != null) {
-                        Icon(Icons.Default.ArrowUpward, "Ask AI about change", tint = pineGold)
-                    }
+    Row(
+        Modifier.fillMaxWidth().align(Alignment.BottomCenter)
+            .padding(horizontal = 9.dp, vertical = 4.dp).heightIn(min = 56.dp),
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        WorkspaceCompanion(modifier = Modifier.size(43.dp))
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = pineBlue,
+            border = BorderStroke(1.dp, pineBorder),
+            modifier = Modifier.weight(1f)
+        ) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { createOpen = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Add, "New Pine draft", tint = pineMuted,
+                        modifier = Modifier.size(20.dp))
                 }
-                if (status.isNotBlank()) Text(status, color = pineMuted, fontSize = 12.sp)
+                androidx.compose.foundation.text.BasicTextField(
+                    value = nextChange, onValueChange = { nextChange = it.take(2000) },
+                    modifier = Modifier.weight(1f).heightIn(min = 38.dp, max = 90.dp)
+                        .padding(horizontal = 5.dp, vertical = 9.dp),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color.White, fontSize = 12.sp),
+                    maxLines = 3,
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(pineGold),
+                    decorationBox = { inner ->
+                        Box {
+                            if (nextChange.isBlank()) Text("Describe the next change...",
+                                color = pineMuted, fontSize = 12.sp, maxLines = 1)
+                            inner()
+                        }
+                    }
+                )
+                IconButton(onClick = {
+                    runCatching {
+                        speech.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        })
+                    }.onFailure { status = "Speech recognition is unavailable." }
+                }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Mic, "Dictate change", tint = pineMuted,
+                        modifier = Modifier.size(19.dp))
+                }
+                IconButton(onClick = ::requestAi,
+                    enabled = nextChange.isNotBlank() && draft != null,
+                    modifier = Modifier.size(40.dp).background(pineGold, RoundedCornerShape(50))) {
+                    Icon(Icons.Default.ArrowUpward, "Ask AI about change",
+                        tint = Color.Black, modifier = Modifier.size(23.dp))
+                }
             }
         }
+    }
+    // The floating composer and scrollable content share a Box; dialogs are outside it.
     }
 
     if (createOpen || renameOpen || editBriefOpen || editCodeOpen) {
@@ -311,7 +349,7 @@ fun PineStudioScreen(
 private fun PinePanel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), color = pineBlue,
         border = BorderStroke(1.dp, pineBorder)) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp), content = content)
+        Column(Modifier.padding(9.dp), verticalArrangement = Arrangement.spacedBy(6.dp), content = content)
     }
 }
 
@@ -328,7 +366,7 @@ private fun PineCodeView(code: String) {
     Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF06101C),
         border = BorderStroke(1.dp, pineBorder)) {
         SelectionContainer {
-            Row(Modifier.fillMaxWidth().heightIn(max = 240.dp).horizontalScroll(rememberScrollState()).padding(10.dp)) {
+            Row(Modifier.fillMaxWidth().heightIn(max = 175.dp).horizontalScroll(rememberScrollState()).padding(10.dp)) {
                 Text((1..code.lines().size).joinToString("\n"), color = pineMuted,
                     fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 19.sp)
                 Spacer(Modifier.width(16.dp))
@@ -341,45 +379,63 @@ private fun PineCodeView(code: String) {
 
 @Composable
 private fun PineSampleChart() {
-    Canvas(Modifier.fillMaxWidth().height(186.dp).background(Color(0xFF06101C))) {
-        val grid = Color(0xFF19334A)
-        for (i in 0..5) {
-            val y = size.height * i / 5f
-            drawLine(grid, Offset(0f, y), Offset(size.width, y), 1f)
-            val x = size.width * i / 5f
-            drawLine(grid, Offset(x, 0f), Offset(x, size.height), 1f)
-        }
-        val closes = List(54) { i ->
-            val swing = kotlin.math.sin(i * .32).toFloat() * .12f
-            val bias = when {
-                i < 14 -> -.012f * i
-                i < 24 -> -.17f + (i - 14) * .033f
-                i < 36 -> .10f - (i - 24) * .022f
-                else -> -.15f + (i - 36) * .020f
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Canvas(Modifier.weight(1f).height(142.dp).background(Color(0xFF06101C))) {
+                val grid = Color(0xFF19334A)
+                for (i in 0..4) {
+                    val y = size.height * i / 4f
+                    drawLine(grid, Offset(0f, y), Offset(size.width, y), 1f)
+                }
+                for (i in 0..5) {
+                    val x = size.width * i / 5f
+                    drawLine(grid, Offset(x, 0f), Offset(x, size.height), 1f)
+                }
+                val closes = List(47) { i ->
+                    val swing = kotlin.math.sin(i * .34).toFloat() * .09f
+                    val bias = when {
+                        i < 11 -> -.025f * i
+                        i < 23 -> -.275f + (i - 11) * .032f
+                        i < 32 -> .11f - (i - 23) * .045f
+                        else -> -.28f + (i - 32) * .040f
+                    }
+                    (.53f + swing + bias).coerceIn(.12f, .87f)
+                }
+                val step = size.width / (closes.size + 1)
+                closes.forEachIndexed { i, close ->
+                    val open = if (i == 0) close + .035f else closes[i - 1]
+                    val x = step * (i + 1)
+                    val color = if (close < open) Color(0xFF36BF97) else Color(0xFFF55B58)
+                    val y0 = open * size.height
+                    val y1 = close * size.height
+                    drawLine(color, Offset(x, minOf(y0, y1) - 4f),
+                        Offset(x, maxOf(y0, y1) + 4f), 1.3f)
+                    drawLine(color, Offset(x, y0), Offset(x, y1), step * .65f)
+                }
+                drawLine(pineGold, Offset(0f, size.height * .26f),
+                    Offset(size.width, size.height * .26f), 1.4f,
+                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(7f, 5f)))
+                listOf(11, 32).forEach { index ->
+                    val x = step * (index + 1)
+                    val y = size.height * .14f
+                    drawPath(androidx.compose.ui.graphics.Path().apply {
+                        moveTo(x - 6f, y); lineTo(x + 6f, y)
+                        lineTo(x, y + 11f); close()
+                    }, pineGold)
+                }
+                drawRect(pineBorder, style = Stroke(1f))
             }
-            (.58f + swing + bias).coerceIn(.16f, .86f)
-        }
-        val step = size.width / (closes.size + 1)
-        closes.forEachIndexed { i, close ->
-            val open = if (i == 0) close + .04f else closes[i - 1]
-            val x = step * (i + 1)
-            val color = if (close < open) Color(0xFF30B990) else Color(0xFFFF6258)
-            val y0 = open * size.height
-            val y1 = close * size.height
-            drawLine(color, Offset(x, minOf(y0, y1) - 6f), Offset(x, maxOf(y0, y1) + 6f), 1.5f)
-            drawLine(color, Offset(x, y0), Offset(x, y1), step * .55f)
-        }
-        drawLine(pineGold, Offset(0f, size.height * .28f), Offset(size.width, size.height * .28f),
-            1.5f, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 7f)))
-        listOf(14, 35).forEach { index ->
-            val x = step * (index + 1)
-            val y = size.height * .16f
-            val marker = androidx.compose.ui.graphics.Path().apply {
-                moveTo(x - 7f, y); lineTo(x + 7f, y)
-                lineTo(x, y + 13f); close()
+            Column(Modifier.width(45.dp).height(142.dp).padding(start = 5.dp),
+                verticalArrangement = Arrangement.SpaceBetween) {
+                listOf("184.00", "182.00", "180.00", "178.00", "176.00").forEach { price ->
+                    Text(price, color = pineMuted, fontSize = 9.sp, maxLines = 1)
+                }
             }
-            drawPath(marker, pineGold)
         }
-        drawRect(pineBorder, style = Stroke(1f))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            listOf("Mar", "Apr", "May", "Jun").forEach {
+                Text(it, fontSize = 9.sp, color = pineMuted)
+            }
+        }
     }
 }

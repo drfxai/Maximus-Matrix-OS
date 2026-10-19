@@ -66,7 +66,7 @@ fun ProjectStudioScreen(
     onCancelTeam: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var section by remember { mutableStateOf(initialSection.coerceIn(0, 5)) }
+    var section by remember { mutableStateOf(initialSection.coerceIn(0, 6)) }
     var showAdvancedNavigation by remember { mutableStateOf(false) }
     val workspaceListState = rememberLazyListState()
     LaunchedEffect(section) { workspaceListState.scrollToItem(0) }
@@ -200,8 +200,9 @@ fun ProjectStudioScreen(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 MaximusTabs(
                     listOf("Assistant", stringResource(R.string.studio_step_files),
-                        stringResource(R.string.studio_step_build)),
-                    section.coerceIn(0, 2), { section = it }
+                        if (pendingEdit == null) "Changes" else "Changes · 1"),
+                    when (section) { 1 -> 1; 6 -> 2; else -> 0 },
+                    { index -> section = when (index) { 1 -> 1; 2 -> 6; else -> 0 } }
                 )
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -212,20 +213,22 @@ fun ProjectStudioScreen(
                             fontSize = 11.sp)
                     }
                 }
-                if (showAdvancedNavigation || section > 2) {
+                if (showAdvancedNavigation || section in 2..5) {
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        listOf(R.string.design_runtime, R.string.design_connections, R.string.ui_advanced)
-                            .forEachIndexed { i, label ->
-                                FilterChip(selected = section == i + 3, onClick = { section = i + 3 },
-                                    label = { Text(stringResource(label), fontSize = 11.sp) },
-                                    modifier = Modifier.testTag("studio_section_${i + 3}"))
+                        listOf("Build", stringResource(R.string.design_runtime),
+                            stringResource(R.string.design_connections),
+                            stringResource(R.string.ui_advanced)).forEachIndexed { i, label ->
+                                val target = i + 2
+                                FilterChip(selected = section == target, onClick = { section = target },
+                                    label = { Text(label, fontSize = 11.sp) },
+                                    modifier = Modifier.testTag("studio_section_${target}"))
                             }
                     }
                 }
             }
         }
-        if (section == 0 && pendingEdit != null) {
+        if ((section == 0 || section == 6) && pendingEdit != null) {
             item {
                 val change = pendingEdit!!
                 StudioPanel {
@@ -261,6 +264,29 @@ fun ProjectStudioScreen(
                         }) { Text(stringResource(R.string.studio_save_file)) }
                     }
                     TextButton(onClick = { pendingEdit = null }) { Text(stringResource(R.string.studio_cancel)) }
+                }
+            }
+        }
+        if (section == 6 && pendingEdit == null) {
+            item {
+                MaximusFramedCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.FactCheck, null, tint = MaximusReference.gold)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Changes · 0", color = MaximusReference.white,
+                            fontWeight = FontWeight.Bold)
+                    }
+                    Text("No staged file changes in this local workspace.",
+                        color = MaximusReference.muted, fontSize = 12.sp)
+                    Text("Edit a project file to create a reviewable diff. Nothing will be written remotely.",
+                        color = MaximusReference.muted, fontSize = 11.sp)
+                    OutlinedButton(onClick = { section = 1 }, enabled = active != null) {
+                        Icon(Icons.Default.FolderOpen, null, Modifier.size(17.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("Open project files")
+                    }
+                    if (active == null) Text("Choose or import a project first.",
+                        color = MaximusReference.muted, fontSize = 11.sp)
                 }
             }
         }
@@ -315,9 +341,9 @@ fun ProjectStudioScreen(
                     }
                 }
             }
-            item {
+            if (active != null) item {
                 StudioProgressTracker(
-                    projectReady = active != null,
+                    projectReady = true,
                     filesReady = files.isNotEmpty(),
                     editReady = pendingEdit != null
                 )
@@ -332,7 +358,12 @@ fun ProjectStudioScreen(
                 }
             }
             item {
-                StudioShortcut(stringResource(R.string.plugin_cloudflare), Icons.Default.CloudUpload, Modifier.fillMaxWidth()) { section = 4 }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    StudioShortcut("Run on · Select runtime", Icons.Default.PlayArrow,
+                        Modifier.weight(1f)) { section = 3 }
+                    StudioShortcut("Activity", Icons.Default.History,
+                        Modifier.weight(1f)) { section = 5 }
+                }
             }
             item {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

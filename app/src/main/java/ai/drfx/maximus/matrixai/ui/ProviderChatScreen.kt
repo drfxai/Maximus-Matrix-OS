@@ -1784,7 +1784,12 @@ private fun ChatBubble(
     Row(Modifier.fillMaxWidth().graphicsLayer {
         alpha = arrival
         translationY = (1f - arrival) * 12.dp.toPx()
-    }, horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
+    }, horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Top) {
+        if (!isUser) {
+            WorkspaceCompanion(working = false, modifier = Modifier.size(34.dp))
+            Spacer(Modifier.width(6.dp))
+        }
         Surface(
             color = background,
             shape = RoundedCornerShape(
@@ -1792,7 +1797,7 @@ private fun ChatBubble(
                 bottomStart = if (isUser) 16.dp else 3.dp,
                 bottomEnd = if (isUser) 3.dp else 16.dp
             ),
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.86f else 0.94f),
+            modifier = Modifier.fillMaxWidth(if (isUser) 0.86f else 0.81f),
             border = BorderStroke(1.dp, if (isUser) MaximusReference.stroke else MaximusReference.stroke.copy(alpha = .75f))
         ) {
             Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
