@@ -113,6 +113,10 @@ class KeyboardLayoutTest {
                 (device.displayWidth * .7).toInt(), (device.displayHeight * .22).toInt(), 30)
             checkNotNull(device.wait(Until.findObject(By.text("Market chart · OHLCV")), 10_000))
             captureWorkspace("pine-preview.png")
+            checkNotNull(device.wait(Until.findObject(By.text("Expand chart")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("Market chart · Real OHLCV")), 10_000))
+            captureWorkspace("pine-chart-expanded.png")
+            device.pressBack()
             device.pressBack()
             checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
             checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
@@ -186,7 +190,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "studio-changes.png", "pine-studio.png", "pine-preview.png", "agents-my-agents.png", "smart-combo.png", "tools-hub.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "studio-changes.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)
