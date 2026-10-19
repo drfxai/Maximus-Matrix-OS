@@ -67,6 +67,7 @@ fun ProjectStudioScreen(
     modifier: Modifier = Modifier
 ) {
     var section by remember { mutableStateOf(initialSection.coerceIn(0, 5)) }
+    var showAdvancedNavigation by remember { mutableStateOf(false) }
     val workspaceListState = rememberLazyListState()
     LaunchedEffect(section) { workspaceListState.scrollToItem(0) }
     val context = LocalContext.current
@@ -164,18 +165,9 @@ fun ProjectStudioScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 WorkspaceBrand()
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    FilterChip(selected = false, onClick = onChat, label = { Text(stringResource(R.string.nav_chat)) })
-                    Spacer(Modifier.width(8.dp))
-                    FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.ui_work)) })
-                }
-                OutlinedButton(onClick = onPine, modifier = Modifier.fillMaxWidth().testTag("open_pine_studio")) {
-                    Icon(Icons.Default.Code, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Pine Studio · TradingView indicators")
-                }
+                MaximusSectionHeader("Work")
             }
         }
 
@@ -204,14 +196,31 @@ fun ProjectStudioScreen(
             }
         }
         item {
-            ScrollableTabRow(selectedTabIndex = section, edgePadding = 0.dp,
-                containerColor = MaterialTheme.colorScheme.background,
-                divider = {}) {
-                listOf(R.string.design_overview, R.string.studio_step_files,
-                    R.string.studio_step_build, R.string.design_runtime, R.string.design_connections, R.string.ui_advanced).forEachIndexed { index, label ->
-                    Tab(selected = section == index, onClick = { section = index },
-                        text = { Text(stringResource(label)) },
-                        modifier = Modifier.testTag("studio_section_$index"))
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                MaximusTabs(
+                    listOf("Assistant", stringResource(R.string.studio_step_files),
+                        stringResource(R.string.studio_step_build)),
+                    section.coerceIn(0, 2), { section = it }
+                )
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    TextButton(onClick = { showAdvancedNavigation = !showAdvancedNavigation }) {
+                        Icon(Icons.Default.Tune, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if (showAdvancedNavigation) "Hide tools" else "Runtime · Connections · Advanced",
+                            fontSize = 11.sp)
+                    }
+                }
+                if (showAdvancedNavigation || section > 2) {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        listOf(R.string.design_runtime, R.string.design_connections, R.string.ui_advanced)
+                            .forEachIndexed { i, label ->
+                                FilterChip(selected = section == i + 3, onClick = { section = i + 3 },
+                                    label = { Text(stringResource(label), fontSize = 11.sp) },
+                                    modifier = Modifier.testTag("studio_section_${i + 3}"))
+                            }
+                    }
                 }
             }
         }
@@ -273,6 +282,34 @@ fun ProjectStudioScreen(
                                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
+                        }
+                    }
+                }
+            }
+            item {
+                OutlinedButton(onClick = onPine,
+                    modifier = Modifier.fillMaxWidth().testTag("open_pine_studio"),
+                    shape = RoundedCornerShape(11.dp),
+                    border = BorderStroke(1.dp, MaximusReference.gold)) {
+                    Icon(Icons.Default.Code, null, Modifier.size(18.dp), tint = MaximusReference.gold)
+                    Spacer(Modifier.width(7.dp))
+                    Text("Pine Studio · TradingView indicators", color = MaximusReference.gold)
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Default.ChevronRight, null, tint = MaximusReference.gold)
+                }
+            }
+            if (active == null) item {
+                MaximusFramedCard {
+                    Text("Your workspace is ready", fontWeight = FontWeight.Bold,
+                        color = MaximusReference.white)
+                    Text("Create a local project, import a ZIP, or connect a service to start reviewing real files.",
+                        fontSize = 12.sp, color = MaximusReference.muted)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { projectName = ""; showCreate = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaximusReference.gold,
+                                contentColor = Color.Black)) { Text("New project") }
+                        OutlinedButton(onClick = { githubUrl = ""; showGithub = true }) {
+                            Text("Import GitHub")
                         }
                     }
                 }
@@ -649,9 +686,9 @@ private fun StudioProgressTracker(projectReady: Boolean, filesReady: Boolean, ed
 @Composable
 private fun StudioPanel(content: @Composable ColumnScope.() -> Unit) {
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, studioCyan.copy(alpha = 0.32f)),
+        shape = RoundedCornerShape(12.dp),
+        color = MaximusReference.navy,
+        border = BorderStroke(1.dp, MaximusReference.stroke),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(14.dp), content = content)
