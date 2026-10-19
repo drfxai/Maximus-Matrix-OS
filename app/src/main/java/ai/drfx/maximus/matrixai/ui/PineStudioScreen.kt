@@ -308,6 +308,8 @@ fun PineStudioScreen(
             }
         }
     }
+    // The floating composer and scrollable content share a Box; dialogs are outside it.
+    }
 
     if (createOpen || renameOpen || editBriefOpen || editCodeOpen) {
         val creating = createOpen
