@@ -2,6 +2,16 @@ package ai.drfx.maximus.matrixai.ui
 
 import android.graphics.Rect
 import android.os.SystemClock
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
@@ -112,6 +122,12 @@ class KeyboardLayoutTest {
             device.swipe((device.displayWidth * .7).toInt(), (device.displayHeight * .57).toInt(),
                 (device.displayWidth * .7).toInt(), (device.displayHeight * .22).toInt(), 30)
             checkNotNull(device.wait(Until.findObject(By.text("Market chart · OHLCV")), 10_000))
+            val pinned = checkNotNull(device.wait(Until.findObject(By.desc("Pine AI composer")), 10_000))
+            val visibleCandles = device.findObject(By.desc("OHLCV price candles"))
+            if (visibleCandles != null && !visibleCandles.visibleBounds.isEmpty) {
+                assertTrue("Pine chart is obscured by the pinned composer",
+                    visibleCandles.visibleBounds.bottom <= pinned.visibleBounds.top + 4)
+            }
             captureWorkspace("pine-preview.png")
             checkNotNull(device.wait(Until.findObject(By.text("Expand chart")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Market chart · Real OHLCV")), 10_000))
@@ -183,6 +199,55 @@ class KeyboardLayoutTest {
         } finally { store.delete(agent.id) }
     }
 
+    /**
+     * Render actual production code-card/HTML-preview composables using explicitly
+     * marked local test content. This does not fabricate a connected AI session.
+     */
+    @Test fun actualCodeCardsAndOfflineHtmlPreviewRenderSafely() {
+        val fixture = listOf(
+            "Local UI test fixture, not a provider-generated message.",
+            "```kotlin",
+            "fun greet() = \"MAXIMUS CODE FIXTURE\"",
+            "```",
+            "```html",
+            "<main><h2>MAXIMUS Web Preview Fixture</h2><p>Locally rendered</p></main>",
+            "```",
+            "```css",
+            "h2 { color: #c89438; }",
+            "```"
+        ).joinToString("\n")
+        withLaunchedActivity {
+            withResumedActivity { activity ->
+                activity.setContent {
+                    MaterialTheme {
+                        Column(
+                            Modifier.fillMaxSize().background(Color.Black)
+                                .verticalScroll(rememberScrollState()).padding(10.dp)
+                        ) {
+                            Text("LOCAL UI FIXTURE · NO CONNECTED PROVIDER",
+                                color = Color.White)
+                            WorkspaceMessageContent(fixture, Color.White)
+                        }
+                    }
+                }
+            }
+            checkNotNull(device.wait(Until.findObject(By.text("Kotlin")), 10_000))
+            captureWorkspace("chat-code-fixture.png")
+            repeat(5) {
+                if (!device.hasObject(By.text("Preview locally"))) {
+                    device.swipe((device.displayWidth * .6).toInt(),
+                        (device.displayHeight * .75).toInt(),
+                        (device.displayWidth * .6).toInt(),
+                        (device.displayHeight * .25).toInt(), 20)
+                }
+            }
+            checkNotNull(device.wait(Until.findObject(By.text("Preview locally")), 10_000))
+                .click()
+            checkNotNull(device.wait(Until.findObject(By.text("Close preview")), 10_000))
+            captureWorkspace("chat-html-preview-fixture.png")
+        }
+    }
+
     @Test fun smartComboWorkspaceIsReachableAndCapturesObservedEmptyState() {
         withLaunchedActivity {
             objectWithDescription("More").click()
@@ -237,7 +302,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "studio-changes.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "chat-code-fixture.png", "chat-html-preview-fixture.png", "studio-overview.png", "studio-changes.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)
