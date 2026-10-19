@@ -187,6 +187,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     DisposableEffect(elevenPlayback) { onDispose { elevenJob?.cancel(); elevenPlayback.stop() } }
     DisposableEffect(voicePlayback) { onDispose { voicePlayback.stop() } }
     var settingsOpen by remember { mutableStateOf(false) }
+    var searchOpen by remember { mutableStateOf(false) }
+    var messageSearch by remember { mutableStateOf("") }
     var tokenDetailsOpen by remember { mutableStateOf(false) }
     var quickKeyDialogOpen by remember { mutableStateOf(false) }
     var confirmDirectProvider by remember { mutableStateOf(false) }
@@ -396,7 +398,18 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             IconButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) {
                 Icon(Icons.Default.Add, stringResource(R.string.speech_new))
             }
+            IconButton(onClick = { searchOpen = !searchOpen; if (!searchOpen) messageSearch = "" }) {
+                Icon(Icons.Default.Search, "Search conversation")
+            }
+            IconButton(onClick = { settingsOpen = true }) {
+                Icon(Icons.Default.Settings, "Chat settings")
+            }
         }
+        if (searchOpen) OutlinedTextField(
+            value = messageSearch, onValueChange = { messageSearch = it },
+            modifier = Modifier.fillMaxWidth(), singleLine = true,
+            label = { Text("Search this conversation") }
+        )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             if (!keyboardVisible) {
@@ -803,7 +816,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     contentPadding = PaddingValues(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(messages) { message ->
+                    items(messages.filter { messageSearch.isBlank() || it.content.contains(messageSearch, ignoreCase = true) }) { message ->
                         ChatBubble(
                             message = message,
                             sessionId = activeSessionId,

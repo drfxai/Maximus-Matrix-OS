@@ -9,7 +9,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** Shared two-line identity for Brain, Chat, Work and Hub. No remote data is implied. */
+/** Shared compact wordmark for Brain, Chat, Work and Hub. */
 @Composable
 internal fun WorkspaceBrand(modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth().padding(vertical = 5.dp),
@@ -19,7 +19,5 @@ internal fun WorkspaceBrand(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.ExtraBold, letterSpacing = 3.sp,
             maxLines = 1)
-        Text("M A T R I X   O S", color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 8.sp, letterSpacing = 1.1.sp, maxLines = 1)
     }
 }
