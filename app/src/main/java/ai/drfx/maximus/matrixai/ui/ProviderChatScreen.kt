@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.WorkOutline
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.Icons
