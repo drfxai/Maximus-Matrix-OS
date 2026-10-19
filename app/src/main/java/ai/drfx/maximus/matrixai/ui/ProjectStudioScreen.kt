@@ -158,10 +158,11 @@ fun ProjectStudioScreen(
         }
     }
 
+    Box(modifier.fillMaxSize()) {
     LazyColumn(
-        modifier = modifier.fillMaxSize().testTag("project_studio_screen"),
+        modifier = Modifier.fillMaxSize().testTag("project_studio_screen"),
         state = workspaceListState,
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = if (section == 0) 112.dp else 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
@@ -337,29 +338,6 @@ fun ProjectStudioScreen(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(message, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     WorkspaceCompanion(working = busy)
-                }
-            }
-            item {
-                Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    border = BorderStroke(1.dp, studioCyan.copy(alpha = .5f))) {
-                    Row(Modifier.fillMaxWidth().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(brief, { brief = it.take(12000) }, Modifier.weight(1f), maxLines = 3,
-                            placeholder = { Text(stringResource(R.string.studio_describe)) }, enabled = active != null && !busy,
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent))
-                        IconButton(enabled = active != null && !busy && brief.isNotBlank(), onClick = {
-                            val id = activeId ?: return@IconButton
-                            scope.launch {
-                                try {
-                                    val plan = withContext(Dispatchers.IO) {
-                                        store.saveBrief(id, brief)
-                                        ProjectTaskModePolicy.enrichPlan(store.aiPlanPrompt(id), projectTaskMode)
-                                    }
-                                    val sent = onPlanWithAi(plan)
-                                    message = context.getString(if (sent) R.string.studio_plan_sent else R.string.studio_connect_model)
-                                } catch (error: Exception) { message = error.message.orEmpty() }
-                            }
-                        }) { Icon(Icons.Default.Send, stringResource(R.string.studio_plan_with_ai), tint = studioCyan) }
-                    }
                 }
             }
         }
@@ -579,6 +557,36 @@ fun ProjectStudioScreen(
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             Text(message, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+    if (section == 0) {
+        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp)) {
+                Surface(shape = RoundedCornerShape(20.dp), color = MaximusReference.navy,
+                    border = BorderStroke(1.dp, studioCyan.copy(alpha = .5f))) {
+                    Row(Modifier.fillMaxWidth().padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { projectName = ""; showCreate = true },
+                            modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Add, "New project", tint = MaximusReference.muted)
+                        }
+                        OutlinedTextField(brief, { brief = it.take(12000) }, Modifier.weight(1f), maxLines = 3,
+                            placeholder = { Text(stringResource(R.string.studio_describe)) }, enabled = active != null && !busy,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent))
+                        IconButton(enabled = active != null && !busy && brief.isNotBlank(), onClick = {
+                            val id = activeId ?: return@IconButton
+                            scope.launch {
+                                try {
+                                    val plan = withContext(Dispatchers.IO) {
+                                        store.saveBrief(id, brief)
+                                        ProjectTaskModePolicy.enrichPlan(store.aiPlanPrompt(id), projectTaskMode)
+                                    }
+                                    val sent = onPlanWithAi(plan)
+                                    message = context.getString(if (sent) R.string.studio_plan_sent else R.string.studio_connect_model)
+                                } catch (error: Exception) { message = error.message.orEmpty() }
+                            }
+                        }) { Icon(Icons.Default.Send, stringResource(R.string.studio_plan_with_ai), tint = studioCyan) }
+                    }
+                }
+        }
+    }
     }
 
     if (showCreate) {
