@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.WorkOutline
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.Icons
@@ -412,31 +413,37 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             modifier = Modifier.fillMaxWidth(), singleLine = true,
             label = { Text("Search this conversation") }
         )
+        if (!keyboardVisible) {
+            MaximusSectionHeader("Chat")
+            MaximusContextStrip(
+                usedFraction = metrics.contextUsagePercent,
+                remaining = if (state.selectedModel.isBlank()) stringResource(R.string.api_unknown)
+                    else numberFormat.format(metrics.remainingContextTokens),
+                provider = state.provider.displayName,
+                model = state.selectedModel
+            )
+        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (!keyboardVisible) {
+            if (!keyboardVisible && workspaceControlsOpen) {
                 FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.nav_chat), fontSize = 11.sp) })
                 FilterChip(selected = false, onClick = onWork, label = { Text(stringResource(R.string.ui_work), fontSize = 11.sp) })
                 FilterChip(selected = false, onClick = onSmartCombo, label = { Text("Smart Combo", fontSize = 11.sp) })
             }
-            Surface(onClick = { settingsOpen = true }, modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                Row(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(state.provider.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 11.sp)
-                        Text(state.selectedModel.ifBlank { stringResource(R.string.api_unknown) }, maxLines = 1,
-                            overflow = TextOverflow.Ellipsis, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(16.dp))
-                }
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = { settingsOpen = true }, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Default.Tune, "Choose provider and model", Modifier.size(19.dp),
+                    tint = MaximusReference.muted)
             }
-            IconButton(onClick = { tokenDetailsOpen = true }) {
-                Icon(Icons.Default.DataUsage, stringResource(R.string.dash_session_tokens), Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
+            IconButton(onClick = { tokenDetailsOpen = true }, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Default.DataUsage, stringResource(R.string.dash_session_tokens),
+                    Modifier.size(19.dp), tint = MaximusReference.gold)
             }
             IconButton(onClick = { workspaceControlsOpen = !workspaceControlsOpen },
-                modifier = Modifier.testTag("chat_workspace_controls_toggle")) {
-                Icon(Icons.Default.Tune, stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show), Modifier.size(19.dp))
+                modifier = Modifier.size(34.dp).testTag("chat_workspace_controls_toggle")) {
+                Icon(if (workspaceControlsOpen) Icons.Default.Close else Icons.Default.Tune,
+                    stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show),
+                    Modifier.size(19.dp), tint = MaximusReference.muted)
             }
         }
                 if (sessionsOpen) WorkspaceChoiceSheet(
@@ -770,7 +777,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             modifier = Modifier.size(48.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Bolt, null, tint = MaterialTheme.colorScheme.primary)
+                                WorkspaceCompanion(modifier = Modifier.size(44.dp))
                             }
                         }
                         Text(
@@ -1760,8 +1767,8 @@ private fun ChatBubble(
 ) {
     val isUser = message.role == "user"
     val background = if (message.isError) MaterialTheme.colorScheme.errorContainer
-    else if (isUser) MaterialTheme.colorScheme.primaryContainer
-    else MaterialTheme.colorScheme.background
+    else if (isUser) Color(0xFF103560)
+    else MaximusReference.navy
     val textColor = if (message.isError) MaterialTheme.colorScheme.onErrorContainer
     else if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
     else MaterialTheme.colorScheme.onSurface
@@ -1785,9 +1792,10 @@ private fun ChatBubble(
                 bottomStart = if (isUser) 16.dp else 3.dp,
                 bottomEnd = if (isUser) 3.dp else 16.dp
             ),
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.88f else 1f)
+            modifier = Modifier.fillMaxWidth(if (isUser) 0.86f else 0.94f),
+            border = BorderStroke(1.dp, if (isUser) MaximusReference.stroke else MaximusReference.stroke.copy(alpha = .75f))
         ) {
-            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 message.attachment?.let { attachment ->
                     Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(9.dp)) {

@@ -96,20 +96,21 @@ fun PineStudioScreen(
         status = if (onAskAi(prompt)) "Request sent to Chat." else "Connect an AI model in Chat first."
     }
 
+    Box(modifier.fillMaxSize().background(Color.Black)) {
     LazyColumn(
-        modifier.fillMaxSize().background(Color.Black).testTag("pine_studio_screen"),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+        Modifier.fillMaxSize().testTag("pine_studio_screen"),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 114.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back", tint = pineMuted) }
-                Text("MAXIMUS", Modifier.weight(1f), color = pineGold, fontWeight = FontWeight.ExtraBold,
-                    fontSize = 23.sp, letterSpacing = 4.sp)
-                IconButton(onClick = { createOpen = true }) { Icon(Icons.Default.Add, "New Pine draft", tint = pineGold) }
+                WorkspaceBrand(Modifier.weight(1f))
+                IconButton(onClick = { createOpen = true }) {
+                    Icon(Icons.Default.Add, "New Pine draft", tint = pineGold)
+                }
             }
-            Text("Pine Studio", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-            Text("Build indicators with AI", color = pineMuted, fontSize = 14.sp)
+            MaximusSectionHeader("Pine Studio", "Build indicators with AI")
         }
         item {
             PinePanel {
@@ -140,20 +141,7 @@ fun PineStudioScreen(
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Brief", "Code", "Versions").forEachIndexed { index, title ->
-                    Surface(
-                        Modifier.weight(1f).clickable { tab = index },
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (tab == index) Color(0xFF1C180D) else pineBlue,
-                        border = BorderStroke(1.dp, if (tab == index) pineGold else pineBorder)
-                    ) {
-                        Box(Modifier.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
-                            Text(title, color = if (tab == index) pineGold else pineMuted)
-                        }
-                    }
-                }
-            }
+            MaximusTabs(listOf("Brief", "Code", "Versions"), tab, { tab = it })
         }
         if (draft != null) {
             item {
@@ -177,9 +165,25 @@ fun PineStudioScreen(
                             Spacer(Modifier.width(8.dp))
                             val fileName = draft.name.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifBlank { "indicator" } + ".pine"
                             Text(fileName, Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.SemiBold)
-                            Text("Draft", color = pineGold, fontSize = 11.sp)
-                            IconButton(onClick = { editText = draft.code; editCodeOpen = true }) {
-                                Icon(Icons.Default.Edit, "Edit Pine code", tint = pineMuted)
+                            Surface(shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFF1C170B),
+                                border = BorderStroke(1.dp, pineGold)) {
+                                Text("Draft", Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                                    color = pineGold, fontSize = 11.sp)
+                            }
+                            IconButton(onClick = { clipboard.setText(AnnotatedString(draft.code)); status = "Pine code copied." },
+                                modifier = Modifier.size(38.dp)) {
+                                Icon(Icons.Default.ContentCopy, "Copy Pine code", tint = pineMuted,
+                                    modifier = Modifier.size(20.dp))
+                            }
+                            IconButton(onClick = ::export, modifier = Modifier.size(38.dp)) {
+                                Icon(Icons.Default.FileDownload, "Export Pine code", tint = pineMuted,
+                                    modifier = Modifier.size(20.dp))
+                            }
+                            IconButton(onClick = { editText = draft.code; editCodeOpen = true },
+                                modifier = Modifier.size(38.dp)) {
+                                Icon(Icons.Default.Edit, "Edit Pine code", tint = pineMuted,
+                                    modifier = Modifier.size(18.dp))
                             }
                         }
                         PineCodeView(draft.code)
@@ -200,7 +204,7 @@ fun PineStudioScreen(
                                 clipboard.setText(AnnotatedString(draft.code)); status = "Pine code copied."
                             }, modifier = Modifier.weight(1f)) {
                                 Icon(Icons.Default.ContentCopy, null, Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp)); Text("Copy")
+                                Spacer(Modifier.width(4.dp)); Text("Copy Pine code", fontSize = 11.sp, maxLines = 1)
                             }
                             Button(onClick = ::export, modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(containerColor = pineGold, contentColor = Color.Black)) {
@@ -245,9 +249,11 @@ fun PineStudioScreen(
                 }
             }
         }
-        item {
+    }
+    Box(Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal = 10.dp, vertical = 4.dp)) {
             PinePanel {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    WorkspaceCompanion(modifier = Modifier.size(40.dp))
                     OutlinedTextField(value = nextChange, onValueChange = { nextChange = it.take(2000) },
                         modifier = Modifier.weight(1f), maxLines = 3,
                         placeholder = { Text("Describe the next change…") })
@@ -335,7 +341,7 @@ private fun PineCodeView(code: String) {
 
 @Composable
 private fun PineSampleChart() {
-    Canvas(Modifier.fillMaxWidth().height(150.dp).background(Color(0xFF06101C))) {
+    Canvas(Modifier.fillMaxWidth().height(186.dp).background(Color(0xFF06101C))) {
         val grid = Color(0xFF19334A)
         for (i in 0..5) {
             val y = size.height * i / 5f
@@ -343,10 +349,15 @@ private fun PineSampleChart() {
             val x = size.width * i / 5f
             drawLine(grid, Offset(x, 0f), Offset(x, size.height), 1f)
         }
-        val closes = List(42) { i ->
-            val wave = kotlin.math.sin(i * .43).toFloat() * .16f
-            val trend = (i % 18) * .009f
-            (.52f - wave - trend).coerceIn(.12f, .88f)
+        val closes = List(54) { i ->
+            val swing = kotlin.math.sin(i * .32).toFloat() * .12f
+            val bias = when {
+                i < 14 -> -.012f * i
+                i < 24 -> -.17f + (i - 14) * .033f
+                i < 36 -> .10f - (i - 24) * .022f
+                else -> -.15f + (i - 36) * .020f
+            }
+            (.58f + swing + bias).coerceIn(.16f, .86f)
         }
         val step = size.width / (closes.size + 1)
         closes.forEachIndexed { i, close ->
@@ -358,8 +369,17 @@ private fun PineSampleChart() {
             drawLine(color, Offset(x, minOf(y0, y1) - 6f), Offset(x, maxOf(y0, y1) + 6f), 1.5f)
             drawLine(color, Offset(x, y0), Offset(x, y1), step * .55f)
         }
-        drawLine(pineGold, Offset(0f, size.height * .29f), Offset(size.width, size.height * .29f),
+        drawLine(pineGold, Offset(0f, size.height * .28f), Offset(size.width, size.height * .28f),
             1.5f, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 7f)))
+        listOf(14, 35).forEach { index ->
+            val x = step * (index + 1)
+            val y = size.height * .16f
+            val marker = androidx.compose.ui.graphics.Path().apply {
+                moveTo(x - 7f, y); lineTo(x + 7f, y)
+                lineTo(x, y + 13f); close()
+            }
+            drawPath(marker, pineGold)
+        }
         drawRect(pineBorder, style = Stroke(1f))
     }
 }

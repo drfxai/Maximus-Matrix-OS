@@ -20,31 +20,33 @@ fun ControlHubScreen(
     modifier: Modifier = Modifier
 ) {
     var tab by remember { mutableIntStateOf(0) }
-    Column(modifier.fillMaxSize()) {
-        ScrollableTabRow(
-            selectedTabIndex = tab,
-            containerColor = MaterialTheme.colorScheme.background,
-            contentColor = MaterialTheme.colorScheme.primary,
-            edgePadding = 8.dp
-        ) {
-            Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.tab_api_usage)) })
-            Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.tab_modules)) })
-            Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.tab_telemetry)) })
-            Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text(stringResource(R.string.control_voice)) })
-            Tab(selected = tab == 4, onClick = { tab = 4 }, text = { Text(stringResource(R.string.control_models)) })
-            Tab(selected = tab == 5, onClick = { tab = 5 }, text = { Text(stringResource(R.string.tab_language)) })
-        }
-        when (tab) {
-            0 -> ApiControlScreen(viewModel, Modifier.weight(1f))
-            1 -> ModulesScreen(Modifier.weight(1f))
-            2 -> DiagnosticsScreen(viewModel, themeMode, onThemeModeChange, Modifier.weight(1f))
-            3 -> ElevenLabsPanel(Modifier.weight(1f))
-            4 -> LocalModelHubPanel(Modifier.weight(1f))
-            else -> LanguageSettingsScreen(
-                selected = selectedLanguage,
-                onChange = onLanguageChange,
-                modifier = Modifier.weight(1f)
-            )
+    if (tab == 0) {
+        SmartComboFocusedScreen(viewModel, onAdvanced = { tab = 6 }, modifier = modifier)
+    } else {
+        Column(modifier.fillMaxSize()) {
+            ScrollableTabRow(
+                selectedTabIndex = tab,
+                containerColor = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.primary,
+                edgePadding = 8.dp
+            ) {
+                Tab(false, { tab = 0 }, text = { Text("Smart Combo") })
+                Tab(tab == 1, { tab = 1 }, text = { Text(stringResource(R.string.tab_modules)) })
+                Tab(tab == 2, { tab = 2 }, text = { Text(stringResource(R.string.tab_telemetry)) })
+                Tab(tab == 3, { tab = 3 }, text = { Text(stringResource(R.string.control_voice)) })
+                Tab(tab == 4, { tab = 4 }, text = { Text(stringResource(R.string.control_models)) })
+                Tab(tab == 5, { tab = 5 }, text = { Text(stringResource(R.string.tab_language)) })
+                Tab(tab == 6, { tab = 6 }, text = { Text(stringResource(R.string.tab_api_usage)) })
+            }
+            when (tab) {
+                1 -> ModulesScreen(Modifier.weight(1f))
+                2 -> DiagnosticsScreen(viewModel, themeMode, onThemeModeChange, Modifier.weight(1f))
+                3 -> ElevenLabsPanel(Modifier.weight(1f))
+                4 -> LocalModelHubPanel(Modifier.weight(1f))
+                5 -> LanguageSettingsScreen(selected = selectedLanguage,
+                    onChange = onLanguageChange, modifier = Modifier.weight(1f))
+                else -> ApiControlScreen(viewModel, Modifier.weight(1f))
+            }
         }
     }
 }
