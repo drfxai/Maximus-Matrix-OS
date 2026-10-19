@@ -25,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -284,7 +286,8 @@ fun PineStudioScreen(
     }
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 4.dp).heightIn(min = 56.dp)
-            .testTag("pine_pinned_composer"),
+            .testTag("pine_pinned_composer")
+            .semantics { contentDescription = "Pine AI composer" },
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
