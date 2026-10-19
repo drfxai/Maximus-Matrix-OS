@@ -9,6 +9,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -64,6 +66,8 @@ fun PineStudioScreen(
     var deleteOpen by remember { mutableStateOf(false) }
     var editBriefOpen by remember { mutableStateOf(false) }
     var editCodeOpen by remember { mutableStateOf(false) }
+    var codeExpanded by remember { mutableStateOf(false) }
+    var chartExpanded by remember { mutableStateOf(false) }
     var editText by remember { mutableStateOf("") }
     var nextChange by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
@@ -99,8 +103,8 @@ fun PineStudioScreen(
     Box(modifier.fillMaxSize().background(Color.Black)) {
     LazyColumn(
         Modifier.fillMaxSize().testTag("pine_studio_screen"),
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 84.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 90.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -110,7 +114,7 @@ fun PineStudioScreen(
                     Icon(Icons.Default.Add, "New Pine draft", tint = pineGold)
                 }
             }
-            MaximusSectionHeader("Pine Studio", "Build indicators with AI")
+            MaximusSectionHeader("Pine Studio", "Build and test TradingView indicators with AI")
         }
         item {
             PinePanel {
@@ -157,7 +161,8 @@ fun PineStudioScreen(
                             Icon(Icons.Default.Edit, "Edit idea", tint = pineMuted)
                         }
                     }
-                    Text(draft.brief.ifBlank { "Describe the indicator you want to build." }, color = pineMuted)
+                    Text(draft.brief.ifBlank { "Describe the indicator you want to build." },
+                        color = pineMuted, fontSize = 11.sp, maxLines = 2, lineHeight = 15.sp)
                 }
             }
             if (tab == 1) {
@@ -190,7 +195,14 @@ fun PineStudioScreen(
                                     modifier = Modifier.size(18.dp))
                             }
                         }
-                        PineCodeView(draft.code)
+                        PineCodeView(draft.code, maxHeight = 105.dp)
+                        TextButton(onClick = { codeExpanded = true },
+                            modifier = Modifier.align(Alignment.End).height(27.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp)) {
+                            Icon(Icons.Default.OpenInFull, null, Modifier.size(14.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text("Full source", fontSize = 10.sp)
+                        }
                     }
                 }
                 item {
@@ -199,7 +211,13 @@ fun PineStudioScreen(
                             Icon(Icons.Default.BarChart, null, tint = pineMuted)
                             Spacer(Modifier.width(8.dp))
                             Text("Market chart · OHLCV", Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.SemiBold)
-                            Text("Live source", color = pineGold, fontSize = 10.sp)
+                            TextButton(onClick = { chartExpanded = true },
+                                modifier = Modifier.height(28.dp),
+                                contentPadding = PaddingValues(horizontal = 3.dp)) {
+                                Icon(Icons.Default.OpenInFull, null, Modifier.size(14.dp), tint = pineGold)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Expand chart", color = pineGold, fontSize = 10.sp)
+                            }
                         }
                         PineLiveMarketChart()
                         Text("ⓘ  Code editing and export are local. For Pine compilation, alerts and strategy backtesting, verify in TradingView.",
@@ -355,7 +373,7 @@ private fun PinePanel(modifier: Modifier = Modifier, content: @Composable Column
 }
 
 @Composable
-private fun PineCodeView(code: String) {
+private fun PineCodeView(code: String, maxHeight: androidx.compose.ui.unit.Dp = 175.dp) {
     val highlighted = remember(code) {
         buildAnnotatedString {
             append(code)
@@ -367,7 +385,7 @@ private fun PineCodeView(code: String) {
     Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF06101C),
         border = BorderStroke(1.dp, pineBorder)) {
         SelectionContainer {
-            Row(Modifier.fillMaxWidth().heightIn(max = 175.dp).horizontalScroll(rememberScrollState()).padding(10.dp)) {
+            Row(Modifier.fillMaxWidth().heightIn(max = maxHeight).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()).padding(8.dp)) {
                 Text((1..code.lines().size).joinToString("\n"), color = pineMuted,
                     fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 19.sp)
                 Spacer(Modifier.width(16.dp))
