@@ -83,7 +83,7 @@ fun MatrixScreen(
             if (!isImeVisible) {
                 NavigationBar(
                     modifier = Modifier.testTag("main_navigation_bar").semantics { contentDescription = "Main navigation" },
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Black,
                     tonalElevation = 0.dp
                 ) {
                     val primaryDestinations = listOf(
@@ -107,11 +107,19 @@ fun MatrixScreen(
                         NavigationBarItem(
                             selected = destination == target || (target == Destination.STUDIO && destination == Destination.PINE),
                             onClick = { destination = target },
-                            icon = { Icon(icon, contentDescription = null) },
+                            icon = {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(icon, contentDescription = null, modifier = Modifier.size(23.dp))
+                                    Spacer(Modifier.height(2.dp))
+                                    Box(Modifier.width(25.dp).height(2.dp).background(
+                                        if (destination == target || (target == Destination.STUDIO && destination == Destination.PINE))
+                                            MaximusReference.gold else Color.Transparent))
+                                }
+                            },
                             label = { Text(stringResource(label), maxLines = 1, fontSize = 11.sp) },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                selectedIconColor = MaximusReference.gold,
+                                selectedTextColor = MaximusReference.gold,
                                 indicatorColor = Color.Transparent
                             ),
                             modifier = Modifier.testTag(tag).semantics { contentDescription = accessibilityLabel }
@@ -121,8 +129,18 @@ fun MatrixScreen(
                     NavigationBarItem(
                         selected = destination !in primaryDestinations.map { it.first } && destination != Destination.PINE,
                         onClick = { destination = Destination.TOOLS },
-                        icon = { Icon(Icons.Outlined.GridView, stringResource(R.string.nav_more)) },
+                        icon = {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Outlined.GridView, contentDescription = null, modifier = Modifier.size(23.dp))
+                                Spacer(Modifier.height(2.dp))
+                                Box(Modifier.width(25.dp).height(2.dp).background(
+                                    if (destination !in primaryDestinations.map { it.first } && destination != Destination.PINE)
+                                        MaximusReference.gold else Color.Transparent))
+                            }
+                        },
                         label = { Text(stringResource(R.string.ui_hub), fontSize = 11.sp) },
+                        colors = NavigationBarItemDefaults.colors(selectedIconColor = MaximusReference.gold,
+                            selectedTextColor = MaximusReference.gold, indicatorColor = Color.Transparent),
                         modifier = Modifier.testTag("nav_item_more").semantics { contentDescription = moreLabel }
                     )
                 }
