@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -131,6 +133,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                             onSelect = { selected = it },
                             modifier = Modifier.width((max(320, market.candles.size * candleWidth)).dp)
                                 .height(chartHeight).testTag("pine_real_ohlcv_canvas")
+                                .semantics { contentDescription = "OHLCV price candles" }
                         )
                     }
                     val hi = market.candles.maxOf { it.high }
