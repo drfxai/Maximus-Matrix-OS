@@ -98,8 +98,13 @@ class KeyboardLayoutTest {
     @Test fun primaryWorkspacesKeepFixedNavigationAndFocusedStudioSections() {
         withLaunchedActivity {
             objectWithDescription("Project Studio").click()
-            checkNotNull(device.wait(Until.findObject(By.text("Overview")), 10_000))
+            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
             captureWorkspace("studio-overview.png")
+            checkNotNull(device.wait(Until.findObject(By.text("Pine Studio · TradingView indicators")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
+            captureWorkspace("pine-studio.png")
+            device.pressBack()
+            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
             checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
             assertFalse("Files must not render the build dashboard", device.hasObject(By.text(instrumentation.targetContext.getString(ai.drfx.maximus.matrixai.R.string.phone_harness_title))))
@@ -171,7 +176,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "agents-my-agents.png", "smart-combo.png", "tools-hub.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "pine-studio.png", "agents-my-agents.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)
