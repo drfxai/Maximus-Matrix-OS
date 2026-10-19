@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -91,6 +92,11 @@ internal fun MaximusContextStrip(
     model: String,
     modifier: Modifier = Modifier
 ) {
+    val remainingFraction = (1f - usedFraction.coerceIn(0f, 1f))
+    val animatedRemaining by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = remainingFraction,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 450),
+        label = "remaining-context")
     MaximusFramedCard(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -109,10 +115,10 @@ internal fun MaximusContextStrip(
         HorizontalDivider(color = MaximusReference.stroke)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Context left · $remaining", fontSize = 11.sp, color = MaximusReference.muted)
+                Text("Estimated context left · $remaining", fontSize = 11.sp, color = MaximusReference.muted)
                 Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                     repeat(10) { index ->
-                        val filled = index < (usedFraction.coerceIn(0f, 1f) * 10).toInt()
+                        val filled = index < (animatedRemaining * 10f).toInt()
                         Box(Modifier.weight(1f).height(7.dp).background(
                             if (filled) MaximusReference.gold else MaximusReference.stroke,
                             RoundedCornerShape(2.dp)))
@@ -120,13 +126,18 @@ internal fun MaximusContextStrip(
                 }
             }
             Spacer(Modifier.width(14.dp))
-            CircularProgressIndicator(
-                progress = { usedFraction.coerceIn(0f, 1f) },
-                modifier = Modifier.size(34.dp),
-                color = MaximusReference.gold,
-                trackColor = MaximusReference.stroke,
-                strokeWidth = 5.dp
-            )
+            Box(Modifier.size(43.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    progress = { animatedRemaining },
+                    modifier = Modifier.size(39.dp),
+                    color = MaximusReference.gold,
+                    trackColor = MaximusReference.stroke,
+                    strokeWidth = 5.dp
+                )
+                Text("${(remainingFraction * 100).toInt()}%",
+                    color = MaximusReference.white, fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold)
+            }
             Spacer(Modifier.width(7.dp))
             Text("Estimated\ncontext", color = MaximusReference.muted, fontSize = 9.sp,
                 lineHeight = 12.sp)

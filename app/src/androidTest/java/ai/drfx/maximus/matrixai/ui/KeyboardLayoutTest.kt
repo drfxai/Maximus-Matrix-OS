@@ -111,7 +111,7 @@ class KeyboardLayoutTest {
             // Capture the second real, scrolled state instead of inventing a composite screen.
             device.swipe((device.displayWidth * .7).toInt(), (device.displayHeight * .57).toInt(),
                 (device.displayWidth * .7).toInt(), (device.displayHeight * .22).toInt(), 30)
-            checkNotNull(device.wait(Until.findObject(By.text("Illustrative preview")), 10_000))
+            checkNotNull(device.wait(Until.findObject(By.text("Market chart · OHLCV")), 10_000))
             captureWorkspace("pine-preview.png")
             device.pressBack()
             checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))

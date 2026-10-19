@@ -198,11 +198,12 @@ fun PineStudioScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.BarChart, null, tint = pineMuted)
                             Spacer(Modifier.width(8.dp))
-                            Text("Illustrative preview", Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.SemiBold)
-                            Text("Sample · Not a backtest", color = pineMuted, fontSize = 10.sp)
+                            Text("Market chart · OHLCV", Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.SemiBold)
+                            Text("Live source", color = pineGold, fontSize = 10.sp)
                         }
-                        PineSampleChart()
-                        Text("ⓘ  Compile and test in TradingView.", color = pineMuted, fontSize = 12.sp)
+                        PineLiveMarketChart()
+                        Text("ⓘ  Code editing and export are local. For Pine compilation, alerts and strategy backtesting, verify in TradingView.",
+                            color = pineMuted, fontSize = 11.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = {
                                 clipboard.setText(AnnotatedString(draft.code)); status = "Pine code copied."
@@ -372,69 +373,6 @@ private fun PineCodeView(code: String) {
                 Spacer(Modifier.width(16.dp))
                 Text(highlighted, color = Color.White, fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp, lineHeight = 19.sp, softWrap = false)
-            }
-        }
-    }
-}
-
-@Composable
-private fun PineSampleChart() {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Canvas(Modifier.weight(1f).height(142.dp).background(Color(0xFF06101C))) {
-                val grid = Color(0xFF19334A)
-                for (i in 0..4) {
-                    val y = size.height * i / 4f
-                    drawLine(grid, Offset(0f, y), Offset(size.width, y), 1f)
-                }
-                for (i in 0..5) {
-                    val x = size.width * i / 5f
-                    drawLine(grid, Offset(x, 0f), Offset(x, size.height), 1f)
-                }
-                val closes = List(47) { i ->
-                    val swing = kotlin.math.sin(i * .34).toFloat() * .09f
-                    val bias = when {
-                        i < 11 -> -.025f * i
-                        i < 23 -> -.275f + (i - 11) * .032f
-                        i < 32 -> .11f - (i - 23) * .045f
-                        else -> -.28f + (i - 32) * .040f
-                    }
-                    (.53f + swing + bias).coerceIn(.12f, .87f)
-                }
-                val step = size.width / (closes.size + 1)
-                closes.forEachIndexed { i, close ->
-                    val open = if (i == 0) close + .035f else closes[i - 1]
-                    val x = step * (i + 1)
-                    val color = if (close < open) Color(0xFF36BF97) else Color(0xFFF55B58)
-                    val y0 = open * size.height
-                    val y1 = close * size.height
-                    drawLine(color, Offset(x, minOf(y0, y1) - 4f),
-                        Offset(x, maxOf(y0, y1) + 4f), 1.3f)
-                    drawLine(color, Offset(x, y0), Offset(x, y1), step * .65f)
-                }
-                drawLine(pineGold, Offset(0f, size.height * .26f),
-                    Offset(size.width, size.height * .26f), 1.4f,
-                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(7f, 5f)))
-                listOf(11, 32).forEach { index ->
-                    val x = step * (index + 1)
-                    val y = size.height * .14f
-                    drawPath(androidx.compose.ui.graphics.Path().apply {
-                        moveTo(x - 6f, y); lineTo(x + 6f, y)
-                        lineTo(x, y + 11f); close()
-                    }, pineGold)
-                }
-                drawRect(pineBorder, style = Stroke(1f))
-            }
-            Column(Modifier.width(45.dp).height(142.dp).padding(start = 5.dp),
-                verticalArrangement = Arrangement.SpaceBetween) {
-                listOf("184.00", "182.00", "180.00", "178.00", "176.00").forEach { price ->
-                    Text(price, color = pineMuted, fontSize = 9.sp, maxLines = 1)
-                }
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            listOf("Mar", "Apr", "May", "Jun").forEach {
-                Text(it, fontSize = 9.sp, color = pineMuted)
             }
         }
     }
