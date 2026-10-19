@@ -272,8 +272,6 @@ fun PineStudioScreen(
             }
         }
     }
-    }
-
 
     if (createOpen || renameOpen || editBriefOpen || editCodeOpen) {
         val creating = createOpen
