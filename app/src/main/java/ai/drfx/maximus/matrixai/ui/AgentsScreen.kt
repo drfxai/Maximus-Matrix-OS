@@ -11,6 +11,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,35 +44,45 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
         item {
             WorkspaceBrand()
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.design_agents), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                Button(onClick = { newName = ""; creating = true }) { Text("+ New") }
+                MaximusSectionHeader(stringResource(R.string.design_agents), null, Modifier.weight(1f))
+                OutlinedButton(onClick = { newName = ""; creating = true },
+                    border = BorderStroke(1.dp, MaximusReference.gold)) {
+                    Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("New", color = MaximusReference.gold)
+                }
             }
-            if (section == 0) Text(
-                stringResource(R.string.agents_description),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                lineHeight = 17.sp
-            )
         }
         item {
-            ScrollableTabRow(selectedTabIndex = section, edgePadding = 0.dp,
-                containerColor = MaterialTheme.colorScheme.background) {
-                listOf("My agents", "Teams", "Connections")
-                    .forEachIndexed { index, label ->
-                        Tab(selected = section == index, onClick = { section = index },
-                            text = { Text(label) })
-                    }
-            }
+            MaximusTabs(listOf("My agents", "Teams", "Connections"), section, { section = it })
         }
         if (section == 0) {
-            item { OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Search agents") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+            item { OutlinedTextField(value = search, onValueChange = { search = it },
+                placeholder = { Text("Search agents...") },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(12.dp)) }
+            if (personal.isEmpty()) item {
+                MaximusFramedCard {
+                    Text("My agents", color = MaximusReference.white, fontWeight = FontWeight.Bold)
+                    Text("No custom agents have been created yet. Create one to define real instructions and tasks.",
+                        color = MaximusReference.muted, fontSize = 12.sp)
+                    OutlinedButton(onClick = { newName = ""; creating = true }) {
+                        Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+                        Text("Create agent")
+                    }
+                }
+            }
             items(personal.filter { it.name.contains(search, true) }) { agent ->
-                Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .5f))) {
+                Surface(shape = RoundedCornerShape(12.dp), color = MaximusReference.navy,
+                    border = BorderStroke(1.dp, MaximusReference.stroke)) {
                     Column(Modifier.padding(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Code, null, tint = MaximusReference.muted, modifier = Modifier.size(22.dp))
+                            Spacer(Modifier.width(9.dp))
                             Text(agent.name, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            TextButton(onClick = { editing = agent }) { Text("Edit") }
+                            IconButton(onClick = { editing = agent }) {
+                                Icon(Icons.Default.Edit, "Edit agent", tint = MaximusReference.muted, modifier = Modifier.size(18.dp))
+                            }
                         }
                         Text(agent.instructions.ifBlank { "Add instructions to configure this agent." },
                             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
@@ -81,7 +94,62 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
                     }
                 }
             }
-            item { Text("Available personas", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold) }
+            editing?.let { current ->
+                item {
+                    var editedName by remember(current.id) { mutableStateOf(current.name) }
+                    var editedInstructions by remember(current.id) { mutableStateOf(current.instructions) }
+                    var editedTasks by remember(current.id) { mutableStateOf(current.tasks.joinToString("\\n")) }
+                    var editorTab by remember(current.id) { mutableIntStateOf(0) }
+                    MaximusFramedCard {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Edit agent", Modifier.weight(1f), fontWeight = FontWeight.Bold,
+                                color = MaximusReference.white)
+                            IconButton(onClick = { editing = null }) {
+                                Icon(Icons.Default.Close, "Close agent editor")
+                            }
+                        }
+                        MaximusTabs(listOf("Instructions", "Tasks", "Tools"),
+                            editorTab, { editorTab = it })
+                        if (editorTab == 0) {
+                            OutlinedTextField(editedName, { editedName = it.take(60) },
+                                label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(editedInstructions,
+                                { editedInstructions = it.take(8000) },
+                                label = { Text("Instructions") }, minLines = 4,
+                                modifier = Modifier.fillMaxWidth())
+                        } else if (editorTab == 1) {
+                            OutlinedTextField(editedTasks, { editedTasks = it.take(20_000) },
+                                label = { Text("Tasks · one per line") }, minLines = 4,
+                                modifier = Modifier.fillMaxWidth())
+                        } else {
+                            Text("Tool permissions depend on configured providers and workspace approvals.",
+                                color = MaximusReference.muted, fontSize = 12.sp)
+                        }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = {
+                                store.delete(current.id); personal = store.list(); editing = null
+                            }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                            Spacer(Modifier.weight(1f))
+                            Button(onClick = {
+                                if (editedName.isNotBlank()) {
+                                    store.save(current.copy(
+                                        name = editedName.trim().take(60),
+                                        instructions = editedInstructions.take(8000),
+                                        tasks = editedTasks.lines().map { it.trim().take(1000) }
+                                            .filter { it.isNotBlank() }.take(20)))
+                                    personal = store.list()
+                                    editing = null
+                                }
+                            }, colors = ButtonDefaults.buttonColors(
+                                containerColor = MaximusReference.gold, contentColor = Color.Black)) {
+                                Text("Save changes")
+                            }
+                        }
+                    }
+                }
+            }
+            item { Text("Available personas", color = MaximusReference.gold,
+                fontWeight = FontWeight.SemiBold) }
         }
         if (section == 2) { item { DeveloperConnectionsPanel() } }
         if (section == 1) { item { AgentTeamPanel() }; item { CloudTeamStatusPanel() } }
@@ -89,8 +157,8 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
         items(AgentRegistry.agents.filter { it.name.contains(search, true) }) { agent ->
             val supported = agent.id in supportedIds
             Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(12.dp),
+                color = MaximusReference.navy,
                 border = BorderStroke(
                     1.dp,
                     if (supported) MaterialTheme.colorScheme.primary.copy(alpha = .55f)
@@ -153,27 +221,4 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
         text = { OutlinedTextField(newName, { newName = it }, label = { Text("Name") }, singleLine = true) },
         confirmButton = { TextButton(onClick = { if (newName.isNotBlank()) { editing = store.create(newName); personal = store.list(); creating = false } }) { Text("Create") } },
         dismissButton = { TextButton(onClick = { creating = false }) { Text("Cancel") } })
-    editing?.let { agent ->
-        var name by remember(agent.id) { mutableStateOf(agent.name) }
-        var instructions by remember(agent.id) { mutableStateOf(agent.instructions) }
-        var tasks by remember(agent.id) { mutableStateOf(agent.tasks.joinToString("\n")) }
-        AlertDialog(onDismissRequest = { editing = null }, title = { Text("Edit agent") },
-            text = { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedTextField(name, { name = it }, label = { Text("Name") })
-                OutlinedTextField(instructions, { instructions = it }, label = { Text("Instructions") }, minLines = 3)
-                OutlinedTextField(tasks, { tasks = it }, label = { Text("Tasks · one per line") }, minLines = 2)
-                Text("Tools: configured through provider and workspace connections", fontSize = 11.sp)
-            } },
-            confirmButton = { TextButton(onClick = {
-                if (name.isNotBlank()) {
-                    store.save(agent.copy(name = name.trim().take(60), instructions = instructions.take(8000),
-                        tasks = tasks.lines().map { it.trim().take(1000) }.filter { it.isNotBlank() }.take(20)))
-                    personal = store.list(); editing = null
-                }
-            }) { Text("Save changes") } },
-            dismissButton = { Row {
-                TextButton(onClick = { store.delete(agent.id); personal = store.list(); editing = null }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                TextButton(onClick = { editing = null }) { Text("Cancel") }
-            } })
-    }
 }
