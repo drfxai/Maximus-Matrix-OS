@@ -56,6 +56,7 @@ fun ProjectStudioScreen(
     onPlanWithAi: (String) -> Boolean,
     initialSection: Int = 0,
     onChat: () -> Unit = {},
+    onPine: () -> Unit = {},
     projectTeamRun: ai.drfx.maximus.matrixai.agent.teams.ProjectTeamRun? = null,
     projectTeamMessage: String = "",
     projectTeamInvalid: Boolean = false,
@@ -65,7 +66,7 @@ fun ProjectStudioScreen(
     onCancelTeam: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var section by remember { mutableStateOf(initialSection.coerceIn(0, 4)) }
+    var section by remember { mutableStateOf(initialSection.coerceIn(0, 5)) }
     val workspaceListState = rememberLazyListState()
     LaunchedEffect(section) { workspaceListState.scrollToItem(0) }
     val context = LocalContext.current
@@ -169,6 +170,11 @@ fun ProjectStudioScreen(
                     FilterChip(selected = false, onClick = onChat, label = { Text(stringResource(R.string.nav_chat)) })
                     Spacer(Modifier.width(8.dp))
                     FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.ui_work)) })
+                }
+                OutlinedButton(onClick = onPine, modifier = Modifier.fillMaxWidth().testTag("open_pine_studio")) {
+                    Icon(Icons.Default.Code, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Pine Studio · TradingView indicators")
                 }
             }
         }

@@ -53,6 +53,8 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WorkOutline
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.Icons
@@ -125,7 +127,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier,
-    onWork: () -> Unit = {}, onHub: () -> Unit = {}) {
+    onWork: () -> Unit = {}, onHub: () -> Unit = {}, onSmartCombo: () -> Unit = {}) {
     val state by viewModel.llmState.collectAsState()
     val pendingAction by viewModel.pendingAgentConfirmation.collectAsState()
     pendingAction?.let { request ->
@@ -187,6 +189,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     DisposableEffect(elevenPlayback) { onDispose { elevenJob?.cancel(); elevenPlayback.stop() } }
     DisposableEffect(voicePlayback) { onDispose { voicePlayback.stop() } }
     var settingsOpen by remember { mutableStateOf(false) }
+    var searchOpen by remember { mutableStateOf(false) }
+    var messageSearch by remember { mutableStateOf("") }
     var tokenDetailsOpen by remember { mutableStateOf(false) }
     var quickKeyDialogOpen by remember { mutableStateOf(false) }
     var confirmDirectProvider by remember { mutableStateOf(false) }
@@ -396,12 +400,24 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             IconButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) {
                 Icon(Icons.Default.Add, stringResource(R.string.speech_new))
             }
+            IconButton(onClick = { searchOpen = !searchOpen; if (!searchOpen) messageSearch = "" }) {
+                Icon(Icons.Default.Search, "Search conversation")
+            }
+            IconButton(onClick = { settingsOpen = true }) {
+                Icon(Icons.Default.Settings, "Chat settings")
+            }
         }
+        if (searchOpen) OutlinedTextField(
+            value = messageSearch, onValueChange = { messageSearch = it },
+            modifier = Modifier.fillMaxWidth(), singleLine = true,
+            label = { Text("Search this conversation") }
+        )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             if (!keyboardVisible) {
                 FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.nav_chat), fontSize = 11.sp) })
                 FilterChip(selected = false, onClick = onWork, label = { Text(stringResource(R.string.ui_work), fontSize = 11.sp) })
+                FilterChip(selected = false, onClick = onSmartCombo, label = { Text("Smart Combo", fontSize = 11.sp) })
             }
             Surface(onClick = { settingsOpen = true }, modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -803,7 +819,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     contentPadding = PaddingValues(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(messages) { message ->
+                    items(messages.filter { messageSearch.isBlank() || it.content.contains(messageSearch, ignoreCase = true) }) { message ->
                         ChatBubble(
                             message = message,
                             sessionId = activeSessionId,

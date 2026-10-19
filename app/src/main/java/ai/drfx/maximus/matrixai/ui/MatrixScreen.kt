@@ -44,6 +44,7 @@ private enum class Destination(val label: String) {
     VISION("Vision"),
     NEWS("News"),
     STUDIO("Studio"),
+    PINE("Pine Studio"),
     CHAT("Chat"),
     AGENTS("Personas"),
     DATA("Data"),
@@ -67,7 +68,7 @@ fun MatrixScreen(
     val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
     BackHandler(enabled = destination != Destination.MATRIX && !isImeVisible) {
-        destination = Destination.MATRIX
+        destination = if (destination == Destination.PINE) Destination.STUDIO else Destination.MATRIX
     }
 
 
@@ -104,7 +105,7 @@ fun MatrixScreen(
                             else -> stringResource(label)
                         }
                         NavigationBarItem(
-                            selected = destination == target,
+                            selected = destination == target || (target == Destination.STUDIO && destination == Destination.PINE),
                             onClick = { destination = target },
                             icon = { Icon(icon, contentDescription = null) },
                             label = { Text(stringResource(label), maxLines = 1, fontSize = 11.sp) },
@@ -118,7 +119,7 @@ fun MatrixScreen(
                     }
                     val moreLabel = stringResource(R.string.nav_more)
                     NavigationBarItem(
-                        selected = destination !in primaryDestinations.map { it.first },
+                        selected = destination !in primaryDestinations.map { it.first } && destination != Destination.PINE,
                         onClick = { destination = Destination.TOOLS },
                         icon = { Icon(Icons.Outlined.GridView, stringResource(R.string.nav_more)) },
                         label = { Text(stringResource(R.string.ui_hub), fontSize = 11.sp) },
@@ -176,6 +177,7 @@ fun MatrixScreen(
                     Destination.STUDIO -> ProjectStudioScreen(
                         initialSection = workSection,
                         onChat = { destination = Destination.CHAT },
+                        onPine = { destination = Destination.PINE },
                         projectTeamRun = viewModel.projectTeamRun.collectAsState().value,
                         projectTeamInvalid = viewModel.projectTeamInvalid.collectAsState().value,
                         onDiscardInvalidTeam = viewModel::discardInvalidProjectTeam,
@@ -199,10 +201,21 @@ fun MatrixScreen(
                         viewModel = viewModel,
                         onWork = { destination = Destination.STUDIO },
                         onHub = { destination = Destination.TOOLS },
+                        onSmartCombo = { destination = Destination.CONTROL },
                         modifier = Modifier.fillMaxSize()
                     )
                     Destination.AGENTS -> AgentsScreen(
                         viewModel = viewModel,
+                        onChat = { destination = Destination.CHAT },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    Destination.PINE -> PineStudioScreen(
+                        onBack = { destination = Destination.STUDIO },
+                        onAskAi = { prompt ->
+                            val submitted = viewModel.sendChat(prompt)
+                            if (submitted) destination = Destination.CHAT
+                            submitted
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
                     Destination.DATA -> DataCenterScreen(
