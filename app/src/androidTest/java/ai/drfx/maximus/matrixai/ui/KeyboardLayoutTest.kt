@@ -100,6 +100,10 @@ class KeyboardLayoutTest {
             objectWithDescription("Project Studio").click()
             checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
             captureWorkspace("studio-overview.png")
+            checkNotNull(device.wait(Until.findObject(By.text("Changes")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("No staged file changes in this local workspace.")), 10_000))
+            captureWorkspace("studio-changes.png")
+            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Pine Studio · TradingView indicators")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
             captureWorkspace("pine-studio.png")
@@ -182,7 +186,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "pine-studio.png", "pine-preview.png", "agents-my-agents.png", "smart-combo.png", "tools-hub.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "studio-changes.png", "pine-studio.png", "pine-preview.png", "agents-my-agents.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)
