@@ -635,12 +635,31 @@ fun ProjectStudioScreen(
                     border = BorderStroke(1.dp, studioCyan.copy(alpha = .5f))) {
                     Row(Modifier.fillMaxWidth().padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { projectName = ""; showCreate = true },
-                            modifier = Modifier.size(36.dp)) {
+                            modifier = Modifier.size(32.dp)) {
                             Icon(Icons.Default.Add, "New project", tint = MaximusReference.muted)
                         }
-                        OutlinedTextField(brief, { brief = it.take(12000) }, Modifier.weight(1f), maxLines = 3,
-                            placeholder = { Text(stringResource(R.string.studio_describe)) }, enabled = active != null && !busy,
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent))
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = brief,
+                            onValueChange = { brief = it.take(12000) },
+                            modifier = Modifier.weight(1f).heightIn(min = 35.dp, max = 74.dp)
+                                .padding(horizontal = 5.dp, vertical = 8.dp)
+                                .testTag("work_ai_composer"),
+                            enabled = active != null && !busy,
+                            maxLines = 3,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = MaximusReference.white, fontSize = 12.sp),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(MaximusReference.gold),
+                            decorationBox = { inner ->
+                                Box {
+                                    if (brief.isBlank()) Text(
+                                        if (active == null) "Select a project to begin..."
+                                        else "Ask MAXIMUS to edit...",
+                                        color = MaximusReference.muted, fontSize = 12.sp,
+                                        maxLines = 1)
+                                    inner()
+                                }
+                            }
+                        )
                         IconButton(enabled = active != null && !busy && brief.isNotBlank(), onClick = {
                             val id = activeId ?: return@IconButton
                             scope.launch {
