@@ -201,6 +201,7 @@ fun MatrixScreen(
                         viewModel = viewModel,
                         onWork = { destination = Destination.STUDIO },
                         onHub = { destination = Destination.TOOLS },
+                        onSmartCombo = { destination = Destination.CONTROL },
                         modifier = Modifier.fillMaxSize()
                     )
                     Destination.AGENTS -> AgentsScreen(

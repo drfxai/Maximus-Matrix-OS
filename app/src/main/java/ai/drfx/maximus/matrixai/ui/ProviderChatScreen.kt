@@ -125,7 +125,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier,
-    onWork: () -> Unit = {}, onHub: () -> Unit = {}) {
+    onWork: () -> Unit = {}, onHub: () -> Unit = {}, onSmartCombo: () -> Unit = {}) {
     val state by viewModel.llmState.collectAsState()
     val pendingAction by viewModel.pendingAgentConfirmation.collectAsState()
     pendingAction?.let { request ->
@@ -415,6 +415,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             if (!keyboardVisible) {
                 FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.nav_chat), fontSize = 11.sp) })
                 FilterChip(selected = false, onClick = onWork, label = { Text(stringResource(R.string.ui_work), fontSize = 11.sp) })
+                FilterChip(selected = false, onClick = onSmartCombo, label = { Text("Smart Combo", fontSize = 11.sp) })
             }
             Surface(onClick = { settingsOpen = true }, modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
