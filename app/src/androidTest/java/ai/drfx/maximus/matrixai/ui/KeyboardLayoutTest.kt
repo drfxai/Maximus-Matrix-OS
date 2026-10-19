@@ -142,8 +142,8 @@ class KeyboardLayoutTest {
             captureWorkspace("tools-hub.png")
             objectWithDescription(instrumentation.targetContext.getString(
                 ai.drfx.maximus.matrixai.R.string.nav_control)).click()
-            checkNotNull(device.wait(Until.findObject(By.text(instrumentation.targetContext.getString(
-                ai.drfx.maximus.matrixai.R.string.dash_combo_title))), 10_000))
+            checkNotNull(device.wait(Until.findObject(By.text("Smart routing")), 10_000))
+            checkNotNull(device.wait(Until.findObject(By.text("Use selected model")), 10_000))
             captureWorkspace("smart-combo.png")
         }
     }
