@@ -330,6 +330,62 @@ fun PineStudioScreen(
     // The floating composer and scrollable content share a Box; dialogs are outside it.
     }
 
+
+    if (chartExpanded) {
+        Dialog(onDismissRequest = { chartExpanded = false }) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = pineBlue,
+                border = BorderStroke(1.dp, pineBorder)
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Market chart · Real OHLCV", Modifier.weight(1f),
+                            color = Color.White, fontWeight = FontWeight.Bold)
+                        IconButton(onClick = { chartExpanded = false }) {
+                            Icon(Icons.Default.Close, "Close chart", tint = pineMuted)
+                        }
+                    }
+                    PineLiveMarketChart()
+                }
+            }
+        }
+    }
+    if (codeExpanded && draft != null) {
+        Dialog(onDismissRequest = { codeExpanded = false }) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = pineBlue,
+                border = BorderStroke(1.dp, pineBorder)
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Pine Script v6 · Full source", Modifier.weight(1f),
+                            color = Color.White, fontWeight = FontWeight.Bold)
+                        IconButton(onClick = { codeExpanded = false }) {
+                            Icon(Icons.Default.Close, "Close full source", tint = pineMuted)
+                        }
+                    }
+                    PineCodeView(draft.code, maxHeight = 420.dp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = {
+                            clipboard.setText(AnnotatedString(draft.code))
+                            status = "Pine code copied."
+                        }, modifier = Modifier.weight(1f)) { Text("Copy") }
+                        Button(onClick = { codeExpanded = false; export() },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = pineGold, contentColor = Color.Black)) {
+                            Text("Export .pine")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if (createOpen || renameOpen || editBriefOpen || editCodeOpen) {
         val creating = createOpen
         val editingCode = editCodeOpen
