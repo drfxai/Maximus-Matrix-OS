@@ -440,7 +440,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }
             IconButton(onClick = { workspaceControlsOpen = !workspaceControlsOpen },
                 modifier = Modifier.size(34.dp).testTag("chat_workspace_controls_toggle")) {
-                Icon(if (workspaceControlsOpen) Icons.Default.ExpandLess else Icons.Default.Tune,
+                Icon(if (workspaceControlsOpen) Icons.Default.Close else Icons.Default.Tune,
                     stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show),
                     Modifier.size(19.dp), tint = MaximusReference.muted)
             }
