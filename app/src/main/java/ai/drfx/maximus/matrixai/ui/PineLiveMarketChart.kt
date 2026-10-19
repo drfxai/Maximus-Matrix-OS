@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,7 +38,7 @@ import kotlin.math.min
 
 /** Real history chart, explicitly NOT a Pine compiler/backtester or a TradingView embed. */
 @Composable
-internal fun PineLiveMarketChart(modifier: Modifier = Modifier) {
+internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean = false) {
     val source = remember { PineMarketDataSource() }
     var product by remember { mutableStateOf(PineMarketDataSource.PRODUCTS.first()) }
     var interval by remember { mutableStateOf(PineTimeframe.ONE_MINUTE) }
@@ -60,7 +62,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier) {
         } finally { loading = false }
     }
 
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 7.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box {
                 OutlinedButton(onClick = { menu = true }, shape = RoundedCornerShape(9.dp),
@@ -95,7 +97,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier) {
                         if (chosen) MaximusReference.gold else MaximusReference.stroke),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Box(Modifier.height(32.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.height(if (compact) 27.dp else 32.dp), contentAlignment = Alignment.Center) {
                         Text(tf.label, color = if (chosen) MaximusReference.gold else MaximusReference.muted,
                             fontWeight = if (chosen) FontWeight.Bold else FontWeight.Normal,
                             fontSize = 11.sp)
@@ -122,21 +124,23 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier) {
                 LaunchedEffect(market, candleWidth) {
                     horizontal.scrollTo(horizontal.maxValue)
                 }
-                Row(Modifier.fillMaxWidth().height(230.dp), verticalAlignment = Alignment.Top) {
+                val chartHeight = if (compact) 155.dp else 230.dp
+                Row(Modifier.fillMaxWidth().height(chartHeight), verticalAlignment = Alignment.Top) {
                     Row(Modifier.weight(1f).horizontalScroll(horizontal)) {
                         PineOhlcvCanvas(
                             candles = market.candles,
                             selectedIndex = selected,
                             onSelect = { selected = it },
                             modifier = Modifier.width((max(320, market.candles.size * candleWidth)).dp)
-                                .height(230.dp).testTag("pine_real_ohlcv_canvas")
+                                .height(chartHeight).testTag("pine_real_ohlcv_canvas")
+                                .semantics { contentDescription = "OHLCV price candles" }
                         )
                     }
                     val hi = market.candles.maxOf { it.high }
                     val lo = market.candles.minOf { it.low }
                     val digits = if (hi > 1000) 0 else if (hi > 100) 2 else 4
                     Column(
-                        Modifier.width(61.dp).height(190.dp).padding(start = 3.dp),
+                        Modifier.width(61.dp).height(if (compact) 140.dp else 190.dp).padding(start = 3.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         (0..5).forEach { i ->
@@ -152,7 +156,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier) {
                     "H ${prettyPrice(active.high)}  L ${prettyPrice(active.low)}  C ${prettyPrice(active.close)}",
                     color = MaximusReference.muted, fontSize = 10.sp,
                     maxLines = 2, lineHeight = 14.sp)
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!compact) Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Zoom", color = MaximusReference.muted, fontSize = 10.sp)
                     Spacer(Modifier.width(5.dp))
                     OutlinedButton(onClick = { candleWidth = max(4, candleWidth - 2) },
@@ -170,7 +174,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier) {
                 }
             }
         }
-        Text("Exchange-provided market data · Not a TradingView feed · Pine code is not executed on this chart.",
+        if (!compact) Text("Exchange-provided market data · Not a TradingView feed · Pine code is not executed on this chart.",
             fontSize = 10.sp, color = MaximusReference.muted)
     }
 }

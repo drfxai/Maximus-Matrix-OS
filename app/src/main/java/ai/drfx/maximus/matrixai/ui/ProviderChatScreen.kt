@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.WorkOutline
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
@@ -766,42 +767,32 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 shape = RoundedCornerShape(12.dp)
             ) {
             if (messages.isEmpty()) {
-                Box(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 32.dp), contentAlignment = Alignment.TopCenter) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                WorkspaceCompanion(modifier = Modifier.size(44.dp))
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    MaximusFramedCard {
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            WorkspaceCompanion(modifier = Modifier.size(46.dp))
+                            Column(Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("MAXIMUS AI Chat", color = MaximusReference.white,
+                                    fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text(state.provider.displayName + " · " +
+                                    state.selectedModel.ifBlank { "Select a model" },
+                                    color = MaximusReference.gold, fontSize = 11.sp,
+                                    maxLines = 1)
                             }
+                            Icon(Icons.Default.AutoAwesome, null,
+                                tint = MaximusReference.gold, modifier = Modifier.size(19.dp))
                         }
                         Text(
-                            stringResource(R.string.workspaces_chat_title),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            stringResource(R.string.focus_provider_configured) + ": " +
-                                state.provider.displayName + " · " +
-                                state.selectedModel.ifBlank { stringResource(R.string.chat_not_configured) },
-                            color = MaterialTheme.colorScheme.primary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            lineHeight = 16.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Text(
-                            stringResource(R.string.chat_start_hint),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(horizontal = 24.dp),
-                            lineHeight = 16.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            if (state.hasSavedKey)
+                                "Start a conversation. Responses, source code and local web previews will appear here."
+                            else "Connect your provider to start. Source code, HTML previews and downloads will appear with real messages.",
+                            color = MaximusReference.muted, fontSize = 11.sp,
+                            lineHeight = 16.sp
                         )
                         if (!state.hasSavedKey) {
                             Button(
@@ -810,12 +801,36 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                     quickKeyInput = ""
                                     quickKeyDialogOpen = true
                                 },
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaximusReference.gold, contentColor = Color.Black)
                             ) {
-                                Icon(Icons.Default.Key, null, modifier = Modifier.size(14.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(stringResource(R.string.chat_enter_provider_key, state.provider.displayName), fontSize = 11.sp)
+                                Icon(Icons.Default.Key, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(7.dp))
+                                Text(stringResource(R.string.chat_enter_provider_key,
+                                    state.provider.displayName), fontSize = 11.sp)
                             }
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onWork, modifier = Modifier.weight(1f),
+                            border = BorderStroke(1.dp, MaximusReference.stroke)) {
+                            Icon(Icons.Default.Code, null, Modifier.size(17.dp),
+                                tint = MaximusReference.muted)
+                            Spacer(Modifier.width(5.dp))
+                            Text("Code workspace", fontSize = 11.sp,
+                                color = MaximusReference.muted, maxLines = 1)
+                        }
+                        OutlinedButton(onClick = onSmartCombo,
+                            modifier = Modifier.weight(1f),
+                            border = BorderStroke(1.dp, MaximusReference.stroke)) {
+                            Icon(Icons.Default.Bolt, null, Modifier.size(17.dp),
+                                tint = MaximusReference.gold)
+                            Spacer(Modifier.width(5.dp))
+                            Text("Smart Combo", fontSize = 11.sp,
+                                color = MaximusReference.muted, maxLines = 1)
                         }
                     }
                 }

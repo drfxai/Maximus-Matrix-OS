@@ -168,30 +168,92 @@ fun ProjectStudioScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 WorkspaceBrand()
-                MaximusSectionHeader("Work")
+                MaximusSectionHeader("Work", "Build, test, and deploy with AI")
             }
         }
 
+
         item {
-            StudioPanel {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.FolderOpen, null, tint = studioCyan)
-                    Column(Modifier.weight(1f)) {
-                        Text(active?.name ?: stringResource(R.string.studio_no_project), fontWeight = FontWeight.Bold,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (active != null) Text(stringResource(R.string.studio_files_count, active.fileCount),
-                            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Box {
-                        TextButton(onClick = { showSelector = true }, enabled = projects.isNotEmpty()) {
-                            Text(stringResource(R.string.studio_select)); Icon(Icons.Default.ArrowDropDown, null)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Surface(
+                    onClick = {
+                        if (projects.isEmpty()) { projectName = ""; showCreate = true }
+                        else showSelector = true
+                    },
+                    modifier = Modifier.weight(1f).testTag("work_project_selector"),
+                    shape = RoundedCornerShape(10.dp), color = MaximusReference.navy,
+                    border = BorderStroke(1.dp, MaximusReference.stroke)
+                ) {
+                    Row(Modifier.heightIn(min = 56.dp).padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.FolderOpen, null, Modifier.size(19.dp), tint = MaximusReference.muted)
+                        Spacer(Modifier.width(7.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text(active?.name ?: "Select project", color = MaximusReference.white,
+                                fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(if (active == null) "Create or import" else "${active.fileCount} files · Local",
+                                color = MaximusReference.muted, fontSize = 10.sp)
                         }
-                        if (showSelector) WorkspaceChoiceSheet(
-                            title = stringResource(R.string.studio_select),
-                            choices = projects.map { WorkspaceChoice(it.id, it.name, "") },
-                            selected = activeId.orEmpty(),
-                            onDismiss = { showSelector = false },
-                            onSelect = { activeId = it; showSelector = false })
+                        Icon(Icons.Default.ArrowDropDown, null, Modifier.size(17.dp), tint = MaximusReference.muted)
+                    }
+                }
+                Surface(
+                    onClick = { section = 4 },
+                    modifier = Modifier.weight(1f).testTag("work_branch_selector"),
+                    shape = RoundedCornerShape(10.dp), color = MaximusReference.navy,
+                    border = BorderStroke(1.dp, MaximusReference.stroke)
+                ) {
+                    Row(Modifier.heightIn(min = 56.dp).padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccountTree, null, Modifier.size(19.dp), tint = MaximusReference.muted)
+                        Spacer(Modifier.width(7.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text("Git branch", color = MaximusReference.white, fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold)
+                            Text("Not linked", color = MaximusReference.muted, fontSize = 10.sp)
+                        }
+                        Icon(Icons.Default.ChevronRight, null, Modifier.size(16.dp), tint = MaximusReference.muted)
+                    }
+                }
+            }
+            if (showSelector) WorkspaceChoiceSheet(
+                title = stringResource(R.string.studio_select),
+                choices = projects.map { WorkspaceChoice(it.id, it.name, "") },
+                selected = activeId.orEmpty(),
+                onDismiss = { showSelector = false },
+                onSelect = { activeId = it; showSelector = false })
+        }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                listOf(ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB,
+                    ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.CLOUDFLARE).forEach { service ->
+                    Surface(
+                        onClick = { section = 4 },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp), color = MaximusReference.navy,
+                        border = BorderStroke(1.dp, MaximusReference.stroke)
+                    ) {
+                        Row(Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (service == ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB)
+                                    Icons.Default.Code else Icons.Default.Cloud,
+                                null, Modifier.size(21.dp), tint = MaximusReference.gold)
+                            Spacer(Modifier.width(7.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(if (service == ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB)
+                                    "GitHub" else "Cloudflare",
+                                    color = MaximusReference.white, fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(if (connectionVault.configured(service))
+                                    R.string.dev_saved else R.string.dev_not_connected),
+                                    color = MaximusReference.muted, fontSize = 10.sp,
+                                    maxLines = 1)
+                            }
+                            Icon(Icons.Default.ChevronRight, null,
+                                Modifier.size(16.dp), tint = MaximusReference.muted)
+                        }
                     }
                 }
             }
@@ -291,28 +353,6 @@ fun ProjectStudioScreen(
             }
         }
         if (section == 0) {
-            item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB,
-                        ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.CLOUDFLARE).forEach { service ->
-                        Surface(onClick = { section = 4 }, modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                            Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (service == ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB)
-                                    Icons.Default.Code else Icons.Default.Cloud, null, Modifier.size(20.dp), tint = studioCyan)
-                                Spacer(Modifier.width(8.dp))
-                                Column {
-                                    Text(if (service == ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB) "GitHub" else "Cloudflare",
-                                        style = MaterialTheme.typography.labelLarge)
-                                    Text(stringResource(if (connectionVault.configured(service)) R.string.dev_saved else R.string.dev_not_connected),
-                                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
             item {
                 OutlinedButton(onClick = onPine,
                     modifier = Modifier.fillMaxWidth().testTag("open_pine_studio"),
@@ -595,12 +635,31 @@ fun ProjectStudioScreen(
                     border = BorderStroke(1.dp, studioCyan.copy(alpha = .5f))) {
                     Row(Modifier.fillMaxWidth().padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { projectName = ""; showCreate = true },
-                            modifier = Modifier.size(36.dp)) {
+                            modifier = Modifier.size(32.dp)) {
                             Icon(Icons.Default.Add, "New project", tint = MaximusReference.muted)
                         }
-                        OutlinedTextField(brief, { brief = it.take(12000) }, Modifier.weight(1f), maxLines = 3,
-                            placeholder = { Text(stringResource(R.string.studio_describe)) }, enabled = active != null && !busy,
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent))
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = brief,
+                            onValueChange = { brief = it.take(12000) },
+                            modifier = Modifier.weight(1f).heightIn(min = 35.dp, max = 74.dp)
+                                .padding(horizontal = 5.dp, vertical = 8.dp)
+                                .testTag("work_ai_composer"),
+                            enabled = active != null && !busy,
+                            maxLines = 3,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = MaximusReference.white, fontSize = 12.sp),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(MaximusReference.gold),
+                            decorationBox = { inner ->
+                                Box {
+                                    if (brief.isBlank()) Text(
+                                        if (active == null) "Select a project to begin..."
+                                        else "Ask MAXIMUS to edit...",
+                                        color = MaximusReference.muted, fontSize = 12.sp,
+                                        maxLines = 1)
+                                    inner()
+                                }
+                            }
+                        )
                         IconButton(enabled = active != null && !busy && brief.isNotBlank(), onClick = {
                             val id = activeId ?: return@IconButton
                             scope.launch {
@@ -730,7 +789,7 @@ private fun StudioPanel(content: @Composable ColumnScope.() -> Unit) {
         border = BorderStroke(1.dp, MaximusReference.stroke),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(14.dp), content = content)
+        Column(Modifier.padding(10.dp), content = content)
     }
 }
 

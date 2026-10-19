@@ -2,6 +2,16 @@ package ai.drfx.maximus.matrixai.ui
 
 import android.graphics.Rect
 import android.os.SystemClock
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
@@ -112,7 +122,18 @@ class KeyboardLayoutTest {
             device.swipe((device.displayWidth * .7).toInt(), (device.displayHeight * .57).toInt(),
                 (device.displayWidth * .7).toInt(), (device.displayHeight * .22).toInt(), 30)
             checkNotNull(device.wait(Until.findObject(By.text("Market chart · OHLCV")), 10_000))
+            val pinned = checkNotNull(device.wait(Until.findObject(By.desc("Pine AI composer")), 10_000))
+            val visibleCandles = device.findObject(By.desc("OHLCV price candles"))
+            if (visibleCandles != null && visibleCandles.visibleBounds.width() > 0 &&
+                visibleCandles.visibleBounds.height() > 0) {
+                assertTrue("Pine chart is obscured by the pinned composer",
+                    visibleCandles.visibleBounds.bottom <= pinned.visibleBounds.top + 4)
+            }
             captureWorkspace("pine-preview.png")
+            checkNotNull(device.wait(Until.findObject(By.text("Expand chart")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("Market chart · Real OHLCV")), 10_000))
+            captureWorkspace("pine-chart-expanded.png")
+            device.pressBack()
             device.pressBack()
             checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
             checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
@@ -129,6 +150,102 @@ class KeyboardLayoutTest {
             objectWithDescription("Agents")
             objectWithDescription("Project Studio")
             objectWithDescription("More")
+        }
+    }
+
+    /**
+     * Capture populated UI from genuine app-private project files.
+     * These are local test fixtures, not fabricated GitHub branches or connections.
+     */
+    @Test fun localProjectWorkspaceShowsRealFilesAndEditorState() {
+        val context = instrumentation.targetContext
+        val store = ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore(context)
+        val project = store.newProject("Visual Acceptance Workspace")
+        try {
+            withLaunchedActivity {
+                objectWithDescription("Project Studio").click()
+                awaitCondition("Local project not visible in Work") {
+                    device.hasObject(By.text("Visual Acceptance Workspace"))
+                }
+                captureWorkspace("studio-populated.png")
+                checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
+                checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
+                captureWorkspace("studio-files-populated.png")
+                assertTrue("Local project starter files missing", store.listFiles(project.id).isNotEmpty())
+            }
+        } finally {
+            java.io.File(context.filesDir, "studio/projects/${project.id}").deleteRecursively()
+        }
+    }
+
+    /** Verify actual persisted agent instructions in the editable Agents panel. */
+    @Test fun savedAgentProfileRendersEditablePanel() {
+        val store = PersonalAgentStore(instrumentation.targetContext)
+        val agent = store.create("Visual Test Code Engineer")
+        try {
+            store.save(agent.copy(
+                instructions = "Review Kotlin and Pine Script changes before applying edits.",
+                tasks = listOf("Audit code changes", "Verify Pine Script syntax")
+            ))
+            withLaunchedActivity {
+                objectWithDescription("Agents").click()
+                checkNotNull(device.wait(Until.findObject(By.text("Visual Test Code Engineer")), 10_000))
+                captureWorkspace("agents-populated.png")
+                checkNotNull(device.wait(Until.findObject(By.desc("Edit agent")), 10_000)).click()
+                checkNotNull(device.wait(Until.findObject(By.text("Edit agent")), 10_000))
+                checkNotNull(device.wait(Until.findObject(
+                    By.text("Review Kotlin and Pine Script changes before applying edits.")), 10_000))
+                captureWorkspace("agents-edit-populated.png")
+            }
+        } finally { store.delete(agent.id) }
+    }
+
+    /**
+     * Render actual production code-card/HTML-preview composables using explicitly
+     * marked local test content. This does not fabricate a connected AI session.
+     */
+    @Test fun actualCodeCardsAndOfflineHtmlPreviewRenderSafely() {
+        val fixture = listOf(
+            "Local UI test fixture, not a provider-generated message.",
+            "```kotlin",
+            "fun greet() = \"MAXIMUS CODE FIXTURE\"",
+            "```",
+            "```html",
+            "<main><h2>MAXIMUS Web Preview Fixture</h2><p>Locally rendered</p></main>",
+            "```",
+            "```css",
+            "h2 { color: #c89438; }",
+            "```"
+        ).joinToString("\n")
+        withLaunchedActivity {
+            withResumedActivity { activity ->
+                activity.setContent {
+                    MaterialTheme {
+                        Column(
+                            Modifier.fillMaxSize().background(Color.Black)
+                                .verticalScroll(rememberScrollState()).padding(10.dp)
+                        ) {
+                            Text("LOCAL UI FIXTURE · NO CONNECTED PROVIDER",
+                                color = Color.White)
+                            WorkspaceMessageContent(fixture, Color.White)
+                        }
+                    }
+                }
+            }
+            checkNotNull(device.wait(Until.findObject(By.text("Kotlin")), 10_000))
+            captureWorkspace("chat-code-fixture.png")
+            repeat(5) {
+                if (!device.hasObject(By.text("Preview locally"))) {
+                    device.swipe((device.displayWidth * .6).toInt(),
+                        (device.displayHeight * .75).toInt(),
+                        (device.displayWidth * .6).toInt(),
+                        (device.displayHeight * .25).toInt(), 20)
+                }
+            }
+            checkNotNull(device.wait(Until.findObject(By.text("Preview locally")), 10_000))
+                .click()
+            checkNotNull(device.wait(Until.findObject(By.text("Close preview")), 10_000))
+            captureWorkspace("chat-html-preview-fixture.png")
         }
     }
 
@@ -186,7 +303,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "studio-overview.png", "studio-changes.png", "pine-studio.png", "pine-preview.png", "agents-my-agents.png", "smart-combo.png", "tools-hub.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "chat-code-fixture.png", "chat-html-preview-fixture.png", "studio-overview.png", "studio-changes.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)

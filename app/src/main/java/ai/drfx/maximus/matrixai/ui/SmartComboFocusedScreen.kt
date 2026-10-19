@@ -56,6 +56,7 @@ internal fun SmartComboFocusedScreen(
     val metrics = state.tokenMetrics
     var search by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("All") }
+    var usageExpanded by remember { mutableStateOf(false) }
     var choice by remember(state.provider, state.models, state.selectedModel) {
         mutableStateOf(state.selectedModel)
     }
@@ -77,8 +78,8 @@ internal fun SmartComboFocusedScreen(
     Column(modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.weight(1f).testTag("smart_combo_focused_screen"),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             item {
                 WorkspaceBrand()
@@ -109,51 +110,66 @@ internal fun SmartComboFocusedScreen(
                         statusLabel = smartComboStatusLabel(state)
                     )
                     HorizontalDivider(color = MaximusReference.stroke)
-                    Text("Verified free offers: ${state.smartComboOffers}  ·  Configured providers: ${state.smartComboConfiguredProviders}",
-                        color = MaximusReference.muted, fontSize = 11.sp)
-                    if (state.smartComboCatalogChecks.isNotEmpty()) {
-                        state.smartComboCatalogChecks.take(4).forEach { check ->
-                            Text(smartComboProviderLabel(check),
-                                color = MaximusReference.muted, fontSize = 10.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Free offers: ${state.smartComboOffers} · Configured: ${state.smartComboConfiguredProviders}",
+                            modifier = Modifier.weight(1f), color = MaximusReference.muted,
+                            fontSize = 10.sp, maxLines = 1)
+                        IconButton(onClick = viewModel::refreshSmartCombo,
+                            enabled = state.smartComboEnabled && !state.smartComboRefreshing &&
+                                !state.isGenerating, modifier = Modifier.size(30.dp)) {
+                            Icon(Icons.Default.Refresh, "Refresh verified routes",
+                                modifier = Modifier.size(18.dp), tint = MaximusReference.gold)
                         }
-                    }
-                    OutlinedButton(
-                        onClick = viewModel::refreshSmartCombo,
-                        enabled = state.smartComboEnabled && !state.smartComboRefreshing &&
-                            !state.isGenerating,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("Refresh verified routes")
                     }
                 }
             }
             item {
-                MaximusContextStrip(
-                    usedFraction = metrics.contextUsagePercent,
-                    remaining = if (state.selectedModel.isBlank()) "Unknown" else
-                        NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens) +
-                            " (estimated)",
-                    provider = state.provider.displayName,
-                    model = state.selectedModel
-                )
-                Spacer(Modifier.height(4.dp))
-                MaximusFramedCard {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Shield, null, tint = MaximusReference.gold,
-                            modifier = Modifier.size(17.dp))
+                Surface(
+                    onClick = { usageExpanded = !usageExpanded },
+                    modifier = Modifier.fillMaxWidth().testTag("smart_combo_usage_details"),
+                    color = MaximusReference.navy,
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, MaximusReference.stroke)
+                ) {
+                    Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.DataUsage, null, Modifier.size(17.dp),
+                            tint = MaximusReference.gold)
                         Spacer(Modifier.width(7.dp))
-                        Text("Provider rate tokens remaining",
-                            modifier = Modifier.weight(1f), fontSize = 11.sp,
-                            color = MaximusReference.muted)
-                        Text(verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) }
-                            ?: "Unverified", color = if (verifiedRate != null)
-                            MaximusReference.green else MaximusReference.muted,
-                            fontSize = 11.sp)
+                        Column(Modifier.weight(1f)) {
+                            Text("Token and quota details", color = MaximusReference.white,
+                                fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Context estimate · " +
+                                (if (state.selectedModel.isBlank()) "Unknown"
+                                    else NumberFormat.getIntegerInstance()
+                                        .format(metrics.remainingContextTokens)) +
+                                " · Rate tokens: " +
+                                (verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) }
+                                    ?: "Unverified"),
+                                color = MaximusReference.muted, fontSize = 10.sp,
+                                maxLines = 1)
+                        }
+                        Icon(if (usageExpanded) Icons.Default.ExpandLess
+                             else Icons.Default.ExpandMore,
+                            if (usageExpanded) "Collapse quota details" else "Expand quota details",
+                            modifier = Modifier.size(18.dp), tint = MaximusReference.muted)
                     }
-                    Text("Context remaining is a local estimate; provider quota and billing are separate.",
-                        fontSize = 10.sp, color = MaximusReference.muted)
+                }
+                if (usageExpanded) {
+                    Spacer(Modifier.height(5.dp))
+                    MaximusContextStrip(
+                        usedFraction = metrics.contextUsagePercent,
+                        remaining = if (state.selectedModel.isBlank()) "Unknown" else
+                            NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens) +
+                                " (estimated)",
+                        provider = state.provider.displayName,
+                        model = state.selectedModel
+                    )
+                    Text("Verified provider rate tokens: " +
+                            (verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) }
+                                ?: "Unverified") +
+                            " · Context estimates are not billed quota.",
+                        color = MaximusReference.muted, fontSize = 10.sp)
                 }
             }
             item {
@@ -276,14 +292,14 @@ private fun SmartComboRouteDiagram(
             Text(if (active) "Routing…" else statusLabel,
                 color = MaximusReference.muted, fontSize = 10.sp, maxLines = 2)
         }
-        WorkspaceCompanion(working = active, modifier = Modifier.size(75.dp))
+        WorkspaceCompanion(working = active, modifier = Modifier.size(51.dp))
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
             Text(selectedModel.ifBlank { "No model selected" },
                 fontSize = 11.sp, maxLines = 2, color = MaximusReference.gold)
             Text("Current selection", fontSize = 9.sp, color = MaximusReference.muted)
         }
     }
-    Canvas(Modifier.fillMaxWidth().height(26.dp)) {
+    Canvas(Modifier.fillMaxWidth().height(15.dp)) {
         val path = Path().apply {
             moveTo(0f, size.height / 2)
             cubicTo(size.width * .25f, size.height * .05f,

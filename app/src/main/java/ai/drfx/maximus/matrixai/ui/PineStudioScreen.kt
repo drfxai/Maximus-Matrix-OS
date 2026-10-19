@@ -9,6 +9,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -64,6 +68,8 @@ fun PineStudioScreen(
     var deleteOpen by remember { mutableStateOf(false) }
     var editBriefOpen by remember { mutableStateOf(false) }
     var editCodeOpen by remember { mutableStateOf(false) }
+    var codeExpanded by remember { mutableStateOf(false) }
+    var chartExpanded by remember { mutableStateOf(false) }
     var editText by remember { mutableStateOf("") }
     var nextChange by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
@@ -96,11 +102,11 @@ fun PineStudioScreen(
         status = if (onAskAi(prompt)) "Request sent to Chat." else "Connect an AI model in Chat first."
     }
 
-    Box(modifier.fillMaxSize().background(Color.Black)) {
+    Column(modifier.fillMaxSize().background(Color.Black)) {
     LazyColumn(
-        Modifier.fillMaxSize().testTag("pine_studio_screen"),
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 84.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        Modifier.weight(1f).fillMaxWidth().testTag("pine_studio_screen"),
+        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -110,7 +116,7 @@ fun PineStudioScreen(
                     Icon(Icons.Default.Add, "New Pine draft", tint = pineGold)
                 }
             }
-            MaximusSectionHeader("Pine Studio", "Build indicators with AI")
+            MaximusSectionHeader("Pine Studio", "Build and test TradingView indicators with AI")
         }
         item {
             PinePanel {
@@ -147,17 +153,29 @@ fun PineStudioScreen(
             Text(status, color = pineMuted, fontSize = 11.sp)
         }
         if (draft != null) {
-            item {
-                PinePanel {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Description, null, tint = pineMuted)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Your idea", Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.SemiBold)
-                        IconButton(onClick = { editText = draft.brief; editBriefOpen = true }) {
-                            Icon(Icons.Default.Edit, "Edit idea", tint = pineMuted)
+            if (tab == 1) item {
+                Surface(
+                    color = pineBlue, shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, pineBorder)
+                ) {
+                    Row(Modifier.fillMaxWidth().heightIn(min = 40.dp)
+                        .padding(start = 9.dp, end = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Description, null, Modifier.size(16.dp), tint = pineMuted)
+                        Spacer(Modifier.width(7.dp))
+                        Text("Your idea", color = Color.White, fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.width(6.dp))
+                        Text(draft.brief.ifBlank { "Describe your indicator" },
+                            color = pineMuted, fontSize = 10.sp, maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f))
+                        IconButton(onClick = { editText = draft.brief; editBriefOpen = true },
+                            modifier = Modifier.size(31.dp)) {
+                            Icon(Icons.Default.Edit, "Edit indicator brief",
+                                Modifier.size(16.dp), tint = pineMuted)
                         }
                     }
-                    Text(draft.brief.ifBlank { "Describe the indicator you want to build." }, color = pineMuted)
                 }
             }
             if (tab == 1) {
@@ -185,12 +203,17 @@ fun PineStudioScreen(
                                     modifier = Modifier.size(20.dp))
                             }
                             IconButton(onClick = { editText = draft.code; editCodeOpen = true },
-                                modifier = Modifier.size(32.dp)) {
+                                modifier = Modifier.size(30.dp)) {
                                 Icon(Icons.Default.Edit, "Edit Pine code", tint = pineMuted,
-                                    modifier = Modifier.size(18.dp))
+                                    modifier = Modifier.size(17.dp))
+                            }
+                            IconButton(onClick = { codeExpanded = true },
+                                modifier = Modifier.size(30.dp)) {
+                                Icon(Icons.Default.OpenInFull, "Full Pine source",
+                                    tint = pineGold, modifier = Modifier.size(17.dp))
                             }
                         }
-                        PineCodeView(draft.code)
+                        PineCodeView(draft.code, maxHeight = 83.dp)
                     }
                 }
                 item {
@@ -199,11 +222,17 @@ fun PineStudioScreen(
                             Icon(Icons.Default.BarChart, null, tint = pineMuted)
                             Spacer(Modifier.width(8.dp))
                             Text("Market chart · OHLCV", Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.SemiBold)
-                            Text("Live source", color = pineGold, fontSize = 10.sp)
+                            TextButton(onClick = { chartExpanded = true },
+                                modifier = Modifier.height(28.dp),
+                                contentPadding = PaddingValues(horizontal = 3.dp)) {
+                                Icon(Icons.Default.OpenInFull, null, Modifier.size(14.dp), tint = pineGold)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Expand chart", color = pineGold, fontSize = 10.sp)
+                            }
                         }
-                        PineLiveMarketChart()
-                        Text("ⓘ  Code editing and export are local. For Pine compilation, alerts and strategy backtesting, verify in TradingView.",
-                            color = pineMuted, fontSize = 11.sp)
+                        PineLiveMarketChart(compact = true)
+                        Text("ⓘ Pine compile / backtest in TradingView; exchange chart does not run scripts.",
+                            color = pineMuted, fontSize = 10.sp, maxLines = 2)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = {
                                 clipboard.setText(AnnotatedString(draft.code)); status = "Pine code copied."
@@ -256,8 +285,9 @@ fun PineStudioScreen(
         }
     }
     Row(
-        Modifier.fillMaxWidth().align(Alignment.BottomCenter)
-            .padding(horizontal = 9.dp, vertical = 4.dp).heightIn(min = 56.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 4.dp).heightIn(min = 56.dp)
+            .testTag("pine_pinned_composer")
+            .semantics { contentDescription = "Pine AI composer" },
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
@@ -309,7 +339,64 @@ fun PineStudioScreen(
             }
         }
     }
-    // The floating composer and scrollable content share a Box; dialogs are outside it.
+    // The scroll view uses weight(1f), so the pinned composer never overlays chart or code.
+    // The chart/code dialogs are outside the screen column.
+    }
+
+
+    if (chartExpanded) {
+        Dialog(onDismissRequest = { chartExpanded = false }) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = pineBlue,
+                border = BorderStroke(1.dp, pineBorder)
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Market chart · Real OHLCV", Modifier.weight(1f),
+                            color = Color.White, fontWeight = FontWeight.Bold)
+                        IconButton(onClick = { chartExpanded = false }) {
+                            Icon(Icons.Default.Close, "Close chart", tint = pineMuted)
+                        }
+                    }
+                    PineLiveMarketChart()
+                }
+            }
+        }
+    }
+    if (codeExpanded && draft != null) {
+        Dialog(onDismissRequest = { codeExpanded = false }) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = pineBlue,
+                border = BorderStroke(1.dp, pineBorder)
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Pine Script v6 · Full source", Modifier.weight(1f),
+                            color = Color.White, fontWeight = FontWeight.Bold)
+                        IconButton(onClick = { codeExpanded = false }) {
+                            Icon(Icons.Default.Close, "Close full source", tint = pineMuted)
+                        }
+                    }
+                    PineCodeView(draft.code, maxHeight = 420.dp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = {
+                            clipboard.setText(AnnotatedString(draft.code))
+                            status = "Pine code copied."
+                        }, modifier = Modifier.weight(1f)) { Text("Copy") }
+                        Button(onClick = { codeExpanded = false; export() },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = pineGold, contentColor = Color.Black)) {
+                            Text("Export .pine")
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (createOpen || renameOpen || editBriefOpen || editCodeOpen) {
@@ -355,7 +442,7 @@ private fun PinePanel(modifier: Modifier = Modifier, content: @Composable Column
 }
 
 @Composable
-private fun PineCodeView(code: String) {
+private fun PineCodeView(code: String, maxHeight: androidx.compose.ui.unit.Dp = 175.dp) {
     val highlighted = remember(code) {
         buildAnnotatedString {
             append(code)
@@ -367,7 +454,7 @@ private fun PineCodeView(code: String) {
     Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF06101C),
         border = BorderStroke(1.dp, pineBorder)) {
         SelectionContainer {
-            Row(Modifier.fillMaxWidth().heightIn(max = 175.dp).horizontalScroll(rememberScrollState()).padding(10.dp)) {
+            Row(Modifier.fillMaxWidth().heightIn(max = maxHeight).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()).padding(8.dp)) {
                 Text((1..code.lines().size).joinToString("\n"), color = pineMuted,
                     fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 19.sp)
                 Spacer(Modifier.width(16.dp))

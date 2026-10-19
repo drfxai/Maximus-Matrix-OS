@@ -38,8 +38,8 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
         item {
             WorkspaceBrand()
@@ -54,7 +54,15 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
             }
         }
         item {
-            MaximusTabs(listOf("My agents", "Teams", "Connections"), section, { section = it })
+            if (section == 2) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tools & Connections", modifier = Modifier.weight(1f),
+                        color = MaximusReference.white, fontWeight = FontWeight.SemiBold)
+                    TextButton(onClick = { section = 0 }) { Text("Back to agents") }
+                }
+            } else {
+                MaximusTabs(listOf("My agents", "Teams"), section, { section = it })
+            }
         }
         if (section == 0) {
             item { OutlinedTextField(value = search, onValueChange = { search = it },
@@ -62,13 +70,19 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(12.dp)) }
             if (personal.isEmpty()) item {
-                MaximusFramedCard {
-                    Text("My agents", color = MaximusReference.white, fontWeight = FontWeight.Bold)
-                    Text("No custom agents have been created yet. Create one to define real instructions and tasks.",
-                        color = MaximusReference.muted, fontSize = 12.sp)
-                    OutlinedButton(onClick = { newName = ""; creating = true }) {
-                        Icon(Icons.Default.Add, null, Modifier.size(16.dp))
-                        Text("Create agent")
+                MaximusFramedCard(padding = PaddingValues(9.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("My agents · 0", color = MaximusReference.white,
+                                fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Create an agent with real instructions and tasks.",
+                                color = MaximusReference.muted, fontSize = 10.sp,
+                                maxLines = 2)
+                        }
+                        OutlinedButton(onClick = { newName = ""; creating = true }) {
+                            Icon(Icons.Default.Add, null, Modifier.size(14.dp))
+                            Text("Create", fontSize = 11.sp)
+                        }
                     }
                 }
             }
@@ -148,8 +162,11 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
                     }
                 }
             }
-            item { Text("Available personas", color = MaximusReference.gold,
-                fontWeight = FontWeight.SemiBold) }
+            item { Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Available personas", Modifier.weight(1f), color = MaximusReference.gold,
+                    fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = { section = 2 }) { Text("Tools", fontSize = 11.sp) }
+            } }
         }
         if (section == 2) { item { DeveloperConnectionsPanel() } }
         if (section == 1) { item { AgentTeamPanel() }; item { CloudTeamStatusPanel() } }
@@ -165,7 +182,7 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
                     else MaterialTheme.colorScheme.outline
                 )
             ) {
-                Column(Modifier.padding(13.dp)) {
+                Column(Modifier.padding(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
                             modifier = Modifier.size(34.dp),
@@ -188,8 +205,8 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
                             Text(
                                 agent.description,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp
+                                fontSize = 10.sp, lineHeight = 14.sp,
+                                maxLines = 2
                             )
                         }
                         Text(
@@ -200,16 +217,18 @@ fun AgentsScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier, onCh
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(4.dp))
                     Text(
                         "Requires: " + agent.requiredCapabilities.joinToString(" · ") { it.name.replace('_', ' ') },
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 10.sp
                     )
                     if (supported) {
-                        Spacer(Modifier.height(9.dp))
-                        OutlinedButton(onClick = { viewModel.selectAgent(agent.id) }) {
-                            Text(if (state.selectedAgentId == agent.id) "Selected" else "Use Persona")
+                        Spacer(Modifier.height(4.dp))
+                        OutlinedButton(onClick = { viewModel.selectAgent(agent.id) },
+                            modifier = Modifier.heightIn(min = 34.dp)) {
+                            Text(if (state.selectedAgentId == agent.id) "Selected" else "Use Persona",
+                                fontSize = 11.sp)
                         }
                     }
                 }
