@@ -100,10 +100,10 @@ fun PineStudioScreen(
         status = if (onAskAi(prompt)) "Request sent to Chat." else "Connect an AI model in Chat first."
     }
 
-    Box(modifier.fillMaxSize().background(Color.Black)) {
+    Column(modifier.fillMaxSize().background(Color.Black)) {
     LazyColumn(
-        Modifier.fillMaxSize().testTag("pine_studio_screen"),
-        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 90.dp),
+        Modifier.weight(1f).fillMaxWidth().testTag("pine_studio_screen"),
+        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         item {
@@ -283,8 +283,8 @@ fun PineStudioScreen(
         }
     }
     Row(
-        Modifier.fillMaxWidth().align(Alignment.BottomCenter)
-            .padding(horizontal = 9.dp, vertical = 4.dp).heightIn(min = 56.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 4.dp).heightIn(min = 56.dp)
+            .testTag("pine_pinned_composer"),
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
@@ -336,7 +336,8 @@ fun PineStudioScreen(
             }
         }
     }
-    // The floating composer and scrollable content share a Box; dialogs are outside it.
+    // The scroll view uses weight(1f), so the pinned composer never overlays chart or code.
+    // The chart/code dialogs are outside the screen column.
     }
 
 
