@@ -18,12 +18,17 @@
   },
   "changes": [
     "pending team cancellation retained until callback registration",
-    "checkpoint file-manifest revision validated"
+    "checkpoint file-manifest revision validated",
+    "checkpoint corruption error follows selected app language in en/fa/ar/tr/ru"
   ],
   "tests": {
-    "brokerJvm": "NOT_RUN",
-    "checkpointAndroid": "NOT_RUN",
-    "featureCi": "PENDING",
+    "brokerJvm": "NOT_RUN: 6 regression cases",
+    "checkpointAndroid": "NOT_RUN: 3 corruption cases plus five-language exception selection",
+    "featureCi": {
+      "status": "REFRESH_REQUIRED",
+      "previousRunId": 39456758796,
+      "instruction": "Query PR 137 current-head checks; do not assume previous head results apply."
+    },
     "baselineCi": {
       "runId": 39421264404,
       "result": "SUCCESS",
@@ -55,5 +60,18 @@
   "sourceReports": [
     "docs/engineering/MAPS_AUDIT_2026-10-20.md",
     "docs/engineering/ADR-2026-10-20-native-maps.md"
-  ]
+  ],
+  "pullRequest": 137,
+  "implementationHead": "0e120461400ca17436bda972beed1782ec67b650",
+  "reviews": {
+    "security": {
+      "status": "NO_BLOCKING_FINDINGS",
+      "scope": "independent source review only"
+    },
+    "qa": {
+      "status": "NO_BLOCKING_FINDINGS",
+      "scope": "independent source/test review only"
+    }
+  },
+  "baselineReleaseTagCommit": "d13a199ed95cb5ad232d1782acae91445ebc4652"
 }

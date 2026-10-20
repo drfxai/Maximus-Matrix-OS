@@ -782,4 +782,5 @@
     <string name="motion_context_not_credit">Estimated conversation capacity, separate from provider credit.</string>
     <string name="motion_selected">Selected</string>
     <string name="motion_team_scope">Scheduled news and device-health tasks. Project teams run in Studio.</string>
+    <string name="project_checkpoint_integrity_error">Checkpoint revision does not match its file manifest. Review the workspace and save a new checkpoint.</string>
 </resources>

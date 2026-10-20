@@ -8,7 +8,7 @@ Primary references: [MAPS guide](https://github.com/pavrus117/ai-os-maps-guide),
 ## Baseline and verification
 Main matches the supplied baseline. app/build.gradle.kts has versionName 1.0.0,
 versionCode 10029 and applicationId ai.drfx.maximus.matrixai. No changes to these.
-Latest release API reports v1.0.0, assets updated 2026-10-20; release target_commitish
+The current v1.0.0 Git tag points to the audited main commit. Latest release API reports v1.0.0, assets updated 2026-10-20; release target_commitish
 is 0e7f7dc148f905ed4e2aebe8a3d07479c0120c7d. That metadata alone does not establish
 the current asset source SHA. Release body reports build 10029.
 
@@ -67,7 +67,9 @@ No credentials, cloud resources, Room data, preferences or release identity chan
 No new screen, visual proportions, animations, rendering framework or remote calls.
 
 ## Verification and remaining evidence
-New tests: six broker JVM cases, three Android checkpoint corruption cases in the existing
+Independent security and QA source review of the first code commit found no blocking defects.
+The new integrity error is localized through the existing saved app-language mechanism.
+New tests: six broker JVM cases, three Android checkpoint corruption cases and a five-language error-selection case in the existing
 credential/history suite. Both normal emulator suites remain mandatory. Tests are NOT_RUN
 until the feature head's CI reports success. Independent security/QA source reviewers
 identified these defects and will review the concrete patch. No owner acceptance is implied.

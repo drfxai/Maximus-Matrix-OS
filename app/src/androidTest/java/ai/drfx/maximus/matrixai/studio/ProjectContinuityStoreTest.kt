@@ -45,7 +45,23 @@ class ProjectContinuityStoreTest {
         }
     }
 
-    private fun rejectCorruptManifest(corrupt: (org.json.JSONObject) -> Unit) {
+    @Test fun corruptRevisionErrorFollowsAllFiveAppLanguages() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val preference = ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceStore(context)
+        val previous = preference.load()
+        try {
+            for (language in ai.drfx.maximus.matrixai.ui.theme.AppLanguage.entries) {
+                preference.save(language)
+                val expected = ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceStore
+                    .localizedContext(context, language)
+                    .getString(ai.drfx.maximus.matrixai.R.string.project_checkpoint_integrity_error)
+                rejectCorruptManifest(expected) { it.put("revision", "0".repeat(64)) }
+            }
+        } finally { preference.save(previous) }
+    }
+
+    private fun rejectCorruptManifest(expectedMessage: String? = null,
+        corrupt: (org.json.JSONObject) -> Unit) {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val workspace = ProjectWorkspaceStore(context)
         val project = workspace.newProject("Checkpoint integrity test")
@@ -58,9 +74,10 @@ class ProjectContinuityStoreTest {
             val manifest = org.json.JSONObject(original)
             corrupt(manifest)
             file.writeText(manifest.toString())
-            assertThrows(IllegalArgumentException::class.java) {
+            val failure = assertThrows(IllegalArgumentException::class.java) {
                 continuity.validate(project.id, saved.checkpointId)
             }
+            expectedMessage?.let { assertEquals(it, failure.message) }
             assertThrows(IllegalArgumentException::class.java) {
                 continuity.resumePrompt(project.id)
             }
