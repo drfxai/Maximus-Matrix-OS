@@ -144,12 +144,15 @@ class KeyboardLayoutTest {
             objectWithDescription("Project Studio").click()
             checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
             captureWorkspace("studio-overview.png")
-            scrollWorkUntilVisible("Assistant", androidx.test.uiautomator.Direction.DOWN)
+            // The premium Pine chart can be taller than a physical phone viewport.
+            // Use the app's visible, production Work-navigation shortcut.
+            checkNotNull(device.wait(Until.findObject(By.text("Tools ↓")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
             checkNotNull(device.wait(Until.findObject(By.text("Changes")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("No staged file changes in this local workspace.")), 10_000))
             captureWorkspace("studio-changes.png")
             checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000)).click()
-            scrollWorkUntilVisible("Open Pine Studio", androidx.test.uiautomator.Direction.DOWN)
+            scrollWorkUntilVisible("Open Pine Studio", androidx.test.uiautomator.Direction.UP)
             captureWorkspace("studio-pine-premium.png")
             checkNotNull(device.wait(Until.findObject(By.text("Open Pine Studio")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
@@ -172,7 +175,11 @@ class KeyboardLayoutTest {
             captureWorkspace("pine-chart-expanded.png")
             device.pressBack()
             device.pressBack()
-            scrollWorkUntilVisible("Files", androidx.test.uiautomator.Direction.DOWN)
+            if (device.hasObject(By.text("Tools ↓"))) {
+                device.findObject(By.text("Tools ↓")).click()
+            } else {
+                scrollWorkUntilVisible("Files", androidx.test.uiautomator.Direction.DOWN)
+            }
             checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
             assertFalse("Files must not render the build dashboard", device.hasObject(By.text(instrumentation.targetContext.getString(ai.drfx.maximus.matrixai.R.string.phone_harness_title))))
@@ -205,14 +212,8 @@ class KeyboardLayoutTest {
                     device.hasObject(By.text("Visual Acceptance Workspace"))
                 }
                 captureWorkspace("studio-populated.png")
-                repeat(5) {
-                    if (!device.hasObject(By.text("Files"))) {
-                        device.swipe((device.displayWidth * .68).toInt(),
-                            (device.displayHeight * .73).toInt(),
-                            (device.displayWidth * .68).toInt(),
-                            (device.displayHeight * .27).toInt(), 25)
-                    }
-                }
+                // Jump through the same visible Work section control used by users.
+                checkNotNull(device.wait(Until.findObject(By.text("Tools ↓")), 10_000)).click()
                 checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
                 checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
                 captureWorkspace("studio-files-populated.png")
