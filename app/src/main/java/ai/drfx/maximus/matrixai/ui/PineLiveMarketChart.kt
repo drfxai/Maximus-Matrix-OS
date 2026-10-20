@@ -133,13 +133,16 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                 }
                 val chartHeight = if (previewOnly) 170.dp else if (compact) 155.dp else 230.dp
                 Row(Modifier.fillMaxWidth().height(chartHeight), verticalAlignment = Alignment.Top) {
-                    Row(Modifier.weight(1f).horizontalScroll(horizontal)) {
+                    Row(Modifier.weight(1f).then(
+                        if (previewOnly) Modifier else Modifier.horizontalScroll(horizontal))) {
                         PineOhlcvCanvas(
                             candles = visibleCandles,
                             selectedIndex = if (previewOnly) -1 else selected,
                             onSelect = { selected = it },
                             markSweeps = previewOnly,
-                            modifier = Modifier.width(if (previewOnly) 350.dp else (max(320, market.candles.size * candleWidth)).dp)
+                            modifier = Modifier.then(
+                                if (previewOnly) Modifier.fillMaxWidth()
+                                else Modifier.width((max(320, market.candles.size * candleWidth)).dp))
                                 .height(chartHeight).testTag("pine_real_ohlcv_canvas")
                                 .semantics { contentDescription = "OHLCV price candles" }
                         )
