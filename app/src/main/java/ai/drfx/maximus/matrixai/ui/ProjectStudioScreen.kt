@@ -167,11 +167,11 @@ fun ProjectStudioScreen(
         }
     }
 
-    Box(modifier.fillMaxSize()) {
+    Column(modifier.fillMaxSize()) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().testTag("project_studio_screen"),
+        modifier = Modifier.weight(1f).fillMaxWidth().testTag("project_studio_screen"),
         state = workspaceListState,
-        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 5.dp, bottom = if (section == 0) 106.dp else 24.dp),
+        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 5.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
         item {
@@ -635,7 +635,7 @@ fun ProjectStudioScreen(
         }
     }
     if (section == 0) {
-        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp)) {
+        Box(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp).testTag("work_pinned_composer")) {
                 Surface(shape = RoundedCornerShape(20.dp), color = MaximusReference.navy,
                     border = BorderStroke(1.dp, studioCyan.copy(alpha = .5f))) {
                     Row(Modifier.fillMaxWidth().padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
