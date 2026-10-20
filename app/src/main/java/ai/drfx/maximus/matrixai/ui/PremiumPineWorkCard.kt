@@ -26,7 +26,11 @@ import androidx.compose.ui.unit.sp
  * No preview/mock trading candles, script execution, or backtest results are invented.
  */
 @Composable
-internal fun PremiumPineWorkCard(onOpen: () -> Unit, modifier: Modifier = Modifier) {
+internal fun PremiumPineWorkCard(
+    onOpen: () -> Unit,
+    onJumpToWorkspace: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Surface(
         modifier = modifier.fillMaxWidth().testTag("premium_pine_work_card"),
         shape = RoundedCornerShape(16.dp),
@@ -70,6 +74,13 @@ internal fun PremiumPineWorkCard(onOpen: () -> Unit, modifier: Modifier = Modifi
                         fontSize = 11.sp, color = MaximusReference.muted,
                         maxLines = 2, lineHeight = 15.sp,
                         overflow = TextOverflow.Ellipsis)
+                }
+                TextButton(
+                    onClick = onJumpToWorkspace,
+                    modifier = Modifier.testTag("work_go_to_sections")
+                ) {
+                    Text("Tools ↓", color = MaximusReference.gold, fontSize = 10.sp,
+                        maxLines = 1)
                 }
                 IconButton(onClick = onOpen,
                     modifier = Modifier.testTag("premium_pine_open_icon")) {
