@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.ViewInAr
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.style.TextOverflow
@@ -129,6 +130,7 @@ internal fun MaximusContextStrip(
                     fontWeight = FontWeight.SemiBold, fontSize = if (compact) 11.sp else 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("Model", color = MaximusReference.muted, fontSize = 10.sp)
             }
+            if (compact) Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(17.dp), tint = MaximusReference.muted)
         }
         HorizontalDivider(color = MaximusReference.stroke)
         Row(verticalAlignment = Alignment.CenterVertically) {

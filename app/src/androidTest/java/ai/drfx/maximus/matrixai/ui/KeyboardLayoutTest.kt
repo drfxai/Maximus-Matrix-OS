@@ -227,6 +227,27 @@ class KeyboardLayoutTest {
         }
     }
 
+    @Test fun workHeaderSearchFiltersActualProjectFiles() {
+        val context = instrumentation.targetContext
+        val store = ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore(context)
+        val project = store.newProject("Search Acceptance Workspace")
+        try {
+            withLaunchedActivity {
+                objectWithDescription("Project Studio").click()
+                objectWithDescription("Search project files").click()
+                checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
+                val input = checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText")), 10_000))
+                input.text = "no-such-maximus-file-acceptance"
+                checkNotNull(device.wait(Until.findObject(By.text("No matching files")), 10_000))
+                objectWithDescription("Close file search").click()
+                val first = store.listFiles(project.id).first().path
+                checkNotNull(device.wait(Until.findObject(By.text(first)), 10_000))
+            }
+        } finally {
+            java.io.File(context.filesDir, "studio/projects/${project.id}").deleteRecursively()
+        }
+    }
+
     /** Verify actual persisted agent instructions in the editable Agents panel. */
     @Test fun savedAgentProfileRendersEditablePanel() {
         val store = PersonalAgentStore(instrumentation.targetContext)

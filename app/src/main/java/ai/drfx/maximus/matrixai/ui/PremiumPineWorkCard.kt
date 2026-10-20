@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.sp
 @Composable
 internal fun PremiumPineWorkCard(
     onOpen: () -> Unit,
-    onJumpToWorkspace: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -74,13 +73,6 @@ internal fun PremiumPineWorkCard(
                         fontSize = 11.sp, color = MaximusReference.muted,
                         maxLines = 2, lineHeight = 15.sp,
                         overflow = TextOverflow.Ellipsis)
-                }
-                TextButton(
-                    onClick = onJumpToWorkspace,
-                    modifier = Modifier.testTag("work_go_to_sections")
-                ) {
-                    Text("Tools ↓", color = MaximusReference.gold, fontSize = 10.sp,
-                        maxLines = 1)
                 }
                 IconButton(onClick = onOpen,
                     modifier = Modifier.testTag("premium_pine_open_icon")) {

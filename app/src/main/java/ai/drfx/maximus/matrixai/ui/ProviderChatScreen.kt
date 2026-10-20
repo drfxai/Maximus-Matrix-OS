@@ -1857,11 +1857,19 @@ private fun ChatBubble(
                         }
                     }
                 }
+                Text(
+                    remember(message.timestampMs) {
+                        java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+                            .format(java.util.Date(message.timestampMs))
+                    },
+                    modifier = Modifier.align(Alignment.End),
+                    color = MaximusReference.muted, fontSize = 9.sp
+                )
                 if (!isUser && !message.isError) {
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.Start
                     ) {
                         @Composable fun action(
                             icon: androidx.compose.ui.graphics.vector.ImageVector,

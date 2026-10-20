@@ -110,13 +110,16 @@ fun PineStudioScreen(
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back", tint = pineMuted) }
+                IconButton(onClick = { selectorOpen = true }) { Icon(Icons.Default.Menu, "Choose Pine draft", tint = pineMuted) }
                 WorkspaceBrand(Modifier.weight(1f))
                 IconButton(onClick = { createOpen = true }) {
                     Icon(Icons.Default.Add, "New Pine draft", tint = pineGold)
                 }
             }
-            MaximusSectionHeader("Pine Studio", "Build indicators with AI")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back", tint = pineMuted) }
+                MaximusSectionHeader("Pine Studio", "Build indicators with AI", Modifier.weight(1f))
+            }
         }
         item {
             PinePanel {

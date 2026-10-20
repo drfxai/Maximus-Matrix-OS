@@ -101,6 +101,8 @@ fun ProjectStudioScreen(
     var showCreate by remember { mutableStateOf(false) }
     var showGithub by remember { mutableStateOf(false) }
     var showSelector by remember { mutableStateOf(false) }
+    var fileSearch by remember { mutableStateOf("") }
+    var fileSearchOpen by remember { mutableStateOf(false) }
     var editingFile by remember { mutableStateOf<String?>(null) }
     var editor by remember { mutableStateOf("") }
     var originalEditor by remember { mutableStateOf("") }
@@ -186,8 +188,26 @@ fun ProjectStudioScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                WorkspaceBrand()
-                MaximusSectionHeader("Work", "Build, test, and deploy with AI")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { section = 5 }) {
+                        Icon(Icons.Default.Menu, stringResource(R.string.ui_advanced), tint = MaximusReference.gold)
+                    }
+                    WorkspaceBrand(Modifier.weight(1f))
+                    IconButton(onClick = { fileSearchOpen = !fileSearchOpen; section = 1 }) {
+                        Icon(Icons.Default.Search, "Search project files", tint = MaximusReference.gold)
+                    }
+                    IconButton(onClick = { section = 4 }) {
+                        Icon(Icons.Default.Settings, stringResource(R.string.design_connections), tint = MaximusReference.gold)
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MaximusSectionHeader("Work", "Build, test, and deploy with AI", Modifier.weight(1f))
+                    if (section == 0) TextButton(onClick = {
+                        workspaceScope.launch { workspaceListState.animateScrollToItem(4) }
+                    }, modifier = Modifier.testTag("work_go_to_sections")) {
+                        Text("Tools ↓", color = MaximusReference.gold, fontSize = 11.sp)
+                    }
+                }
             }
         }
 
@@ -244,12 +264,7 @@ fun ProjectStudioScreen(
                 onSelect = { activeId = it; showSelector = false })
         }
         if (section == 0) item {
-            PremiumPineWorkCard(
-                onOpen = onPine,
-                onJumpToWorkspace = {
-                    workspaceScope.launch { workspaceListState.animateScrollToItem(4) }
-                }
-            )
+            PremiumPineWorkCard(onOpen = onPine)
         }
         item {
             if (section != 0) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -616,8 +631,16 @@ fun ProjectStudioScreen(
                     Text(files.size.toString(), color = studioGreen)
                 }
                 Spacer(Modifier.height(5.dp))
+                if (fileSearchOpen) OutlinedTextField(fileSearch, { fileSearch = it.take(120) },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    label = { Text("Search project files") },
+                    trailingIcon = { IconButton(onClick = { fileSearch = ""; fileSearchOpen = false }) {
+                        Icon(Icons.Default.Close, "Close file search")
+                    } })
+                val matchingFiles = files.filter { it.path.contains(fileSearch, ignoreCase = true) }
                 if (files.isEmpty()) Text(stringResource(R.string.studio_no_files), fontSize = 12.sp)
-                else files.take(80).forEach { file ->
+                else if (matchingFiles.isEmpty()) Text("No matching files", color = MaximusReference.muted, fontSize = 12.sp)
+                else matchingFiles.take(80).forEach { file ->
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f))
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable(enabled = !busy) {
@@ -640,7 +663,7 @@ fun ProjectStudioScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                if (files.size > 80) Text(stringResource(R.string.studio_show_files), fontSize = 11.sp)
+                if (matchingFiles.size > 80) Text(stringResource(R.string.studio_show_files), fontSize = 11.sp)
             }
         }
         }
