@@ -41,6 +41,7 @@ class OperationalAcceptanceTest {
 
     @Test fun sixGalaxyLayoutsKeepBrainAccessibleAndCaptureActualFrames() = inEnglishActivity {
         assertNotNull(device.wait(Until.findObject(By.desc("MAXIMUS assistant composer")), 10_000))
+        assertNotNull(device.wait(Until.findObject(By.desc("Neural Galaxy · Brain")), 10_000))
         capture("galaxy-brain.png")
         val layouts = listOf(
             "Rings" to "galaxy-rings.png",

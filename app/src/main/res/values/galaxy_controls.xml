@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- New controls remain English by owner instruction; existing locales are preserved. -->
+    <string name="galaxy_layout_selector" translatable="false">Neural Galaxy layouts</string>
+    <string name="galaxy_layout_description" translatable="false">Neural Galaxy · %1$s</string>
+</resources>
