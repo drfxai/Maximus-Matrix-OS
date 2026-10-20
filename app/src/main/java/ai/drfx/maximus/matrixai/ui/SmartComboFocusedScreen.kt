@@ -117,55 +117,6 @@ internal fun SmartComboFocusedScreen(
                 )
             }
             item {
-                Surface(
-                    onClick = { usageExpanded = !usageExpanded },
-                    modifier = Modifier.fillMaxWidth().testTag("smart_combo_usage_details"),
-                    color = MaximusReference.navy,
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, MaximusReference.stroke)
-                ) {
-                    Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.DataUsage, null, Modifier.size(17.dp),
-                            tint = MaximusReference.gold)
-                        Spacer(Modifier.width(7.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("Token and quota details", color = MaximusReference.white,
-                                fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                            Text("Context estimate · " +
-                                (if (state.selectedModel.isBlank()) "Unknown"
-                                    else NumberFormat.getIntegerInstance()
-                                        .format(metrics.remainingContextTokens)) +
-                                " · Rate tokens: " +
-                                (verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) }
-                                    ?: "Unverified"),
-                                color = MaximusReference.muted, fontSize = 10.sp,
-                                maxLines = 1)
-                        }
-                        Icon(if (usageExpanded) Icons.Default.ExpandLess
-                             else Icons.Default.ExpandMore,
-                            if (usageExpanded) "Collapse quota details" else "Expand quota details",
-                            modifier = Modifier.size(18.dp), tint = MaximusReference.muted)
-                    }
-                }
-                if (usageExpanded) {
-                    Spacer(Modifier.height(5.dp))
-                    MaximusContextStrip(
-                        usedFraction = metrics.contextUsagePercent,
-                        remaining = if (state.selectedModel.isBlank()) "Unknown" else
-                            NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens) +
-                                " (estimated)",
-                        provider = state.provider.displayName,
-                        model = state.selectedModel
-                    )
-                    Text("Verified provider rate tokens: " +
-                            (verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) }
-                                ?: "Unverified") +
-                            " · Context estimates are not billed quota.",
-                        color = MaximusReference.muted, fontSize = 10.sp)
-                }
-            }
-            item {
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Choose model", modifier = Modifier.weight(1f),
@@ -245,6 +196,55 @@ internal fun SmartComboFocusedScreen(
                         RadioButton(selected = choice == model.id, onClick = { choice = model.id },
                             colors = RadioButtonDefaults.colors(selectedColor = MaximusReference.gold))
                     }
+                }
+            }
+            item {
+                Surface(
+                    onClick = { usageExpanded = !usageExpanded },
+                    modifier = Modifier.fillMaxWidth().testTag("smart_combo_usage_details"),
+                    color = MaximusReference.navy,
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, MaximusReference.stroke)
+                ) {
+                    Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.DataUsage, null, Modifier.size(17.dp),
+                            tint = MaximusReference.gold)
+                        Spacer(Modifier.width(7.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Token and quota details", color = MaximusReference.white,
+                                fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Context estimate · " +
+                                (if (state.selectedModel.isBlank()) "Unknown"
+                                    else NumberFormat.getIntegerInstance()
+                                        .format(metrics.remainingContextTokens)) +
+                                " · Rate tokens: " +
+                                (verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) }
+                                    ?: "Unverified"),
+                                color = MaximusReference.muted, fontSize = 10.sp,
+                                maxLines = 1)
+                        }
+                        Icon(if (usageExpanded) Icons.Default.ExpandLess
+                             else Icons.Default.ExpandMore,
+                            if (usageExpanded) "Collapse quota details" else "Expand quota details",
+                            modifier = Modifier.size(18.dp), tint = MaximusReference.muted)
+                    }
+                }
+                if (usageExpanded) {
+                    Spacer(Modifier.height(5.dp))
+                    MaximusContextStrip(
+                        usedFraction = metrics.contextUsagePercent,
+                        remaining = if (state.selectedModel.isBlank()) "Unknown" else
+                            NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens) +
+                                " (estimated)",
+                        provider = state.provider.displayName,
+                        model = state.selectedModel
+                    )
+                    Text("Verified provider rate tokens: " +
+                            (verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) }
+                                ?: "Unverified") +
+                            " · Context estimates are not billed quota.",
+                        color = MaximusReference.muted, fontSize = 10.sp)
                 }
             }
             item {
