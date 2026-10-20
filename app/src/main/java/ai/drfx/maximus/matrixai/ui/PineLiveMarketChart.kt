@@ -38,7 +38,7 @@ import kotlin.math.min
 
 /** Real history chart, explicitly NOT a Pine compiler/backtester or a TradingView embed. */
 @Composable
-internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean = false) {
+internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean = false, previewOnly: Boolean = false) {
     val source = remember { PineMarketDataSource() }
     var product by remember { mutableStateOf(PineMarketDataSource.PRODUCTS.first()) }
     var interval by remember { mutableStateOf(PineTimeframe.ONE_MINUTE) }
@@ -63,7 +63,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
     }
 
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 7.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        if (!previewOnly) Row(verticalAlignment = Alignment.CenterVertically) {
             Box {
                 OutlinedButton(onClick = { menu = true }, shape = RoundedCornerShape(9.dp),
                     contentPadding = PaddingValues(horizontal = 9.dp, vertical = 3.dp)) {
@@ -86,7 +86,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                     modifier = Modifier.size(18.dp), tint = MaximusReference.gold)
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (!previewOnly) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             PineTimeframe.entries.forEach { tf ->
                 val chosen = tf == interval
                 Surface(
@@ -120,27 +120,28 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                 Text("${market.candles.size} / 200 historical candles · ${market.timeframe.label} · Source: ${market.source}",
                     color = MaximusReference.muted, fontSize = 10.sp,
                     modifier = Modifier.testTag("pine_live_candle_count"))
+                val visibleCandles = if (previewOnly) market.candles.takeLast(45) else market.candles
                 val horizontal = rememberScrollState()
                 LaunchedEffect(market, candleWidth) {
                     horizontal.scrollTo(horizontal.maxValue)
                 }
-                val chartHeight = if (compact) 155.dp else 230.dp
+                val chartHeight = if (previewOnly) 170.dp else if (compact) 155.dp else 230.dp
                 Row(Modifier.fillMaxWidth().height(chartHeight), verticalAlignment = Alignment.Top) {
                     Row(Modifier.weight(1f).horizontalScroll(horizontal)) {
                         PineOhlcvCanvas(
-                            candles = market.candles,
-                            selectedIndex = selected,
+                            candles = visibleCandles,
+                            selectedIndex = if (previewOnly) -1 else selected,
                             onSelect = { selected = it },
-                            modifier = Modifier.width((max(320, market.candles.size * candleWidth)).dp)
+                            modifier = Modifier.width(if (previewOnly) 350.dp else (max(320, market.candles.size * candleWidth)).dp)
                                 .height(chartHeight).testTag("pine_real_ohlcv_canvas")
                                 .semantics { contentDescription = "OHLCV price candles" }
                         )
                     }
-                    val hi = market.candles.maxOf { it.high }
-                    val lo = market.candles.minOf { it.low }
+                    val hi = visibleCandles.maxOf { it.high }
+                    val lo = visibleCandles.minOf { it.low }
                     val digits = if (hi > 1000) 0 else if (hi > 100) 2 else 4
                     Column(
-                        Modifier.width(61.dp).height(if (compact) 140.dp else 190.dp).padding(start = 3.dp),
+                        Modifier.width(61.dp).height(if (previewOnly) 160.dp else if (compact) 140.dp else 190.dp).padding(start = 3.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         (0..5).forEach { i ->
@@ -156,7 +157,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                     "H ${prettyPrice(active.high)}  L ${prettyPrice(active.low)}  C ${prettyPrice(active.close)}",
                     color = MaximusReference.muted, fontSize = 10.sp,
                     maxLines = 2, lineHeight = 14.sp)
-                if (!compact) Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!compact && !previewOnly) Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Zoom", color = MaximusReference.muted, fontSize = 10.sp)
                     Spacer(Modifier.width(5.dp))
                     OutlinedButton(onClick = { candleWidth = max(4, candleWidth - 2) },
