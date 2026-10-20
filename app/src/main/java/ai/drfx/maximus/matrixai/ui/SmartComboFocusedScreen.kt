@@ -203,17 +203,23 @@ internal fun SmartComboFocusedScreen(
                 Surface(
                     onClick = { choice = model.id },
                     modifier = Modifier.fillMaxWidth(),
-                    color = MaximusReference.navy,
+                    color = if (choice == model.id) Color(0xFF231E13) else MaximusReference.navy,
                     shape = RoundedCornerShape(11.dp),
-                    border = BorderStroke(1.dp, if (choice == model.id)
+                    border = BorderStroke(if (choice == model.id) 1.6.dp else 1.dp, if (choice == model.id)
                         MaximusReference.gold else MaximusReference.stroke)
                 ) {
                     Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Memory, null, tint = MaximusReference.muted)
+                        Icon(when {
+                            ModelCapability.VISION in model.capabilities -> Icons.Default.Image
+                            ModelCapability.TOOLS in model.capabilities -> Icons.Default.Code
+                            else -> Icons.Default.Memory
+                        }, null, Modifier.size(23.dp), tint = if (choice == model.id)
+                            MaximusReference.gold else MaximusReference.muted)
                         Spacer(Modifier.width(9.dp))
                         Column(Modifier.weight(1f)) {
                             Text(model.displayName, color = MaximusReference.white,
-                                fontSize = 12.sp, maxLines = 2)
+                                fontSize = 13.sp, maxLines = 2,
+                                fontWeight = FontWeight.SemiBold)
                             Text(
                                 if (model.verified) "Provider catalog verified"
                                 else "Catalog entry · runtime not verified",
@@ -235,7 +241,9 @@ internal fun SmartComboFocusedScreen(
                                 } ?: "Unknown"),
                                 color = MaximusReference.muted, fontSize = 9.sp)
                         }
-                        RadioButton(selected = choice == model.id, onClick = { choice = model.id })
+                        Icon(Icons.Default.ChevronRight, null, Modifier.size(15.dp), tint = MaximusReference.muted)
+                        RadioButton(selected = choice == model.id, onClick = { choice = model.id },
+                            colors = RadioButtonDefaults.colors(selectedColor = MaximusReference.gold))
                     }
                 }
             }
