@@ -282,8 +282,9 @@ fun MatrixGraphScreen(
     )
     val catalogIds = remember(topology) { topology.first.map { it.id }.toSet() }
     val canonicalNodes = remember(topology, persistedNodes) {
-        topology.first + persistedNodes.filter { it.id !in catalogIds }.map { item ->
-            LiveNode(item.id, item.label, item.groupName, item.x, item.y, 0f,
+        topology.first + persistedNodes.filter { it.id.isNotBlank() && it.id !in catalogIds }.map { item ->
+            LiveNode(item.id, item.label, item.groupName,
+                item.x.takeIf { it.isFinite() } ?: 0f, item.y.takeIf { it.isFinite() } ?: 0f, 0f,
                 item.radius, runCatching { Color(android.graphics.Color.parseColor(item.colorHex)) }
                     .getOrDefault(GraphGold), item.description, item.relations, item.isHub)
         }
@@ -799,7 +800,8 @@ fun MatrixGraphScreen(
                 Column(Modifier.weight(1f).semantics {
                     contentDescription = "Neural Galaxy · " + galaxyLayout.title
                 }) {
-                    Text(if (layoutReady) "Module map + saved graph" else "Preparing layout…",
+                    Text(if (persistedNodes.any { it.id.isBlank() }) "Invalid saved graph entries excluded"
+                        else if (layoutReady) "Module map + saved graph" else "Preparing layout…",
                         color = muted, fontSize = 9.sp)
                     Text("Module links describe architecture, not live execution",
                         color = muted, fontSize = 8.sp, maxLines = 1,

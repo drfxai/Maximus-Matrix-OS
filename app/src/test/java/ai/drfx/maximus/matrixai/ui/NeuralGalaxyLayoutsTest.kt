@@ -57,6 +57,15 @@ class NeuralGalaxyLayoutsTest {
         assertTrue(result.positions.getValue("project").y >= 115f)
     }
 
+    @Test fun extremeRecordedDatesDoNotOverflowOrCollapseToNaN() {
+        val distant=nodes.mapIndexed { index,node ->
+            node.copy(changedAt=Long.MAX_VALUE-10L+index)
+        }
+        val result=NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.TIMELINE,distant,edges)
+        assertTrue(result.positions.values.all { it.x.isFinite() && it.y.isFinite() })
+        assertTrue(result.positions.getValue("maximus").x < result.positions.getValue("project").x)
+    }
+
     @Test fun missingAndInvalidDatesNeverBecomeSyntheticActivity() {
         val undated=nodes.map { it.copy(changedAt = -1L) }
         val result=NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.TIMELINE,undated,edges)

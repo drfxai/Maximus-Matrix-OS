@@ -96,8 +96,8 @@ internal object NeuralGalaxyLayouts {
         val positions = linkedMapOf<String, SpacePoint>()
         dated.groupBy { requireNotNull(it.changedAt) }.toSortedMap().forEach { (time, simultaneous) ->
             val fraction = if (first == last) .5 else
-                (requireNotNull(time).toDouble()-requireNotNull(first).toDouble()) /
-                (requireNotNull(last).toDouble()-first.toDouble())
+                (time - requireNotNull(first)).toDouble() /
+                (requireNotNull(last) - first).coerceAtLeast(1L).toDouble()
             simultaneous.forEachIndexed { i, node ->
                 positions[node.id] = SpacePoint((fraction*280-140).toFloat(),
                     (if (node.runtimeObserved) -75f else 35f) + (i%5)*13f, 0f)
