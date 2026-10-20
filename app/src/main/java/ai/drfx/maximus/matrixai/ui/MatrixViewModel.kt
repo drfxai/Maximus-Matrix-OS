@@ -504,7 +504,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         val capacity = ModelLimitsResolver.contextWindow(provider, defaultModel)
         val summary = usageStore.summary()
 
-        val updatedMetrics = current.tokenMetrics.copy(
+        val updatedMetrics = current.tokenMetrics.withoutProviderRateEvidence().copy(
             contextCapacity = capacity,
             remainingContextTokens = capacity,
             consumedLifetimeTokens = summary.totalTokens,
@@ -542,6 +542,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         val validationOwnership = UUID.randomUUID().toString()
         if (!SmartComboSessionBroker.acquire(validationOwnership)) return
         cancelChat()
+        // Explicit connection changes invalidate the previous account/endpoint snapshot,
+        // even when the provider and model IDs happen to remain the same.
+        _llmState.value = _llmState.value.copy(
+            tokenMetrics = _llmState.value.tokenMetrics.withoutProviderRateEvidence())
         val requestedState = _llmState.value
         validationJob = viewModelScope.launch {
             val requestedProvider = requestedState.provider

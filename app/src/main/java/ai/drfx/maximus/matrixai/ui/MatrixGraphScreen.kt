@@ -22,6 +22,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.testTag
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.collect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -175,7 +179,21 @@ fun MatrixGraphScreen(
     val dataCenter by viewModel.dataCenter.collectAsState()
     val recentAlerts by viewModel.notificationService.recentAlerts.collectAsState()
     val watchlist by viewModel.notificationService.activeWatchlist.collectAsState()
-    val activeSignalsCount by viewModel.signalRepository.observeActiveSignalCount().collectAsState(initial = 8)
+    val activeSignalsCount by produceState<Int?>(initialValue = null, viewModel.signalRepository) {
+        viewModel.signalRepository.observeActiveSignalCount().collect { value = it }
+    }
+    val persistedNodes by viewModel.graphRepository.nodes.collectAsState(initial = emptyList())
+    val persistedEdges by viewModel.graphRepository.edges.collectAsState(initial = emptyList())
+    val graphPreferences = remember(appContext) {
+        appContext.getSharedPreferences("neural_galaxy_visualization", android.content.Context.MODE_PRIVATE)
+    }
+    var galaxyLayout by remember { mutableStateOf(runCatching {
+        NeuralGalaxyLayout.valueOf(graphPreferences.getString("layout", "BRAIN") ?: "BRAIN")
+    }.getOrDefault(NeuralGalaxyLayout.BRAIN)) }
+    var layoutMenu by remember { mutableStateOf(false) }
+    var visualizationMotion by remember { mutableStateOf(graphPreferences.getBoolean("motion", true)) }
+    val effectiveMotion = motionEnabled && visualizationMotion
+    val spatialLayout = galaxyLayout == NeuralGalaxyLayout.BRAIN || galaxyLayout == NeuralGalaxyLayout.ORBIT
     val chartVisionState by viewModel.chartVisionState.collectAsState()
     // A configured default is not necessarily the route dispatched by Smart Combo.
     val dispatchedRoute = llm.activeRequest?.takeIf { llm.isGenerating }
@@ -262,14 +280,66 @@ fun MatrixGraphScreen(
         "model" to stringResource(R.string.graph_node_model_region),
         "embedding_engine" to stringResource(R.string.graph_node_embedding_engine_region)
     )
-    val nodes = topology.first.map { node ->
+    val catalogIds = remember(topology) { topology.first.map { it.id }.toSet() }
+    val canonicalNodes = remember(topology, persistedNodes) {
+        topology.first + persistedNodes.filter { it.id.isNotBlank() && it.id !in catalogIds }.map { item ->
+            LiveNode(item.id, item.label, item.groupName,
+                NeuralGalaxyLayouts.safeCoordinate(item.x), NeuralGalaxyLayouts.safeCoordinate(item.y), 0f,
+                NeuralGalaxyLayouts.safeRadius(item.radius), runCatching { Color(android.graphics.Color.parseColor(item.colorHex)) }
+                    .getOrDefault(GraphGold), item.description, item.relations, item.isHub)
+        }
+    }
+    val canonicalIds = remember(canonicalNodes) { canonicalNodes.map { it.id }.toSet() }
+    val edges = remember(topology, persistedEdges, canonicalIds) {
+        (topology.second + persistedEdges.map { LiveEdge(it.fromNodeId, it.toNodeId, it.relation) })
+            .filter { it.from in canonicalIds && it.to in canonicalIds }
+            .distinctBy { Triple(it.from, it.to, it.relation) }
+    }
+    val observations = remember(events) {
+        buildMap<String, Long> {
+            for (event in events) {
+                if (event.timestampMs <= 0L) continue
+                for (id in listOfNotNull(event.sourceNode, event.targetNode)) {
+                    if (event.timestampMs > (get(id) ?: 0L)) put(id, event.timestampMs)
+                }
+            }
+        }
+    }
+    val persistedChanges = remember(persistedNodes) { persistedNodes.associate { it.id to it.lastUpdatedMs } }
+    val galaxyNodes = remember(canonicalNodes, observations, persistedChanges) {
+        canonicalNodes.map { node ->
+            GalaxyNode(node.id, galaxyArea(node.group), if (node.id == "maximus") 0 else if (node.hub) 1 else 2,
+                SpacePoint(node.x, node.y, node.z),
+                listOfNotNull(observations[node.id], persistedChanges[node.id]).filter { it > 0L }.maxOrNull(),
+                observations.containsKey(node.id))
+        }
+    }
+    var geometry by remember { mutableStateOf(GalaxyGeometry(emptyMap())) }
+    var preparedLayout by remember { mutableStateOf<NeuralGalaxyLayout?>(null) }
+    var preparedNodes by remember { mutableStateOf<List<GalaxyNode>>(emptyList()) }
+    LaunchedEffect(galaxyLayout, galaxyNodes, edges) {
+        val prepared = withContext(Dispatchers.Default) {
+            NeuralGalaxyLayouts.prepare(galaxyLayout, galaxyNodes, edges.map { GalaxyEdge(it.from, it.to) })
+        }
+        geometry = prepared
+        preparedLayout = galaxyLayout
+        preparedNodes = galaxyNodes
+    }
+    val layoutReady = preparedLayout == galaxyLayout && preparedNodes == galaxyNodes &&
+        geometry.positions.keys == canonicalIds
+    val laidOutNodes = remember(canonicalNodes, geometry, layoutReady) {
+        canonicalNodes.map { node ->
+            val point = if (layoutReady) geometry.positions[node.id] else null
+            if (point == null) node else node.copy(x = point.x, y = point.y, z = point.z)
+        }
+    }
+    val nodes = laidOutNodes.map { node ->
         node.copy(
             label = localizedNodeLabels[node.id] ?: localizedHubNames[node.id] ?: node.label,
             description = localizedNodeDescriptions[node.id] ?: node.description,
             anatomicalRegion = localizedAnatomicalRegions[node.id] ?: node.anatomicalRegion
         )
     }
-    val edges = topology.second
     // Preserve canonical node.group identifiers for filtering and routing;
     // translate ONLY displayed labels, including localized search queries.
     val localizedGroups = mapOf(
@@ -299,16 +369,32 @@ fun MatrixGraphScreen(
     fun displayGroup(group: String): String = localizedGroups[group] ?: group
     var selectedId by remember { mutableStateOf<String?>(null) }
     val selected = nodes.find { it.id == selectedId }
+    fun evidenceFor(node: LiveNode): String {
+        val evidence = galaxyNodes.firstOrNull { it.id == node.id }
+        val source = if (node.id in catalogIds) "Declared module map" else "Saved Room graph"
+        val timestamp = evidence?.changedAt?.let { time ->
+            java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'UTC'", Locale.ENGLISH)
+                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(time))
+        } ?: "No dated observation"
+        return source + " · " + timestamp
+    }
     var selectedLobe by remember { mutableStateOf<String?>(null) }
     var search by remember { mutableStateOf("") }
     var hiddenGroups by remember { mutableStateOf(emptySet<String>()) }
     var openPanel by remember { mutableStateOf<GraphPanel?>(null) }
-    var rotation by remember { mutableStateOf(GraphRotation.defaultBrainView()) }
+    var rotation by remember { mutableStateOf(if (spatialLayout) GraphRotation.defaultBrainView() else GraphRotation()) }
     var zoom by remember { mutableFloatStateOf(1f) }
+    var focusPoint by remember { mutableStateOf(SpacePoint(0f,0f,0f)) }
+    val focusX by animateFloatAsState(focusPoint.x,
+        animationSpec = if (effectiveMotion) tween(240) else snap(), label = "galaxy_focus_x")
+    val focusY by animateFloatAsState(focusPoint.y,
+        animationSpec = if (effectiveMotion) tween(240) else snap(), label = "galaxy_focus_y")
+    val focusZ by animateFloatAsState(focusPoint.z,
+        animationSpec = if (effectiveMotion) tween(240) else snap(), label = "galaxy_focus_z")
     var autoRotate by remember { mutableStateOf(true) }
     var touching by remember { mutableStateOf(false) }
     var lastTouch by remember { mutableLongStateOf(0L) }
-    var labels by remember { mutableStateOf(true) }
+    var labels by remember { mutableStateOf(graphPreferences.getBoolean("labels", true)) }
     var mesh by remember { mutableStateOf(true) }
     var spread by remember { mutableFloatStateOf(1f) }
     var linkOpacity by remember { mutableFloatStateOf(.28f) }
@@ -394,8 +480,9 @@ fun MatrixGraphScreen(
         }
     }
     fun reset() {
-        rotation = GraphRotation.defaultBrainView()
+        rotation = if (spatialLayout) GraphRotation.defaultBrainView() else GraphRotation()
         zoom = 1f
+        focusPoint = SpacePoint(0f,0f,0f)
         selectedId = null
         selectedLobe = null
         lastTouch = SystemClock.uptimeMillis()
@@ -408,9 +495,9 @@ fun MatrixGraphScreen(
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(owner, autoRotate, motionEnabled, keyboardVisible) {
+    LaunchedEffect(owner, autoRotate, effectiveMotion, keyboardVisible, galaxyLayout) {
         // Pause the costly orbit when users reduce motion or start entering text.
-        if (!motionEnabled || keyboardVisible) return@LaunchedEffect
+        if (!effectiveMotion || keyboardVisible || !spatialLayout) return@LaunchedEffect
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             var previous = 0L
             while (isActive) {
@@ -495,6 +582,7 @@ fun MatrixGraphScreen(
                         }
                         Text(selected.label, color = ink, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                         Text(selected.description, color = muted, fontSize = 10.5.sp, lineHeight = 15.sp)
+                        Text(evidenceFor(selected), color = GraphGold, fontSize = 9.sp)
 
                         if (action != null) {
                             Button(
@@ -542,6 +630,10 @@ fun MatrixGraphScreen(
                         }
 
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = {
+                                focusPoint = SpacePoint(selected.x,selected.y,selected.z)
+                                zoom = 1.6f; lastTouch = SystemClock.uptimeMillis(); openPanel = null
+                            }) { Text("Fly to node", fontSize = 10.sp) }
                             TextButton(onClick = { selectedId = null }) { Text(stringResource(R.string.graph_clear), fontSize = 10.sp) }
                         }
                     } else {
@@ -659,6 +751,77 @@ fun MatrixGraphScreen(
             )
         }
 
+        if (!keyboardVisible) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Box {
+                    TextButton(onClick = { layoutMenu = true },
+                        modifier = Modifier.testTag("galaxy_layout_selector").semantics {
+                            contentDescription = "Neural Galaxy layouts"
+                        }) {
+                        Icon(Icons.Default.Hub, null, Modifier.size(16.dp), tint = GraphGold)
+                        Spacer(Modifier.width(6.dp))
+                        Text(galaxyLayout.title, color = GraphGold, fontSize = 12.sp)
+                        Icon(Icons.Default.ArrowDropDown, null, tint = GraphGold)
+                    }
+                    DropdownMenu(expanded = layoutMenu, onDismissRequest = { layoutMenu = false }) {
+                        NeuralGalaxyLayout.entries.forEach { mode ->
+                            DropdownMenuItem(
+                                modifier = Modifier.testTag("galaxy_layout_" + mode.name),
+                                text = { Text(mode.title) },
+                                onClick = {
+                                    galaxyLayout = mode
+                                    graphPreferences.edit().putString("layout", mode.name).apply()
+                                    rotation = if (mode == NeuralGalaxyLayout.BRAIN || mode == NeuralGalaxyLayout.ORBIT)
+                                        GraphRotation.defaultBrainView() else GraphRotation()
+                                    zoom = 1f
+                                    focusPoint = SpacePoint(0f,0f,0f)
+                                    lastTouch = SystemClock.uptimeMillis()
+                                    layoutMenu = false
+                                })
+                        }
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text("Fit to viewport") }, onClick = {
+                            rotation = if (spatialLayout) GraphRotation.defaultBrainView() else GraphRotation()
+                            zoom = 1f; focusPoint = SpacePoint(0f,0f,0f); layoutMenu = false
+                        })
+                        DropdownMenuItem(text = { Text(if (labels) "Labels: on" else "Labels: off") },
+                            onClick = {
+                                labels = !labels
+                                graphPreferences.edit().putBoolean("labels", labels).apply()
+                            })
+                        DropdownMenuItem(text = { Text(if (visualizationMotion) "Motion: on" else "Motion: off") },
+                            onClick = {
+                                visualizationMotion = !visualizationMotion
+                                graphPreferences.edit().putBoolean("motion", visualizationMotion).apply()
+                            })
+                    }
+                }
+                Column(Modifier.weight(1f).semantics {
+                    contentDescription = "Neural Galaxy · " + galaxyLayout.title
+                }) {
+                    Text(if (persistedNodes.any { it.id.isBlank() }) "Invalid saved graph entries excluded"
+                        else if (layoutReady) "Module map + saved graph" else "Preparing layout…",
+                        color = muted, fontSize = 9.sp)
+                    Text("Module links describe architecture, not live execution",
+                        color = muted, fontSize = 8.sp, maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+            }
+            if (galaxyLayout == NeuralGalaxyLayout.TIMELINE) {
+                val date = remember { java.text.SimpleDateFormat("MMM d HH:mm", Locale.ENGLISH)
+                    .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") } }
+                val range = if (geometry.firstTimestamp != null && geometry.lastTimestamp != null)
+                    date.format(java.util.Date(requireNotNull(geometry.firstTimestamp))) + " → " +
+                        date.format(java.util.Date(requireNotNull(geometry.lastTimestamp))) + " UTC"
+                    else "No recorded timestamps available"
+                Text(range + " · " + geometry.undatedCount + " undated",
+                    Modifier.padding(horizontal = 12.dp), color = GraphGold, fontSize = 9.sp)
+                Text("Top: latest activity · Middle: saved changes · Bottom: undated definitions",
+                    Modifier.padding(horizontal = 12.dp), color = muted, fontSize = 8.sp)
+            }
+        }
+
         if (!keyboardVisible && !immersiveGraph) ConversationTelemetryRibbon(llm, onNavigateToControl, onNavigateToControl)
 
         // Horizontal Anatomical Lobe Filter Chips
@@ -718,18 +881,27 @@ fun MatrixGraphScreen(
                     NeuralScene(
                         nodes = nodes,
                         edges = edges,
+                        layout = galaxyLayout,
+                        focus = SpacePoint(focusX,focusY,focusZ),
+                        animate = effectiveMotion,
+                        areaLabels = if (galaxyLayout == NeuralGalaxyLayout.AREAS && layoutReady) geometry.areaLabels else emptyMap(),
                         rotation = rotation,
                         zoom = zoom,
                         spread = spread,
                         linkOpacity = linkOpacity,
                         labels = labels,
-                        mesh = mesh,
+                        mesh = mesh && galaxyLayout == NeuralGalaxyLayout.BRAIN,
                         hidden = effectiveHidden,
                         search = search,
                         selected = selectedId,
                         light = light,
                         onGesture = { dx, dy, magnification, roll ->
-                            rotation = rotation.orbit(pitch = dy * .006f, yaw = dx * .006f, roll = roll * PI.toFloat() / 180f)
+                            if (spatialLayout) {
+                                rotation = rotation.orbit(pitch = dy * .006f, yaw = dx * .006f, roll = roll * PI.toFloat() / 180f)
+                            } else {
+                                focusPoint = focusPoint - SpacePoint(dx*.6f,dy*.6f,0f)
+                                rotation = rotation.orbit(roll = roll * PI.toFloat() / 180f)
+                            }
                             zoom = (zoom * magnification).coerceIn(.55f, 3.5f)
                             lastTouch = SystemClock.uptimeMillis()
                         },
@@ -832,7 +1004,7 @@ fun MatrixGraphScreen(
                             Text(stringResource(R.string.brain_graph_guide), color = muted, fontSize = 10.sp)
                             Text(
                                 if (selected != null) stringResource(R.string.graph_inspector)
-                                else if (autoRotate) stringResource(R.string.brain_graph_auto)
+                                else if (autoRotate && spatialLayout && effectiveMotion) stringResource(R.string.brain_graph_auto)
                                 else stringResource(R.string.brain_graph_guide),
                                 color = graphTone(GraphAccent, light),
                                 fontSize = 8.sp,
@@ -840,7 +1012,7 @@ fun MatrixGraphScreen(
                             )
                         }
                     }
-                    if (!wide && !isCompact) IntelligenceRing(status, light, Modifier.align(Alignment.BottomEnd).padding(10.dp).size(78.dp))
+                    if (!wide && !isCompact && effectiveMotion && spatialLayout) IntelligenceRing(status, light, Modifier.align(Alignment.BottomEnd).padding(10.dp).size(78.dp))
                     if (!wide && selected != null) {
                         val action = getActionForNode(selected)
                         Surface(
@@ -879,6 +1051,7 @@ fun MatrixGraphScreen(
                                 }
                                 Text(selected.label, color = ink, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                                 Text(selected.description, color = muted, fontSize = 10.5.sp, maxLines = 2, lineHeight = 14.sp)
+                                Text(evidenceFor(selected), color = GraphGold, fontSize = 8.sp)
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -918,7 +1091,7 @@ fun MatrixGraphScreen(
                         Column(Modifier.padding(10.dp)) { filters() }
                     }
                     Spacer(Modifier.height(20.dp))
-                    IntelligenceRing(status, light, Modifier.fillMaxWidth().aspectRatio(1f))
+                    if (effectiveMotion && spatialLayout) IntelligenceRing(status, light, Modifier.fillMaxWidth().aspectRatio(1f))
                     Text(routeStage, Modifier.align(Alignment.CenterHorizontally),
                         color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
                 }
@@ -1318,6 +1491,10 @@ private fun world(node: LiveNode, spread: Float): SpacePoint =
 private fun NeuralScene(
     nodes: List<LiveNode>,
     edges: List<LiveEdge>,
+    layout: NeuralGalaxyLayout,
+    focus: SpacePoint,
+    animate: Boolean,
+    areaLabels: Map<String, SpacePoint>,
     rotation: GraphRotation,
     zoom: Float,
     spread: Float,
@@ -1333,8 +1510,8 @@ private fun NeuralScene(
     onSelect: (String?) -> Unit,
     onReset: () -> Unit
 ) {
-    val points = remember(nodes, spread) {
-        nodes.associate { it.id to world(it, spread) }
+    val points = remember(nodes, spread, focus) {
+        nodes.associate { it.id to (world(it, spread) - focus * spread) }
     }
     val lookup = remember(nodes) { nodes.associateBy { it.id } }
 
@@ -1393,8 +1570,8 @@ private fun NeuralScene(
         meshPoints
     }
 
-    val radius = remember(points, scaffold) {
-        max(points.values.maxOf { it.length }, scaffold.maxOf { it.point.length })
+    val radius = remember(points, scaffold, mesh) {
+        max(points.values.maxOfOrNull { it.length } ?: 1f, if (mesh) scaffold.maxOfOrNull { (it.point - focus * spread).length } ?: 1f else 1f)
     }
     val visible = remember(nodes, hidden) { nodes.filter { it.group !in hidden } }
     val neighbors = remember(selected, edges) {
@@ -1411,66 +1588,19 @@ private fun NeuralScene(
     val currentRadius by rememberUpdatedState(radius)
     val density = LocalDensity.current.density
 
-    val infiniteTransition = rememberInfiniteTransition(label = "cerebral_bio_rhythm")
-    val synapticClock by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 62.8318f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 20000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "synaptic_clock"
-    )
-    val sparkPhase1 by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "spark_phase_1"
-    )
-    val sparkPhase2 by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2700, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "spark_phase_2"
-    )
-    val sparkPhase3 by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "spark_phase_3"
-    )
-    val membraneBreathing by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "membrane_breathing"
-    )
-    val synapticRipple by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2900, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "synaptic_ripple"
-    )
+    val motion = neuralMotionFrame(animate)
+    val synapticClock = motion.synapticClock
+    val sparkPhase1 = motion.sparkPhase1
+    val sparkPhase2 = motion.sparkPhase2
+    val sparkPhase3 = motion.sparkPhase3
+    val membraneBreathing = motion.membraneBreathing
+    val synapticRipple = motion.synapticRipple
 
     val graphDescription = stringResource(R.string.brain_graph_explore_help)
     Canvas(
         Modifier
             .fillMaxSize()
+            .testTag("galaxy_canvas_" + layout.name)
             .semantics {
                 contentDescription =
                     graphDescription
@@ -1537,7 +1667,7 @@ private fun NeuralScene(
         // 2. Glial / Astrocyte Neural Dust tracing the cerebral cortex surface
         if (mesh) {
             val projectedMesh = scaffold.map {
-                it to projectGraph(it.point, rotation, size.width, size.height, radius, zoom)
+                it to projectGraph(it.point - focus * spread, rotation, size.width, size.height, radius, zoom)
             }.sortedBy { it.second.z }
 
             projectedMesh.forEach { (particle, p) ->
@@ -1562,6 +1692,26 @@ private fun NeuralScene(
             }
         }
 
+        if (layout == NeuralGalaxyLayout.AREAS && labels) {
+            val areaPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textAlign = Paint.Align.CENTER
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textSize = 8.sp.toPx()
+                color = if (light) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(255,204,98)
+            }
+            for ((name, anchor) in areaLabels) {
+                val p = projectGraph((anchor-focus) * spread, rotation, size.width, size.height, radius, zoom)
+                drawContext.canvas.nativeCanvas.drawText(name, p.x, p.y, areaPaint)
+            }
+        }
+        if (layout == NeuralGalaxyLayout.TIMELINE) {
+            for (lane in listOf(-75f,35f,115f)) {
+                val a = projectGraph((SpacePoint(-155f,lane,0f)-focus)*spread, rotation, size.width, size.height, radius, zoom)
+                val b = projectGraph((SpacePoint(155f,lane,0f)-focus)*spread, rotation, size.width, size.height, radius, zoom)
+                drawLine(GraphGold.copy(alpha=.2f),Offset(a.x,a.y),Offset(b.x,b.y),1.dp.toPx())
+            }
+        }
+
         // Precompute 3D curved control points and 2D projections for every axon nerve fiber
         val projectedEdges = edges.mapNotNull { edge ->
             val from = lookup[edge.from] ?: return@mapNotNull null
@@ -1572,7 +1722,9 @@ private fun NeuralScene(
             val pTo3D = points.getValue(edge.to)
             val isInterhemispheric = (pFrom3D.x * pTo3D.x < 0f) || (edge.from == "maximus" || edge.to == "maximus")
 
-            val ctrl3D = if (isInterhemispheric) {
+            val ctrl3D = if (layout == NeuralGalaxyLayout.CIRCLE || layout == NeuralGalaxyLayout.RINGS) {
+                focus * -spread
+            } else if (isInterhemispheric) {
                 // Arches naturally through the corpus callosum / central bridge
                 SpacePoint(
                     (pFrom3D.x + pTo3D.x) * 0.32f,
@@ -1641,7 +1793,7 @@ private fun NeuralScene(
             val edgeOffset = (edgeHash % 1000) / 1000f
             val pulseCount = if (focused || (from.hub && to.hub)) 2 else 1
 
-            for (pIdx in 0 until pulseCount) {
+            for (pIdx in 0 until if (animate && layout == NeuralGalaxyLayout.BRAIN) pulseCount else 0) {
                 val baseProgress = when ((pIdx + (edgeHash and 1)) % 3) {
                     0 -> sparkPhase1
                     1 -> sparkPhase2
@@ -1765,7 +1917,7 @@ private fun NeuralScene(
 
             val nodeHash = ((node.id.hashCode() and 0x7FFFFFFF) % 1000) / 1000f
             val nodePhase = nodeHash * 6.28318f
-            val breathing = 0.96f + 0.08f * sin(synapticClock * 1.8f + nodePhase)
+            val breathing = if (animate) 0.96f + 0.08f * sin(synapticClock * 1.8f + nodePhase) else 1f
             val effectiveR = r * breathing
 
             // A. Biological Synaptic Membrane Bloom
@@ -1785,7 +1937,7 @@ private fun NeuralScene(
             )
 
             // B. Expanding Excitatory Postsynaptic Potential (EPSP) Ripple
-            if ((node.hub || node.id == selected) && alpha > 0.35f) {
+            if (animate && (node.hub || node.id == selected) && alpha > 0.35f) {
                 val waveOffset = (nodeHash * 0.7f) % 1f
                 val waveProg = (synapticRipple + waveOffset) % 1f
                 val waveR = effectiveR * (1.05f + 1.30f * waveProg)
@@ -1916,6 +2068,90 @@ private fun NeuralScene(
     }
 }
 
+private data class NeuralMotionFrame(
+    val synapticClock: Float = 0f, val sparkPhase1: Float = 0f,
+    val sparkPhase2: Float = 0f, val sparkPhase3: Float = 0f,
+    val membraneBreathing: Float = 0f, val synapticRipple: Float = 0f
+)
+private val StaticNeuralMotion = NeuralMotionFrame()
+
+@Composable
+private fun neuralMotionFrame(animate: Boolean): NeuralMotionFrame {
+    if (!animate) return StaticNeuralMotion
+    val infiniteTransition = rememberInfiniteTransition(label = "cerebral_bio_rhythm")
+    val synapticClock by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 62.8318f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 20000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "synaptic_clock"
+    )
+    val sparkPhase1 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "spark_phase_1"
+    )
+    val sparkPhase2 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2700, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "spark_phase_2"
+    )
+    val sparkPhase3 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "spark_phase_3"
+    )
+    val membraneBreathing by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "membrane_breathing"
+    )
+    val synapticRipple by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2900, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "synaptic_ripple"
+    )
+
+
+    return NeuralMotionFrame(synapticClock, sparkPhase1, sparkPhase2, sparkPhase3, membraneBreathing, synapticRipple)
+}
+
+/** Semantic grouping comes from explicit catalog/Room group metadata, never inferred edges. */
+private fun galaxyArea(group: String): String = when (group) {
+    "MATRIX CORE", "CONVERSATIONAL AI" -> "AI Core"
+    "MODEL ROUTING", "FINOPS & CONTROL" -> "Smart Combo"
+    "AGENT RUNTIME", "EXECUTION CONTROL" -> "Agent Teams"
+    "PINE ASSETS", "TRADING GENOME", "QUANT RESEARCH" -> "Trading & Pine"
+    "RESEARCH MEMORY" -> "Hindsight Memory"
+    "DATA & KNOWLEDGE" -> "Projects"
+    "NEWS INTELLIGENCE", "MARKET ALERTS", "LIVE SIGNALS" -> "News & Signals"
+    "VALIDATION LAB" -> "Security & Validation"
+    "CHART VISION" -> "Chart Vision"
+    else -> group.ifBlank { "Unclassified" }
+}
+
 private fun graphTone(color: Color, light: Boolean): Color {
     if (!light) return color
     return when(color) {
@@ -1941,8 +2177,8 @@ private fun buildTopology(
     modelDescription: String,
     dataConnected: Boolean,
     alertsCount: Int = 0,
-    watchlistCount: Int = 4,
-    activeSignalsCount: Int = 8,
+    watchlistCount: Int = 0,
+    activeSignalsCount: Int? = null,
     visionReady: Boolean = true
 ): Pair<List<LiveNode>, List<LiveEdge>> {
     val nodes = mutableListOf<LiveNode>()
@@ -1997,7 +2233,7 @@ private fun buildTopology(
 
     // 2. RIGHT HEMISPHERE - SOMATOSENSORY & MOTOR (Live Trading Signals)
     hub("signals_hub", "Live Signals", "LIVE SIGNALS", 78f, -112f, 10f, GraphSignalsGreen,
-        "Autonomous market signal matrix stored in Room database with $activeSignalsCount active setups across Crypto, Forex, Commodities, and Indices.",
+        "Autonomous market signal matrix stored in Room database with ${activeSignalsCount?.toString() ?: "unknown"} active setups across Crypto, Forex, Commodities, and Indices.",
         "Order Blocks · Scalping · Breakouts · Webhook Gateway · Push & Sound Alerts · Room DB",
         "PARIETAL LOBE", "Superior Somatosensory Strip")
     child("signals_hub", "signal_order_blocks", "Order Blocks", -18f, -24f, 22f, GraphSignalsGreen, "Institutional mitigation blocks and fair value gap reaction entries", "Brodmann Area 1")

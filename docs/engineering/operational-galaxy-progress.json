@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "repository": "drfxai/Maximus-Matrix-OS",
+  "base": "21761c7062f9fe59eb0716d7add5da3ab3a27a71",
+  "dependsOnPullRequest": 137,
+  "branch": "feat/galaxy-operational-control-center",
+  "newUiLanguage": "en",
+  "existingLanguagePreferences": "PRESERVED",
+  "implemented": [
+    "six switchable native layouts plus original Brain",
+    "Smart Combo actual-dispatch and independently expiring evidence",
+    "same-model credential-change rate snapshot invalidation",
+    "explicit GitHub repo/ref/SHA/latest-workflow inspection",
+    "dated credential and Cloudflare discovery dashboard",
+    "genuine Android screenshot acceptance and export"
+  ],
+  "sourceCommits": {
+    "combo": "11611ea6b4f46113c3ad7b55d4afaaed67941a14",
+    "developer": "c6a85f794944c4b40bf6139189704c40fc988264",
+    "graph": "57b29abb0c98de2059a85737eada6cc5e170f6a4"
+  },
+  "validation": {
+    "status": "REFRESH_REQUIRED",
+    "instruction": "Fetch combined PR current-head CI; do not reuse component source reviews as runtime evidence."
+  },
+  "remaining": [
+    "durable quota/idempotency recovery across process death",
+    "complete memory signposts and integrity schedule",
+    "general team DAG/Pulse",
+    "live authorized provider/GitHub/Cloudflare acceptance",
+    "physical ARM64 build/export",
+    "graph device performance profiling",
+    "owner review, merge and release acceptance"
+  ],
+  "ownerApprovals": {
+    "merge": false,
+    "publish": false,
+    "deploy": false,
+    "versionCodeIncrement": false
+  }
+}
