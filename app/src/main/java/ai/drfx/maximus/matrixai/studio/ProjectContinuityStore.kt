@@ -70,6 +70,11 @@ class ProjectContinuityStore(context: Context, private val workspace: ProjectWor
         ) { "Unrecognized checkpoint format." }
         val files = data.getJSONArray("files")
         require(files.length() <= 500)
+        // The revision identifies this exact file manifest, not a caller-supplied label.
+        // Keep schema 1 serialization so existing valid checkpoints remain readable.
+        require(data.getString("revision") == hash(files.toString())) {
+            "Checkpoint revision does not match its file manifest."
+        }
         val currentPaths = workspace.listFiles(projectId).map { it.path }.toSet()
         val modified = mutableListOf<String>()
         val missing = mutableListOf<String>()

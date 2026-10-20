@@ -27,4 +27,46 @@ class ProjectContinuityStoreTest {
         }
         assertTrue(continuity.save(project.id, "Continue after review").unchanged)
     }
+
+    @Test fun corruptRevisionCannotBecomeVerifiedContinuity() {
+        rejectCorruptManifest { it.put("revision", "0".repeat(64)) }
+    }
+
+    @Test fun corruptFileMetadataCannotBecomeVerifiedContinuity() {
+        rejectCorruptManifest { manifest ->
+            val entry = manifest.getJSONArray("files").getJSONObject(0)
+            entry.put("length", entry.getLong("length") + 1)
+        }
+    }
+
+    @Test fun corruptFileHashCannotBecomeVerifiedContinuity() {
+        rejectCorruptManifest { manifest ->
+            manifest.getJSONArray("files").getJSONObject(0).put("sha256", "0".repeat(64))
+        }
+    }
+
+    private fun rejectCorruptManifest(corrupt: (org.json.JSONObject) -> Unit) {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val workspace = ProjectWorkspaceStore(context)
+        val project = workspace.newProject("Checkpoint integrity test")
+        val continuity = ProjectContinuityStore(context, workspace)
+        val saved = continuity.save(project.id, "Review current sources")
+        val file = java.io.File(context.filesDir,
+            "studio/checkpoints/${project.id}/${saved.checkpointId}.json")
+        val original = file.readText()
+        try {
+            val manifest = org.json.JSONObject(original)
+            corrupt(manifest)
+            file.writeText(manifest.toString())
+            assertThrows(IllegalArgumentException::class.java) {
+                continuity.validate(project.id, saved.checkpointId)
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                continuity.resumePrompt(project.id)
+            }
+            // Invalid user-owned evidence is retained for explicit recovery.
+            assertTrue(file.isFile)
+        } finally { file.writeText(original) }
+        assertTrue(continuity.validate(project.id, saved.checkpointId).unchanged)
+    }
 }

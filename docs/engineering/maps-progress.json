@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "repository": "drfxai/Maximus-Matrix-OS",
+  "baseline": "d13a199ed95cb5ad232d1782acae91445ebc4652",
+  "publicVersion": "1.0.0",
+  "internalVersion": 10029,
+  "branch": "feat/maps-audit-continuity-cancellation",
+  "scope": "Milestone A source audit and stabilization increment; B-H incomplete",
+  "milestones": {
+    "A": "PARTIAL: source matrix and ADR prepared; baseline screenshots/performance not remeasured",
+    "B": "PENDING",
+    "C": "PARTIAL: cancellation reliability fix only; durable routing pending",
+    "D": "PENDING",
+    "E": "PENDING",
+    "F": "PENDING",
+    "G": "PENDING",
+    "H": "PENDING"
+  },
+  "changes": [
+    "pending team cancellation retained until callback registration",
+    "checkpoint file-manifest revision validated"
+  ],
+  "tests": {
+    "brokerJvm": "NOT_RUN",
+    "checkpointAndroid": "NOT_RUN",
+    "featureCi": "PENDING",
+    "baselineCi": {
+      "runId": 39421264404,
+      "result": "SUCCESS",
+      "physicalDevice": false
+    }
+  },
+  "approvals": {
+    "merge": false,
+    "publish": false,
+    "deploy": false,
+    "versionCodeIncrement": false
+  },
+  "blockers": [
+    "No local execution environment available",
+    "No physical ARM64 device access",
+    "No live provider/Hindsight/backend acceptance performed"
+  ],
+  "securityLimits": [
+    "Process-local broker and quota ledger are not distributed/durable",
+    "Manifest SHA-256 is consistency evidence, not authentication",
+    "No tool authorization transferred from memory"
+  ],
+  "nextAuthorizedOperations": [
+    "Review patch independently",
+    "Run normal PR CI and repair failures",
+    "Add seeded upgrade-data assertions",
+    "Define canonical memory/graph read-only projection"
+  ],
+  "sourceReports": [
+    "docs/engineering/MAPS_AUDIT_2026-10-20.md",
+    "docs/engineering/ADR-2026-10-20-native-maps.md"
+  ]
+}
