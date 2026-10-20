@@ -758,7 +758,7 @@ fun MatrixGraphScreen(
                 Box {
                     TextButton(onClick = { layoutMenu = true },
                         modifier = Modifier.testTag("galaxy_layout_selector").semantics {
-                            contentDescription = "Neural Galaxy layouts"
+                            contentDescription = appContext.getString(R.string.galaxy_layout_selector)
                         }) {
                         Icon(Icons.Default.Hub, null, Modifier.size(16.dp), tint = GraphGold)
                         Spacer(Modifier.width(6.dp))
@@ -799,7 +799,7 @@ fun MatrixGraphScreen(
                     }
                 }
                 Column(Modifier.weight(1f).semantics {
-                    contentDescription = "Neural Galaxy · " + galaxyLayout.title
+                    contentDescription = appContext.getString(R.string.galaxy_layout_description, galaxyLayout.title)
                 }) {
                     Text(if (persistedNodes.any { it.id.isBlank() }) "Invalid saved graph entries excluded"
                         else if (layoutReady) "Module map + saved graph" else "Preparing layout…",
