@@ -108,8 +108,17 @@ class KeyboardLayoutTest {
     @Test fun primaryWorkspacesKeepFixedNavigationAndFocusedStudioSections() {
         withLaunchedActivity {
             objectWithDescription("Project Studio").click()
-            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
+            checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
             captureWorkspace("studio-overview.png")
+            repeat(5) {
+                if (!device.hasObject(By.text("Assistant"))) {
+                    device.swipe((device.displayWidth * .68).toInt(),
+                        (device.displayHeight * .74).toInt(),
+                        (device.displayWidth * .68).toInt(),
+                        (device.displayHeight * .28).toInt(), 25)
+                }
+            }
+            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
             checkNotNull(device.wait(Until.findObject(By.text("Changes")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("No staged file changes in this local workspace.")), 10_000))
             captureWorkspace("studio-changes.png")
@@ -145,7 +154,14 @@ class KeyboardLayoutTest {
             captureWorkspace("pine-chart-expanded.png")
             device.pressBack()
             device.pressBack()
-            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
+            repeat(5) {
+                if (!device.hasObject(By.text("Files"))) {
+                    device.swipe((device.displayWidth * .68).toInt(),
+                        (device.displayHeight * .74).toInt(),
+                        (device.displayWidth * .68).toInt(),
+                        (device.displayHeight * .28).toInt(), 25)
+                }
+            }
             checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
             assertFalse("Files must not render the build dashboard", device.hasObject(By.text(instrumentation.targetContext.getString(ai.drfx.maximus.matrixai.R.string.phone_harness_title))))
