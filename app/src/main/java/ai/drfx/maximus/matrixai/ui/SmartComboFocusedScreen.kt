@@ -69,7 +69,6 @@ internal fun SmartComboFocusedScreen(
                 smartComboCategoryMatch(it, category)
         }
     }
-    val verifiedRate = evidence.tokenRate.value
     Column(modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.weight(1f).testTag("smart_combo_focused_screen"),
@@ -107,7 +106,7 @@ internal fun SmartComboFocusedScreen(
                     contextUsed = metrics.contextUsagePercent,
                     contextLeft = if (state.selectedModel.isBlank()) "Unknown" else
                         NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens),
-                    verifiedRate = verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) } ?: "Unverified",
+                    verifiedRate = comboReadingLabel(evidence.tokenRate),
                     freeOffers = evidence.catalog.value?.toInt(),
                     onRefresh = viewModel::refreshSmartCombo,
                     refreshEnabled = state.smartComboEnabled && !state.smartComboRefreshing && !state.isGenerating
@@ -219,8 +218,7 @@ internal fun SmartComboFocusedScreen(
                                     else NumberFormat.getIntegerInstance()
                                         .format(metrics.remainingContextTokens)) +
                                 " · Rate tokens: " +
-                                (verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) }
-                                    ?: "Unverified"),
+                                comboReadingLabel(evidence.tokenRate),
                                 color = MaximusReference.muted, fontSize = 10.sp,
                                 maxLines = 1)
                         }
@@ -241,8 +239,7 @@ internal fun SmartComboFocusedScreen(
                         model = state.selectedModel
                     )
                     Text("Verified provider rate tokens: " +
-                            (verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) }
-                                ?: "Unverified") +
+                            comboReadingLabel(evidence.tokenRate) +
                             " · Context estimates are not billed quota.",
                         color = MaximusReference.muted, fontSize = 10.sp)
                 }
