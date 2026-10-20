@@ -284,8 +284,8 @@ fun MatrixGraphScreen(
     val canonicalNodes = remember(topology, persistedNodes) {
         topology.first + persistedNodes.filter { it.id.isNotBlank() && it.id !in catalogIds }.map { item ->
             LiveNode(item.id, item.label, item.groupName,
-                item.x.takeIf { it.isFinite() } ?: 0f, item.y.takeIf { it.isFinite() } ?: 0f, 0f,
-                item.radius, runCatching { Color(android.graphics.Color.parseColor(item.colorHex)) }
+                NeuralGalaxyLayouts.safeCoordinate(item.x), NeuralGalaxyLayouts.safeCoordinate(item.y), 0f,
+                NeuralGalaxyLayouts.safeRadius(item.radius), runCatching { Color(android.graphics.Color.parseColor(item.colorHex)) }
                     .getOrDefault(GraphGold), item.description, item.relations, item.isHub)
         }
     }

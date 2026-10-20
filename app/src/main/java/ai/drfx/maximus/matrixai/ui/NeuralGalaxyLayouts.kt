@@ -28,15 +28,19 @@ internal data class GalaxyGeometry(
  * Force preparation uses a fixed iteration/repulsion budget; it never runs in a draw loop.
  */
 internal object NeuralGalaxyLayouts {
+    fun safeRadius(value: Float): Float =
+        if (value.isFinite() && value > 0f) value.coerceAtMost(64f) else 16f
+
+    fun safeCoordinate(value: Float): Float =
+        if (value.isFinite()) value.coerceIn(-10_000f, 10_000f) else 0f
+
     fun prepare(mode: NeuralGalaxyLayout, source: List<GalaxyNode>, edges: List<GalaxyEdge>): GalaxyGeometry {
         require(source.map { it.id }.distinct().size == source.size) { "Duplicate graph node identity." }
         require(source.all { it.id.isNotBlank() })
         if (source.isEmpty()) return GalaxyGeometry(emptyMap())
         val nodes = source.sortedBy { it.id }
-        val valid = nodes.map { n ->
-            if (n.initial.x.isFinite() && n.initial.y.isFinite() && n.initial.z.isFinite()) n
-            else n.copy(initial = SpacePoint(0f, 0f, 0f))
-        }
+        val valid = nodes.map { n -> n.copy(initial = SpacePoint(
+            safeCoordinate(n.initial.x), safeCoordinate(n.initial.y), safeCoordinate(n.initial.z))) }
         return when (mode) {
             NeuralGalaxyLayout.BRAIN -> GalaxyGeometry(valid.associate { it.id to it.initial })
             NeuralGalaxyLayout.RINGS -> rings(valid)

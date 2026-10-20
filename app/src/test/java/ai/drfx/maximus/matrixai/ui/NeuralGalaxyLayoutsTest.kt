@@ -21,6 +21,15 @@ class NeuralGalaxyLayoutsTest {
         }
     }
 
+    @Test fun savedGeometryIsBoundedWithoutRewritingSourceRecords() {
+        assertEquals(16f,NeuralGalaxyLayouts.safeRadius(Float.NaN),0f)
+        assertEquals(16f,NeuralGalaxyLayouts.safeRadius(-5f),0f)
+        assertEquals(64f,NeuralGalaxyLayouts.safeRadius(Float.MAX_VALUE),0f)
+        assertEquals(4f,NeuralGalaxyLayouts.safeRadius(4f),0f)
+        assertEquals(0f,NeuralGalaxyLayouts.safeCoordinate(Float.POSITIVE_INFINITY),0f)
+        assertEquals(10_000f,NeuralGalaxyLayouts.safeCoordinate(Float.MAX_VALUE),0f)
+    }
+
     @Test fun originalBrainCoordinatesArePreserved() {
         val result=NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.BRAIN,nodes,edges)
         nodes.forEach { assertEquals(it.initial,result.positions[it.id]) }
