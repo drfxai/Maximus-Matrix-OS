@@ -93,7 +93,7 @@ internal fun SmartComboFocusedScreen(
                         Column(Modifier.weight(1f)) {
                             Text("Smart routing", color = MaximusReference.white,
                                 fontWeight = FontWeight.Bold)
-                            Text("Verified free-first choices · explicit fallback approval",
+                            Text("Automatically selects the best allowed model for your task",
                                 fontSize = 11.sp, color = MaximusReference.muted)
                         }
                         MotionSwitch(state.smartComboEnabled, viewModel::setSmartComboEnabled,
@@ -102,26 +102,19 @@ internal fun SmartComboFocusedScreen(
                 }
             }
             item {
-                MaximusFramedCard {
-                    SmartComboRouteDiagram(
-                        provider = state.provider.displayName,
-                        selectedModel = state.selectedModel,
-                        active = state.smartComboEnabled && state.isGenerating,
-                        statusLabel = smartComboStatusLabel(state)
-                    )
-                    HorizontalDivider(color = MaximusReference.stroke)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Free offers: ${state.smartComboOffers} · Configured: ${state.smartComboConfiguredProviders}",
-                            modifier = Modifier.weight(1f), color = MaximusReference.muted,
-                            fontSize = 10.sp, maxLines = 1)
-                        IconButton(onClick = viewModel::refreshSmartCombo,
-                            enabled = state.smartComboEnabled && !state.smartComboRefreshing &&
-                                !state.isGenerating, modifier = Modifier.size(30.dp)) {
-                            Icon(Icons.Default.Refresh, "Refresh verified routes",
-                                modifier = Modifier.size(18.dp), tint = MaximusReference.gold)
-                        }
-                    }
-                }
+                PremiumSmartComboHero(
+                    provider = state.provider.displayName,
+                    model = state.selectedModel,
+                    active = state.smartComboEnabled && state.isGenerating,
+                    status = smartComboStatusLabel(state),
+                    contextUsed = metrics.contextUsagePercent,
+                    contextLeft = if (state.selectedModel.isBlank()) "Unknown" else
+                        NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens),
+                    verifiedRate = verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) } ?: "Unverified",
+                    freeOffers = state.smartComboOffers,
+                    onRefresh = viewModel::refreshSmartCombo,
+                    refreshEnabled = state.smartComboEnabled && !state.smartComboRefreshing && !state.isGenerating
+                )
             }
             item {
                 Surface(
@@ -173,17 +166,18 @@ internal fun SmartComboFocusedScreen(
                 }
             }
             item {
-                MaximusFramedCard {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Choose model", modifier = Modifier.weight(1f),
+                            fontSize = 19.sp,
                             color = MaximusReference.white, fontWeight = FontWeight.Bold)
                         Text("${state.models.size} catalog models", color = MaximusReference.muted,
                             fontSize = 10.sp)
                     }
                     OutlinedTextField(search, { search = it.take(120) },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 51.dp),
                         leadingIcon = { Icon(Icons.Default.Search, null) },
-                        placeholder = { Text("Search model IDs and names...") },
+                        placeholder = { Text("Search models, providers...") },
                         singleLine = true, shape = RoundedCornerShape(10.dp))
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(5.dp)) {
