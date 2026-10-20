@@ -69,7 +69,16 @@ fun ProjectStudioScreen(
     var section by remember { mutableStateOf(initialSection.coerceIn(0, 6)) }
     var showAdvancedNavigation by remember { mutableStateOf(false) }
     val workspaceListState = rememberLazyListState()
-    LaunchedEffect(section) { workspaceListState.scrollToItem(0) }
+    val workspaceScope = rememberCoroutineScope()
+    var previousSection by remember { mutableIntStateOf(section) }
+    // Keep Work navigation visible when switching sections. Previously a section change
+    // scrolled to the top of the tall Pine hero, hiding the navigation controls.
+    LaunchedEffect(section) {
+        if (previousSection != section) {
+            previousSection = section
+            workspaceListState.scrollToItem(if (section == 0) 4 else 3)
+        }
+    }
     val context = LocalContext.current
     val connectionVault = remember(context) { ai.drfx.maximus.matrixai.studio.connections.DeveloperCredentialVault(context) }
     val store = remember(context) { ProjectWorkspaceStore(context.applicationContext) }
@@ -225,7 +234,12 @@ fun ProjectStudioScreen(
                 onSelect = { activeId = it; showSelector = false })
         }
         if (section == 0) item {
-            PremiumPineWorkCard(onOpen = onPine)
+            PremiumPineWorkCard(
+                onOpen = onPine,
+                onJumpToWorkspace = {
+                    workspaceScope.launch { workspaceListState.animateScrollToItem(4) }
+                }
+            )
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
