@@ -194,6 +194,14 @@ class KeyboardLayoutTest {
                     device.hasObject(By.text("Visual Acceptance Workspace"))
                 }
                 captureWorkspace("studio-populated.png")
+                repeat(5) {
+                    if (!device.hasObject(By.text("Files"))) {
+                        device.swipe((device.displayWidth * .68).toInt(),
+                            (device.displayHeight * .73).toInt(),
+                            (device.displayWidth * .68).toInt(),
+                            (device.displayHeight * .27).toInt(), 25)
+                    }
+                }
                 checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
                 checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
                 captureWorkspace("studio-files-populated.png")
