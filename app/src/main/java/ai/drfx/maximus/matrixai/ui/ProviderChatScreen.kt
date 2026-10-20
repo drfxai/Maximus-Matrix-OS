@@ -421,7 +421,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 remaining = if (state.selectedModel.isBlank()) stringResource(R.string.api_unknown)
                     else numberFormat.format(metrics.remainingContextTokens),
                 provider = state.provider.displayName,
-                model = state.selectedModel
+                model = state.selectedModel,
+                compact = true
             )
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
