@@ -311,7 +311,7 @@ fun MatrixGraphScreen(
             GalaxyNode(node.id, galaxyArea(node.group), if (node.id == "maximus") 0 else if (node.hub) 1 else 2,
                 SpacePoint(node.x, node.y, node.z),
                 listOfNotNull(observations[node.id], persistedChanges[node.id]).filter { it > 0L }.maxOrNull(),
-                observations.containsKey(node.id))
+                observations[node.id]?.let { it >= (persistedChanges[node.id] ?: 0L) } == true)
         }
     }
     var geometry by remember { mutableStateOf(GalaxyGeometry(emptyMap())) }
@@ -376,7 +376,8 @@ fun MatrixGraphScreen(
             java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'UTC'", Locale.ENGLISH)
                 .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(time))
         } ?: "No dated observation"
-        return source + " · " + timestamp
+        val dateSource = if (evidence?.runtimeObserved == true) "latest recorded activity" else "saved change"
+        return source + " · " + (if (evidence?.changedAt == null) timestamp else dateSource + ": " + timestamp)
     }
     var selectedLobe by remember { mutableStateOf<String?>(null) }
     var search by remember { mutableStateOf("") }
