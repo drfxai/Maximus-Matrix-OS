@@ -25,11 +25,13 @@ internal fun PremiumSmartComboHero(
     provider: String,
     model: String,
     active: Boolean,
+    requestDispatched: Boolean = false,
+    streaming: Boolean = false,
     status: String,
     contextUsed: Float,
     contextLeft: String,
     verifiedRate: String,
-    freeOffers: Int,
+    freeOffers: Int?,
     onRefresh: () -> Unit,
     refreshEnabled: Boolean
 ) {
@@ -59,11 +61,20 @@ internal fun PremiumSmartComboHero(
                 WorkspaceCompanion(working = active, modifier = Modifier.size(91.dp))
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(if (active) "Selecting a route…" else "Smart Combo",
+                    Text(when {
+                        !active -> "Smart Combo"
+                        streaming -> "Streaming response"
+                        requestDispatched -> "Request dispatched"
+                        else -> "Preparing request…"
+                    },
                         color = MaximusReference.white,
                         fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                    Text(if (active) "Analyzing your request and finding the best model…"
-                        else status,
+                    Text(when {
+                        !active -> status
+                        streaming -> "Receiving output from the actual dispatched model."
+                        requestDispatched -> "Waiting for provider output. No automatic replay."
+                        else -> "No provider dispatch has been observed yet."
+                    },
                         color = MaximusReference.muted, fontSize = 11.sp,
                         lineHeight = 16.sp, maxLines = 3)
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp),
@@ -88,7 +99,7 @@ internal fun PremiumSmartComboHero(
                     Text(provider, color = MaximusReference.white,
                         fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("Provider", color = MaximusReference.muted, fontSize = 10.sp)
+                    Text(if (requestDispatched) "Dispatched provider" else "Configured provider", color = MaximusReference.muted, fontSize = 10.sp)
                 }
                 Box(Modifier.width(1.dp).height(38.dp).background(MaximusReference.stroke))
                 Spacer(Modifier.width(8.dp))
@@ -98,7 +109,7 @@ internal fun PremiumSmartComboHero(
                     Text(model.ifBlank { "Select model" }, color = MaximusReference.white,
                         fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("Model", color = MaximusReference.muted, fontSize = 10.sp)
+                    Text(if (requestDispatched) "Dispatched model" else "Configured model", color = MaximusReference.muted, fontSize = 10.sp)
                 }
             }
             HorizontalDivider(color = MaximusReference.stroke)
@@ -114,7 +125,7 @@ internal fun PremiumSmartComboHero(
                                 RoundedCornerShape(3.dp)))
                         }
                     }
-                    Text("Rate tokens: $verifiedRate · Free offers: $freeOffers",
+                    Text("Rate tokens: $verifiedRate · Catalog offers: ${freeOffers ?: "Unknown"}",
                         color = MaximusReference.muted, fontSize = 10.sp, maxLines = 1)
                 }
                 Spacer(Modifier.width(10.dp))

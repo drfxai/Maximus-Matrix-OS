@@ -23,6 +23,7 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
     onRoutingChange: ((Boolean) -> Unit)? = null) {
     var detailsOpen by remember { mutableStateOf(false) }
     val metrics = state.tokenMetrics
+    val evidence = rememberSmartComboEvidence(state)
     val active = state.activeRequest?.takeIf { state.isGenerating }
     val format = NumberFormat.getIntegerInstance()
     val unknown = stringResource(R.string.api_unknown)
@@ -57,6 +58,7 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
             Text(stringResource(R.string.dash_executing_agent, active.agentName),
                 style = MaterialTheme.typography.bodySmall)
         }
+        SmartComboEvidencePanel(state, evidence)
         Text(smartComboStatusLabel(state), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
@@ -93,10 +95,10 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CommandMetric(stringResource(R.string.dash_provider_tokens),
-                metrics.verifiedRateTokensRemaining?.let(format::format) ?: unknown,
+                evidence.tokenRate.value?.let(format::format) ?: comboReadingLabel(evidence.tokenRate),
                 stringResource(R.string.dash_rate_snapshot), Modifier.weight(1f),
-                remainingValue = metrics.verifiedRateTokensRemaining,
-                attention = metrics.verifiedRateTokensRemaining == 0L)
+                remainingValue = evidence.tokenRate.value,
+                attention = evidence.tokenRate.value == 0L)
             CommandMetric(stringResource(R.string.dash_local_budget),
                 metrics.remainingBudgetTokens?.let(format::format) ?: stringResource(R.string.dash_not_set),
                 stringResource(R.string.dash_user_budget), Modifier.weight(1f),
@@ -125,7 +127,7 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
         Text(stringResource(R.string.dash_selected_agent, persona?.name ?: state.selectedAgentId),
             style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CommandMetric(stringResource(R.string.dash_verified_routes), format.format(state.smartComboOffers),
+            CommandMetric(stringResource(R.string.dash_verified_routes), comboReadingLabel(evidence.catalog),
                 stringResource(R.string.dash_catalog_not_quota), Modifier.weight(1f))
             CommandMetric(stringResource(R.string.dash_provider_accounts), format.format(state.smartComboConfiguredProviders),
                 stringResource(R.string.dash_configured_count), Modifier.weight(1f))

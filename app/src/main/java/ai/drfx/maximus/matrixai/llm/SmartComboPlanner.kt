@@ -139,6 +139,9 @@ object SmartComboPlanner {
                     requiredContext
                 LimitKind.DOLLAR_BALANCE_MICROS -> (cost * 1_000_000.0).toLong().coerceAtLeast(if (cost > 0.0) 1L else 0L)
             }
+            // A verified zero-price route consumes no dollar credit. Free request/token
+            // windows are still enforced independently below and by the admission ledger.
+            if (window.kind == LimitKind.DOLLAR_BALANCE_MICROS && needed == 0L) continue
             // Reserve at least the current task's demand plus a 15% headroom of the limit
             // where published; do not allocate the provider's quota here.
             val guard = max(needed, window.limit?.let { (it.toDouble() * 0.15).toLong() } ?: 0L)
