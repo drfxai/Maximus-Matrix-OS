@@ -1603,7 +1603,7 @@ private fun NeuralScene(
             .testTag("galaxy_canvas_" + layout.name)
             .semantics {
                 contentDescription =
-                    graphDescription + " · Neural Galaxy · " + layout.title
+                    graphDescription
             }
             .pointerInput(Unit) {
                 awaitPointerEventScope {
