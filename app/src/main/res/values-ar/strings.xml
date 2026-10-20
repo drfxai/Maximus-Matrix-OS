@@ -782,4 +782,5 @@
     <string name="motion_context_not_credit">سعة المحادثة تقديرية ومنفصلة عن رصيد المزود.</string>
     <string name="motion_selected">محدد</string>
     <string name="motion_team_scope">مهام مجدولة للأخبار وصحة الجهاز. فرق المشاريع في الاستوديو.</string>
+    <string name="project_checkpoint_integrity_error">لا يطابق معرّف إصدار نقطة الحفظ قائمة ملفاتها. راجع مساحة العمل واحفظ نقطة حفظ جديدة.</string>
 </resources>

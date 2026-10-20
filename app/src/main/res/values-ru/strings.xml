@@ -782,4 +782,5 @@
     <string name="motion_context_not_credit">Оценка ёмкости диалога не является балансом провайдера.</string>
     <string name="motion_selected">Выбрано</string>
     <string name="motion_team_scope">Задания новостей и состояния устройства по расписанию. Команды проектов — в Studio.</string>
+    <string name="project_checkpoint_integrity_error">Ревизия контрольной точки не соответствует списку файлов. Проверьте рабочую область и сохраните новую контрольную точку.</string>
 </resources>

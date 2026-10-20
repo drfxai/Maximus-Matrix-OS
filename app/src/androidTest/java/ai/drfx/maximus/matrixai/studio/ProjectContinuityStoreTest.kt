@@ -27,4 +27,63 @@ class ProjectContinuityStoreTest {
         }
         assertTrue(continuity.save(project.id, "Continue after review").unchanged)
     }
+
+    @Test fun corruptRevisionCannotBecomeVerifiedContinuity() {
+        rejectCorruptManifest { it.put("revision", "0".repeat(64)) }
+    }
+
+    @Test fun corruptFileMetadataCannotBecomeVerifiedContinuity() {
+        rejectCorruptManifest { manifest ->
+            val entry = manifest.getJSONArray("files").getJSONObject(0)
+            entry.put("length", entry.getLong("length") + 1)
+        }
+    }
+
+    @Test fun corruptFileHashCannotBecomeVerifiedContinuity() {
+        rejectCorruptManifest { manifest ->
+            manifest.getJSONArray("files").getJSONObject(0).put("sha256", "0".repeat(64))
+        }
+    }
+
+    @Test fun corruptRevisionErrorFollowsAllFiveAppLanguages() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val preference = ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceStore(context)
+        val previous = preference.load()
+        try {
+            for (language in ai.drfx.maximus.matrixai.ui.theme.AppLanguage.entries) {
+                preference.save(language)
+                val expected = ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceStore
+                    .localizedContext(context, language)
+                    .getString(ai.drfx.maximus.matrixai.R.string.project_checkpoint_integrity_error)
+                rejectCorruptManifest(expected) { it.put("revision", "0".repeat(64)) }
+            }
+        } finally { preference.save(previous) }
+    }
+
+    private fun rejectCorruptManifest(expectedMessage: String? = null,
+        corrupt: (org.json.JSONObject) -> Unit) {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val workspace = ProjectWorkspaceStore(context)
+        val project = workspace.newProject("Checkpoint integrity test")
+        val continuity = ProjectContinuityStore(context, workspace)
+        val saved = continuity.save(project.id, "Review current sources")
+        val file = java.io.File(context.filesDir,
+            "studio/checkpoints/${project.id}/${saved.checkpointId}.json")
+        val original = file.readText()
+        try {
+            val manifest = org.json.JSONObject(original)
+            corrupt(manifest)
+            file.writeText(manifest.toString())
+            val failure = assertThrows(IllegalArgumentException::class.java) {
+                continuity.validate(project.id, saved.checkpointId)
+            }
+            expectedMessage?.let { assertEquals(it, failure.message) }
+            assertThrows(IllegalArgumentException::class.java) {
+                continuity.resumePrompt(project.id)
+            }
+            // Invalid user-owned evidence is retained for explicit recovery.
+            assertTrue(file.isFile)
+        } finally { file.writeText(original) }
+        assertTrue(continuity.validate(project.id, saved.checkpointId).unchanged)
+    }
 }

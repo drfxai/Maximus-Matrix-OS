@@ -34,6 +34,6 @@ The five user-approved concept screens **Chat, Work, Agents, Smart Combo, Pine S
 - Keep model changes tied to real provider catalogs and actual active-session routing.
 
 ## Release/quality gates
-- Public `versionName=1.0.0`, internal `versionCode=10028`, Android signing identity and package remain unchanged until separately approved.
+- Public `versionName=1.0.0`, audited internal `versionCode=10029`, Android signing identity and package remain unchanged until separately approved.
 - Android Gradle compilation, JVM unit tests, lint, both Android emulator CI shards, strict screenshot collection, security tests and signed upgrade checks must pass.
 - Before approval of a new published build, collect one real emulator screenshot each of the five pages, plus Pine Studio (top/scrolled) and Work Changes/diff with populated fixtures or real state explicitly labeled. Compare against approved concepts for text, margins, icon sizes, cards, status/trust indicators and behavior. Avoid merging or publishing without acceptance.

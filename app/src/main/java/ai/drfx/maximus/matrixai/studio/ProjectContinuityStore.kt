@@ -1,6 +1,8 @@
 package ai.drfx.maximus.matrixai.studio
 
 import android.content.Context
+import ai.drfx.maximus.matrixai.R
+import ai.drfx.maximus.matrixai.ui.theme.LanguagePreferenceStore
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -13,6 +15,7 @@ import java.util.UUID
  * user authorization plus access to the verified workspace files.
  */
 class ProjectContinuityStore(context: Context, private val workspace: ProjectWorkspaceStore) {
+    private val app = context.applicationContext
     private val root = File(context.filesDir, "studio/checkpoints").apply { mkdirs() }
     data class Validation(
         val checkpointId: String,
@@ -70,6 +73,13 @@ class ProjectContinuityStore(context: Context, private val workspace: ProjectWor
         ) { "Unrecognized checkpoint format." }
         val files = data.getJSONArray("files")
         require(files.length() <= 500)
+        // The revision identifies this exact file manifest, not a caller-supplied label.
+        // Keep schema 1 serialization so existing valid checkpoints remain readable.
+        require(data.getString("revision") == hash(files.toString())) {
+            val language = LanguagePreferenceStore(app).load()
+            LanguagePreferenceStore.localizedContext(app, language)
+                .getString(R.string.project_checkpoint_integrity_error)
+        }
         val currentPaths = workspace.listFiles(projectId).map { it.path }.toSet()
         val modified = mutableListOf<String>()
         val missing = mutableListOf<String>()
