@@ -36,6 +36,9 @@ import ai.drfx.maximus.matrixai.studio.connections.DevelopmentService
 import ai.drfx.maximus.matrixai.studio.connections.GithubSourceFile
 import ai.drfx.maximus.matrixai.studio.connections.DeveloperConnectionState
 import ai.drfx.maximus.matrixai.studio.connections.GithubPullRequestReview
+import ai.drfx.maximus.matrixai.studio.connections.GithubRepositoryEvidence
+import ai.drfx.maximus.matrixai.studio.connections.DeveloperOperationsPolicy
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import kotlinx.coroutines.CancellationException
@@ -93,7 +96,21 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
     var proposedText by remember { mutableStateOf("") }
     var confirmAction by remember { mutableStateOf<String?>(null) }
 
-    fun perform(action: suspend () -> String) {
+    var repositoryEvidence by remember(owner, repo, branch, connection.revision, selected) {
+        mutableStateOf<GithubRepositoryEvidence?>(null)
+    }
+    var repositoryInspectionFailed by remember(owner, repo, branch, connection.revision, selected) {
+        mutableStateOf(false)
+    }
+    var evidenceNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000L)
+            evidenceNow = System.currentTimeMillis()
+        }
+    }
+
+    fun perform(onFailure: (() -> Unit)? = null, action: suspend () -> String) {
         if (isBusy) return
         isBusy = true
         scope.launch {
@@ -103,8 +120,10 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: Exception) {
+                onFailure?.invoke()
                 feedback = context.getString(R.string.dev_operation_failed)
             } finally {
+                evidenceNow = System.currentTimeMillis()
                 isBusy = false
             }
         }
@@ -113,6 +132,8 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
     ElevatedCard(modifier.fillMaxWidth().testTag("developer_connection_panel"),
         shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.padding(14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            DeveloperOperationsEvidence(selected, connection, repositoryEvidence,
+                repositoryInspectionFailed, evidenceNow)
             PluginStorePanel(onChanged = {
                 connection = connection.reset(vault.configured(selected))
                 prReview = null; prUrl = ""; loaded = null; accounts = emptyList()
@@ -199,9 +220,10 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                     val revisionToVerify = connection.revision
                     perform {
                         connection = connection.copy(verified = false)
-                        if (serviceToVerify == DevelopmentService.GITHUB) client.verifyGithub()
+                        val identity = if (serviceToVerify == DevelopmentService.GITHUB) client.verifyGithub()
                         else client.verifyCloudflare()
-                        connection = connection.finishVerification(revisionToVerify)
+                        connection = connection.finishVerification(revisionToVerify,
+                            System.currentTimeMillis(), identity)
                         context.getString(R.string.dev_verified)
                     }
                 }) { Text(stringResource(R.string.dev_verify)) }
@@ -238,6 +260,26 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                 if (owner.isNotBlank() && repo.isNotBlank()) Text(
                     stringResource(R.string.dev_repository_selected, owner, repo),
                     style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(enabled = credentialSaved && rawToken.isBlank() && !isBusy &&
+                    owner.isNotBlank() && repo.isNotBlank() && branch.isNotBlank(), onClick = {
+                    val o = owner; val r = repo; val b = branch
+                    val revision = connection.revision
+                    perform(onFailure = { repositoryInspectionFailed = true }) {
+                        val observation = client.inspectGithubRepository(o, r, b)
+                        if (selected == DevelopmentService.GITHUB && connection.revision == revision &&
+                            owner == o && repo == r && branch == b) {
+                            repositoryEvidence = observation
+                            repositoryInspectionFailed = false
+                            evidenceNow = System.currentTimeMillis()
+                        }
+                        "Branch inspection complete. No source changes were sent."
+                    }
+                }, modifier = Modifier.fillMaxWidth().testTag("developer_inspect_repository")) {
+                    Text("Inspect branch & latest workflow")
+                }
+                Text("Read only · selected branch: $branch · Actions read permission is optional.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = { advanced = !advanced },
                     modifier = Modifier.fillMaxWidth().testTag("developer_advanced_editor_toggle")) {
                     Text(stringResource(if (advanced) R.string.dev_hide_advanced else R.string.dev_show_advanced))
@@ -662,4 +704,85 @@ private fun CloudflareStagedDeploymentPanel(
             }
         }) { Text(stringResource(R.string.graph_approve)) } },
         dismissButton = { TextButton(onClick = { confirmation = null }) { Text(stringResource(R.string.graph_reject)) } })
+}
+
+/** A dated read-only projection. Rendering never probes services or executes commands. */
+@Composable
+private fun DeveloperOperationsEvidence(
+    service: DevelopmentService,
+    state: DeveloperConnectionState,
+    repository: GithubRepositoryEvidence?,
+    inspectionFailed: Boolean,
+    now: Long
+) {
+    fun date(at: Long): String = if (at > 0L) java.time.Instant.ofEpochMilli(at).toString() else "Unavailable"
+    fun freshness(at: Long): String = DeveloperOperationsPolicy.freshness(at, now).name
+    Surface(
+        modifier = Modifier.fillMaxWidth().testTag("developer_operations_evidence"),
+        color = androidx.compose.ui.graphics.Color(0xFF061A2D),
+        contentColor = androidx.compose.ui.graphics.Color(0xFFE5EEFA),
+        shape = RoundedCornerShape(14.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFF17446D))
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("Developer operations", style = MaterialTheme.typography.titleSmall,
+                color = androidx.compose.ui.graphics.Color(0xFFFFCC62))
+            Text("${if (service == DevelopmentService.GITHUB) "GitHub" else "Cloudflare"} · " +
+                if (state.credentialSaved) "Credential stored on device" else "No credential",
+                style = MaterialTheme.typography.bodySmall)
+            Text("Token evidence: ${if (!state.verified && state.verifiedAtEpochMs > 0L) "ERROR · previous observation only" else freshness(state.verifiedAtEpochMs)}",
+                style = MaterialTheme.typography.labelSmall)
+            if (state.verifiedAtEpochMs > 0L) {
+                Text("Observed: ${date(state.verifiedAtEpochMs)} UTC",
+                    style = MaterialTheme.typography.bodySmall)
+                if (state.verifiedIdentity.isNotBlank()) Text(
+                    "API identity: ${state.verifiedIdentity}", style = MaterialTheme.typography.bodySmall)
+            }
+            if (service == DevelopmentService.GITHUB) {
+                if (inspectionFailed) Text("Repository inspection: ERROR · previous evidence is historical",
+                    color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                if (repository == null) {
+                    Text("Repository evidence: UNKNOWN · inspect a selected branch",
+                        style = MaterialTheme.typography.bodySmall)
+                } else {
+                    Text("${repository.repository} · ${repository.branch}",
+                        style = MaterialTheme.typography.bodySmall)
+                    Text("${if (inspectionFailed) "Historical branch" else "Branch"} evidence: ${freshness(repository.observedAtEpochMs)} · ${date(repository.observedAtEpochMs)} UTC",
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("Commit: ${repository.commitSha}", style = MaterialTheme.typography.bodySmall)
+                    Text("Protected: ${repository.protected?.toString() ?: "UNKNOWN"} · " +
+                        "Archived: ${repository.archived?.toString() ?: "UNKNOWN"}",
+                        style = MaterialTheme.typography.bodySmall)
+                    Text("Default branch: ${repository.defaultBranch}",
+                        style = MaterialTheme.typography.bodySmall)
+                    val run = repository.latestWorkflow
+                    Text(when {
+                        !repository.workflowAvailable -> "Latest workflow: UNAVAILABLE · check Actions read permission"
+                        run == null -> "Latest workflow: UNKNOWN · no run returned for this commit"
+                        else -> "Latest workflow #${run.id}: ${run.status} / ${run.conclusion ?: "not completed"}"
+                    }, style = MaterialTheme.typography.bodySmall)
+                    if (run?.updatedAtEpochMs != null) Text(
+                        "Workflow updated: ${date(run.updatedAtEpochMs)} UTC",
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("One latest workflow is not evidence that every required check passed.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = androidx.compose.ui.graphics.Color(0xFFA9C7E9))
+                }
+            } else {
+                Text("Worker discovery: ${freshness(state.workersObservedAtEpochMs)}",
+                    style = MaterialTheme.typography.bodySmall)
+                if (state.workersObservedAtEpochMs > 0L) {
+                    Text("Observed: ${date(state.workersObservedAtEpochMs)} UTC · " +
+                        "${state.workerNames.size} names returned (max 50)",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                Text("Token verification and Worker discovery do not prove invocation health.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = androidx.compose.ui.graphics.Color(0xFFA9C7E9))
+            }
+            Text("Reads are explicit. Source writes, staging and traffic changes keep their approval gates.",
+                style = MaterialTheme.typography.labelSmall,
+                color = androidx.compose.ui.graphics.Color(0xFFA9C7E9))
+        }
+    }
 }

@@ -37,4 +37,29 @@ class DeveloperConnectionStateTest {
         assertTrue(listed.selectAccount("account-a").workerNames.isEmpty())
         assertTrue(listed.selectAccount("account-b").workerNames.isEmpty())
     }
+
+    @Test fun verificationAndDiscoveryHaveIndependentObservationTimes() {
+        val state = DeveloperConnectionState(credentialSaved = true).selectAccount("account-a")
+        val verified = state.finishVerification(state.revision, 100L, "active")
+        val discovered = verified.receiveWorkers(verified.revision, "account-a", emptyList(), 200L)
+        assertTrue(discovered.verified)
+        assertEquals(100L, discovered.verifiedAtEpochMs)
+        assertEquals("active", discovered.verifiedIdentity)
+        assertEquals(200L, discovered.workersObservedAtEpochMs)
+        assertTrue(discovered.workerNames.isEmpty())
+        val switched = discovered.selectAccount("account-b")
+        assertEquals(0L, switched.workersObservedAtEpochMs)
+        assertEquals(100L, switched.verifiedAtEpochMs)
+        val revoked = discovered.reset(false)
+        assertEquals(0L, revoked.verifiedAtEpochMs)
+        assertEquals("", revoked.verifiedIdentity)
+        assertEquals(0L, revoked.workersObservedAtEpochMs)
+    }
+
+    @Test fun invalidOrStaleEvidenceCannotReplaceCurrentObservation() {
+        val state = DeveloperConnectionState(credentialSaved = true).selectAccount("account-a")
+        assertEquals(state, state.finishVerification(state.revision, 0L, "active"))
+        assertEquals(state, state.receiveWorkers(state.revision, "account-a", listOf("worker"), -1L))
+        assertEquals(state, state.finishVerification(state.revision - 1, 100L, "stale"))
+    }
 }
