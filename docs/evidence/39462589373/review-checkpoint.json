@@ -1,0 +1,54 @@
+{
+  "reviewed_at": "2026-10-20T19:47:00Z",
+  "main": {
+    "sha": "ba3511733f0029a4f4b2df5905f451c3ddadd5ed",
+    "android_ci": {
+      "run_id": 39464452761,
+      "conclusion": "failure",
+      "cause": "Two hardcoded Galaxy accessibility descriptions violate existing UiLocaleGateTest"
+    },
+    "audit_workflow": {
+      "run_id": 39481564493,
+      "conclusion": "success",
+      "scope": "Audit only; not Android validation"
+    }
+  },
+  "preserved": {
+    "versionName": "1.0.0",
+    "versionCode": 10029,
+    "applicationId": "ai.drfx.maximus.matrixai"
+  },
+  "recovery": [
+    {
+      "pr": 142,
+      "head": "7c7d16a0b8e75ae3e616e2adbc53c16a37f0de05",
+      "scope": "Resource-backed English accessibility",
+      "ci_run": 39485980347,
+      "status": "CI_RUNNING; refresh before acceptance"
+    },
+    {
+      "pr": 143,
+      "head": "b6913a4ae1429270752aef38c6c9aac7fcfdd158",
+      "scope": "Restore omitted SmartCombo, credential snapshot reset, acceptance/export",
+      "ci_run": 39486277859,
+      "status": "CI_RUNNING; refresh before acceptance",
+      "tree": "1b306185f91ecff69cb33a3fb3bcb0dfbcd4bea2",
+      "same_tree_as": "97c8d722b755cd7e59f385a627fea84c03e47733"
+    }
+  ],
+  "remaining": [
+    "Obtain passing full CI on recovery PRs; independent review and owner merge approval",
+    "Resolve Areas label crowding and graph camera-toolbar overlap without altering approved Brain proportions",
+    "Improve acceptance wrapper insets and capture scrolled Runtime evidence",
+    "Durable SmartCombo restart recovery and quota ledger",
+    "Full event-history Timeline and measured graph performance",
+    "Live scoped GitHub/Cloudflare acceptance using authorized credentials",
+    "Durable agents/Pulse and shared-memory milestones",
+    "Physical ARM64, signed upgrade and release acceptance"
+  ],
+  "screenshots": {
+    "run_id": 39462589373,
+    "scope": "Previous tested candidate, no live account"
+  },
+  "approval": "No merge, deploy, signing or publication performed in this review"
+}
