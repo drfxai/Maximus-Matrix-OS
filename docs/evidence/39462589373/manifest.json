@@ -1,0 +1,61 @@
+{
+  "source_head": "97c8d722b755cd7e59f385a627fea84c03e47733",
+  "run_id": "39462589373",
+  "keyboard_job_id": 118767989086,
+  "ci_conclusion": "success",
+  "device": "Android API 35 emulator, 1080x1920",
+  "account_state": "No connected credentials; no real provider inference or deployment claimed",
+  "scope": "PR138 tested candidate; not proof of current main",
+  "frames": [
+    {
+      "name": "galaxy-rings.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "8ed50982c12fa0a0ff230b1dcdd74574afe9caf7155f2b83e01351e49fdd580e",
+      "checkout_sha": "9c9aac621a9bc7c708cbc4c54901bceaf3b461a2",
+      "run_id": "39462589373",
+      "capture": "Android UiDevice.takeScreenshot; unmodified PNG"
+    },
+    {
+      "name": "galaxy-areas.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "2aa3e71cddf5100044b50a96171ba2975fb217bb93323b9a684f58b6fdcaa38b",
+      "checkout_sha": "9c9aac621a9bc7c708cbc4c54901bceaf3b461a2",
+      "run_id": "39462589373",
+      "capture": "Android UiDevice.takeScreenshot; unmodified PNG"
+    },
+    {
+      "name": "galaxy-orbit.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "df9933d1e63bb3bad793dc5b14b03690352e315248e0126c95e955bb7319ec41",
+      "checkout_sha": "9c9aac621a9bc7c708cbc4c54901bceaf3b461a2",
+      "run_id": "39462589373",
+      "capture": "Android UiDevice.takeScreenshot; unmodified PNG"
+    },
+    {
+      "name": "smart-combo.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "73e56d5fcb39c4b4888a8e9d71797744f6411cd4ef93e242016a823896eec22b",
+      "checkout_sha": "9c9aac621a9bc7c708cbc4c54901bceaf3b461a2",
+      "run_id": "39462589373",
+      "capture": "Android UiDevice.takeScreenshot; unmodified PNG"
+    },
+    {
+      "name": "developer-operations.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "5ad1da4dea712acd3a13869f8f8bf3990e8c589c4320a74f1f66dd1c155140ec",
+      "checkout_sha": "9c9aac621a9bc7c708cbc4c54901bceaf3b461a2",
+      "run_id": "39462589373",
+      "capture": "Android UiDevice.takeScreenshot; unmodified PNG"
+    }
+  ],
+  "visual_limitations": [
+    "Areas labels overlap and top graph can be obscured by camera toolbar.",
+    "Developer operations screenshot uses production panel in test wrapper; wrapper label overlaps status bar.",
+    "Smart Combo evidence card is partly below fold."
+  ]
+}
