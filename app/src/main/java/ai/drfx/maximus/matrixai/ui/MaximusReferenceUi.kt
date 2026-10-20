@@ -5,6 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -90,25 +93,37 @@ internal fun MaximusContextStrip(
     remaining: String,
     provider: String,
     model: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
     val remainingFraction = (1f - usedFraction.coerceIn(0f, 1f))
     val animatedRemaining by androidx.compose.animation.core.animateFloatAsState(
         targetValue = remainingFraction,
         animationSpec = androidx.compose.animation.core.tween(durationMillis = 450),
         label = "remaining-context")
-    MaximusFramedCard(modifier) {
+    MaximusFramedCard(modifier, padding = if (compact) PaddingValues(horizontal = 9.dp, vertical = 7.dp)
+        else PaddingValues(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (compact) {
+                androidx.compose.material3.Icon(Icons.Default.AccountTree, null,
+                    Modifier.size(18.dp), tint = MaximusReference.muted)
+                Spacer(Modifier.width(7.dp))
+            }
             Column(Modifier.weight(1f)) {
                 Text(provider, color = MaximusReference.white, fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp, maxLines = 1)
+                    fontSize = if (compact) 11.sp else 12.sp, maxLines = 1)
                 Text("Provider", color = MaximusReference.muted, fontSize = 10.sp)
             }
-            Box(Modifier.width(1.dp).height(30.dp).background(MaximusReference.stroke))
-            Spacer(Modifier.width(12.dp))
+            Box(Modifier.width(1.dp).height(if (compact) 28.dp else 30.dp).background(MaximusReference.stroke))
+            Spacer(Modifier.width(if (compact) 6.dp else 12.dp))
+            if (compact) {
+                androidx.compose.material3.Icon(Icons.Default.ViewInAr, null,
+                    Modifier.size(18.dp), tint = MaximusReference.muted)
+                Spacer(Modifier.width(6.dp))
+            }
             Column(Modifier.weight(1f)) {
                 Text(model.ifBlank { "Select a model" }, color = MaximusReference.white,
-                    fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1)
+                    fontWeight = FontWeight.SemiBold, fontSize = if (compact) 11.sp else 12.sp, maxLines = 1)
                 Text("Model", color = MaximusReference.muted, fontSize = 10.sp)
             }
         }
@@ -125,16 +140,16 @@ internal fun MaximusContextStrip(
                     }
                 }
             }
-            Spacer(Modifier.width(14.dp))
-            Box(Modifier.size(43.dp), contentAlignment = Alignment.Center) {
+            Spacer(Modifier.width(if (compact) 8.dp else 14.dp))
+            Box(Modifier.size(if (compact) 37.dp else 43.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
                     progress = { animatedRemaining },
-                    modifier = Modifier.size(39.dp),
+                    modifier = Modifier.size(if (compact) 34.dp else 39.dp),
                     color = MaximusReference.gold,
                     trackColor = MaximusReference.stroke,
                     strokeWidth = 5.dp
                 )
-                Text("${(remainingFraction * 100).toInt()}%",
+                Text("${(animatedRemaining * 100).toInt()}%",
                     color = MaximusReference.white, fontSize = 9.sp,
                     fontWeight = FontWeight.Bold)
             }
