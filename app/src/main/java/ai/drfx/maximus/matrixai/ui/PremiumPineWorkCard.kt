@@ -104,16 +104,9 @@ internal fun PremiumPineWorkCard(
                     PineLiveMarketChart(compact = true, previewOnly = true)
                 }
             }
-            Button(
+            ReferenceGoldButton(
                 onClick = onOpen,
-                modifier = Modifier.fillMaxWidth().height(44.dp)
-                    .testTag("open_pine_studio"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaximusReference.gold,
-                    contentColor = Color(0xFF14120B)
-                ),
-                shape = RoundedCornerShape(11.dp)
-            ) {
+                modifier = Modifier.fillMaxWidth().testTag("open_pine_studio")            ) {
                 Icon(Icons.Default.ShowChart, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(9.dp))
                 Text("Open Pine Studio", fontWeight = FontWeight.Bold, fontSize = 13.sp)

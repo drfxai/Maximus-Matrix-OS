@@ -8,6 +8,9 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.ViewInAr
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -111,7 +114,7 @@ internal fun MaximusContextStrip(
             }
             Column(Modifier.weight(1f)) {
                 Text(provider, color = MaximusReference.white, fontWeight = FontWeight.SemiBold,
-                    fontSize = if (compact) 11.sp else 12.sp, maxLines = 1)
+                    fontSize = if (compact) 11.sp else 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("Provider", color = MaximusReference.muted, fontSize = 10.sp)
             }
             Box(Modifier.width(1.dp).height(if (compact) 28.dp else 30.dp).background(MaximusReference.stroke))
@@ -123,7 +126,7 @@ internal fun MaximusContextStrip(
             }
             Column(Modifier.weight(1f)) {
                 Text(model.ifBlank { "Select a model" }, color = MaximusReference.white,
-                    fontWeight = FontWeight.SemiBold, fontSize = if (compact) 11.sp else 12.sp, maxLines = 1)
+                    fontWeight = FontWeight.SemiBold, fontSize = if (compact) 11.sp else 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("Model", color = MaximusReference.muted, fontSize = 10.sp)
             }
         }
@@ -135,7 +138,7 @@ internal fun MaximusContextStrip(
                     repeat(10) { index ->
                         val filled = index < (animatedRemaining * 10f).toInt()
                         Box(Modifier.weight(1f).height(7.dp).background(
-                            if (filled) MaximusReference.gold else MaximusReference.stroke,
+                            if (filled) lerp(MaximusReference.gold, Color(0xFFFF7139), index / 9f) else MaximusReference.stroke,
                             RoundedCornerShape(2.dp)))
                     }
                 }
@@ -157,5 +160,49 @@ internal fun MaximusContextStrip(
             Text("Estimated\ncontext", color = MaximusReference.muted, fontSize = 9.sp,
                 lineHeight = 12.sp)
         }
+    }
+}
+
+/** Shared gold action treatment from the reference; semantics and disabled state remain native. */
+@Composable
+internal fun ReferenceGoldButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit
+) {
+    Surface(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 42.dp),
+        shape = RoundedCornerShape(10.dp),
+        color = MaximusReference.gold,
+        contentColor = Color(0xFF171307),
+        border = BorderStroke(1.dp, Color(0xFFFFDE88))) {
+        Row(Modifier.background(Brush.linearGradient(listOf(
+            Color(0xFFFFDF83), Color(0xFFF8BD48), Color(0xFFFFD974))))
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically, content = content)
+    }
+}
+
+@Composable
+internal fun ReferenceUnderlineTabs(titles: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Column {
+        Row(Modifier.fillMaxWidth()) {
+            titles.forEachIndexed { index, title ->
+                val active = index == selected
+                Surface(onClick = { onSelect(index) }, modifier = Modifier.weight(1f), color = Color.Transparent) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.heightIn(min = 42.dp).padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
+                            Text(title, color = if (active) MaximusReference.gold else MaximusReference.muted,
+                                fontSize = 12.sp, maxLines = 1,
+                                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal)
+                        }
+                        Box(Modifier.fillMaxWidth().height(2.dp).background(
+                            if (active) MaximusReference.gold else Color.Transparent))
+                    }
+                }
+            }
+        }
+        HorizontalDivider(color = MaximusReference.stroke, thickness = 1.dp)
     }
 }

@@ -126,6 +126,9 @@ internal fun WorkspaceCodeCard(part: MessagePart, title: String? = null) {
                 }) { Icon(Icons.Default.FileDownload, stringResource(R.string.chat_download), Modifier.size(18.dp)) }
             }
             HorizontalDivider(color = MaximusReference.stroke)
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr
+        ) {
             SelectionContainer {
                 Row(Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()).padding(12.dp)) {
                     Text((1..part.text.lines().size).joinToString("\n"), color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -134,6 +137,7 @@ internal fun WorkspaceCodeCard(part: MessagePart, title: String? = null) {
                     Text(highlighted, fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 20.sp, softWrap = false)
                 }
             }
+        }
         }
     }
 }

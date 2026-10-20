@@ -118,7 +118,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
             }
             series != null -> {
                 val market = series!!
-                Text("${market.candles.size} / 200 historical candles · ${market.timeframe.label} · Source: ${market.source}",
+                Text("${market.candles.size} / 200 historical candles · $product · ${market.timeframe.label} · Source: ${market.source}",
                     color = MaximusReference.muted, fontSize = 10.sp,
                     modifier = Modifier.testTag("pine_live_candle_count"))
                 if (previewOnly) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -138,7 +138,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                         PineOhlcvCanvas(
                             candles = visibleCandles,
                             selectedIndex = if (previewOnly) -1 else selected,
-                            onSelect = { selected = it },
+                            onSelect = { if (!previewOnly) selected = it },
                             markSweeps = previewOnly,
                             modifier = Modifier.then(
                                 if (previewOnly) Modifier.fillMaxWidth()
