@@ -114,7 +114,17 @@ class KeyboardLayoutTest {
             checkNotNull(device.wait(Until.findObject(By.text("No staged file changes in this local workspace.")), 10_000))
             captureWorkspace("studio-changes.png")
             checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000)).click()
-            checkNotNull(device.wait(Until.findObject(By.text("Pine Studio · TradingView indicators")), 10_000)).click()
+            repeat(4) {
+                if (!device.hasObject(By.text("Open Pine Studio"))) {
+                    device.swipe((device.displayWidth * .7).toInt(),
+                        (device.displayHeight * .72).toInt(),
+                        (device.displayWidth * .7).toInt(),
+                        (device.displayHeight * .30).toInt(), 24)
+                }
+            }
+            checkNotNull(device.wait(Until.findObject(By.text("Open Pine Studio")), 10_000))
+            captureWorkspace("studio-pine-premium.png")
+            checkNotNull(device.wait(Until.findObject(By.text("Open Pine Studio")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
             captureWorkspace("pine-studio.png")
             // The Android viewport cannot fit a code editor and candlestick chart at once.
@@ -303,7 +313,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "chat-code-fixture.png", "chat-html-preview-fixture.png", "studio-overview.png", "studio-changes.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "chat-code-fixture.png", "chat-html-preview-fixture.png", "studio-overview.png", "studio-changes.png", "studio-pine-premium.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)
