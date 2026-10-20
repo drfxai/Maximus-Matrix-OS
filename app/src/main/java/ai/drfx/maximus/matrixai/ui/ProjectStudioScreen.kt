@@ -162,8 +162,8 @@ fun ProjectStudioScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("project_studio_screen"),
         state = workspaceListState,
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = if (section == 0) 112.dp else 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 5.dp, bottom = if (section == 0) 106.dp else 24.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -223,6 +223,9 @@ fun ProjectStudioScreen(
                 selected = activeId.orEmpty(),
                 onDismiss = { showSelector = false },
                 onSelect = { activeId = it; showSelector = false })
+        }
+        if (section == 0) item {
+            PremiumPineWorkCard(onOpen = onPine)
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -353,18 +356,6 @@ fun ProjectStudioScreen(
             }
         }
         if (section == 0) {
-            item {
-                OutlinedButton(onClick = onPine,
-                    modifier = Modifier.fillMaxWidth().testTag("open_pine_studio"),
-                    shape = RoundedCornerShape(11.dp),
-                    border = BorderStroke(1.dp, MaximusReference.gold)) {
-                    Icon(Icons.Default.Code, null, Modifier.size(18.dp), tint = MaximusReference.gold)
-                    Spacer(Modifier.width(7.dp))
-                    Text("Pine Studio · TradingView indicators", color = MaximusReference.gold)
-                    Spacer(Modifier.weight(1f))
-                    Icon(Icons.Default.ChevronRight, null, tint = MaximusReference.gold)
-                }
-            }
             if (active == null) item {
                 MaximusFramedCard {
                     Text("Your workspace is ready", fontWeight = FontWeight.Bold,
