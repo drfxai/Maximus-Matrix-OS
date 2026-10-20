@@ -720,6 +720,7 @@ private fun DeveloperOperationsEvidence(
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("developer_operations_evidence"),
         color = androidx.compose.ui.graphics.Color(0xFF061A2D),
+        contentColor = androidx.compose.ui.graphics.Color(0xFFE5EEFA),
         shape = RoundedCornerShape(14.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFF17446D))
     ) {
@@ -765,7 +766,7 @@ private fun DeveloperOperationsEvidence(
                         style = MaterialTheme.typography.labelSmall)
                     Text("One latest workflow is not evidence that every required check passed.",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = androidx.compose.ui.graphics.Color(0xFFA9C7E9))
                 }
             } else {
                 Text("Worker discovery: ${freshness(state.workersObservedAtEpochMs)}",
@@ -777,11 +778,11 @@ private fun DeveloperOperationsEvidence(
                 }
                 Text("Token verification and Worker discovery do not prove invocation health.",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    color = androidx.compose.ui.graphics.Color(0xFFA9C7E9))
             }
             Text("Reads are explicit. Source writes, staging and traffic changes keep their approval gates.",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                color = androidx.compose.ui.graphics.Color(0xFFA9C7E9))
         }
     }
 }
