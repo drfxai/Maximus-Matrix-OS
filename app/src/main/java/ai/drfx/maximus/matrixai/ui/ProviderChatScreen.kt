@@ -399,9 +399,6 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         if (!keyboardVisible) Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { sessionsOpen = true }) { Icon(Icons.Default.Menu, stringResource(R.string.ui_conversations)) }
             WorkspaceBrand(Modifier.weight(1f))
-            IconButton(onClick = { viewModel.createChatSession() }, enabled = !state.isGenerating) {
-                Icon(Icons.Default.Add, stringResource(R.string.speech_new))
-            }
             IconButton(onClick = { searchOpen = !searchOpen; if (!searchOpen) messageSearch = "" }) {
                 Icon(Icons.Default.Search, "Search conversation")
             }
@@ -415,37 +412,33 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             label = { Text("Search this conversation") }
         )
         if (!keyboardVisible) {
-            MaximusSectionHeader("Chat")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Chat", Modifier.weight(1f), fontSize = 23.sp, fontWeight = FontWeight.Bold,
+                    color = MaximusReference.white)
+                IconButton(onClick = { tokenDetailsOpen = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.DataUsage, stringResource(R.string.dash_session_tokens), Modifier.size(17.dp), tint = MaximusReference.muted)
+                }
+                IconButton(onClick = { workspaceControlsOpen = !workspaceControlsOpen },
+                    modifier = Modifier.size(32.dp).testTag("chat_workspace_controls_toggle")) {
+                    Icon(Icons.Default.Tune,
+                        stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show),
+                        Modifier.size(18.dp), tint = MaximusReference.muted)
+                }
+            }
             MaximusContextStrip(
                 usedFraction = metrics.contextUsagePercent,
                 remaining = if (state.selectedModel.isBlank()) stringResource(R.string.api_unknown)
                     else numberFormat.format(metrics.remainingContextTokens),
                 provider = state.provider.displayName,
-                model = state.selectedModel
+                model = state.selectedModel,
+                modifier = Modifier.clickable { settingsOpen = true },
+                compact = true
             )
         }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (!keyboardVisible && workspaceControlsOpen) {
-                FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.nav_chat), fontSize = 11.sp) })
-                FilterChip(selected = false, onClick = onWork, label = { Text(stringResource(R.string.ui_work), fontSize = 11.sp) })
-                FilterChip(selected = false, onClick = onSmartCombo, label = { Text("Smart Combo", fontSize = 11.sp) })
-            }
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = { settingsOpen = true }, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.Tune, "Choose provider and model", Modifier.size(19.dp),
-                    tint = MaximusReference.muted)
-            }
-            IconButton(onClick = { tokenDetailsOpen = true }, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.DataUsage, stringResource(R.string.dash_session_tokens),
-                    Modifier.size(19.dp), tint = MaximusReference.gold)
-            }
-            IconButton(onClick = { workspaceControlsOpen = !workspaceControlsOpen },
-                modifier = Modifier.size(34.dp).testTag("chat_workspace_controls_toggle")) {
-                Icon(if (workspaceControlsOpen) Icons.Default.Close else Icons.Default.Tune,
-                    stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show),
-                    Modifier.size(19.dp), tint = MaximusReference.muted)
-            }
+        if (workspaceControlsOpen && !keyboardVisible) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.nav_chat), fontSize = 11.sp) })
+            FilterChip(selected = false, onClick = onWork, label = { Text(stringResource(R.string.ui_work), fontSize = 11.sp) })
+            FilterChip(selected = false, onClick = onSmartCombo, label = { Text("Smart Combo", fontSize = 11.sp) })
         }
                 if (sessionsOpen) WorkspaceChoiceSheet(
                     title = stringResource(R.string.ui_conversations),
@@ -1029,13 +1022,13 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         // Compact message input field; screen-level IME insets keep it above the keyboard.
         Surface(
             modifier = Modifier.semantics { contentDescription = context.getString(R.string.chat_composer_description) },
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .65f))
+            color = MaximusReference.navy,
+            shape = RoundedCornerShape(28.dp),
+            border = BorderStroke(1.dp, MaximusReference.stroke)
         ) {
             Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box {
@@ -1057,6 +1050,15 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             DropdownMenuItem(text = { Text(stringResource(R.string.speech_attach_document)) },
                                 leadingIcon = { Icon(Icons.Default.AttachFile, null) },
                                 onClick = { attachmentMenuOpen = false; filePicker.launch(arrayOf("text/*", "application/pdf", "application/json")) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.speech_record)) },
+                                leadingIcon = { Icon(Icons.Default.Mic, null) },
+                                onClick = {
+                                    attachmentMenuOpen = false
+                                    stopVoicePlayback()
+                                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+                                        startRecording()
+                                    else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                                })
                             DropdownMenuItem(text = { Text(stringResource(R.string.plugin_store_title)) },
                                 leadingIcon = { Icon(Icons.Default.Extension, null) },
                                 onClick = { attachmentMenuOpen = false; onHub() })
@@ -1105,18 +1107,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     }, enabled = !recording && !recognitionInProgress, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Default.KeyboardVoice, stringResource(R.string.speech_dictate), modifier = Modifier.size(18.dp))
                     }
-                    IconButton(onClick = {
-                        stopVoicePlayback()
-                        if (recording) finishRecording()
-                        else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                            PackageManager.PERMISSION_GRANTED) startRecording()
-                        else micPermission.launch(Manifest.permission.RECORD_AUDIO)
-                    }, enabled = !recognitionInProgress, modifier = Modifier.size(36.dp)) {
-                        Icon(if (recording) Icons.Default.StopCircle else Icons.Default.FiberManualRecord,
-                            if (recording) stringResource(R.string.speech_stop_audio) else stringResource(R.string.speech_record),
-                            tint = if (recording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp))
+                    if (recording) IconButton(onClick = { finishRecording() }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.StopCircle, stringResource(R.string.speech_stop_audio), tint = MaterialTheme.colorScheme.error)
                     }
+
 
 
 
@@ -1126,8 +1120,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             sendable && state.selectedAgentId.isNotBlank() &&
                             (attachment?.mimeType?.startsWith("audio/") != true ||
                                 state.provider == LlmProvider.GEMINI || state.provider == LlmProvider.OPENAI),
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(42.dp),
                         contentPadding = PaddingValues(0.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaximusReference.gold, contentColor = Color.Black),
                         shape = CircleShape
                     ) {
                         Icon(Icons.Default.Send, stringResource(R.string.speech_send), modifier = Modifier.size(16.dp))
@@ -1755,17 +1750,24 @@ private fun MicroProviderChip(
 private fun GeneratingPulse(provider: String) {
     val animation = rememberInfiniteTransition(label = "generation")
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        repeat(3) { index ->
-            val opacity by animation.animateFloat(
-                initialValue = .25f, targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(600, easing = FastOutSlowInEasing),
-                    RepeatMode.Reverse, initialStartOffset = StartOffset(index * 150)),
-                label = "thinking-dot-$index")
-            Box(Modifier.size(6.dp).graphicsLayer(alpha = opacity, scaleX = .8f + opacity * .2f,
-                scaleY = .8f + opacity * .2f).background(MaterialTheme.colorScheme.tertiary, CircleShape))
-        }
         WorkspaceCompanion(working = true, modifier = Modifier.size(42.dp))
-        Text(stringResource(R.string.chat_generating_provider, provider), color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+        Surface(color = MaximusReference.navy, shape = RoundedCornerShape(12.dp)) {
+            Column(Modifier.padding(horizontal = 11.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    repeat(3) { index ->
+                        val opacity by animation.animateFloat(
+                            initialValue = .25f, targetValue = 1f,
+                            animationSpec = infiniteRepeatable(tween(600, easing = FastOutSlowInEasing),
+                                RepeatMode.Reverse, initialStartOffset = StartOffset(index * 150)),
+                            label = "thinking-dot-$index")
+                        Box(Modifier.size(6.dp).graphicsLayer(alpha = opacity)
+                            .background(MaximusReference.orange, CircleShape))
+                    }
+                }
+                Text(stringResource(R.string.chat_generating_provider, provider),
+                    color = MaximusReference.muted, fontSize = 11.sp)
+            }
+        }
     }
 }
 
@@ -1801,10 +1803,6 @@ private fun ChatBubble(
         translationY = (1f - arrival) * 12.dp.toPx()
     }, horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Top) {
-        if (!isUser) {
-            WorkspaceCompanion(working = false, modifier = Modifier.size(34.dp))
-            Spacer(Modifier.width(6.dp))
-        }
         Surface(
             color = background,
             shape = RoundedCornerShape(
@@ -1812,7 +1810,7 @@ private fun ChatBubble(
                 bottomStart = if (isUser) 16.dp else 3.dp,
                 bottomEnd = if (isUser) 3.dp else 16.dp
             ),
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.86f else 0.81f),
+            modifier = Modifier.fillMaxWidth(if (isUser) 0.84f else 1f),
             border = BorderStroke(1.dp, if (isUser) MaximusReference.stroke else MaximusReference.stroke.copy(alpha = .75f))
         ) {
             Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -1835,7 +1833,7 @@ private fun ChatBubble(
                     }
                 }
                 if (draft == null) {
-                    if (isUser) Text(message.content, color = textColor, fontSize = 15.sp, lineHeight = 23.sp)
+                    if (isUser) Text(message.content, color = textColor, fontSize = 14.sp, lineHeight = 21.sp)
                     else WorkspaceMessageContent(message.content, textColor)
                 } else {
                     Surface(
@@ -1859,11 +1857,19 @@ private fun ChatBubble(
                         }
                     }
                 }
+                Text(
+                    remember(message.timestampMs) {
+                        java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+                            .format(java.util.Date(message.timestampMs))
+                    },
+                    modifier = Modifier.align(Alignment.End),
+                    color = MaximusReference.muted, fontSize = 9.sp
+                )
                 if (!isUser && !message.isError) {
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.Start
                     ) {
                         @Composable fun action(
                             icon: androidx.compose.ui.graphics.vector.ImageVector,

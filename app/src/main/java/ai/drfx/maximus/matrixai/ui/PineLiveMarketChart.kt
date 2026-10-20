@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -38,7 +39,7 @@ import kotlin.math.min
 
 /** Real history chart, explicitly NOT a Pine compiler/backtester or a TradingView embed. */
 @Composable
-internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean = false) {
+internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean = false, previewOnly: Boolean = false) {
     val source = remember { PineMarketDataSource() }
     var product by remember { mutableStateOf(PineMarketDataSource.PRODUCTS.first()) }
     var interval by remember { mutableStateOf(PineTimeframe.ONE_MINUTE) }
@@ -63,7 +64,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
     }
 
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 7.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        if (!previewOnly) Row(verticalAlignment = Alignment.CenterVertically) {
             Box {
                 OutlinedButton(onClick = { menu = true }, shape = RoundedCornerShape(9.dp),
                     contentPadding = PaddingValues(horizontal = 9.dp, vertical = 3.dp)) {
@@ -86,7 +87,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                     modifier = Modifier.size(18.dp), tint = MaximusReference.gold)
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (!previewOnly) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             PineTimeframe.entries.forEach { tf ->
                 val chosen = tf == interval
                 Surface(
@@ -117,30 +118,40 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
             }
             series != null -> {
                 val market = series!!
-                Text("${market.candles.size} / 200 historical candles · ${market.timeframe.label} · Source: ${market.source}",
+                Text("${market.candles.size} / 200 historical candles · $product · ${market.timeframe.label} · Source: ${market.source}",
                     color = MaximusReference.muted, fontSize = 10.sp,
                     modifier = Modifier.testTag("pine_live_candle_count"))
+                if (previewOnly) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("▼ High sweep", fontSize = 9.sp, color = Color(0xFFF0585B))
+                    Text("▲ Low sweep", fontSize = 9.sp, color = Color(0xFF19C7A0))
+                    Text("﹘ Sweep level", fontSize = 9.sp, color = MaximusReference.gold)
+                }
+                val visibleCandles = if (previewOnly) market.candles.takeLast(45) else market.candles
                 val horizontal = rememberScrollState()
                 LaunchedEffect(market, candleWidth) {
                     horizontal.scrollTo(horizontal.maxValue)
                 }
-                val chartHeight = if (compact) 155.dp else 230.dp
+                val chartHeight = if (previewOnly) 170.dp else if (compact) 155.dp else 230.dp
                 Row(Modifier.fillMaxWidth().height(chartHeight), verticalAlignment = Alignment.Top) {
-                    Row(Modifier.weight(1f).horizontalScroll(horizontal)) {
+                    Row(Modifier.weight(1f).then(
+                        if (previewOnly) Modifier else Modifier.horizontalScroll(horizontal))) {
                         PineOhlcvCanvas(
-                            candles = market.candles,
-                            selectedIndex = selected,
-                            onSelect = { selected = it },
-                            modifier = Modifier.width((max(320, market.candles.size * candleWidth)).dp)
+                            candles = visibleCandles,
+                            selectedIndex = if (previewOnly) -1 else selected,
+                            onSelect = { if (!previewOnly) selected = it },
+                            markSweeps = previewOnly,
+                            modifier = Modifier.then(
+                                if (previewOnly) Modifier.fillMaxWidth()
+                                else Modifier.width((max(320, market.candles.size * candleWidth)).dp))
                                 .height(chartHeight).testTag("pine_real_ohlcv_canvas")
                                 .semantics { contentDescription = "OHLCV price candles" }
                         )
                     }
-                    val hi = market.candles.maxOf { it.high }
-                    val lo = market.candles.minOf { it.low }
+                    val hi = visibleCandles.maxOf { it.high }
+                    val lo = visibleCandles.minOf { it.low }
                     val digits = if (hi > 1000) 0 else if (hi > 100) 2 else 4
                     Column(
-                        Modifier.width(61.dp).height(if (compact) 140.dp else 190.dp).padding(start = 3.dp),
+                        Modifier.width(61.dp).height(if (previewOnly) 160.dp else if (compact) 140.dp else 190.dp).padding(start = 3.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         (0..5).forEach { i ->
@@ -156,7 +167,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                     "H ${prettyPrice(active.high)}  L ${prettyPrice(active.low)}  C ${prettyPrice(active.close)}",
                     color = MaximusReference.muted, fontSize = 10.sp,
                     maxLines = 2, lineHeight = 14.sp)
-                if (!compact) Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!compact && !previewOnly) Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Zoom", color = MaximusReference.muted, fontSize = 10.sp)
                     Spacer(Modifier.width(5.dp))
                     OutlinedButton(onClick = { candleWidth = max(4, candleWidth - 2) },
@@ -192,7 +203,8 @@ private fun PineOhlcvCanvas(
     candles: List<PineCandle>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    markSweeps: Boolean = false
 ) {
     val green = Color(0xFF19C7A0)
     val red = Color(0xFFF0585B)
@@ -238,6 +250,33 @@ private fun PineOhlcvCanvas(
             if (i == selectedIndex) {
                 drawLine(MaximusReference.gold.copy(alpha = .7f), Offset(x, 0f),
                     Offset(x, size.height), 1.3f)
+            }
+        }
+        if (markSweeps && candles.size > 20) {
+            // Derived from ACTUAL exchange bars, never a fabricated Pine script/backtest signal.
+            for (i in 20 until candles.size) {
+                val bar = candles[i]
+                val prior = candles.subList(i - 20, i)
+                val priorHigh = prior.maxOf { it.high }
+                val priorLow = prior.minOf { it.low }
+                val highSweep = bar.high > priorHigh && bar.close < priorHigh
+                val lowSweep = bar.low < priorLow && bar.close > priorLow
+                if (highSweep || lowSweep) {
+                    val x = (i + .5f) * step
+                    val y = if (highSweep) priceY(bar.high) - 10f else priceY(bar.low) + 10f
+                    val mark = Path().apply {
+                        moveTo(x - 5f, if (highSweep) y - 4f else y + 4f)
+                        lineTo(x + 5f, if (highSweep) y - 4f else y + 4f)
+                        lineTo(x, if (highSweep) y + 4f else y - 4f)
+                        close()
+                    }
+                    drawPath(mark, if (highSweep) red else green)
+                    val yLevel = priceY(if (highSweep) priorHigh else priorLow)
+                    drawLine(MaximusReference.gold.copy(alpha = .8f),
+                        Offset(x, yLevel), Offset(size.width, yLevel), 1f,
+                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+                            floatArrayOf(5f, 5f)))
+                }
             }
         }
         val last = candles.last()

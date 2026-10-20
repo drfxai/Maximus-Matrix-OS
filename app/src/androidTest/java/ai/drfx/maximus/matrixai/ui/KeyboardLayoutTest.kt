@@ -105,16 +105,59 @@ class KeyboardLayoutTest {
         }
     }
 
+    /**
+     * Scroll the outer Work LazyColumn, rather than swiping over the chart's
+     * nested horizontal candlestick scroller. Keep real navigation assertions.
+     */
+    private fun scrollWorkUntilVisible(
+        label: String,
+        direction: androidx.test.uiautomator.Direction
+    ) {
+        repeat(9) {
+            if (device.hasObject(By.text(label))) return
+            val workScroller = device.findObjects(By.scrollable(true))
+                .filter { it.visibleBounds.height() > it.visibleBounds.width() &&
+                    it.visibleBounds.height() > device.displayHeight / 3 }
+                .maxByOrNull { it.visibleBounds.height() }
+            val scrolled = if (workScroller != null) {
+                runCatching { workScroller.scroll(direction, .72f); true }
+                    .getOrDefault(false)
+            } else false
+            if (!scrolled) {
+                // Outside the 200-candle nested horizontal viewport, inside Work.
+                val x = (device.displayWidth * .94f).toInt()
+                val top = (device.displayHeight * .22f).toInt()
+                val bottom = (device.displayHeight * .73f).toInt()
+                if (direction == androidx.test.uiautomator.Direction.DOWN)
+                    device.swipe(x, bottom, x, top, 35)
+                else device.swipe(x, top, x, bottom, 35)
+            }
+            device.waitForIdle(350)
+        }
+        checkNotNull(device.wait(Until.findObject(By.text(label)), 5_000)) {
+            "Work vertical list never exposed: $label"
+        }
+    }
+
     @Test fun primaryWorkspacesKeepFixedNavigationAndFocusedStudioSections() {
         withLaunchedActivity {
             objectWithDescription("Project Studio").click()
-            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
+            checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
             captureWorkspace("studio-overview.png")
+            // The premium Pine chart can be taller than a physical phone viewport.
+            // Use the app's visible, production Work-navigation shortcut.
+            checkNotNull(device.wait(Until.findObject(By.text("Tools ↓")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
             checkNotNull(device.wait(Until.findObject(By.text("Changes")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("No staged file changes in this local workspace.")), 10_000))
             captureWorkspace("studio-changes.png")
             checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000)).click()
-            checkNotNull(device.wait(Until.findObject(By.text("Pine Studio · TradingView indicators")), 10_000)).click()
+            // The full-width gold CTA may be below the visible fold on a compact phone.
+            // Verify the persistent header navigation, which remains accessible above the chart.
+            scrollWorkUntilVisible("Tools ↓", androidx.test.uiautomator.Direction.UP)
+            captureWorkspace("studio-pine-premium.png")
+            checkNotNull(device.wait(Until.findObject(By.desc("Open Pine Studio")), 10_000))
+                .click()
             checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
             captureWorkspace("pine-studio.png")
             // The Android viewport cannot fit a code editor and candlestick chart at once.
@@ -135,7 +178,11 @@ class KeyboardLayoutTest {
             captureWorkspace("pine-chart-expanded.png")
             device.pressBack()
             device.pressBack()
-            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
+            if (device.hasObject(By.text("Tools ↓"))) {
+                device.findObject(By.text("Tools ↓")).click()
+            } else {
+                scrollWorkUntilVisible("Files", androidx.test.uiautomator.Direction.DOWN)
+            }
             checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
             assertFalse("Files must not render the build dashboard", device.hasObject(By.text(instrumentation.targetContext.getString(ai.drfx.maximus.matrixai.R.string.phone_harness_title))))
@@ -168,10 +215,33 @@ class KeyboardLayoutTest {
                     device.hasObject(By.text("Visual Acceptance Workspace"))
                 }
                 captureWorkspace("studio-populated.png")
+                // Jump through the same visible Work section control used by users.
+                checkNotNull(device.wait(Until.findObject(By.text("Tools ↓")), 10_000)).click()
                 checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
                 checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
                 captureWorkspace("studio-files-populated.png")
                 assertTrue("Local project starter files missing", store.listFiles(project.id).isNotEmpty())
+            }
+        } finally {
+            java.io.File(context.filesDir, "studio/projects/${project.id}").deleteRecursively()
+        }
+    }
+
+    @Test fun workHeaderSearchFiltersActualProjectFiles() {
+        val context = instrumentation.targetContext
+        val store = ai.drfx.maximus.matrixai.studio.ProjectWorkspaceStore(context)
+        val project = store.newProject("Search Acceptance Workspace")
+        try {
+            withLaunchedActivity {
+                objectWithDescription("Project Studio").click()
+                objectWithDescription("Search project files").click()
+                checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
+                val input = checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText")), 10_000))
+                input.text = "no-such-maximus-file-acceptance"
+                checkNotNull(device.wait(Until.findObject(By.text("No matching files")), 10_000))
+                objectWithDescription("Close file search").click()
+                val first = store.listFiles(project.id).first().path
+                checkNotNull(device.wait(Until.findObject(By.text(first)), 10_000))
             }
         } finally {
             java.io.File(context.filesDir, "studio/projects/${project.id}").deleteRecursively()
@@ -303,7 +373,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "chat-code-fixture.png", "chat-html-preview-fixture.png", "studio-overview.png", "studio-changes.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "chat-code-fixture.png", "chat-html-preview-fixture.png", "studio-overview.png", "studio-changes.png", "studio-pine-premium.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)

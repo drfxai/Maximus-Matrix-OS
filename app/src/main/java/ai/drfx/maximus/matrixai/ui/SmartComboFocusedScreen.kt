@@ -93,7 +93,7 @@ internal fun SmartComboFocusedScreen(
                         Column(Modifier.weight(1f)) {
                             Text("Smart routing", color = MaximusReference.white,
                                 fontWeight = FontWeight.Bold)
-                            Text("Verified free-first choices · explicit fallback approval",
+                            Text("Automatically selects the best allowed model for your task",
                                 fontSize = 11.sp, color = MaximusReference.muted)
                         }
                         MotionSwitch(state.smartComboEnabled, viewModel::setSmartComboEnabled,
@@ -102,24 +102,99 @@ internal fun SmartComboFocusedScreen(
                 }
             }
             item {
-                MaximusFramedCard {
-                    SmartComboRouteDiagram(
-                        provider = state.provider.displayName,
-                        selectedModel = state.selectedModel,
-                        active = state.smartComboEnabled && state.isGenerating,
-                        statusLabel = smartComboStatusLabel(state)
-                    )
-                    HorizontalDivider(color = MaximusReference.stroke)
+                PremiumSmartComboHero(
+                    provider = state.provider.displayName,
+                    model = state.selectedModel,
+                    active = state.smartComboEnabled && state.isGenerating,
+                    status = smartComboStatusLabel(state),
+                    contextUsed = metrics.contextUsagePercent,
+                    contextLeft = if (state.selectedModel.isBlank()) "Unknown" else
+                        NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens),
+                    verifiedRate = verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) } ?: "Unverified",
+                    freeOffers = state.smartComboOffers,
+                    onRefresh = viewModel::refreshSmartCombo,
+                    refreshEnabled = state.smartComboEnabled && !state.smartComboRefreshing && !state.isGenerating
+                )
+            }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Free offers: ${state.smartComboOffers} · Configured: ${state.smartComboConfiguredProviders}",
-                            modifier = Modifier.weight(1f), color = MaximusReference.muted,
-                            fontSize = 10.sp, maxLines = 1)
-                        IconButton(onClick = viewModel::refreshSmartCombo,
-                            enabled = state.smartComboEnabled && !state.smartComboRefreshing &&
-                                !state.isGenerating, modifier = Modifier.size(30.dp)) {
-                            Icon(Icons.Default.Refresh, "Refresh verified routes",
-                                modifier = Modifier.size(18.dp), tint = MaximusReference.gold)
+                        Text("Choose model", modifier = Modifier.weight(1f),
+                            fontSize = 19.sp,
+                            color = MaximusReference.white, fontWeight = FontWeight.Bold)
+                        Text("${state.models.size} catalog models", color = MaximusReference.muted,
+                            fontSize = 10.sp)
+                    }
+                    OutlinedTextField(search, { search = it.take(120) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 51.dp),
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
+                        placeholder = { Text("Search models, providers...") },
+                        singleLine = true, shape = RoundedCornerShape(10.dp))
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        comboCategories.forEach { item ->
+                            FilterChip(
+                                selected = item == category, onClick = { category = item },
+                                label = { Text(item, fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaximusReference.gold,
+                                    selectedLabelColor = Color.Black))
                         }
+                    }
+                    if (filtered.isEmpty()) {
+                        Text(if (category == "Local")
+                            "Select installed models in the Local Model Hub via Advanced."
+                            else "No compatible catalog models. Check provider connection and refresh.",
+                            color = MaximusReference.muted, fontSize = 11.sp)
+                    }
+                }
+            }
+            items(filtered.size) { index ->
+                val model = filtered[index]
+                Surface(
+                    onClick = { choice = model.id },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = if (choice == model.id) Color(0xFF231E13) else MaximusReference.navy,
+                    shape = RoundedCornerShape(11.dp),
+                    border = BorderStroke(if (choice == model.id) 1.6.dp else 1.dp, if (choice == model.id)
+                        MaximusReference.gold else MaximusReference.stroke)
+                ) {
+                    Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(when {
+                            ModelCapability.VISION in model.capabilities -> Icons.Default.Image
+                            ModelCapability.TOOLS in model.capabilities -> Icons.Default.Code
+                            else -> Icons.Default.Memory
+                        }, null, Modifier.size(23.dp), tint = if (choice == model.id)
+                            MaximusReference.gold else MaximusReference.muted)
+                        Spacer(Modifier.width(9.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(model.displayName, color = MaximusReference.white,
+                                fontSize = 13.sp, maxLines = 2,
+                                fontWeight = FontWeight.SemiBold)
+                            Text(
+                                if (model.verified) "Provider catalog verified"
+                                else "Catalog entry · runtime not verified",
+                                color = MaximusReference.muted, fontSize = 10.sp)
+                            val tags = model.capabilities.filter {
+                                it in setOf(ModelCapability.VISION, ModelCapability.REASONING,
+                                    ModelCapability.TOOLS, ModelCapability.LONG_CONTEXT)
+                            }.take(3).joinToString(" · ") { it.name.lowercase().replace('_', ' ') }
+                            if (tags.isNotBlank()) Text(tags, color = MaximusReference.muted,
+                                fontSize = 9.sp)
+                            val context = model.catalogContextTokens
+                            Text("Context: " + (context?.let { NumberFormat.getIntegerInstance().format(it) }
+                                ?: "Unverified") +
+                                "  ·  Price: " +
+                                (model.catalogFreeTextPrice?.let {
+                                    if (it.isFree) "Verified zero catalog price"
+                                    else if (it.verified) "Catalog price available"
+                                    else "Unverified"
+                                } ?: "Unknown"),
+                                color = MaximusReference.muted, fontSize = 9.sp)
+                        }
+                        Icon(Icons.Default.ChevronRight, null, Modifier.size(15.dp), tint = MaximusReference.muted)
+                        RadioButton(selected = choice == model.id, onClick = { choice = model.id },
+                            colors = RadioButtonDefaults.colors(selectedColor = MaximusReference.gold))
                     }
                 }
             }
@@ -170,79 +245,6 @@ internal fun SmartComboFocusedScreen(
                                 ?: "Unverified") +
                             " · Context estimates are not billed quota.",
                         color = MaximusReference.muted, fontSize = 10.sp)
-                }
-            }
-            item {
-                MaximusFramedCard {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Choose model", modifier = Modifier.weight(1f),
-                            color = MaximusReference.white, fontWeight = FontWeight.Bold)
-                        Text("${state.models.size} catalog models", color = MaximusReference.muted,
-                            fontSize = 10.sp)
-                    }
-                    OutlinedTextField(search, { search = it.take(120) },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Search, null) },
-                        placeholder = { Text("Search model IDs and names...") },
-                        singleLine = true, shape = RoundedCornerShape(10.dp))
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        comboCategories.forEach { item ->
-                            FilterChip(
-                                selected = item == category, onClick = { category = item },
-                                label = { Text(item, fontSize = 11.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaximusReference.gold,
-                                    selectedLabelColor = Color.Black))
-                        }
-                    }
-                    if (filtered.isEmpty()) {
-                        Text(if (category == "Local")
-                            "Select installed models in the Local Model Hub via Advanced."
-                            else "No compatible catalog models. Check provider connection and refresh.",
-                            color = MaximusReference.muted, fontSize = 11.sp)
-                    }
-                }
-            }
-            items(filtered.size) { index ->
-                val model = filtered[index]
-                Surface(
-                    onClick = { choice = model.id },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaximusReference.navy,
-                    shape = RoundedCornerShape(11.dp),
-                    border = BorderStroke(1.dp, if (choice == model.id)
-                        MaximusReference.gold else MaximusReference.stroke)
-                ) {
-                    Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Memory, null, tint = MaximusReference.muted)
-                        Spacer(Modifier.width(9.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(model.displayName, color = MaximusReference.white,
-                                fontSize = 12.sp, maxLines = 2)
-                            Text(
-                                if (model.verified) "Provider catalog verified"
-                                else "Catalog entry · runtime not verified",
-                                color = MaximusReference.muted, fontSize = 10.sp)
-                            val tags = model.capabilities.filter {
-                                it in setOf(ModelCapability.VISION, ModelCapability.REASONING,
-                                    ModelCapability.TOOLS, ModelCapability.LONG_CONTEXT)
-                            }.take(3).joinToString(" · ") { it.name.lowercase().replace('_', ' ') }
-                            if (tags.isNotBlank()) Text(tags, color = MaximusReference.muted,
-                                fontSize = 9.sp)
-                            val context = model.catalogContextTokens
-                            Text("Context: " + (context?.let { NumberFormat.getIntegerInstance().format(it) }
-                                ?: "Unverified") +
-                                "  ·  Price: " +
-                                (model.catalogFreeTextPrice?.let {
-                                    if (it.isFree) "Verified zero catalog price"
-                                    else if (it.verified) "Catalog price available"
-                                    else "Unverified"
-                                } ?: "Unknown"),
-                                color = MaximusReference.muted, fontSize = 9.sp)
-                        }
-                        RadioButton(selected = choice == model.id, onClick = { choice = model.id })
-                    }
                 }
             }
             item {

@@ -44,7 +44,7 @@ import java.text.DateFormat
 import java.util.Date
 
 private val pineGold = Color(0xFFFFCD5B)
-private val pineBlue = Color(0xFF0A2138)
+private val pineBlue = Color(0xFF061725)
 private val pineBorder = Color(0xFF164465)
 private val pineMuted = Color(0xFFA9C7E9)
 
@@ -106,17 +106,20 @@ fun PineStudioScreen(
     LazyColumn(
         Modifier.weight(1f).fillMaxWidth().testTag("pine_studio_screen"),
         contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back", tint = pineMuted) }
+                IconButton(onClick = { selectorOpen = true }) { Icon(Icons.Default.Menu, "Choose Pine draft", tint = pineMuted) }
                 WorkspaceBrand(Modifier.weight(1f))
                 IconButton(onClick = { createOpen = true }) {
                     Icon(Icons.Default.Add, "New Pine draft", tint = pineGold)
                 }
             }
-            MaximusSectionHeader("Pine Studio", "Build and test TradingView indicators with AI")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back", tint = pineMuted) }
+                MaximusSectionHeader("Pine Studio", "Build indicators with AI", Modifier.weight(1f))
+            }
         }
         item {
             PinePanel {
@@ -137,6 +140,12 @@ fun PineStudioScreen(
                         DropdownMenuItem(text = { Text("New draft") }, onClick = { selectorOpen = false; createOpen = true })
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(text = { Text("Edit Pine code") }, onClick = {
+                            menuOpen = false; editText = draft?.code.orEmpty(); editCodeOpen = true
+                        })
+                        DropdownMenuItem(text = { Text("Full Pine source") }, onClick = {
+                            menuOpen = false; codeExpanded = true
+                        })
                         DropdownMenuItem(text = { Text("Rename") }, onClick = {
                             menuOpen = false; editText = draft?.name.orEmpty(); renameOpen = true
                         })
@@ -158,23 +167,21 @@ fun PineStudioScreen(
                     color = pineBlue, shape = RoundedCornerShape(10.dp),
                     border = BorderStroke(1.dp, pineBorder)
                 ) {
-                    Row(Modifier.fillMaxWidth().heightIn(min = 40.dp)
-                        .padding(start = 9.dp, end = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Description, null, Modifier.size(16.dp), tint = pineMuted)
-                        Spacer(Modifier.width(7.dp))
-                        Text("Your idea", color = Color.White, fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.width(6.dp))
-                        Text(draft.brief.ifBlank { "Describe your indicator" },
-                            color = pineMuted, fontSize = 10.sp, maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f))
-                        IconButton(onClick = { editText = draft.brief; editBriefOpen = true },
-                            modifier = Modifier.size(31.dp)) {
-                            Icon(Icons.Default.Edit, "Edit indicator brief",
-                                Modifier.size(16.dp), tint = pineMuted)
+                    Column(Modifier.fillMaxWidth().padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Description, null, Modifier.size(18.dp), tint = pineMuted)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Your idea", Modifier.weight(1f), color = Color.White,
+                                fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            IconButton(onClick = { editText = draft.brief; editBriefOpen = true },
+                                modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Default.Edit, "Edit indicator brief", Modifier.size(17.dp), tint = pineMuted)
+                            }
                         }
+                        Text(draft.brief.ifBlank { "Describe your indicator" },
+                            color = pineMuted, fontSize = 12.sp, maxLines = 3,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -202,18 +209,9 @@ fun PineStudioScreen(
                                 Icon(Icons.Default.FileDownload, "Export Pine code", tint = pineMuted,
                                     modifier = Modifier.size(20.dp))
                             }
-                            IconButton(onClick = { editText = draft.code; editCodeOpen = true },
-                                modifier = Modifier.size(30.dp)) {
-                                Icon(Icons.Default.Edit, "Edit Pine code", tint = pineMuted,
-                                    modifier = Modifier.size(17.dp))
-                            }
-                            IconButton(onClick = { codeExpanded = true },
-                                modifier = Modifier.size(30.dp)) {
-                                Icon(Icons.Default.OpenInFull, "Full Pine source",
-                                    tint = pineGold, modifier = Modifier.size(17.dp))
-                            }
+
                         }
-                        PineCodeView(draft.code, maxHeight = 83.dp)
+                        PineCodeView(draft.code, maxHeight = 156.dp)
                     }
                 }
                 item {
@@ -230,18 +228,18 @@ fun PineStudioScreen(
                                 Text("Expand chart", color = pineGold, fontSize = 10.sp)
                             }
                         }
-                        PineLiveMarketChart(compact = true)
+                        PineLiveMarketChart(compact = true, previewOnly = true)
                         Text("ⓘ Pine compile / backtest in TradingView; exchange chart does not run scripts.",
                             color = pineMuted, fontSize = 10.sp, maxLines = 2)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = {
                                 clipboard.setText(AnnotatedString(draft.code)); status = "Pine code copied."
-                            }, modifier = Modifier.weight(1f)) {
+                            }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(9.dp),
+                                border = BorderStroke(1.dp, pineGold)) {
                                 Icon(Icons.Default.ContentCopy, null, Modifier.size(16.dp))
                                 Spacer(Modifier.width(4.dp)); Text("Copy Pine code", fontSize = 11.sp, maxLines = 1)
                             }
-                            Button(onClick = ::export, modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = pineGold, contentColor = Color.Black)) {
+                            ReferenceGoldButton(onClick = ::export, modifier = Modifier.weight(1f)) {
                                 Icon(Icons.Default.FileDownload, null, Modifier.size(16.dp))
                                 Spacer(Modifier.width(4.dp)); Text("Export .pine")
                             }
@@ -250,7 +248,13 @@ fun PineStudioScreen(
                 }
                 item {
                     PinePanel(Modifier.clickable { tab = 2 }) {
-                        Text("◷  Versions  ·  ${draft.revisions.size + 1} drafts  ›", color = Color.White)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.History, null, Modifier.size(20.dp), tint = pineMuted)
+                            Spacer(Modifier.width(9.dp))
+                            Text("Versions  ·  ${draft.revisions.size + 1} drafts", Modifier.weight(1f),
+                                color = Color.White, fontSize = 12.sp)
+                            Icon(Icons.Default.ChevronRight, null, tint = pineMuted)
+                        }
                     }
                 }
             }
@@ -291,9 +295,9 @@ fun PineStudioScreen(
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        WorkspaceCompanion(modifier = Modifier.size(43.dp))
+        WorkspaceCompanion(modifier = Modifier.size(49.dp))
         Surface(
-            shape = RoundedCornerShape(22.dp),
+            shape = RoundedCornerShape(28.dp),
             color = pineBlue,
             border = BorderStroke(1.dp, pineBorder),
             modifier = Modifier.weight(1f)
@@ -446,21 +450,35 @@ private fun PineCodeView(code: String, maxHeight: androidx.compose.ui.unit.Dp = 
     val highlighted = remember(code) {
         buildAnnotatedString {
             append(code)
-            Regex("\\b(indicator|input|plotshape|alertcondition|ta|true|false|and|or)\\b").findAll(code).forEach {
-                addStyle(SpanStyle(color = pineGold), it.range.first, it.range.last + 1)
+            Regex("//[^\n]*|\"[^\"\n]*\"|\\b\\d+(?:\\.\\d+)?\\b|\\b[a-zA-Z_][a-zA-Z_0-9]*\\b").findAll(code).forEach {
+                val token = it.value
+                val color = when {
+                    token.startsWith("//") -> Color(0xFF718397)
+                    token.startsWith("\"") || token.first().isDigit() -> pineGold
+                    token in setOf("true", "false", "and", "or") -> Color(0xFFFF9061)
+                    token in setOf("indicator", "input", "int", "plotshape", "alertcondition", "ta", "highest") -> Color(0xFF60B8EF)
+                    else -> Color(0xFFE6EDF5)
+                }
+                addStyle(SpanStyle(color = color), it.range.first, it.range.last + 1)
             }
         }
     }
     Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF06101C),
         border = BorderStroke(1.dp, pineBorder)) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr
+        ) {
         SelectionContainer {
             Row(Modifier.fillMaxWidth().heightIn(max = maxHeight).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()).padding(8.dp)) {
                 Text((1..code.lines().size).joinToString("\n"), color = pineMuted,
                     fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 19.sp)
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(10.dp))
+                Box(Modifier.width(1.dp).height((code.lines().size * 19).dp).background(pineBorder))
+                Spacer(Modifier.width(10.dp))
                 Text(highlighted, color = Color.White, fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp, lineHeight = 19.sp, softWrap = false)
             }
+        }
         }
     }
 }

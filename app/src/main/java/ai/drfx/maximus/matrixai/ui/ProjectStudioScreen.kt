@@ -1,6 +1,9 @@
 package ai.drfx.maximus.matrixai.ui
 
 import android.net.Uri
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.compose.foundation.background
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -69,7 +72,16 @@ fun ProjectStudioScreen(
     var section by remember { mutableStateOf(initialSection.coerceIn(0, 6)) }
     var showAdvancedNavigation by remember { mutableStateOf(false) }
     val workspaceListState = rememberLazyListState()
-    LaunchedEffect(section) { workspaceListState.scrollToItem(0) }
+    val workspaceScope = rememberCoroutineScope()
+    var previousSection by remember { mutableIntStateOf(section) }
+    // Keep Work navigation visible when switching sections. Previously a section change
+    // scrolled to the top of the tall Pine hero, hiding the navigation controls.
+    LaunchedEffect(section) {
+        if (previousSection != section) {
+            previousSection = section
+            workspaceListState.scrollToItem(if (section == 0) 4 else 3)
+        }
+    }
     val context = LocalContext.current
     val connectionVault = remember(context) { ai.drfx.maximus.matrixai.studio.connections.DeveloperCredentialVault(context) }
     val store = remember(context) { ProjectWorkspaceStore(context.applicationContext) }
@@ -89,6 +101,8 @@ fun ProjectStudioScreen(
     var showCreate by remember { mutableStateOf(false) }
     var showGithub by remember { mutableStateOf(false) }
     var showSelector by remember { mutableStateOf(false) }
+    var fileSearch by remember { mutableStateOf("") }
+    var fileSearchOpen by remember { mutableStateOf(false) }
     var editingFile by remember { mutableStateOf<String?>(null) }
     var editor by remember { mutableStateOf("") }
     var originalEditor by remember { mutableStateOf("") }
@@ -130,6 +144,13 @@ fun ProjectStudioScreen(
         brief = projects.firstOrNull { it.id == activeId }?.brief.orEmpty()
     }
 
+    val workSpeech = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.let {
+                brief = it.take(12000)
+            }
+        }
+    }
     val zipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri != null) operate {
             val name = uri.lastPathSegment?.substringAfterLast('/')?.substringBeforeLast('.')
@@ -158,17 +179,35 @@ fun ProjectStudioScreen(
         }
     }
 
-    Box(modifier.fillMaxSize()) {
+    Column(modifier.fillMaxSize()) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().testTag("project_studio_screen"),
+        modifier = Modifier.weight(1f).fillMaxWidth().testTag("project_studio_screen"),
         state = workspaceListState,
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = if (section == 0) 112.dp else 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 5.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                WorkspaceBrand()
-                MaximusSectionHeader("Work", "Build, test, and deploy with AI")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { section = 5 }) {
+                        Icon(Icons.Default.Menu, stringResource(R.string.ui_advanced), tint = MaximusReference.gold)
+                    }
+                    WorkspaceBrand(Modifier.weight(1f))
+                    IconButton(onClick = { fileSearchOpen = !fileSearchOpen; section = 1 }) {
+                        Icon(Icons.Default.Search, "Search project files", tint = MaximusReference.gold)
+                    }
+                    IconButton(onClick = { section = 4 }) {
+                        Icon(Icons.Default.Settings, stringResource(R.string.design_connections), tint = MaximusReference.gold)
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MaximusSectionHeader("Work", "Build, test, and deploy with AI", Modifier.weight(1f))
+                    if (section == 0) TextButton(onClick = {
+                        workspaceScope.launch { workspaceListState.animateScrollToItem(4) }
+                    }, modifier = Modifier.testTag("work_go_to_sections")) {
+                        Text("Tools ↓", color = MaximusReference.gold, fontSize = 11.sp)
+                    }
+                }
             }
         }
 
@@ -224,8 +263,11 @@ fun ProjectStudioScreen(
                 onDismiss = { showSelector = false },
                 onSelect = { activeId = it; showSelector = false })
         }
+        if (section == 0) item {
+            PremiumPineWorkCard(onOpen = onPine)
+        }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            if (section != 0) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 listOf(ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.GITHUB,
                     ai.drfx.maximus.matrixai.studio.connections.DevelopmentService.CLOUDFLARE).forEach { service ->
                     Surface(
@@ -260,13 +302,13 @@ fun ProjectStudioScreen(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                MaximusTabs(
+                ReferenceUnderlineTabs(
                     listOf("Assistant", stringResource(R.string.studio_step_files),
-                        if (pendingEdit == null) "Changes" else "Changes · 1"),
-                    when (section) { 1 -> 1; 6 -> 2; else -> 0 },
-                    { index -> section = when (index) { 1 -> 1; 2 -> 6; else -> 0 } }
+                        if (pendingEdit == null) "Changes" else "Changes · 1", "Deploy"),
+                    when (section) { 1 -> 1; 6 -> 2; 4 -> 3; else -> 0 },
+                    { index -> section = when (index) { 1 -> 1; 2 -> 6; 3 -> 4; else -> 0 } }
                 )
-                Row(verticalAlignment = Alignment.CenterVertically,
+                if (section != 0 || showAdvancedNavigation) Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     TextButton(onClick = { showAdvancedNavigation = !showAdvancedNavigation }) {
                         Icon(Icons.Default.Tune, null, Modifier.size(16.dp))
@@ -293,12 +335,30 @@ fun ProjectStudioScreen(
         if ((section == 0 || section == 6) && pendingEdit != null) {
             item {
                 val change = pendingEdit!!
-                StudioPanel {
+                val lineCounts = remember(change) {
+                    val old = change.second.lines()
+                    val new = change.third.lines()
+                    val common = old.indices.count { old[it] == new.getOrNull(it) }
+                    (new.size - common) to (old.size - common)
+                }
+                MaximusFramedCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccountTree, null, tint = MaximusReference.muted)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Draft changes", Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                        Text("1 file", color = MaximusReference.muted, fontSize = 11.sp)
+                        Spacer(Modifier.width(12.dp))
+                        Text("+${lineCounts.first}", color = MaximusReference.green, fontSize = 12.sp)
+                        Spacer(Modifier.width(7.dp))
+                        Text("−${lineCounts.second}", color = Color(0xFFFF5D68), fontSize = 12.sp)
+                    }
+                    Text("Local line comparison", color = MaximusReference.muted, fontSize = 10.sp)
+                    HorizontalDivider(color = MaximusReference.stroke)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Description, null, tint = studioCyan)
                         Spacer(Modifier.width(8.dp))
                         Text(change.first, Modifier.weight(1f), fontWeight = FontWeight.Bold, maxLines = 2)
-                        WorkspaceCompanion(modifier = Modifier.size(48.dp))
+                        Icon(Icons.Default.ChevronRight, null, tint = MaximusReference.muted)
                     }
                     Text(stringResource(R.string.ui_review), fontWeight = FontWeight.Bold)
                     Text(stringResource(R.string.ui_local_edit), style = MaterialTheme.typography.bodySmall)
@@ -353,18 +413,6 @@ fun ProjectStudioScreen(
             }
         }
         if (section == 0) {
-            item {
-                OutlinedButton(onClick = onPine,
-                    modifier = Modifier.fillMaxWidth().testTag("open_pine_studio"),
-                    shape = RoundedCornerShape(11.dp),
-                    border = BorderStroke(1.dp, MaximusReference.gold)) {
-                    Icon(Icons.Default.Code, null, Modifier.size(18.dp), tint = MaximusReference.gold)
-                    Spacer(Modifier.width(7.dp))
-                    Text("Pine Studio · TradingView indicators", color = MaximusReference.gold)
-                    Spacer(Modifier.weight(1f))
-                    Icon(Icons.Default.ChevronRight, null, tint = MaximusReference.gold)
-                }
-            }
             if (active == null) item {
                 MaximusFramedCard {
                     Text("Your workspace is ready", fontWeight = FontWeight.Bold,
@@ -381,21 +429,25 @@ fun ProjectStudioScreen(
                     }
                 }
             }
-            if (active != null) item {
-                StudioProgressTracker(
-                    projectReady = true,
-                    filesReady = files.isNotEmpty(),
-                    editReady = pendingEdit != null
-                )
+            if (active != null && pendingEdit == null) item {
+                MaximusFramedCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccountTree, null, tint = MaximusReference.muted)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Draft changes", Modifier.weight(1f), color = MaximusReference.white,
+                            fontWeight = FontWeight.SemiBold)
+                        Text("0 files", color = MaximusReference.muted, fontSize = 11.sp)
+                    }
+                    Text("No staged file changes in this local workspace.", color = MaximusReference.muted, fontSize = 11.sp)
+                    ReferenceGoldButton(onClick = { section = 1 }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.FolderOpen, null, Modifier.size(17.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("Open project files", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
             if (previewText.isNotBlank() && pendingEdit == null) item {
                 WorkspaceCodeCard(MessagePart(previewText, previewPath.substringAfterLast('.', "text")), previewPath.substringAfterLast('/'))
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StudioShortcut(stringResource(R.string.ui_source_preview), Icons.Default.PlayCircleOutline, Modifier.weight(1f)) { section = 1 }
-                    StudioShortcut(stringResource(R.string.plugin_apk), Icons.Default.Android, Modifier.weight(1f)) { section = 2 }
-                }
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -403,12 +455,6 @@ fun ProjectStudioScreen(
                         Modifier.weight(1f)) { section = 3 }
                     StudioShortcut("Activity", Icons.Default.History,
                         Modifier.weight(1f)) { section = 5 }
-                }
-            }
-            item {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(message, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    WorkspaceCompanion(working = busy)
                 }
             }
         }
@@ -585,8 +631,16 @@ fun ProjectStudioScreen(
                     Text(files.size.toString(), color = studioGreen)
                 }
                 Spacer(Modifier.height(5.dp))
+                if (fileSearchOpen) OutlinedTextField(fileSearch, { fileSearch = it.take(120) },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    label = { Text("Search project files") },
+                    trailingIcon = { IconButton(onClick = { fileSearch = ""; fileSearchOpen = false }) {
+                        Icon(Icons.Default.Close, "Close file search")
+                    } })
+                val matchingFiles = files.filter { it.path.contains(fileSearch, ignoreCase = true) }
                 if (files.isEmpty()) Text(stringResource(R.string.studio_no_files), fontSize = 12.sp)
-                else files.take(80).forEach { file ->
+                else if (matchingFiles.isEmpty()) Text("No matching files", color = MaximusReference.muted, fontSize = 12.sp)
+                else matchingFiles.take(80).forEach { file ->
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f))
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable(enabled = !busy) {
@@ -609,7 +663,7 @@ fun ProjectStudioScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                if (files.size > 80) Text(stringResource(R.string.studio_show_files), fontSize = 11.sp)
+                if (matchingFiles.size > 80) Text(stringResource(R.string.studio_show_files), fontSize = 11.sp)
             }
         }
         }
@@ -630,8 +684,10 @@ fun ProjectStudioScreen(
         }
     }
     if (section == 0) {
-        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp)) {
-                Surface(shape = RoundedCornerShape(20.dp), color = MaximusReference.navy,
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp).testTag("work_pinned_composer"),
+            verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                WorkspaceCompanion(working = busy, modifier = Modifier.size(44.dp))
+                Surface(modifier = Modifier.weight(1f), shape = RoundedCornerShape(28.dp), color = MaximusReference.navy,
                     border = BorderStroke(1.dp, studioCyan.copy(alpha = .5f))) {
                     Row(Modifier.fillMaxWidth().padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { projectName = ""; showCreate = true },
@@ -653,14 +709,25 @@ fun ProjectStudioScreen(
                                 Box {
                                     if (brief.isBlank()) Text(
                                         if (active == null) "Select a project to begin..."
-                                        else "Ask MAXIMUS to edit...",
+                                        else "Ask MAXIMUS to build, fix, or explain...",
                                         color = MaximusReference.muted, fontSize = 12.sp,
                                         maxLines = 1)
                                     inner()
                                 }
                             }
                         )
-                        IconButton(enabled = active != null && !busy && brief.isNotBlank(), onClick = {
+                        IconButton(onClick = {
+                            runCatching {
+                                workSpeech.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, context.resources.configuration.locales[0].toLanguageTag())
+                                })
+                            }.onFailure { message = context.getString(R.string.speech_recognizer_unavailable) }
+                        }, enabled = active != null && !busy, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Mic, stringResource(R.string.speech_dictate), Modifier.size(19.dp), tint = MaximusReference.muted)
+                        }
+                        IconButton(modifier = Modifier.size(40.dp).background(MaximusReference.gold, RoundedCornerShape(50)),
+                            enabled = active != null && !busy && brief.isNotBlank(), onClick = {
                             val id = activeId ?: return@IconButton
                             scope.launch {
                                 try {
@@ -672,7 +739,7 @@ fun ProjectStudioScreen(
                                     message = context.getString(if (sent) R.string.studio_plan_sent else R.string.studio_connect_model)
                                 } catch (error: Exception) { message = error.message.orEmpty() }
                             }
-                        }) { Icon(Icons.Default.Send, stringResource(R.string.studio_plan_with_ai), tint = studioCyan) }
+                        }) { Icon(Icons.Default.ArrowUpward, stringResource(R.string.studio_plan_with_ai), tint = Color.Black) }
                     }
                 }
         }
