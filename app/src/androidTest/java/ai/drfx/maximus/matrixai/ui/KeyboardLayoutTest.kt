@@ -152,9 +152,12 @@ class KeyboardLayoutTest {
             checkNotNull(device.wait(Until.findObject(By.text("No staged file changes in this local workspace.")), 10_000))
             captureWorkspace("studio-changes.png")
             checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000)).click()
-            scrollWorkUntilVisible("Open Pine Studio", androidx.test.uiautomator.Direction.UP)
+            // The full-width gold CTA may be below the visible fold on a compact phone.
+            // Verify the persistent header navigation, which remains accessible above the chart.
+            scrollWorkUntilVisible("Tools ↓", androidx.test.uiautomator.Direction.UP)
             captureWorkspace("studio-pine-premium.png")
-            checkNotNull(device.wait(Until.findObject(By.text("Open Pine Studio")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.desc("Open Pine Studio")), 10_000))
+                .click()
             checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
             captureWorkspace("pine-studio.png")
             // The Android viewport cannot fit a code editor and candlestick chart at once.
