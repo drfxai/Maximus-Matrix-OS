@@ -105,33 +105,51 @@ class KeyboardLayoutTest {
         }
     }
 
+    /**
+     * Scroll the outer Work LazyColumn, rather than swiping over the chart's
+     * nested horizontal candlestick scroller. Keep real navigation assertions.
+     */
+    private fun scrollWorkUntilVisible(
+        label: String,
+        direction: androidx.test.uiautomator.Direction
+    ) {
+        repeat(9) {
+            if (device.hasObject(By.text(label))) return
+            val workScroller = device.findObjects(By.scrollable(true))
+                .filter { it.visibleBounds.height() > it.visibleBounds.width() &&
+                    it.visibleBounds.height() > device.displayHeight / 3 }
+                .maxByOrNull { it.visibleBounds.height() }
+            val scrolled = if (workScroller != null) {
+                runCatching { workScroller.scroll(direction, .72f); true }
+                    .getOrDefault(false)
+            } else false
+            if (!scrolled) {
+                // Outside the 200-candle nested horizontal viewport, inside Work.
+                val x = (device.displayWidth * .94f).toInt()
+                val top = (device.displayHeight * .22f).toInt()
+                val bottom = (device.displayHeight * .73f).toInt()
+                if (direction == androidx.test.uiautomator.Direction.DOWN)
+                    device.swipe(x, bottom, x, top, 35)
+                else device.swipe(x, top, x, bottom, 35)
+            }
+            device.waitForIdle(350)
+        }
+        checkNotNull(device.wait(Until.findObject(By.text(label)), 5_000)) {
+            "Work vertical list never exposed: $label"
+        }
+    }
+
     @Test fun primaryWorkspacesKeepFixedNavigationAndFocusedStudioSections() {
         withLaunchedActivity {
             objectWithDescription("Project Studio").click()
             checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
             captureWorkspace("studio-overview.png")
-            repeat(5) {
-                if (!device.hasObject(By.text("Assistant"))) {
-                    device.swipe((device.displayWidth * .68).toInt(),
-                        (device.displayHeight * .74).toInt(),
-                        (device.displayWidth * .68).toInt(),
-                        (device.displayHeight * .28).toInt(), 25)
-                }
-            }
-            checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000))
+            scrollWorkUntilVisible("Assistant", androidx.test.uiautomator.Direction.DOWN)
             checkNotNull(device.wait(Until.findObject(By.text("Changes")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("No staged file changes in this local workspace.")), 10_000))
             captureWorkspace("studio-changes.png")
             checkNotNull(device.wait(Until.findObject(By.text("Assistant")), 10_000)).click()
-            repeat(4) {
-                if (!device.hasObject(By.text("Open Pine Studio"))) {
-                    device.swipe((device.displayWidth * .7).toInt(),
-                        (device.displayHeight * .72).toInt(),
-                        (device.displayWidth * .7).toInt(),
-                        (device.displayHeight * .30).toInt(), 24)
-                }
-            }
-            checkNotNull(device.wait(Until.findObject(By.text("Open Pine Studio")), 10_000))
+            scrollWorkUntilVisible("Open Pine Studio", androidx.test.uiautomator.Direction.DOWN)
             captureWorkspace("studio-pine-premium.png")
             checkNotNull(device.wait(Until.findObject(By.text("Open Pine Studio")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Pine Studio")), 10_000))
@@ -154,14 +172,7 @@ class KeyboardLayoutTest {
             captureWorkspace("pine-chart-expanded.png")
             device.pressBack()
             device.pressBack()
-            repeat(5) {
-                if (!device.hasObject(By.text("Files"))) {
-                    device.swipe((device.displayWidth * .68).toInt(),
-                        (device.displayHeight * .74).toInt(),
-                        (device.displayWidth * .68).toInt(),
-                        (device.displayHeight * .28).toInt(), 25)
-                }
-            }
+            scrollWorkUntilVisible("Files", androidx.test.uiautomator.Direction.DOWN)
             checkNotNull(device.wait(Until.findObject(By.text("Files")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("Project files")), 10_000))
             assertFalse("Files must not render the build dashboard", device.hasObject(By.text(instrumentation.targetContext.getString(ai.drfx.maximus.matrixai.R.string.phone_harness_title))))
