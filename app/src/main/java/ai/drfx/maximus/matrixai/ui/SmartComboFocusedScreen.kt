@@ -54,6 +54,8 @@ internal fun SmartComboFocusedScreen(
 ) {
     val state by viewModel.llmState.collectAsState()
     val metrics = state.tokenMetrics
+    val evidence = rememberSmartComboEvidence(state)
+    val dispatched = evidence.active
     var search by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("All") }
     var usageExpanded by remember { mutableStateOf(false) }
@@ -67,14 +69,7 @@ internal fun SmartComboFocusedScreen(
                 smartComboCategoryMatch(it, category)
         }
     }
-    val verifiedRate = metrics.verifiedRateTokensRemaining.takeIf {
-        it != null && metrics.rateProvider == state.provider &&
-            metrics.rateModelId == state.selectedModel &&
-            metrics.rateEvidenceAtEpochMs?.let { timestamp ->
-                timestamp <= System.currentTimeMillis() &&
-                    System.currentTimeMillis() - timestamp < 300_000L
-            } == true
-    }
+    val verifiedRate = evidence.tokenRate.value
     Column(modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.weight(1f).testTag("smart_combo_focused_screen"),
@@ -103,18 +98,23 @@ internal fun SmartComboFocusedScreen(
             }
             item {
                 PremiumSmartComboHero(
-                    provider = state.provider.displayName,
-                    model = state.selectedModel,
-                    active = state.smartComboEnabled && state.isGenerating,
+                    provider = dispatched?.provider?.displayName ?: state.provider.displayName,
+                    model = dispatched?.modelId ?: state.selectedModel,
+                    active = state.isGenerating,
+                    requestDispatched = dispatched != null,
+                    streaming = evidence.phase == SmartComboEvidenceProjection.Phase.STREAMING,
                     status = smartComboStatusLabel(state),
                     contextUsed = metrics.contextUsagePercent,
                     contextLeft = if (state.selectedModel.isBlank()) "Unknown" else
                         NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens),
                     verifiedRate = verifiedRate?.let { NumberFormat.getIntegerInstance().format(it) } ?: "Unverified",
-                    freeOffers = state.smartComboOffers,
+                    freeOffers = evidence.catalog.value?.toInt(),
                     onRefresh = viewModel::refreshSmartCombo,
                     refreshEnabled = state.smartComboEnabled && !state.smartComboRefreshing && !state.isGenerating
                 )
+            }
+            item {
+                SmartComboEvidencePanel(state, evidence, viewModel::refreshSmartCombo)
             }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {

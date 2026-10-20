@@ -112,4 +112,38 @@ class SmartComboPlannerTest {
         val choice = SmartComboPlanner.choose(task(), listOf(route("restricted").copy(approvedForUserData = false)))
         assertNull(choice.primary)
     }
+
+    @Test fun verifiedFreeRouteDoesNotRequirePaidAccountCredit() {
+        val credit = SmartComboPlanner.QuotaWindow(
+            kind = SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS,
+            remaining = 0L, limit = 1_000_000L,
+            observedAtEpochMs = task().nowEpochMs,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+        )
+        assertEquals("free", SmartComboPlanner.choose(task(),
+            listOf(route("free", quota = listOf(credit)))).primary?.id)
+    }
+
+    @Test fun freeCreditExceptionNeverBypassesRequestWindowExhaustion() {
+        val at = task().nowEpochMs
+        val windows = listOf(
+            SmartComboPlanner.QuotaWindow(SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS,
+                0L, 1_000_000L, observedAtEpochMs = at,
+                confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED),
+            SmartComboPlanner.QuotaWindow(SmartComboPlanner.LimitKind.REQUESTS_PER_MINUTE,
+                0L, 30L, observedAtEpochMs = at,
+                confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED)
+        )
+        assertNull(SmartComboPlanner.choose(task(),
+            listOf(route("free", quota = windows))).primary)
+    }
+
+    @Test fun paidRouteStillRequiresRealCreditDespiteExplicitBudget() {
+        val credit = SmartComboPlanner.QuotaWindow(
+            SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS, 0L, 1_000_000L,
+            observedAtEpochMs = task().nowEpochMs,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED)
+        assertNull(SmartComboPlanner.choose(task(paid = true, maxCostUsd = 1.0),
+            listOf(route("paid", free = false, quota = listOf(credit)))).primary)
+    }
 }
