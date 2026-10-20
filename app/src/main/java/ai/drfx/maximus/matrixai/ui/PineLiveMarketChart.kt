@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -120,6 +121,11 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                 Text("${market.candles.size} / 200 historical candles · ${market.timeframe.label} · Source: ${market.source}",
                     color = MaximusReference.muted, fontSize = 10.sp,
                     modifier = Modifier.testTag("pine_live_candle_count"))
+                if (previewOnly) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("▼ High sweep", fontSize = 9.sp, color = Color(0xFFF0585B))
+                    Text("▲ Low sweep", fontSize = 9.sp, color = Color(0xFF19C7A0))
+                    Text("﹘ Sweep level", fontSize = 9.sp, color = MaximusReference.gold)
+                }
                 val visibleCandles = if (previewOnly) market.candles.takeLast(45) else market.candles
                 val horizontal = rememberScrollState()
                 LaunchedEffect(market, candleWidth) {
@@ -132,6 +138,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                             candles = visibleCandles,
                             selectedIndex = if (previewOnly) -1 else selected,
                             onSelect = { selected = it },
+                            markSweeps = previewOnly,
                             modifier = Modifier.width(if (previewOnly) 350.dp else (max(320, market.candles.size * candleWidth)).dp)
                                 .height(chartHeight).testTag("pine_real_ohlcv_canvas")
                                 .semantics { contentDescription = "OHLCV price candles" }
@@ -193,7 +200,8 @@ private fun PineOhlcvCanvas(
     candles: List<PineCandle>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    markSweeps: Boolean = false
 ) {
     val green = Color(0xFF19C7A0)
     val red = Color(0xFFF0585B)
@@ -239,6 +247,33 @@ private fun PineOhlcvCanvas(
             if (i == selectedIndex) {
                 drawLine(MaximusReference.gold.copy(alpha = .7f), Offset(x, 0f),
                     Offset(x, size.height), 1.3f)
+            }
+        }
+        if (markSweeps && candles.size > 20) {
+            // Derived from ACTUAL exchange bars, never a fabricated Pine script/backtest signal.
+            for (i in 20 until candles.size) {
+                val bar = candles[i]
+                val prior = candles.subList(i - 20, i)
+                val priorHigh = prior.maxOf { it.high }
+                val priorLow = prior.minOf { it.low }
+                val highSweep = bar.high > priorHigh && bar.close < priorHigh
+                val lowSweep = bar.low < priorLow && bar.close > priorLow
+                if (highSweep || lowSweep) {
+                    val x = (i + .5f) * step
+                    val y = if (highSweep) priceY(bar.high) - 10f else priceY(bar.low) + 10f
+                    val mark = Path().apply {
+                        moveTo(x - 5f, if (highSweep) y - 4f else y + 4f)
+                        lineTo(x + 5f, if (highSweep) y - 4f else y + 4f)
+                        lineTo(x, if (highSweep) y + 4f else y - 4f)
+                        close()
+                    }
+                    drawPath(mark, if (highSweep) red else green)
+                    val yLevel = priceY(if (highSweep) priorHigh else priorLow)
+                    drawLine(MaximusReference.gold.copy(alpha = .8f),
+                        Offset(x, yLevel), Offset(size.width, yLevel), 1f,
+                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+                            floatArrayOf(5f, 5f)))
+                }
             }
         }
         val last = candles.last()
