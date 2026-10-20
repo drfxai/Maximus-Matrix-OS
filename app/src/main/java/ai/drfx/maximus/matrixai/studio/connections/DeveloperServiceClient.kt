@@ -82,7 +82,8 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         path: String,
         method: String = "GET",
         body: ByteArray? = null,
-        expectedCloudflareRevision: String? = null
+        expectedCloudflareRevision: String? = null,
+        expectedGithubRevision: String? = null
     ): ByteArray = withContext(Dispatchers.IO) {
         // A Cloud Agent bearer credential is never valid for cloud-administrator
         // or GitHub API operations, even when a caller makes a programming error.
@@ -96,6 +97,8 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         val credentials = vault.snapshot(service)
         if (expectedCloudflareRevision != null) check(service == DevelopmentService.CLOUDFLARE &&
             credentials.revision == expectedCloudflareRevision) { "Connection changed." }
+        if (expectedGithubRevision != null) check(service == DevelopmentService.GITHUB &&
+            credentials.revision == expectedGithubRevision) { "Connection changed." }
         val token = credentials.token
         check(token.isNotBlank()) { "Connect this service with a restricted API token first." }
         val base = if (service == DevelopmentService.GITHUB) GH else CF
@@ -122,6 +125,8 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
             // Last check before either outputStream or responseCode can dispatch HTTP.
             if (expectedCloudflareRevision != null)
                 check(vault.revision(service) == expectedCloudflareRevision) { "Connection changed." }
+            if (expectedGithubRevision != null)
+                check(vault.revision(service) == expectedGithubRevision) { "Connection changed." }
             if (body != null) {
                 connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -146,6 +151,37 @@ internal class DeveloperServiceClient(private val vault: DeveloperCredentialVaul
         } finally {
             connection.disconnect()
         }
+    }
+
+
+    /** Explicit read-only inspection; no token, approval, or write authority enters the projection. */
+    suspend fun inspectGithubRepository(owner: String, repository: String,
+        branch: String): GithubRepositoryEvidence {
+        val o = DeveloperConnectionPolicy.repoPart(owner)
+        val r = DeveloperConnectionPolicy.repoPart(repository)
+        val b = DeveloperConnectionPolicy.branch(branch)
+        val session = vault.revision(DevelopmentService.GITHUB)
+        suspend fun read(path: String): JSONObject = JSONObject(call(DevelopmentService.GITHUB,
+            path, expectedGithubRevision = session).toString(StandardCharsets.UTF_8))
+        val metadata = read("/repos/$o/$r")
+        val branchPath = "/repos/$o/$r/branches/" + URLEncoder.encode(b, "UTF-8")
+        val info = read(branchPath)
+        val sha = info.getJSONObject("commit").getString("sha")
+        require(sha.matches(Regex("[a-f0-9]{40}")))
+        var workflow: GithubWorkflowEvidence? = null
+        var workflowAvailable = true
+        try {
+            workflow = DeveloperOperationsPolicy.workflow(
+                read("/repos/$o/$r/actions/runs?head_sha=$sha&per_page=1"), sha)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { workflowAvailable = false }
+        // Do not combine a workflow with a branch head that moved during this inspection.
+        check(read(branchPath).getJSONObject("commit").getString("sha") == sha &&
+            vault.revision(DevelopmentService.GITHUB) == session) {
+            "Branch or connection changed during inspection. Refresh."
+        }
+        return DeveloperOperationsPolicy.branch(o, r, b, metadata, info,
+            System.currentTimeMillis(), workflow, workflowAvailable)
     }
 
     suspend fun verifyGithub(): String {
