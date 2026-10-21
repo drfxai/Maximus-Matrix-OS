@@ -402,7 +402,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     ) {
         if (!keyboardVisible) Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { sessionsOpen = true }) { Icon(Icons.Default.Menu, stringResource(R.string.ui_conversations)) }
-            Text("MAXIMUS", Modifier.weight(1f).semantics { contentDescription = "MAXIMUS Chat" },
+            Text("MAXIMUS", Modifier.weight(1f),
                 color = MaximusReference.gold, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             IconButton(onClick = { tokenDetailsOpen = true }) {
@@ -1495,7 +1495,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                             Text("Model discovery uses the selected endpoint and API key. A listed model may still require account access or credits. Test the selected model before use.",
                                 color = MaximusReference.muted, fontSize = 11.sp)
                             state.catalogCheckedAtEpochMs?.let { checked ->
-                                Text("Catalog checked: " + java.text.DateFormat.getDateTimeInstance().format(java.util.Date(checked)),
+                                Text("Local catalog check (may use cache): " + java.text.DateFormat.getDateTimeInstance().format(java.util.Date(checked)),
                                     color = MaximusReference.muted, fontSize = 11.sp)
                             }
                             OutlinedButton(onClick = { confirmApiTest = true },
