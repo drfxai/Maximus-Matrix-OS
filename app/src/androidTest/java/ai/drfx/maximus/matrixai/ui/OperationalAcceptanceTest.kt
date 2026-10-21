@@ -247,7 +247,7 @@ class OperationalAcceptanceTest {
             try { block() } catch (failure: Throwable) {
                 // Preserve the actual failed application frame without suppressing the failure.
                 runCatching {
-                    device.takeScreenshot(File(context.getExternalFilesDir(null), "failure-state.png"))
+                    check(device.takeScreenshot(File(context.getExternalFilesDir(null), "failure-state.png")))
                     // Gradle may uninstall the target before shell collection; preserve diagnostics.
                     device.executeShellCommand("cp /sdcard/Android/data/${context.packageName}/files/failure-state.png /data/local/tmp/maximus-keyboard-failure-state.png")
                 }
@@ -317,7 +317,7 @@ class OperationalAcceptanceTest {
     }
 
     private fun scrollToText(vararg labels: String, direction: Direction = Direction.DOWN): UiObject2 {
-        repeat(16) {
+        repeat(24) { attempt ->
             try {
                 // Evidence clocks legitimately recompose these semantics every second.
                 // Re-query after a stale node; never retain UiObject2 across a scroll/recomposition.
@@ -327,13 +327,17 @@ class OperationalAcceptanceTest {
                 val bounds = device.findObjects(By.scrollable(true)).map { it.visibleBounds }
                     .filter { it.height() > 160 && it.width() > 120 }
                     .maxByOrNull { it.height() }
-                val top = bounds?.let { it.top + it.height() / 5 } ?: (device.displayHeight / 3)
-                val bottom = bounds?.let { it.bottom - it.height() / 5 } ?: (device.displayHeight * 3 / 4)
+                val top = bounds?.let { it.top + it.height() * 7 / 20 } ?: (device.displayHeight * 2 / 5)
+                val bottom = bounds?.let { it.bottom - it.height() * 7 / 20 } ?: (device.displayHeight * 3 / 5)
                 val x = bounds?.centerX() ?: (device.displayWidth / 4)
+                val move = if (attempt < 8) direction else
+                    if (direction == Direction.UP) Direction.DOWN else Direction.UP
                 // Inject one bounded gesture from copied coordinates. UiObject2.scroll waits
                 // across semantic updates, so a once-per-second evidence clock can detach it.
-                device.swipe(x, if (direction == Direction.UP) top else bottom,
-                    x, if (direction == Direction.UP) bottom else top, 25)
+                // Short, slow overlapping swipes avoid flinging past a small label entirely.
+                // Search both directions: expanded items and menus can retain scroll position.
+                device.swipe(x, if (move == Direction.UP) top else bottom,
+                    x, if (move == Direction.UP) bottom else top, 100)
             } catch (_: androidx.test.uiautomator.StaleObjectException) {
                 // Only a detached accessibility node is retried. Required UI assertions remain.
             }
