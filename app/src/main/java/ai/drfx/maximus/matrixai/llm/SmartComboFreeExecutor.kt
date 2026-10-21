@@ -24,7 +24,8 @@ internal class SmartComboFreeExecutor(
         offers: List<SmartComboFreeCatalog.Offer>,
         resolveCredential: (LlmProvider, String) -> String,
         agentId: String,
-        nowMs: Long = System.currentTimeMillis()
+        nowMs: Long = System.currentTimeMillis(),
+        checkpoint: SmartComboCheckpointReference? = null
     ): Prepared? {
         // Ambiguous route IDs could bind a credential to a different endpoint.
         // Treat all duplicates as untrusted instead of allowing last-write wins.
@@ -57,7 +58,7 @@ internal class SmartComboFreeExecutor(
         val map = filtered.associateBy { it.route.id }
         val admission = SmartComboAdmissionController(ledger).prepare(
             requestId, task, filtered.map { it.route },
-            filtered.associate { it.route.id to it.quotaScope }
+            filtered.associate { it.route.id to it.quotaScope }, checkpoint
         )
         val route = admission.route ?: return null
         val offer = map[route.id] ?: return null
@@ -85,7 +86,8 @@ internal class SmartComboFreeExecutor(
         offers: List<SmartComboFreeCatalog.Offer>,
         resolveCredential: (LlmProvider, String) -> String,
         agentId: String,
-        nowMs: Long = System.currentTimeMillis()
+        nowMs: Long = System.currentTimeMillis(),
+        checkpoint: SmartComboCheckpointReference? = null
     ): Prepared? {
         if (newRequestId.isBlank() || newRequestId == previous.requestId) return null
         // Do not release a DISPATCHED, UNCERTAIN or reconciled request.
@@ -93,7 +95,7 @@ internal class SmartComboFreeExecutor(
         return prepare(
             newRequestId, estimatedInput, reservedOutput, requiredCapabilities,
             offers.filterNot { it.route.id == previous.offer.route.id },
-            resolveCredential, agentId, nowMs
+            resolveCredential, agentId, nowMs, checkpoint
         )
     }
 
@@ -102,6 +104,12 @@ internal class SmartComboFreeExecutor(
     ) {
         if (windows.isNotEmpty()) ledger.observe(prepared.offer.quotaScope, windows)
     }
+
+    fun archiveSettled(): Int = ledger.archiveSettled()
+
+    fun initialize(): SmartComboQuotaLedger.Durability = ledger.initialize()
+
+    fun durability(): SmartComboQuotaLedger.Durability = ledger.durability()
 
     fun dispatched(prepared: Prepared): Boolean = ledger.dispatch(prepared.requestId)
 

@@ -10,7 +10,8 @@ internal data class GithubPullRequestReview(
     val title: String,
     val body: String,
     val aheadBy: Int,
-    val files: List<String>
+    val files: List<String>,
+    val credentialRevision: String = ""
 )
 
 internal data class GithubPullRequestResult(val url: String, val reviewedSnapshotMatches: Boolean)

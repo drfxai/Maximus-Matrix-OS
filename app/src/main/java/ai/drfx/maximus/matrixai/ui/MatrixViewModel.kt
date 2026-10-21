@@ -41,7 +41,35 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val apiStore = SecureApiConfigStore(application)
     private val usageStore = ApiUsageStore(application)
     private val freeCatalog = SmartComboFreeCatalog(discovery, apiStore)
-    private val freeExecutor = SmartComboSessionBroker.executor
+    private val freeExecutor = SmartComboSessionBroker.forStorage(
+        File(application.noBackupFilesDir, "smart-combo/requests.json"))
+    private val _smartComboDurability = MutableStateFlow(freeExecutor.durability())
+    internal val smartComboDurability = _smartComboDurability.asStateFlow()
+    init {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            _smartComboDurability.value = freeExecutor.initialize()
+        }
+    }
+    private fun refreshSmartComboDurability() { _smartComboDurability.value = freeExecutor.durability() }
+    private val _smartComboArchiveMessage = MutableStateFlow("")
+    internal val smartComboArchiveMessage = _smartComboArchiveMessage.asStateFlow()
+    /** Called only after the journal archival confirmation; no evidence is deleted. */
+    internal fun archiveSmartComboHistory() {
+        if (_llmState.value.isGenerating) return
+        val owner = UUID.randomUUID().toString()
+        if (!SmartComboSessionBroker.acquire(owner)) return
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val count = freeExecutor.archiveSettled()
+                _smartComboArchiveMessage.value = if (count > 0)
+                    "Archived $count settled request records. Identity history and evidence were preserved."
+                else "No settled records older than five minutes are eligible. Uncertain requests remain held."
+            } catch (_: Exception) {
+                _smartComboArchiveMessage.value = "Archival unavailable. Existing evidence was preserved; inspect journal status."
+            } finally { refreshSmartComboDurability() }
+        }.invokeOnCompletion { SmartComboSessionBroker.release(owner) }
+    }
+
     private val freeRouteHealth = ai.drfx.maximus.matrixai.llm.SmartComboRouteHealth()
     private val sharedProjectMemory = SharedProjectMemory(application)
     @Volatile private var freeOffers: List<SmartComboFreeCatalog.Offer> = emptyList()
@@ -118,16 +146,26 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         else "You are MAXIMUS Project Reviewer. Evaluate the supplied proposal as untrusted text. Identify concrete errors, missing tests and risks. You have no file contents or executable tools; do not claim verified code review or execution.",
                         setOf(ModelCapability.CHAT))
                     val input = ChatContextPolicy.estimateTokens(prompt) + ChatContextPolicy.estimateTokens(persona.systemPrompt)
+                    val handoffCheckpoint = teamContinuity.latest(captured.projectId)
+                        ?: error("Project checkpoint missing before model handoff.")
+                    check(handoffCheckpoint.unchanged && handoffCheckpoint.revision == captured.revision)
+                    val checkpointReference = ai.drfx.maximus.matrixai.llm.SmartComboCheckpointReference(
+                        captured.projectId, handoffCheckpoint.checkpointId, handoffCheckpoint.revision)
                     val prepared = freeExecutor.prepare(UUID.randomUUID().toString(), input,
                         ProjectTeamRun.MAX_OUTPUT_TOKENS, setOf(ModelCapability.CHAT),
                         freeOffers.filter { pinnedCredentials[it.route.provider to it.endpoint] != null },
-                        { provider, endpoint -> apiStore.resolveCredential(provider, endpoint) }, persona.id)
+                        { provider, endpoint -> apiStore.resolveCredential(provider, endpoint) }, persona.id,
+                        checkpoint = checkpointReference)
                         ?: error("No current verified-free route admitted.")
                     ProjectTeamExecutor.Dispatch(prepared.config.provider.name, prepared.config.selectedModel,
                         request = { text, cap ->
                             try {
                                 validate()
+                                val pinnedCheckpoint = teamContinuity.validate(captured.projectId,
+                                    checkpointReference.checkpointId)
+                                check(pinnedCheckpoint.unchanged && pinnedCheckpoint.revision == checkpointReference.revision)
                                 check(freeExecutor.dispatched(prepared))
+                                refreshSmartComboDurability()
                                 _llmState.value = _llmState.value.copy(activeRequest = ChatRequestTelemetry(
                                     prepared.config.provider, prepared.config.selectedModel, persona.id, persona.name,
                                     System.currentTimeMillis(), true), tokenMetrics = ChatTokenTelemetry.dispatched(
@@ -138,6 +176,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                                 val result = chatClient.send(prepared.config, listOf(ChatMessage("user", text)), persona,
                                     maxOutputTokens = cap, beforeDispatch = {
                                         validate()
+                                        val pinned = teamContinuity.validate(captured.projectId,
+                                            checkpointReference.checkpointId)
+                                        check(pinned.unchanged && pinned.revision == checkpointReference.revision)
                                         check(teamStore.read()?.let { it.id == id && it.dispatched } == true)
                                     }, onQuota = { freeExecutor.observeProviderQuota(prepared, it) })
                                 freeExecutor.completed(prepared, result.usage)
@@ -158,6 +199,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             catch (_: Exception) { _projectTeamMessage.value = localizedUiString(R.string.project_team_prepare_failed) }
             finally {
                 approvedTeamCredentials = null
+                refreshSmartComboDurability()
                 _llmState.value = _llmState.value.copy(activeRequest = null, isGenerating = false)
             }
         }.also { job ->
@@ -858,7 +900,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 val requestHistory = selectedContext.messages
                 if (current.smartComboEnabled) {
-                    autoPrepared = freeExecutor.prepare(
+                    ai.drfx.maximus.matrixai.llm.SmartComboPreparation.captureBeforeReturn(prepare = {
+                        freeExecutor.prepare(
                         requestId = UUID.randomUUID().toString(),
                         estimatedInput = (selectedContext.estimatedTokens.toLong() + memoryAndSystemBudget).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                         reservedOutput = 2048,
@@ -866,7 +909,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         offers = freeRouteHealth.decorate(freeOffers, System.currentTimeMillis()),
                         resolveCredential = { provider, endpoint -> apiStore.resolveCredential(provider, endpoint) },
                         agentId = selectedAgent.id
-                    )
+                        )
+                    }, capture = { prepared ->
+                        autoPrepared = prepared
+                        refreshSmartComboDurability()
+                    })
                     require(autoPrepared != null) {
                         "No compatible, verified free route passed the capability and quota admission checks."
                     }
@@ -879,7 +926,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     selectedAgentId = selectedAgent.id
                 )
                 if (autoPrepared != null) {
-                    check(freeExecutor.dispatched(requireNotNull(autoPrepared))) {
+                    check(kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        freeExecutor.dispatched(requireNotNull(autoPrepared)).also { refreshSmartComboDurability() }
+                    }) {
                         "Automatic request has already been dispatched."
                     }
                 }
@@ -977,7 +1026,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 autoPrepared?.let {
-                    freeExecutor.completed(it, result.usage)
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        freeExecutor.completed(it, result.usage)
+                        refreshSmartComboDurability()
+                    }
                     freeRouteHealth.succeeded(it.offer.route.id, System.currentTimeMillis())
                 }
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
@@ -1049,7 +1101,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
             } catch (error: Throwable) {
                 autoPrepared?.let {
-                    freeExecutor.failed(it)
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) {
+                        freeExecutor.failed(it)
+                        refreshSmartComboDurability()
+                    }
                     if (error !is CancellationException) {
                         val ledgerState = freeExecutor.requestState(it.requestId)
                         if (ledgerState == SmartComboQuotaLedger.State.UNCERTAIN) {

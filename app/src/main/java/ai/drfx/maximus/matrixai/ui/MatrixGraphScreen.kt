@@ -44,6 +44,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -166,6 +167,13 @@ fun MatrixGraphScreen(
         )
     }
     val events by viewModel.events.collectAsState()
+    val durableEvents by produceState<List<ai.drfx.maximus.matrixai.database.entities.MatrixEventEntity>?>(
+        initialValue=null,viewModel.eventRepository) {
+        viewModel.eventRepository.recentEvents.collect { value=it }
+    }
+    var timelineWindowDays by remember { mutableIntStateOf(0) }
+    var showActivityLog by remember { mutableStateOf(false) }
+    var selectedActivityId by remember { mutableStateOf<String?>(null) }
     val runtimeStatus by viewModel.status.collectAsState()
     val llm by viewModel.llmState.collectAsState()
     val brainMessages by viewModel.chatMessages.collectAsState()
@@ -297,15 +305,19 @@ fun MatrixGraphScreen(
     }
     val observations = remember(events) {
         buildMap<String, Long> {
+            val observedAt=System.currentTimeMillis()
             for (event in events) {
-                if (event.timestampMs <= 0L) continue
+                if (event.timestampMs !in 1L..observedAt) continue
                 for (id in listOfNotNull(event.sourceNode, event.targetNode)) {
                     if (event.timestampMs > (get(id) ?: 0L)) put(id, event.timestampMs)
                 }
             }
         }
     }
-    val persistedChanges = remember(persistedNodes) { persistedNodes.associate { it.id to it.lastUpdatedMs } }
+    val persistedChanges = remember(persistedNodes) {
+        val observedAt=System.currentTimeMillis()
+        persistedNodes.filter { it.lastUpdatedMs in 1L..observedAt }.associate { it.id to it.lastUpdatedMs }
+    }
     val galaxyNodes = remember(canonicalNodes, observations, persistedChanges) {
         canonicalNodes.map { node ->
             GalaxyNode(node.id, galaxyArea(node.group), if (node.id == "maximus") 0 else if (node.hub) 1 else 2,
@@ -314,19 +326,31 @@ fun MatrixGraphScreen(
                 observations[node.id]?.let { it >= (persistedChanges[node.id] ?: 0L) } == true)
         }
     }
+    val timelineActivity = remember(durableEvents, timelineWindowDays) {
+        val cutoff = if (timelineWindowDays == 0) Long.MIN_VALUE else
+            System.currentTimeMillis() - timelineWindowDays.toLong()*86_400_000L
+        val now=System.currentTimeMillis()
+        durableEvents.orEmpty().filter { it.timestampMs <= 0L || it.timestampMs >= cutoff }.map { event ->
+            NeuralGalaxyLayouts.clockChecked(GalaxyActivity(event.id,event.timestampMs,event.sourceNode,
+                event.targetNode,event.type,event.message.take(1600)),now)
+        }
+    }
     var geometry by remember { mutableStateOf(GalaxyGeometry(emptyMap())) }
     var preparedLayout by remember { mutableStateOf<NeuralGalaxyLayout?>(null) }
     var preparedNodes by remember { mutableStateOf<List<GalaxyNode>>(emptyList()) }
-    LaunchedEffect(galaxyLayout, galaxyNodes, edges) {
+    var preparedActivity by remember { mutableStateOf<List<GalaxyActivity>>(emptyList()) }
+    LaunchedEffect(galaxyLayout, galaxyNodes, edges, timelineActivity) {
         val prepared = withContext(Dispatchers.Default) {
-            NeuralGalaxyLayouts.prepare(galaxyLayout, galaxyNodes, edges.map { GalaxyEdge(it.from, it.to) })
+            NeuralGalaxyLayouts.prepare(galaxyLayout, galaxyNodes, edges.map { GalaxyEdge(it.from, it.to) }, timelineActivity)
         }
         geometry = prepared
         preparedLayout = galaxyLayout
         preparedNodes = galaxyNodes
+        preparedActivity = timelineActivity
     }
-    val layoutReady = preparedLayout == galaxyLayout && preparedNodes == galaxyNodes &&
-        geometry.positions.keys == canonicalIds
+    val layoutReady = preparedLayout == galaxyLayout && preparedNodes == galaxyNodes && preparedActivity == timelineActivity &&
+        geometry.positions.keys == canonicalIds &&
+        (galaxyLayout != NeuralGalaxyLayout.TIMELINE || durableEvents != null)
     val laidOutNodes = remember(canonicalNodes, geometry, layoutReady) {
         canonicalNodes.map { node ->
             val point = if (layoutReady) geometry.positions[node.id] else null
@@ -602,6 +626,28 @@ fun MatrixGraphScreen(
                             }
                         }
 
+                        val connectedEdges = edges.filter { it.from == selected.id || it.to == selected.id }
+                        if (connectedEdges.isNotEmpty()) {
+                            var relationshipPage by remember(selected.id) { mutableIntStateOf(0) }
+                            val lastPage=(connectedEdges.size-1)/30
+                            val page=relationshipPage.coerceIn(0,lastPage)
+                            Text("Relationships · " + connectedEdges.size + " · page " + (page+1) + "/" + (lastPage+1),
+                                color = GraphGold, fontSize = 10.sp)
+                            connectedEdges.drop(page*30).take(30).forEach { edge ->
+                                val other = if (edge.from == selected.id) edge.to else edge.from
+                                val saved = persistedEdges.any { it.fromNodeId == edge.from &&
+                                    it.toNodeId == edge.to && it.relation == edge.relation }
+                                TextButton(onClick = { selectedId = other }, contentPadding = PaddingValues(0.dp)) {
+                                    Text(edge.from + " → " + edge.to + "\n" + edge.relation +
+                                        if (saved) " · Saved Room relationship" else " · Declared module relationship",
+                                        color = ink, fontSize = 10.sp)
+                                }
+                            }
+                            if (lastPage>0) Row {
+                                TextButton(onClick={relationshipPage=(page-1).coerceAtLeast(0)},enabled=page>0) { Text("Previous") }
+                                TextButton(onClick={relationshipPage=(page+1).coerceAtMost(lastPage)},enabled=page<lastPage) { Text("Next") }
+                            }
+                        }
                         // Connected neighbor chips
                         val neighbors = edges
                             .filter { it.from == selected.id || it.to == selected.id }
@@ -646,7 +692,7 @@ fun MatrixGraphScreen(
             }
             Text(stringResource(if (search.isBlank()) R.string.brain_graph_top_hubs
                 else R.string.brain_graph_search_results), color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
-            nodes.filter { if (search.isBlank()) it.hub else it.label.contains(search, true) || displayGroup(it.group).contains(search, true) || it.group.contains(search, true) }.forEach { node ->
+            nodes.filter { if (search.isBlank()) it.hub else NeuralGalaxyLayouts.matches(it.id,it.label,displayGroup(it.group),galaxyArea(it.group),search) }.forEach { node ->
                 Row(Modifier.fillMaxWidth().clickable { selectedId = node.id; hiddenGroups = hiddenGroups - node.group; openPanel = null }
                     .padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(7.dp).background(graphTone(node.color, light), CircleShape))
@@ -657,7 +703,7 @@ fun MatrixGraphScreen(
                     Text(edges.count { it.from == node.id || it.to == node.id }.toString(), color = muted, fontSize = 10.sp)
                 }
             }
-            if (search.isNotBlank() && nodes.none { it.label.contains(search, true) || displayGroup(it.group).contains(search, true) || it.group.contains(search, true) }) Text(stringResource(R.string.graph_none), color = muted, fontSize = 11.sp)
+            if (search.isNotBlank() && nodes.none { NeuralGalaxyLayouts.matches(it.id,it.label,displayGroup(it.group),galaxyArea(it.group),search) }) Text(stringResource(R.string.graph_none), color = muted, fontSize = 11.sp)
             HorizontalDivider(color = border)
             Text(stringResource(R.string.graph_display), color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
             Text(stringResource(R.string.graph_spread), color = muted, fontSize = 11.sp)
@@ -671,6 +717,17 @@ fun MatrixGraphScreen(
     }
     val filters: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Isolate area", color = GraphGold, fontSize = 11.sp)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                nodes.map { galaxyArea(it.group) }.distinct().sorted().forEach { area ->
+                    FilterChip(selected = nodes.filter { galaxyArea(it.group) != area }
+                        .all { it.group in hiddenGroups },
+                        onClick = {
+                            hiddenGroups = nodes.filter { galaxyArea(it.group) != area }.map { it.group }.toSet()
+                            selectedLobe = null
+                        }, label = { Text(area, fontSize = 10.sp) })
+                }
+            }
             Text(stringResource(R.string.graph_filter), color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
             nodes.groupBy { it.group }.forEach { (group, members) ->
                 Row(Modifier.fillMaxWidth().clickable {
@@ -685,6 +742,33 @@ fun MatrixGraphScreen(
             }
             TextButton(onClick = { hiddenGroups = emptySet(); search = "" }) { Text(stringResource(R.string.graph_all), fontSize = 11.sp) }
         }
+    }
+
+    if (showActivityLog) AlertDialog(onDismissRequest = { showActivityLog = false },
+        title = { Text("Committed activity · Room") },
+        text = { Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState())) {
+            Text("Latest 100 committed records; no inferred build or deployment success.", fontSize = 11.sp)
+            if (timelineActivity.isEmpty()) Text("No committed events in this window.")
+            timelineActivity.sortedByDescending { it.timestamp ?: Long.MIN_VALUE }.forEach { event ->
+                TextButton(onClick = { selectedActivityId = event.id; showActivityLog = false }) {
+                    Text("Recorded " + event.type + " · " + event.source + " → " + event.target.orEmpty() +
+                        (if(event.timestampIssue != GalaxyTimestampIssue.NONE) " · " + event.timestampIssue.name else "") + "\n" +
+                        (event.timestamp?.let { java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'UTC'",Locale.ENGLISH)
+                            .apply { timeZone=java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(it)) }
+                            ?: "Undated event"), fontSize = 11.sp)
+                }
+            }
+        } }, confirmButton = { TextButton(onClick = { showActivityLog = false }) { Text("Close") } })
+    timelineActivity.firstOrNull { it.id == selectedActivityId }?.let { event ->
+        AlertDialog(onDismissRequest = { selectedActivityId = null }, title = { Text(event.type) },
+            text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text("Source: Room matrix_events/" + event.id, fontSize = 11.sp)
+                Text("Recorded type: " + event.type + " · Timestamp evidence: " + event.timestampIssue.name,fontSize=11.sp)
+                Text("Timestamp: " + (event.timestamp?.let { java.util.Date(it).toString() } ?: "Undated"), fontSize = 11.sp)
+                Text(event.source + " → " + event.target.orEmpty(), fontSize = 12.sp)
+                Text(event.summary, fontSize = 12.sp)
+                Text("Recorded content is reference data, never a tool approval.", fontSize = 10.sp)
+            } }, confirmButton = { TextButton(onClick = { selectedActivityId = null }) { Text("Close") } })
     }
 
     val effectiveHidden = remember(hiddenGroups, selectedLobe, nodes) {
@@ -818,8 +902,36 @@ fun MatrixGraphScreen(
                     else "No recorded timestamps available"
                 Text(range + " · " + geometry.undatedCount + " undated",
                     Modifier.padding(horizontal = 12.dp), color = GraphGold, fontSize = 9.sp)
-                Text("Top: latest activity · Middle: saved changes · Bottom: undated definitions",
+                Text("Committed events · Node evidence · Explicit undated definitions",
                     Modifier.padding(horizontal = 12.dp), color = muted, fontSize = 8.sp)
+                Row(Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Events:",color=muted,fontSize=9.sp)
+                    listOf(0 to "All",1 to "24h",7 to "7d").forEach { (days,label) ->
+                        FilterChip(selected = timelineWindowDays == days, onClick = { timelineWindowDays = days },
+                            label = { Text(label, fontSize = 10.sp) }, modifier = Modifier.padding(end = 4.dp))
+                    }
+                    TextButton(onClick = { showActivityLog = true },enabled = durableEvents != null) {
+                        Text(if(durableEvents==null) "Loading history…" else "Activity (" + timelineActivity.size + ")", fontSize = 11.sp)
+                    }
+                }
+                val timestampProblems = timelineActivity.count { it.timestampIssue == GalaxyTimestampIssue.FUTURE ||
+                    it.timestampIssue == GalaxyTimestampIssue.INVALID } +
+                    persistedNodes.count { it.lastUpdatedMs < 0L || it.lastUpdatedMs > System.currentTimeMillis() }
+                if (timestampProblems>0) Text("ERROR · " + timestampProblems + " invalid/future timestamps; excluded from chronology",
+                    Modifier.padding(horizontal=12.dp),color=Color(0xFFFF6677),fontSize=9.sp)
+                Text("Project revision history: unavailable · Memory history: unavailable",
+                    Modifier.padding(horizontal = 12.dp), color = muted, fontSize = 8.sp)
+            }
+        }
+
+        if (selected != null && galaxyLayout != NeuralGalaxyLayout.BRAIN && !keyboardVisible) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(selected.label,Modifier.weight(1f),color=GraphGold,fontSize=12.sp,maxLines=1,
+                    overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                TextButton(onClick = { openPanel = GraphPanel.INSPECTOR }) { Text("Inspect",fontSize=11.sp) }
+                IconButton(onClick = { selectedId=null },modifier=Modifier.size(40.dp)) {
+                    Icon(Icons.Default.Close,stringResource(R.string.brain_graph_clear_focus),tint=muted)
+                }
             }
         }
 
@@ -886,6 +998,9 @@ fun MatrixGraphScreen(
                         focus = SpacePoint(focusX,focusY,focusZ),
                         animate = effectiveMotion,
                         areaLabels = if (galaxyLayout == NeuralGalaxyLayout.AREAS && layoutReady) geometry.areaLabels else emptyMap(),
+                        activity = if (galaxyLayout == NeuralGalaxyLayout.TIMELINE && layoutReady) timelineActivity else emptyList(),
+                        activityPositions = if (galaxyLayout == NeuralGalaxyLayout.TIMELINE && layoutReady) geometry.activityPositions else emptyMap(),
+                        onSelectActivity = { selectedActivityId = it },
                         rotation = rotation,
                         zoom = zoom,
                         spread = spread,
@@ -1013,8 +1128,8 @@ fun MatrixGraphScreen(
                             )
                         }
                     }
-                    if (!wide && !isCompact && effectiveMotion && spatialLayout) IntelligenceRing(status, light, Modifier.align(Alignment.BottomEnd).padding(10.dp).size(78.dp))
-                    if (!wide && selected != null) {
+                    if (!wide && !isCompact && effectiveMotion && galaxyLayout == NeuralGalaxyLayout.BRAIN) IntelligenceRing(status, light, Modifier.align(Alignment.BottomEnd).padding(10.dp).size(78.dp))
+                    if (!wide && selected != null && galaxyLayout == NeuralGalaxyLayout.BRAIN) {
                         val action = getActionForNode(selected)
                         Surface(
                             Modifier
@@ -1092,7 +1207,7 @@ fun MatrixGraphScreen(
                         Column(Modifier.padding(10.dp)) { filters() }
                     }
                     Spacer(Modifier.height(20.dp))
-                    if (effectiveMotion && spatialLayout) IntelligenceRing(status, light, Modifier.fillMaxWidth().aspectRatio(1f))
+                    if (effectiveMotion && galaxyLayout == NeuralGalaxyLayout.BRAIN) IntelligenceRing(status, light, Modifier.fillMaxWidth().aspectRatio(1f))
                     Text(routeStage, Modifier.align(Alignment.CenterHorizontally),
                         color = muted, fontSize = 9.sp, letterSpacing = 1.sp)
                 }
@@ -1496,6 +1611,9 @@ private fun NeuralScene(
     focus: SpacePoint,
     animate: Boolean,
     areaLabels: Map<String, SpacePoint>,
+    activity: List<GalaxyActivity>,
+    activityPositions: Map<String, SpacePoint>,
+    onSelectActivity: (String?) -> Unit,
     rotation: GraphRotation,
     zoom: Float,
     spread: Float,
@@ -1515,6 +1633,10 @@ private fun NeuralScene(
         nodes.associate { it.id to (world(it, spread) - focus * spread) }
     }
     val lookup = remember(nodes) { nodes.associateBy { it.id } }
+    val activityPoints = remember(activityPositions,spread,focus) {
+        activityPositions.mapValues { (_,point) -> (point-focus)*spread }
+    }
+    val activityLookup = remember(activity) { activity.associateBy { it.id } }
 
     // Anatomically structured cerebral cortex surface scaffolding & glial astrocyte network
     val scaffold = remember(spread) {
@@ -1571,8 +1693,11 @@ private fun NeuralScene(
         meshPoints
     }
 
-    val radius = remember(points, scaffold, mesh) {
-        max(points.values.maxOfOrNull { it.length } ?: 1f, if (mesh) scaffold.maxOfOrNull { (it.point - focus * spread).length } ?: 1f else 1f)
+    val radius = remember(points, scaffold, mesh, activityPoints, areaLabels, focus, spread) {
+        maxOf(points.values.maxOfOrNull { it.length } ?: 1f,
+            if (mesh) scaffold.maxOfOrNull { (it.point-focus*spread).length } ?: 1f else 1f,
+            activityPoints.values.maxOfOrNull { it.length } ?: 1f,
+            areaLabels.values.maxOfOrNull { ((it-focus)*spread).length } ?: 1f)
     }
     val visible = remember(nodes, hidden) { nodes.filter { it.group !in hidden } }
     val neighbors = remember(selected, edges) {
@@ -1587,9 +1712,13 @@ private fun NeuralScene(
     val currentVisible by rememberUpdatedState(visible)
     val currentPoints by rememberUpdatedState(points)
     val currentRadius by rememberUpdatedState(radius)
+    val currentLayout by rememberUpdatedState(layout)
+    val currentActivityPoints by rememberUpdatedState(activityPoints)
+    val selectActivity by rememberUpdatedState(onSelectActivity)
     val density = LocalDensity.current.density
 
-    val motion = neuralMotionFrame(animate)
+    // Planar dashboards have no idle frame loop; gestures/data changes still redraw normally.
+    val motion = neuralMotionFrame(animate && (layout == NeuralGalaxyLayout.BRAIN || layout == NeuralGalaxyLayout.ORBIT))
     val synapticClock = motion.synapticClock
     val sparkPhase1 = motion.sparkPhase1
     val sparkPhase2 = motion.sparkPhase2
@@ -1622,7 +1751,19 @@ private fun NeuralScene(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { reset() },
-                    onTap = { tap ->
+                    onTap = tap@ { tap ->
+                        val viewport = NeuralGalaxyLayouts.viewport(currentLayout,
+                            size.width.toFloat(),size.height.toFloat(),density)
+                        if (viewport != null && !viewport.contains(tap.x,tap.y)) return@tap
+                        val activityHit = currentActivityPoints.map { (id,point) ->
+                            id to projectGraph(point,currentRotation,size.width.toFloat(),size.height.toFloat(),
+                                currentRadius,currentZoom,viewport)
+                        }.filter { (_,p) -> (tap-Offset(p.x,p.y)).getDistance() <= 18.dp.toPx() }
+                            .minByOrNull { (_,p) -> (tap-Offset(p.x,p.y)).getDistance() }
+                        if (currentLayout == NeuralGalaxyLayout.TIMELINE && activityHit != null) {
+                            selectActivity(activityHit.first)
+                            return@tap
+                        }
                         val hits = currentVisible.map { node ->
                             node to projectGraph(
                                 currentPoints.getValue(node.id),
@@ -1630,7 +1771,8 @@ private fun NeuralScene(
                                 size.width.toFloat(),
                                 size.height.toFloat(),
                                 currentRadius,
-                                currentZoom
+                                currentZoom,
+                                viewport
                             )
                         }.filter { (_, p) ->
                             (tap - Offset(p.x, p.y)).getDistance() <= 24.dp.toPx()
@@ -1645,6 +1787,9 @@ private fun NeuralScene(
                 )
             }
     ) {
+        val viewport = NeuralGalaxyLayouts.viewport(layout,size.width,size.height,density)
+        clipRect(viewport?.left ?: 0f, viewport?.top ?: 0f,
+            viewport?.right ?: size.width, viewport?.bottom ?: size.height) {
         // 1. Deep atmospheric intracranial cerebrospinal glow
         drawCircle(
             brush = Brush.radialGradient(
@@ -1660,15 +1805,16 @@ private fun NeuralScene(
             center = center
         )
 
-        val projected = points.mapValues { projectGraph(it.value, rotation, size.width, size.height, radius, zoom) }
+        val projected = points.mapValues { projectGraph(it.value, rotation, size.width, size.height, radius, zoom, viewport) }
         fun at(id: String) = projected.getValue(id).let { Offset(it.x, it.y) }
         fun emphasized(node: LiveNode) =
-            (selected == null || node.id in neighbors) && (search.isBlank() || node.label.contains(search, true))
+            (selected == null || node.id in neighbors) &&
+                NeuralGalaxyLayouts.matches(node.id,node.label,node.group,galaxyArea(node.group),search)
 
         // 2. Glial / Astrocyte Neural Dust tracing the cerebral cortex surface
         if (mesh) {
             val projectedMesh = scaffold.map {
-                it to projectGraph(it.point - focus * spread, rotation, size.width, size.height, radius, zoom)
+                it to projectGraph(it.point - focus * spread, rotation, size.width, size.height, radius, zoom, viewport)
             }.sortedBy { it.second.z }
 
             projectedMesh.forEach { (particle, p) ->
@@ -1693,23 +1839,61 @@ private fun NeuralScene(
             }
         }
 
+        val areaLabelBoxes = mutableListOf<GraphLabelBox>()
         if (layout == NeuralGalaxyLayout.AREAS && labels) {
+            val usable = requireNotNull(viewport)
             val areaPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                textAlign = Paint.Align.CENTER
+                textAlign = Paint.Align.LEFT
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
                 textSize = 8.sp.toPx()
                 color = if (light) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(255,204,98)
             }
-            for ((name, anchor) in areaLabels) {
-                val p = projectGraph((anchor-focus) * spread, rotation, size.width, size.height, radius, zoom)
-                drawContext.canvas.nativeCanvas.drawText(name, p.x, p.y, areaPaint)
+            val padding = 4.dp.toPx()
+            val maxWidth = minOf(120.dp.toPx(),usable.width/3f-2*padding).coerceAtLeast(30.dp.toPx())
+            val nodeBoxes = visible.map { node ->
+                val p = projected.getValue(node.id)
+                val half = 11.dp.toPx()
+                GraphLabelBox(node.id,p.x-half,p.y-half,p.x+half,p.y+half)
+            }
+            for ((name, anchor) in areaLabels.toSortedMap()) {
+                val p = projectGraph((anchor-focus)*spread,rotation,size.width,size.height,radius,zoom,viewport)
+                val lines = wrapGraphLabel(name,areaPaint,maxWidth)
+                val lineHeight = areaPaint.fontSpacing
+                val width = (lines.maxOfOrNull { areaPaint.measureText(it) } ?: 1f)+2*padding
+                val height = lines.size*lineHeight+2*padding
+                val box = placeGraphLabel(name,p.x,p.y-height,width,height,usable,
+                    nodeBoxes+areaLabelBoxes,3.dp.toPx()) ?: continue
+                areaLabelBoxes += box
+                drawLine(GraphGold.copy(alpha=.3f),Offset((box.left+box.right)/2f,box.bottom),
+                    Offset(p.x,p.y),.6.dp.toPx())
+                drawRoundRect(if(light) Color(0xF5E8EEF5) else Color(0xF5061A2D),
+                    Offset(box.left,box.top),Size(box.right-box.left,box.bottom-box.top),
+                    androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(),4.dp.toPx()))
+                lines.forEachIndexed { i,line ->
+                    drawContext.canvas.nativeCanvas.drawText(line,box.left+padding,
+                        box.top+padding-areaPaint.fontMetrics.ascent+i*lineHeight,areaPaint)
+                }
             }
         }
         if (layout == NeuralGalaxyLayout.TIMELINE) {
-            for (lane in listOf(-75f,35f,115f)) {
-                val a = projectGraph((SpacePoint(-155f,lane,0f)-focus)*spread, rotation, size.width, size.height, radius, zoom)
-                val b = projectGraph((SpacePoint(155f,lane,0f)-focus)*spread, rotation, size.width, size.height, radius, zoom)
+            for (lane in listOf(-160f,-75f,35f,115f)) {
+                val a = projectGraph((SpacePoint(-155f,lane,0f)-focus)*spread, rotation, size.width, size.height, radius, zoom, viewport)
+                val b = projectGraph((SpacePoint(155f,lane,0f)-focus)*spread, rotation, size.width, size.height, radius, zoom, viewport)
                 drawLine(GraphGold.copy(alpha=.2f),Offset(a.x,a.y),Offset(b.x,b.y),1.dp.toPx())
+            }
+        }
+
+        if (layout == NeuralGalaxyLayout.TIMELINE) {
+            for ((id,point) in activityPoints) {
+                val event = activityLookup[id] ?: continue
+                val p = projectGraph(point,rotation,size.width,size.height,radius,zoom,viewport)
+                val tone = when {
+                    event.timestampIssue == GalaxyTimestampIssue.FUTURE || event.timestampIssue == GalaxyTimestampIssue.INVALID -> Color(0xFFFF6677)
+                    event.type.contains("ERROR") || event.type.contains("FAILED") -> Color(0xFFFF6677)
+                    else -> GraphVisionCyan
+                }
+                val eventRadius = 4.dp.toPx()
+                drawRect(tone,Offset(p.x-eventRadius,p.y-eventRadius),Size(eventRadius*2,eventRadius*2))
             }
         }
 
@@ -1741,7 +1925,7 @@ private fun NeuralScene(
 
             val pProjFrom = projected.getValue(edge.from)
             val pProjTo = projected.getValue(edge.to)
-            val pProjCtrl = projectGraph(ctrl3D, rotation, size.width, size.height, radius, zoom)
+            val pProjCtrl = projectGraph(ctrl3D, rotation, size.width, size.height, radius, zoom, viewport)
 
             Triple(edge, from to to, Triple(pProjFrom, pProjCtrl, pProjTo))
         }
@@ -1896,7 +2080,7 @@ private fun NeuralScene(
         }
 
         // 4. Volumetric 3D Neurons (Cellular Somas) with Realistic Bio-Lighting
-        val labelRects = mutableListOf<android.graphics.RectF>()
+        val labelRects = areaLabelBoxes.map { android.graphics.RectF(it.left,it.top,it.right,it.bottom) }.toMutableList()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textAlign = Paint.Align.CENTER
             typeface = android.graphics.Typeface.DEFAULT_BOLD
@@ -2066,7 +2250,28 @@ private fun NeuralScene(
                 }
             }
         }
+        }
     }
+}
+
+private fun wrapGraphLabel(text: String, paint: Paint, maxWidth: Float): List<String> {
+    val lines = mutableListOf<String>()
+    var current = ""
+    for (word in text.split(' ')) {
+        val candidate = if (current.isEmpty()) word else "$current $word"
+        if (paint.measureText(candidate) <= maxWidth) current = candidate
+        else {
+            if (current.isNotEmpty()) lines += current
+            current = word
+        }
+    }
+    if (current.isNotEmpty()) lines += current
+    return lines.take(2).mapIndexed { index,line ->
+        var value = line
+        val suffix = if (index == 1 && lines.size > 2) "…" else ""
+        while (value.isNotEmpty() && paint.measureText(value+suffix)>maxWidth) value=value.dropLast(1)
+        value+suffix
+    }.ifEmpty { listOf(text.take(1)) }
 }
 
 private data class NeuralMotionFrame(
