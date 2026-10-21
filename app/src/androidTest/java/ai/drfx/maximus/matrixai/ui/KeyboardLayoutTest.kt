@@ -351,6 +351,9 @@ class KeyboardLayoutTest {
                             androidx.compose.runtime.mutableStateOf<String?>(null)
                         }
                         MaterialTheme {
+                            androidx.compose.material3.Scaffold(containerColor = Color.Black,
+                                contentWindowInsets = WindowInsets.safeDrawing) { insets ->
+                            Box(Modifier.fillMaxSize().padding(insets).consumeWindowInsets(insets)) {
                             if (selected.value == null) Column(Modifier.fillMaxSize().background(Color.Black)) {
                                 Text("LOCAL CHAT TO PINE FIXTURE · NO PROVIDER", color = Color.White)
                                 WorkspaceMessageContent("```pine\n$source\n```", Color.White,
@@ -361,6 +364,8 @@ class KeyboardLayoutTest {
                                     })
                             } else PineStudioScreen(onBack = {}, onAskAi = { false },
                                 initialDraftId = selected.value)
+                            }
+                            }
                         }
                     }
                 }

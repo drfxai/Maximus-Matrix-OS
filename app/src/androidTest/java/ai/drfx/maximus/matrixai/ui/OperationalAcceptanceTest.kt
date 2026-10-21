@@ -3,6 +3,8 @@ package ai.drfx.maximus.matrixai.ui
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.view.InputDevice
+import android.view.MotionEvent
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -68,8 +70,7 @@ class OperationalAcceptanceTest {
             "3D Orbit" to "galaxy-orbit.png"
         )
         for ((label, frame) in layouts) {
-            checkNotNull(device.wait(Until.findObject(By.desc("Neural Galaxy layouts")), 10_000)).click()
-            checkNotNull(device.wait(Until.findObject(By.text(label)), 10_000)).click()
+            selectLayout(label)
             assertNotNull(device.wait(Until.findObject(By.desc("Neural Galaxy · " + label)), 10_000))
             assertNotNull(device.wait(Until.findObject(By.desc("MAXIMUS assistant composer")), 10_000))
             assertNotNull(device.wait(Until.findObject(By.text("Module map + saved graph")), 20_000))
@@ -336,33 +337,82 @@ class OperationalAcceptanceTest {
     }
 
     private fun scrollToText(vararg labels: String, direction: Direction = Direction.DOWN, contains: Boolean = false): UiObject2 {
-        repeat(24) { attempt ->
+        val deadline = SystemClock.uptimeMillis() + 15_000L
+        var lastBounds = "no scroll container observed"
+        var attempt = 0
+        while (attempt < 24 && SystemClock.uptimeMillis() < deadline) {
             try {
-                // Evidence clocks legitimately recompose these semantics every second.
-                // Re-query after a stale node; never retain UiObject2 across a scroll/recomposition.
+                // Evidence clocks recompose every second: retain copied coordinates only,
+                // and re-query both the requested text and the current scroller each time.
                 labels.forEach { label ->
-                    device.findObject(if (contains) By.textContains(label) else By.text(label))?.takeIf { it.visibleBounds.height() > 0 }?.let { return it }
+                    device.findObject(if (contains) By.textContains(label) else By.text(label))
+                        ?.takeIf { it.visibleBounds.height() > 0 }?.let { return it }
                 }
                 val bounds = device.findObjects(By.scrollable(true)).map { it.visibleBounds }
                     .filter { it.height() > 160 && it.width() > 120 }
                     .maxByOrNull { it.height() }
+                lastBounds = bounds?.toShortString() ?: "no scroll container observed"
                 val top = bounds?.let { it.top + it.height() * 7 / 20 } ?: (device.displayHeight * 2 / 5)
                 val bottom = bounds?.let { it.bottom - it.height() * 7 / 20 } ?: (device.displayHeight * 3 / 5)
                 val x = bounds?.centerX() ?: (device.displayWidth / 4)
                 val move = if (attempt < 8) direction else
                     if (direction == Direction.UP) Direction.DOWN else Direction.UP
-                // Inject one bounded gesture from copied coordinates. UiObject2.scroll waits
-                // across semantic updates, so a once-per-second evidence clock can detach it.
-                // Short, slow overlapping swipes avoid flinging past a small label entirely.
-                // Search both directions: expanded items and menus can retain scroll position.
-                device.swipe(x, if (move == Direction.UP) top else bottom,
-                    x, if (move == Direction.UP) bottom else top, 100)
+                // UiDevice.swipe synchronizes input-up with window animations. That wait
+                // can outlive the test when a clock-driven screen keeps updating. Send a
+                // complete short touch gesture without waiting for renderer synchronization.
+                boundedSwipe(x, if (move == Direction.UP) top else bottom,
+                    x, if (move == Direction.UP) bottom else top, deadline)
             } catch (_: androidx.test.uiautomator.StaleObjectException) {
-                // Only a detached accessibility node is retried. Required UI assertions remain.
+                // Re-query only detached accessibility nodes; required assertions remain.
             }
-            SystemClock.sleep(150)
+            attempt++
+            if (SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100L)
         }
-        error("Requested text was not exposed by the production scroll container: " + labels.joinToString())
+        error("Requested text was not exposed within the bounded scroll search: " +
+            labels.joinToString() + " · attempts=$attempt · last viewport=$lastBounds")
+    }
+
+    private fun boundedSwipe(startX: Int, startY: Int, endX: Int, endY: Int, deadline: Long) {
+        val downAt = SystemClock.uptimeMillis()
+        var downSent = false
+        var complete = false
+        var lastX = startX.toFloat()
+        var lastY = startY.toFloat()
+        fun send(action: Int, x: Float, y: Float): Boolean {
+            val event = MotionEvent.obtain(downAt, SystemClock.uptimeMillis(), action, x, y, 0)
+            event.source = InputDevice.SOURCE_TOUCHSCREEN
+            return try { instrumentation.uiAutomation.injectInputEvent(event, false) }
+            finally { event.recycle() }
+        }
+        try {
+            check(downAt < deadline && !Thread.currentThread().isInterrupted) { "Scroll deadline reached before touch" }
+            check(send(MotionEvent.ACTION_DOWN, lastX, lastY)) { "Touch-down injection rejected" }
+            downSent = true
+            for (step in 1..12) {
+                check(SystemClock.uptimeMillis() < deadline && !Thread.currentThread().isInterrupted) {
+                    "Scroll interrupted before completion"
+                }
+                lastX = startX + (endX - startX) * (step / 12f)
+                lastY = startY + (endY - startY) * (step / 12f)
+                check(send(MotionEvent.ACTION_MOVE, lastX, lastY)) { "Touch-move injection rejected" }
+                Thread.sleep(12L)
+            }
+            // Stop at the endpoint before lifting, so this is a drag rather than a
+            // fling that could skip a small evidence label between observations.
+            repeat(4) {
+                check(SystemClock.uptimeMillis() < deadline && !Thread.currentThread().isInterrupted) {
+                    "Scroll interrupted before release"
+                }
+                Thread.sleep(20L)
+                check(send(MotionEvent.ACTION_MOVE, lastX, lastY)) { "Touch-stop injection rejected" }
+            }
+            check(send(MotionEvent.ACTION_UP, lastX, lastY)) { "Touch-up injection rejected" }
+            complete = true
+        } finally {
+            // A rejected event, interruption or deadline must not leak a pressed pointer
+            // into the next test. Cancellation is asynchronous for the same reason as UP.
+            if (downSent && !complete) send(MotionEvent.ACTION_CANCEL, lastX, lastY)
+        }
     }
 
     private fun dismissImeIfVisible() {

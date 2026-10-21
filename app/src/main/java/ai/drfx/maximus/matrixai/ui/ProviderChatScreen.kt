@@ -427,7 +427,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         )
         if (!keyboardVisible) {
             MaximusContextStrip(
-                usedFraction = metrics.contextUsagePercent,
+                usedFraction = if (state.selectedModel.isBlank()) null else metrics.contextUsagePercent,
                 remaining = if (state.selectedModel.isBlank()) stringResource(R.string.api_unknown)
                     else numberFormat.format(metrics.remainingContextTokens),
                 provider = state.provider.displayName,
