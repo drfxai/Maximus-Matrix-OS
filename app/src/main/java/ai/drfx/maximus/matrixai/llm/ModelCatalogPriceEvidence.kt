@@ -32,6 +32,9 @@ internal object ModelCatalogPriceEvidence {
     }
 
     private fun isExplicitZero(value: Any?): Boolean {
+        // org.json can parse a tiny nonzero JSON number as floating-point 0.0.
+        // Its original literal is then lost; fail closed rather than treating it as free.
+        if (value is Double || value is Float) return false
         val decimal = when (value) {
             is Number -> value.toString()
             is String -> value.trim()
