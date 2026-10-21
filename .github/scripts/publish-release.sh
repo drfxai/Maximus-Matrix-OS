@@ -40,6 +40,10 @@ cat > dist/release-notes.md <<NOTES
 
 - Public Android version: 1.0.0; internal version code: $version_code.
 - Application ID: ai.drfx.maximus.matrixai.
+- Chat can explicitly open Pine source in a separate persisted Pine Studio draft; imported source and existing drafts are preserved. A limited SMA/EMA(close) preview uses exchange candles; general Pine compilation and backtesting remain unavailable.
+- Provider discovery is authenticated and bound to the selected API key and endpoint. Listed candidates remain distinct from per-model inference tests. Dated successful, unsuccessful and inconclusive tests are shown; API changes revoke old evidence. Explicit tests are bounded to 30 seconds and 128 output tokens with no automatic replay.
+- Chat has a compact toolbar and smaller margins. Hub exposes Smart Combo/API Control, developer connections and operational panels; all Control sections are reachable. Chat displays the actual dispatched model and unknown context remains unknown.
+- The real saved Chat-to-Pine navigation, Hub/Control access and six Galaxy mode switching are covered by emulator tests. Live user-provider acceptance and physical-device performance remain separate verification gates.
 - Smart Combo now preserves device-local request and confirmed-usage evidence across restarts. Interrupted dispatches remain uncertain and are never automatically replayed; settled evidence can be archived after review.
 - Neural Galaxy offers Rings, Circle, Areas, Links, Timeline and 3D Orbit over the same graph while preserving Brain as the default. Timeline shows recorded evidence and explicitly unavailable history; sparse timelines and dense labels still need visual refinement.
 - Hub includes Operations views for Agents, Pulse, Memory, Runtime and Security, with observation timestamps and explicit UNKNOWN states. Saved agent definitions are not proof of running agents; Android schedules remain subject to Doze and battery restrictions.
