@@ -130,8 +130,10 @@ class OperationalAcceptanceTest {
         assertNotNull(device.wait(Until.findObject(By.text("No matching modules")), 10_000))
         search.text = "Embedding Engine"
         checkNotNull(device.wait(Until.findObject(By.text("Embedding Engine")), 10_000)).click()
-        assertNotNull(device.wait(Until.findObject(By.desc("Clear selection")), 10_000))
+        // The production selected-node strip yields space to the IME while editing.
+        // Close the keyboard before asserting the strip's accessible controls.
         dismissImeIfVisible()
+        assertNotNull(device.wait(Until.findObject(By.desc("Clear selection")), 10_000))
         selectLayout("Circle")
         assertNotNull(device.wait(Until.findObject(By.text("Embedding Engine")), 10_000))
         assertNotNull(device.wait(Until.findObject(By.desc("Clear selection")), 10_000))
@@ -301,23 +303,29 @@ class OperationalAcceptanceTest {
     }
 
     private fun scrollToText(vararg labels: String, direction: Direction = Direction.DOWN): UiObject2 {
-        repeat(9) {
-            labels.forEach { label ->
-                device.findObject(By.text(label))?.takeIf { it.visibleBounds.height() > 0 }?.let { return it }
-            }
-            val scrollable = device.findObjects(By.scrollable(true)).firstOrNull {
-                it.visibleBounds.height() > 160 && it.visibleBounds.width() > 120
-            }
-            if (scrollable != null) scrollable.scroll(direction, .7f)
-            else {
-                val top = device.displayHeight / 3
-                val bottom = device.displayHeight * 3 / 4
-                device.swipe(device.displayWidth / 4, if (direction == Direction.UP) top else bottom,
-                    device.displayWidth / 4, if (direction == Direction.UP) bottom else top, 25)
+        repeat(16) {
+            try {
+                // Evidence clocks legitimately recompose these semantics every second.
+                // Re-query after a stale node; never retain UiObject2 across a scroll/recomposition.
+                labels.forEach { label ->
+                    device.findObject(By.text(label))?.takeIf { it.visibleBounds.height() > 0 }?.let { return it }
+                }
+                val scrollable = device.findObjects(By.scrollable(true)).firstOrNull {
+                    it.visibleBounds.height() > 160 && it.visibleBounds.width() > 120
+                }
+                if (scrollable != null) scrollable.scroll(direction, .7f)
+                else {
+                    val top = device.displayHeight / 3
+                    val bottom = device.displayHeight * 3 / 4
+                    device.swipe(device.displayWidth / 4, if (direction == Direction.UP) top else bottom,
+                        device.displayWidth / 4, if (direction == Direction.UP) bottom else top, 25)
+                }
+            } catch (_: androidx.test.uiautomator.StaleObjectException) {
+                // Only a detached accessibility node is retried. Required UI assertions remain.
             }
             SystemClock.sleep(150)
         }
-        error("Requested text was not exposed by the production scroll container")
+        error("Requested text was not exposed by the production scroll container: " + labels.joinToString())
     }
 
     private fun dismissImeIfVisible() {
