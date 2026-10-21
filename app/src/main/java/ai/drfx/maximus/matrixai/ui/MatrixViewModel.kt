@@ -581,6 +581,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
     /** Unsaved endpoint/key edits revoke both the catalog and any pending probe approval. */
     fun invalidateApiInputs() {
+        cancelChat()
         val revision = apiCatalogSession.invalidate()
         validationJob?.cancel()
         _llmState.value = _llmState.value.copy(apiInputRevision = revision,

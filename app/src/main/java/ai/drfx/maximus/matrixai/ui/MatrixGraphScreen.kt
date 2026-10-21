@@ -854,7 +854,7 @@ fun MatrixGraphScreen(
                         NeuralGalaxyLayout.entries.forEach { mode ->
                             DropdownMenuItem(
                                 modifier = Modifier.testTag("galaxy_layout_" + mode.name).semantics {
-                                    selected = galaxyLayout == mode
+                                    this.selected = galaxyLayout == mode
                                 },
                                 text = { Text(mode.title) },
                                 onClick = {
