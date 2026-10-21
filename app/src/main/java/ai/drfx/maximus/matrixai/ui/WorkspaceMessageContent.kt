@@ -51,13 +51,16 @@ internal fun messageParts(text: String): List<MessagePart> {
 }
 
 @Composable
-internal fun WorkspaceMessageContent(text: String, color: Color) {
-    val parts = remember(text) { messageParts(text) }
+internal fun WorkspaceMessageContent(text: String, color: Color, onOpenPine: ((String) -> Unit)? = null) {
+    val parts = remember(text) {
+        if (!text.contains("```") && text.trimStart().startsWith("//@version="))
+            listOf(MessagePart(text, "pine")) else messageParts(text)
+    }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         parts.forEach { part ->
             if (part.language == null) SelectionContainer {
                 Text(part.text, color = color, fontSize = 15.sp, lineHeight = 23.sp)
-            } else WorkspaceCodeCard(part)
+            } else WorkspaceCodeCard(part, onOpenPine = onOpenPine)
         }
         val html = parts.firstOrNull {
             it.language != null && CodeLanguageCatalog.resolve(it.language, it.text).canPreviewHtml
@@ -73,7 +76,7 @@ internal fun WorkspaceMessageContent(text: String, color: Color) {
 }
 
 @Composable
-internal fun WorkspaceCodeCard(part: MessagePart, title: String? = null) {
+internal fun WorkspaceCodeCard(part: MessagePart, title: String? = null, onOpenPine: ((String) -> Unit)? = null) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     var copied by remember(part.text) { mutableStateOf(false) }
@@ -124,6 +127,13 @@ internal fun WorkspaceCodeCard(part: MessagePart, title: String? = null) {
                     val extension = language.extension
                     export.launch(title?.takeIf { it.matches(Regex("[A-Za-z0-9_.-]{1,80}")) && !it.startsWith(".") } ?: "maximus-code.$extension")
                 }) { Icon(Icons.Default.FileDownload, stringResource(R.string.chat_download), Modifier.size(18.dp)) }
+            }
+            if (language.extension == "pine" && onOpenPine != null) {
+                TextButton(onClick = { onOpenPine(part.text) }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.OpenInNew, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Open in Pine Studio")
+                }
             }
             HorizontalDivider(color = MaximusReference.stroke)
         androidx.compose.runtime.CompositionLocalProvider(

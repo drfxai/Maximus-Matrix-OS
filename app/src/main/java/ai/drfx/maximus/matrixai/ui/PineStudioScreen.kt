@@ -52,13 +52,18 @@ private val pineMuted = Color(0xFFA9C7E9)
 fun PineStudioScreen(
     onBack: () -> Unit,
     onAskAi: (String) -> Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    initialDraftId: String? = null
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val store = remember(context) { PineStudioStore(context) }
     var drafts by remember { mutableStateOf(store.list().ifEmpty { listOf(store.create("Liquidity Sweep")) }) }
-    var selectedId by remember { mutableStateOf(drafts.firstOrNull()?.id) }
+    var selectedId by remember { mutableStateOf(initialDraftId?.takeIf { target -> drafts.any { it.id == target } } ?: drafts.firstOrNull()?.id) }
+    LaunchedEffect(initialDraftId) {
+        drafts = store.list()
+        if (initialDraftId != null && drafts.any { it.id == initialDraftId }) selectedId = initialDraftId
+    }
     val draft = drafts.firstOrNull { it.id == selectedId }
     var tab by remember { mutableIntStateOf(1) }
     var selectorOpen by remember { mutableStateOf(false) }
@@ -212,6 +217,16 @@ fun PineStudioScreen(
 
                         }
                         PineCodeView(draft.code, maxHeight = 156.dp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { editText = draft.code; editCodeOpen = true }) { Text("Edit source") }
+                            OutlinedButton(onClick = {
+                                val pasted = clipboard.getText()?.text.orEmpty()
+                                if (pasted.isBlank()) status = "Copy Pine source to the clipboard first."
+                                else if (pasted.length > 100_000) status = "Pine source exceeds 100,000 characters."
+                                else if ('\u0000' in pasted) status = "Pine source contains an invalid character."
+                                else { editText = pasted; editCodeOpen = true }
+                            }) { Text("Paste source") }
+                        }
                     }
                 }
                 item {
@@ -228,8 +243,8 @@ fun PineStudioScreen(
                                 Text("Expand chart", color = pineGold, fontSize = 10.sp)
                             }
                         }
-                        PineLiveMarketChart(compact = true, previewOnly = true)
-                        Text("ⓘ Pine compile / backtest in TradingView; exchange chart does not run scripts.",
+                        PineLiveMarketChart(compact = true, indicatorSource = draft.code)
+                        Text("Local preview supports a limited SMA/EMA subset. Compile and backtest full Pine in TradingView.",
                             color = pineMuted, fontSize = 10.sp, maxLines = 2)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = {
@@ -364,7 +379,7 @@ fun PineStudioScreen(
                             Icon(Icons.Default.Close, "Close chart", tint = pineMuted)
                         }
                     }
-                    PineLiveMarketChart()
+                    PineLiveMarketChart(indicatorSource = draft?.code)
                 }
             }
         }

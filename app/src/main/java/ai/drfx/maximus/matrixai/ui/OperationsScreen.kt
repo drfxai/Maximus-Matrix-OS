@@ -8,6 +8,9 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
@@ -83,7 +86,7 @@ internal fun OperationsScreen(viewModel: MatrixViewModel, onBack: () -> Unit,
         item {
             WorkspaceBrand()
             Row(Modifier.fillMaxWidth()) {
-                Text("Operations", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall,
+                Text("Operations", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineSmall,
                     color = MaximusReference.gold, fontWeight = FontWeight.Bold)
                 TextButton(onClick = onBack) { Text("Back to Hub") }
             }
@@ -92,10 +95,14 @@ internal fun OperationsScreen(viewModel: MatrixViewModel, onBack: () -> Unit,
             Row(Modifier.horizontalScroll(rememberScrollState())) {
                 tabs.forEachIndexed { index, title ->
                     FilterChip(selected = tab == index, onClick = { tab = index },
-                        label = { Text(title) }, modifier = Modifier.padding(end = 6.dp).testTag("operations_tab_$index"))
+                        label = { Text(title) }, modifier = Modifier.padding(end = 6.dp).heightIn(min = 48.dp).testTag("operations_tab_$index"))
                 }
             }
             Text("Last local observation: ${time(snapshot.observedAt)}", style = MaterialTheme.typography.labelSmall)
+            if (snapshot.observedAt > 0L && now - snapshot.observedAt !in 0L..30_000L) {
+                Text("STALE · Refresh observations before issuing commands.",
+                    color = Color(0xFFFFB86B), style = MaterialTheme.typography.bodySmall)
+            }
             TextButton(onClick = { refresh++ }, enabled = !refreshing && !commandBusy) {
                 Text(if (refreshing) "Reading local state…" else "Refresh observations")
             }
@@ -120,6 +127,26 @@ internal fun OperationsScreen(viewModel: MatrixViewModel, onBack: () -> Unit,
                 }
                 TextButton(onClick = { onWork(0) }) { Text("Open Work & approvals") }
             } }
+            item {
+                MaximusFramedCard {
+                    Text("Local execution overview", color = MaximusReference.gold,
+                        style = MaterialTheme.typography.titleSmall)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text(if (snapshot.routinesState == EvidenceState.OBSERVED) snapshot.routines.size.toString()
+                                else snapshot.routinesState.name, style = MaterialTheme.typography.titleLarge)
+                            Text("Saved routines", style = MaterialTheme.typography.labelMedium)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(if (snapshot.projectsState == EvidenceState.OBSERVED) snapshot.projects.size.toString()
+                                else snapshot.projectsState.name, style = MaterialTheme.typography.titleLarge)
+                            Text("Indexed projects", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                    Text("Configuration counts · live job evidence is shown below",
+                        color = MaximusReference.muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
             item { Text("Local monitoring teams", fontWeight = FontWeight.Bold) }
         }
         if (tab == 0 || tab == 1) {
@@ -192,7 +219,14 @@ internal fun OperationsScreen(viewModel: MatrixViewModel, onBack: () -> Unit,
 @Composable
 private fun EvidenceRow(evidence: OperationalEvidence, now: Long) {
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text("${evidence.freshness(now)} · ${evidence.source}", color = MaximusReference.gold,
+        val state = evidence.freshness(now)
+        val tone = when (state) {
+            EvidenceState.ERROR -> MaterialTheme.colorScheme.error
+            EvidenceState.STALE -> Color(0xFFFFB86B)
+            EvidenceState.UNKNOWN, EvidenceState.UNAVAILABLE -> MaximusReference.muted
+            EvidenceState.OBSERVED, EvidenceState.DERIVED -> MaximusReference.gold
+        }
+        Text("$state · ${evidence.source}", color = tone,
             style = MaterialTheme.typography.labelMedium)
         Text(evidence.value, style = MaterialTheme.typography.bodyMedium)
         Text("Observed ${time(evidence.observedAt)}" + (evidence.eventAt?.let { " · source event ${time(it)}" } ?: ""),

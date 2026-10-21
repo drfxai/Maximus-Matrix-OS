@@ -18,6 +18,15 @@ class ChatPresentationTest {
         assertEquals("text/html", exported.mimeType)
         assertTrue(exported.bytes.toString(Charsets.UTF_8).startsWith("<!DOCTYPE html>"))
     }
+    @Test fun proposedPineFileIsExportedAsInertSource() {
+        val source = "//@version=6\nindicator(\"Average\", overlay=true)\nplot(ta.sma(close, 3))"
+        val raw = "<invoke name=\"create_file\"><parameter name=\"path\">indicators/average.pine</parameter>" +
+            "<parameter name=\"contents\">$source</parameter></invoke>"
+        val exported = ChatPresentation.export(raw)
+        assertEquals("average.pine", exported.name)
+        assertEquals(source, exported.bytes.toString(Charsets.UTF_8))
+        assertTrue(ChatPresentation.draft(raw)!!.description.contains("not executed"))
+    }
     @Test fun ordinaryTextIsNotPretendedToolOutput() {
         assertNull(ChatPresentation.draft("Here is an HTML example."))
         assertEquals("maximus-response.md", ChatPresentation.export("Hello").name)

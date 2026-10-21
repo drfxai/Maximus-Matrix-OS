@@ -19,9 +19,11 @@ data class PineDraft(
 class PineStudioStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("pine_studio_v1", Context.MODE_PRIVATE)
 
-    fun list(): List<PineDraft> = runCatching {
+    fun list(): List<PineDraft> = runCatching { readDrafts() }.getOrDefault(emptyList())
+
+    private fun readDrafts(): List<PineDraft> {
         val array = JSONArray(preferences.getString("drafts", "[]"))
-        (0 until array.length()).map { index ->
+        return (0 until array.length()).map { index ->
             val item = array.getJSONObject(index)
             val revisions = item.optJSONArray("revisions") ?: JSONArray()
             PineDraft(
@@ -36,7 +38,7 @@ class PineStudioStore(context: Context) {
                 updatedAt = item.optLong("updatedAt")
             )
         }
-    }.getOrDefault(emptyList())
+    }
 
     fun create(name: String): PineDraft {
         val clean = name.trim().take(60)
@@ -48,6 +50,16 @@ class PineStudioStore(context: Context) {
             code = starterCode(clean), revisions = emptyList(), updatedAt = System.currentTimeMillis()
         )
         persist(list() + draft)
+        return draft
+    }
+
+    /** Explicit chat handoff creates a separate draft; existing work is never overwritten. */
+    fun importSource(source: String): PineDraft {
+        val clean = PineSourceImport.validate(source)
+        val draft = PineDraft(UUID.randomUUID().toString(), PineSourceImport.title(clean),
+            "Imported from Chat. Source has not been compiled or backtested.", clean,
+            emptyList(), System.currentTimeMillis())
+        persist(readDrafts() + draft)
         return draft
     }
 

@@ -19,7 +19,7 @@ class ApiDiscoveryEngine {
         cache.get(provider, base, apiKey)?.let { cached ->
             return@execute ApiDiscoveryResult(provider, base, cached, "Cached authenticated catalog (maximum age 5 minutes). Inference has not been tested.")
         }
-        val models = fetchModels(base, apiKey, provider)
+        val models = fetchModels(base, apiKey, provider).distinctBy { it.id }.take(1024)
         require(models.isNotEmpty()) { "No chat models were returned by the endpoint." }
         val verified = models.map { model ->
             val inferred = ModelCapabilityResolver.resolve(provider, model.id)
@@ -72,7 +72,7 @@ class ApiDiscoveryEngine {
                         for (i in 0 until array.length()) {
                             val model = array.optJSONObject(i) ?: continue
                             val id = model.optString("id")
-                            if (id.isNotBlank()) add(ModelDescriptor(
+                            if (CatalogChatPolicy.isCandidate(model)) add(ModelDescriptor(
                                 id, id, imageInputSupport = ModelImagePolicy.fromCatalog(model),
                                 catalogFreeTextPrice = ModelCatalogPriceEvidence.verifiedFreeTextPricing(model),
                                 catalogContextTokens = ModelCatalogPriceEvidence.verifiedContext(model)
@@ -90,7 +90,7 @@ class ApiDiscoveryEngine {
                         for (i in 0 until array.length()) {
                             val model = array.optJSONObject(i) ?: continue
                             val id = model.optString("id")
-                            if (id.isNotBlank()) add(ModelDescriptor(
+                            if (CatalogChatPolicy.isCandidate(model)) add(ModelDescriptor(
                                 id, id, imageInputSupport = ModelImagePolicy.fromCatalog(model),
                                 catalogFreeTextPrice = ModelCatalogPriceEvidence.verifiedFreeTextPricing(model),
                                 catalogContextTokens = ModelCatalogPriceEvidence.verifiedContext(model)

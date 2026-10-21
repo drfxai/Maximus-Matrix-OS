@@ -53,6 +53,7 @@ object PineCandleParser {
             val volume = r.getDouble(5)
             require(time > 0 &&
                 listOf(low, high, open, close, volume).all { it.isFinite() } &&
+                listOf(low, high, open, close).all { it <= PineIndicatorPreview.MAX_PRICE } &&
                 low > 0 && high >= max(open, close) && low <= min(open, close) &&
                 high >= low && volume >= 0) { "Invalid OHLCV exchange response." }
             unique[time] = PineCandle(time, open, high, low, close, volume)

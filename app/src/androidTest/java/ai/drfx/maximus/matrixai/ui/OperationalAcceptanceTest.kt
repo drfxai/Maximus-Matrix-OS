@@ -197,6 +197,25 @@ class OperationalAcceptanceTest {
             By.text("Operations · Agents, Pulse, Memory & Runtime")), 10_000))
     }
 
+    @Test fun hubReselectionExitsOperationsAndControlSectionsAreImmediatelyReachable() = inEnglishActivity {
+        checkNotNull(device.wait(Until.findObject(By.desc("More")), 10_000)).click()
+        scrollToText("Operations · Agents, Pulse, Memory & Runtime").click()
+        assertNotNull(device.wait(Until.findObject(By.text("Operations")), 10_000))
+        checkNotNull(device.wait(Until.findObject(By.desc("More")), 10_000)).click()
+        scrollToText("Smart Combo & API Control").click()
+        assertNotNull(device.wait(Until.findObject(By.text("Control Center")), 10_000))
+        operationTab("API Control").click()
+        // Assert actual API content, rather than the section label that was already visible.
+        assertNotNull(scrollToText(context.getString(ai.drfx.maximus.matrixai.R.string.api_presets)))
+        // Control's BackHandler returns an advanced section to Smart Combo. The tab row
+        // is now scrolled right, so looking for Smart Combo via a right-only helper is invalid.
+        device.pressBack()
+        assertNotNull(device.wait(Until.findObject(By.text("Smart routing")), 10_000))
+        // The top return action is distinct from the persistent bottom Hub destination.
+        checkNotNull(device.findObjects(By.text("Hub")).minByOrNull { it.visibleBounds.top }).click()
+        assertNotNull(device.wait(Until.findObject(By.text("Operations · Agents, Pulse, Memory & Runtime")), 10_000))
+    }
+
     @Test fun operationsSnapshotDoesNotMutateAuthoritativeLocalStores() = runBlocking {
         // Use the real application context and existing records. Do not launch a screen,
         // create a workspace, configure an account or restore/erase any user data.

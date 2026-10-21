@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ai.drfx.maximus.matrixai.studio.PineIndicatorPreview
 import ai.drfx.maximus.matrixai.studio.PineCandle
 import ai.drfx.maximus.matrixai.studio.PineMarketDataSource
 import ai.drfx.maximus.matrixai.studio.PineMarketSeries
@@ -39,7 +40,7 @@ import kotlin.math.min
 
 /** Real history chart, explicitly NOT a Pine compiler/backtester or a TradingView embed. */
 @Composable
-internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean = false, previewOnly: Boolean = false) {
+internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean = false, previewOnly: Boolean = false, indicatorSource: String? = null) {
     val source = remember { PineMarketDataSource() }
     var product by remember { mutableStateOf(PineMarketDataSource.PRODUCTS.first()) }
     var interval by remember { mutableStateOf(PineTimeframe.ONE_MINUTE) }
@@ -63,6 +64,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
         } finally { loading = false }
     }
 
+    val sourceCheck = remember(indicatorSource) { indicatorSource?.let { PineIndicatorPreview.evaluate(it, emptyList()) } }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 7.dp)) {
         if (!previewOnly) Row(verticalAlignment = Alignment.CenterVertically) {
             Box {
@@ -106,6 +108,9 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                 }
             }
         }
+        if (sourceCheck is PineIndicatorPreview.Result.Unsupported) Text(
+            "Source not previewed: ${sourceCheck.reason}", color = MaterialTheme.colorScheme.error,
+            fontSize = 11.sp, modifier = Modifier.testTag("pine_indicator_unsupported"))
         when {
             loading -> LinearProgressIndicator(modifier = Modifier.fillMaxWidth(),
                 color = MaximusReference.gold)
@@ -118,6 +123,21 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
             }
             series != null -> {
                 val market = series!!
+                val indicator = remember(indicatorSource, market) {
+                    indicatorSource?.let { PineIndicatorPreview.evaluate(it, market.candles) }
+                }
+                val overlays = (indicator as? PineIndicatorPreview.Result.Supported)?.lines.orEmpty()
+                when (indicator) {
+                    is PineIndicatorPreview.Result.Unsupported -> if (sourceCheck !is PineIndicatorPreview.Result.Unsupported) Text(
+                        "Source not previewed: ${indicator.reason}", color = MaterialTheme.colorScheme.error,
+                        fontSize = 11.sp, modifier = Modifier.testTag("pine_indicator_unsupported"))
+                    is PineIndicatorPreview.Result.Supported -> Text(
+                        "Local arithmetic preview · " + overlays.joinToString { it.label } +
+                            " · EMA seeded with first loaded close; limited history, not compiled/backtested.",
+                        color = MaximusReference.gold, fontSize = 11.sp,
+                        modifier = Modifier.testTag("pine_indicator_preview"))
+                    null -> Unit
+                }
                 Text("${market.candles.size} / 200 historical candles · $product · ${market.timeframe.label} · Source: ${market.source}",
                     color = MaximusReference.muted, fontSize = 10.sp,
                     modifier = Modifier.testTag("pine_live_candle_count"))
@@ -139,7 +159,8 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                             candles = visibleCandles,
                             selectedIndex = if (previewOnly) -1 else selected,
                             onSelect = { if (!previewOnly) selected = it },
-                            markSweeps = previewOnly,
+                            markSweeps = previewOnly && indicatorSource == null,
+                            overlays = overlays.map { line -> line.copy(values = line.values.takeLast(visibleCandles.size)) },
                             modifier = Modifier.then(
                                 if (previewOnly) Modifier.fillMaxWidth()
                                 else Modifier.width((max(320, market.candles.size * candleWidth)).dp))
@@ -147,8 +168,12 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                                 .semantics { contentDescription = "OHLCV price candles" }
                         )
                     }
-                    val hi = visibleCandles.maxOf { it.high }
-                    val lo = visibleCandles.minOf { it.low }
+                    val overlayPrices = overlays.flatMap { it.values.takeLast(visibleCandles.size).filterNotNull() }
+                    val high = max(visibleCandles.maxOf { it.high }, overlayPrices.maxOrNull() ?: Double.NEGATIVE_INFINITY)
+                    val low = min(visibleCandles.minOf { it.low }, overlayPrices.minOrNull() ?: Double.POSITIVE_INFINITY)
+                    val margin = max((high - low) * .08, high * .0001)
+                    val hi = high + margin
+                    val lo = low - margin
                     val digits = if (hi > 1000) 0 else if (hi > 100) 2 else 4
                     Column(
                         Modifier.width(61.dp).height(if (previewOnly) 160.dp else if (compact) 140.dp else 190.dp).padding(start = 3.dp),
@@ -163,6 +188,12 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                 }
                 val active = market.candles.getOrNull(selected)
                     ?: market.candles.last()
+                overlays.forEachIndexed { index, line ->
+                    val value = line.values.getOrNull(selected.takeIf { it >= 0 } ?: market.candles.lastIndex)
+                    Text("${line.label}: ${value?.let(::prettyPrice) ?: "Warm-up"}",
+                        color = listOf(MaximusReference.gold, Color(0xFF60B8EF), Color(0xFFCE8AFF), Color(0xFF19C7A0))[index],
+                        fontSize = 10.sp)
+                }
                 Text("UTC ${marketUtc(active.epochSeconds * 1000)}  O ${prettyPrice(active.open)}  " +
                     "H ${prettyPrice(active.high)}  L ${prettyPrice(active.low)}  C ${prettyPrice(active.close)}",
                     color = MaximusReference.muted, fontSize = 10.sp,
@@ -185,7 +216,7 @@ internal fun PineLiveMarketChart(modifier: Modifier = Modifier, compact: Boolean
                 }
             }
         }
-        if (!compact) Text("Exchange-provided market data · Not a TradingView feed · Pine code is not executed on this chart.",
+        if (!compact) Text("Exchange-provided market data · Not a TradingView feed · Local previews are not full Pine execution.",
             fontSize = 10.sp, color = MaximusReference.muted)
     }
 }
@@ -204,7 +235,8 @@ private fun PineOhlcvCanvas(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    markSweeps: Boolean = false
+    markSweeps: Boolean = false,
+    overlays: List<PineIndicatorPreview.Line> = emptyList()
 ) {
     val green = Color(0xFF19C7A0)
     val red = Color(0xFFF0585B)
@@ -215,8 +247,9 @@ private fun PineOhlcvCanvas(
         }
     }) {
         if (candles.isEmpty()) return@Canvas
-        val hi = candles.maxOf { it.high }
-        val lo = candles.minOf { it.low }
+        val overlayPrices = overlays.flatMap { it.values.filterNotNull() }
+        val hi = max(candles.maxOf { it.high }, overlayPrices.maxOrNull() ?: Double.NEGATIVE_INFINITY)
+        val lo = min(candles.minOf { it.low }, overlayPrices.minOrNull() ?: Double.POSITIVE_INFINITY)
         val margin = max((hi - lo) * .08, hi * .0001)
         val maxPrice = hi + margin
         val minPrice = lo - margin
@@ -251,6 +284,20 @@ private fun PineOhlcvCanvas(
                 drawLine(MaximusReference.gold.copy(alpha = .7f), Offset(x, 0f),
                     Offset(x, size.height), 1.3f)
             }
+        }
+        val lineColors = listOf(MaximusReference.gold, Color(0xFF60B8EF), Color(0xFFCE8AFF), Color(0xFF19C7A0))
+        overlays.forEachIndexed { lineIndex, overlay ->
+            val path = Path()
+            var connected = false
+            overlay.values.forEachIndexed { index, value ->
+                if (value == null || !value.isFinite()) connected = false
+                else {
+                    val x = (index + .5f) * step
+                    if (!connected) path.moveTo(x, priceY(value)) else path.lineTo(x, priceY(value))
+                    connected = true
+                }
+            }
+            drawPath(path, lineColors[lineIndex % lineColors.size], style = Stroke(2f))
         }
         if (markSweeps && candles.size > 20) {
             // Derived from ACTUAL exchange bars, never a fabricated Pine script/backtest signal.

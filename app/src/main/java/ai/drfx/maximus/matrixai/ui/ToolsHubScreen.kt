@@ -40,13 +40,9 @@ internal fun ToolsHubScreen(
     onChat: () -> Unit,
     onControl: () -> Unit,
     onMore: () -> Unit,
+    onOperations: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var showOperations by remember { mutableStateOf(false) }
-    if (showOperations) {
-        OperationsScreen(viewModel, onBack = { showOperations = false }, onWork = onWork, modifier = modifier)
-        return
-    }
     var search by remember { mutableStateOf("") }
     var showConversations by remember { mutableStateOf(false) }
     var showPluginManagement by remember { mutableStateOf(false) }
@@ -62,7 +58,7 @@ internal fun ToolsHubScreen(
     val cloudflareTitle = stringResource(R.string.plugin_cloudflare)
     val matches: (String) -> Boolean = { search.isBlank() || it.contains(search, ignoreCase = true) }
 
-    LazyColumn(modifier.fillMaxSize(),
+    LazyColumn(modifier.fillMaxSize().testTag("tools_hub_screen"),
         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -71,13 +67,13 @@ internal fun ToolsHubScreen(
                     Icon(Icons.Default.Menu, stringResource(R.string.nav_more))
                 }
                 WorkspaceBrand(Modifier.weight(1f))
-                IconButton(onClick = onControl) {
+                IconButton(onClick = onControl, modifier = Modifier.testTag("hub_control_open")) {
                     Icon(Icons.Default.Settings, stringResource(R.string.nav_control))
                 }
             }
         }
         item {
-            Text(stringResource(R.string.ui_tools), style = MaterialTheme.typography.headlineSmall,
+            Text(stringResource(R.string.ui_hub), style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold)
         }
         item {
@@ -87,9 +83,19 @@ internal fun ToolsHubScreen(
                 leadingIcon = { Icon(Icons.Default.Search, null) })
         }
         item {
-            OutlinedButton(onClick = { showOperations = true }, modifier = Modifier.fillMaxWidth()
+            OutlinedButton(onClick = onOperations, modifier = Modifier.fillMaxWidth()
                 .then(Modifier.testTag("operations_open"))) {
                 Text("Operations · Agents, Pulse, Memory & Runtime")
+            }
+        }
+        item {
+            MaximusFramedCard {
+                Text("AI & developer controls", color = HubGold, fontWeight = FontWeight.Bold)
+                HubInstalledRow(Icons.Default.Tune, "Smart Combo & API Control",
+                    "Routing, provider credentials, usage and model settings", onClick = onControl)
+                HubInstalledRow(Icons.Default.Code, "Developer connections",
+                    "GitHub and Cloudflare · inspect authorization and verified results",
+                    onClick = { onWork(4) })
             }
         }
         if (matches(searchTitle) || matches(imageTitle)) item {
