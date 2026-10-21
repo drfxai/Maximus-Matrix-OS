@@ -109,8 +109,10 @@ internal class SmartComboQuotaLedger(
             archiveReferences = archiveReferences + reference
             val metadata = journal.archivedMetadata(archiveReferences)
             eligible.forEach { entries.remove(it.plan.requestId) }
-            check(persist()) { "Could not commit archival; automatic routing paused." }
+            // Publish active+archived evidence together; lock-free readers must never
+            // observe a temporary drop in confirmed totals during archival.
             archived = metadata
+            check(persist()) { "Could not commit archival; automatic routing paused." }
             return eligible.size
         } catch (failure: Exception) { journalFailed = true; throw failure }
         finally { cachedDurability = computeDurability() }

@@ -75,6 +75,7 @@ internal class OperationsRepository(context: Context) {
         }
         val projects = try {
             val root = java.io.File(app.filesDir, "studio/projects")
+            check(!root.exists() || root.isDirectory) { "Workspace index is not a directory." }
             val result = if (root.isDirectory) ProjectWorkspaceStore(app).projects() else emptyList()
             val directories = root.listFiles().orEmpty().count { it.isDirectory }
             check(result.size == directories)
