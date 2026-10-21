@@ -155,7 +155,7 @@ class OperationalAcceptanceTest {
         // after expansion can leave this evidence below the viewport indefinitely.
         scrollToText("Actual dispatch: None active")
         assertNotNull(device.wait(Until.findObject(By.text("Actual dispatch: None active")), 10_000))
-        assertNotNull(device.wait(Until.findObject(By.textContains("TPM snapshot: Unknown")), 10_000))
+        assertNotNull(scrollToText("TPM snapshot: Unknown", contains = true))
         capture("smart-combo-evidence.png")
         scrollToText("Inspect evidence and candidates").click()
         scrollToText("Provider credit: Unknown · no account balance API evidence")
@@ -335,13 +335,13 @@ class OperationalAcceptanceTest {
         } finally { bitmap.recycle() }
     }
 
-    private fun scrollToText(vararg labels: String, direction: Direction = Direction.DOWN): UiObject2 {
+    private fun scrollToText(vararg labels: String, direction: Direction = Direction.DOWN, contains: Boolean = false): UiObject2 {
         repeat(24) { attempt ->
             try {
                 // Evidence clocks legitimately recompose these semantics every second.
                 // Re-query after a stale node; never retain UiObject2 across a scroll/recomposition.
                 labels.forEach { label ->
-                    device.findObject(By.text(label))?.takeIf { it.visibleBounds.height() > 0 }?.let { return it }
+                    device.findObject(if (contains) By.textContains(label) else By.text(label))?.takeIf { it.visibleBounds.height() > 0 }?.let { return it }
                 }
                 val bounds = device.findObjects(By.scrollable(true)).map { it.visibleBounds }
                     .filter { it.height() > 160 && it.width() > 120 }

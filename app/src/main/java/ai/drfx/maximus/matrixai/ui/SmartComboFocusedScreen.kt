@@ -105,8 +105,8 @@ internal fun SmartComboFocusedScreen(
                     requestDispatched = dispatched != null,
                     streaming = evidence.phase == SmartComboEvidenceProjection.Phase.STREAMING,
                     status = smartComboStatusLabel(state),
-                    contextUsed = metrics.contextUsagePercent,
-                    contextLeft = if (state.selectedModel.isBlank()) "Unknown" else
+                    contextUsed = if (dispatched == null && state.selectedModel.isBlank()) null else metrics.contextUsagePercent,
+                    contextLeft = if (dispatched == null && state.selectedModel.isBlank()) "Unknown" else
                         NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens),
                     verifiedRate = comboReadingLabel(evidence.tokenRate),
                     freeOffers = evidence.catalog.value?.toInt(),
