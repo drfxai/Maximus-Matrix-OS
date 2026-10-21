@@ -40,6 +40,11 @@ cat > dist/release-notes.md <<NOTES
 
 - Public Android version: 1.0.0; internal version code: $version_code.
 - Application ID: ai.drfx.maximus.matrixai.
+- Smart Combo now preserves device-local request and confirmed-usage evidence across restarts. Interrupted dispatches remain uncertain and are never automatically replayed; settled evidence can be archived after review.
+- Neural Galaxy offers Rings, Circle, Areas, Links, Timeline and 3D Orbit over the same graph while preserving Brain as the default. Timeline shows recorded evidence and explicitly unavailable history; sparse timelines and dense labels still need visual refinement.
+- Hub includes Operations views for Agents, Pulse, Memory, Runtime and Security, with observation timestamps and explicit UNKNOWN states. Saved agent definitions are not proof of running agents; Android schedules remain subject to Doze and battery restrictions.
+- GitHub source approval shows a captured diff and rejects account changes during review/write. Cloudflare uncertain writes stay blocked until an explicit same-account evidence review; no automatic deployment or write replay occurs.
+- New operational UI is English-first; existing language settings, project data, conversation history and the permanent application identity are preserved. Live account acceptance and physical ARM64 performance/build testing remain separate, unverified gates.
 - Pinned Ubuntu runtime installation accepts valid Unix multiarch filenames such as libc6:arm64.list; existing verified downloads are reusable with Resume. Runtime cleanup does not follow guest symlinks on the host.
 - Complete checksum-verified Linux and Android toolchain archives are extracted by the production extractor in required CI; physical ARM64 tool execution and on-phone build acceptance remain separate.
 - AMOLED workspaces use a pure-black canvas, balanced navy cards, white text, gold confirmations, orange activity and red warnings, with fixed Brain, Chat, Agents, Studio and More navigation.
