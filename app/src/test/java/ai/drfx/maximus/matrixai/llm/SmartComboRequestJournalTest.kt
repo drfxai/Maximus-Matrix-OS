@@ -219,4 +219,27 @@ class SmartComboRequestJournalTest {
         assertEquals("corrupt archive", archive.readText())
     }
 
+    @Test fun statusReadDoesNotWaitForBackgroundJournalCommit() {
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val proceed = java.util.concurrent.CountDownLatch(1)
+        val journal = SmartComboRequestJournal(file(), beforeCommit = {
+            entered.countDown()
+            check(proceed.await(10, java.util.concurrent.TimeUnit.SECONDS))
+        })
+        val ledger = SmartComboQuotaLedger(now = { now }, journal = journal)
+        ledger.initialize()
+        val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
+        val reader = java.util.concurrent.Executors.newSingleThreadExecutor()
+        try {
+            val write = writer.submit<Boolean> { ledger.reserve(plan()).accepted }
+            assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            val reading = reader.submit<SmartComboQuotaLedger.Durability> { ledger.durability() }
+            assertEquals("DURABLE", reading.get(2, java.util.concurrent.TimeUnit.SECONDS).status)
+            proceed.countDown()
+            assertTrue(write.get(5, java.util.concurrent.TimeUnit.SECONDS))
+            assertEquals(1, ledger.durability().activeJournalRequests)
+        } finally {
+            proceed.countDown(); writer.shutdownNow(); reader.shutdownNow()
+        }
+    }
 }

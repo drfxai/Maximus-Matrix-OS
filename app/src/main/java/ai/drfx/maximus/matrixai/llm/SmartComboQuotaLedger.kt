@@ -73,8 +73,14 @@ internal class SmartComboQuotaLedger(
     private var archiveReferences = emptyList<SmartComboRequestJournal.Archive>()
     private var archived = SmartComboRequestJournal.ArchivedMetadata(emptySet(), 0, 0, emptyMap())
 
-    /** Cached metadata only: never performs disk I/O while a dashboard renders. */
-    @Synchronized fun durability(): Durability {
+    @Volatile private var cachedDurability = Durability(
+        if (journal == null) "PROCESS_LOCAL" else "NOT_OPENED", 0, 0, 0, emptyMap(), 0, 0)
+
+    /** Never acquires the journal lock, which may be held by a background fsync/recovery. */
+    fun durability(): Durability = cachedDurability
+
+    /** Called only while holding the ledger mutation lock. */
+    private fun computeDurability(): Durability {
         val totals = archived.confirmedTokensByProvider.toMutableMap()
         entries.values.filter { it.state == State.RECONCILED }.forEach { e ->
             totals[e.plan.provider] = saturatingAdd(totals[e.plan.provider] ?: 0L, requireNotNull(e.confirmed).total)
@@ -107,6 +113,7 @@ internal class SmartComboQuotaLedger(
             archived = metadata
             return eligible.size
         } catch (failure: Exception) { journalFailed = true; throw failure }
+        finally { cachedDurability = computeDurability() }
     }
 
     @Synchronized fun initialize(): Durability { ensureLoaded(); return durability() }
@@ -142,9 +149,13 @@ internal class SmartComboQuotaLedger(
                 return persist()
             return true
         } catch (_: Exception) { journalFailed = true; return false }
+        finally { cachedDurability = computeDurability() }
     }
     private fun persist(): Boolean {
-        if (journal == null) return true
+        if (journal == null) {
+            cachedDurability = computeDurability()
+            return true
+        }
         if (journalFailed) return false
         return try {
             journalRevision = journal.save(journalRevision, SmartComboRequestJournal.Snapshot(
@@ -154,6 +165,7 @@ internal class SmartComboQuotaLedger(
             ))
             true
         } catch (_: Exception) { journalFailed = true; false }
+        finally { cachedDurability = computeDurability() }
     }
 
     /** Inputs must be normalized and authenticated by a provider-specific quota adapter. */
