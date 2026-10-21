@@ -150,11 +150,14 @@ class OperationalAcceptanceTest {
         checkNotNull(device.wait(Until.findObject(By.desc("More")), 10_000)).click()
         checkNotNull(device.wait(Until.findObject(By.desc(context.getString(ai.drfx.maximus.matrixai.R.string.nav_control))), 10_000)).click()
         assertNotNull(device.wait(Until.findObject(By.text("Smart routing")), 10_000))
-        scrollToText("Inspect evidence and candidates").click()
-        scrollToText("Actual dispatch: None active", direction = Direction.UP)
+        // Inspect the compact observed state before expanding the taller details item.
+        // LazyColumn can re-anchor after its height changes; a fixed upward search
+        // after expansion can leave this evidence below the viewport indefinitely.
+        scrollToText("Actual dispatch: None active")
         assertNotNull(device.wait(Until.findObject(By.text("Actual dispatch: None active")), 10_000))
         assertNotNull(device.wait(Until.findObject(By.textContains("TPM snapshot: Unknown")), 10_000))
         capture("smart-combo-evidence.png")
+        scrollToText("Inspect evidence and candidates").click()
         scrollToText("Provider credit: Unknown · no account balance API evidence")
         scrollToText("Automatic paid fallback: Disabled")
         capture("smart-combo-usage.png")
@@ -243,7 +246,11 @@ class OperationalAcceptanceTest {
                 "am start -W -f 0x10008000 -n ${context.packageName}/${MainActivity::class.java.name}")
             try { block() } catch (failure: Throwable) {
                 // Preserve the actual failed application frame without suppressing the failure.
-                runCatching { device.takeScreenshot(File(context.getExternalFilesDir(null), "failure-state.png")) }
+                runCatching {
+                    device.takeScreenshot(File(context.getExternalFilesDir(null), "failure-state.png"))
+                    // Gradle may uninstall the target before shell collection; preserve diagnostics.
+                    device.executeShellCommand("cp /sdcard/Android/data/${context.packageName}/files/failure-state.png /data/local/tmp/maximus-keyboard-failure-state.png")
+                }
                 throw failure
             } finally { runCatching { onActivity { it.finish() } } }
         } finally {
