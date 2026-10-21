@@ -101,7 +101,7 @@ internal fun projectGraph(p: SpacePoint, rotation: GraphRotation, width: Float, 
     val v = rotation.apply(p)
     val perspective = 4f * r / (4f * r - v.z).coerceAtLeast(r)
     val usable = viewport ?: GraphViewport(0f, 0f, width, height)
-    val scale = min(usable.width, usable.height) * .36f / r * zoom
+    val scale = min(usable.width, usable.height) * (if (viewport == null) .36f else .46f) / r * zoom
     return GraphProjection(usable.left + usable.width/2f + v.x*scale*perspective,
         usable.top + usable.height/2f + v.y*scale*perspective, v.z, perspective)
 }

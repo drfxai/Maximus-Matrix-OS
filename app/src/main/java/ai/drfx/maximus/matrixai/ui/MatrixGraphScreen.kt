@@ -2225,7 +2225,7 @@ private fun NeuralScene(
             )
 
             // I. Clear Anatomical Node Typography
-            if ((labels && node.hub || node.id == selected || search.isNotBlank() && node.label.contains(search, true)) && alpha > 0.25f) {
+            if ((labels && node.hub && layout != NeuralGalaxyLayout.AREAS || node.id == selected || search.isNotBlank() && node.label.contains(search, true)) && alpha > 0.25f) {
                 paint.textSize = (if (node.id == selected) 11.5.sp else if (node.id == "maximus") 11.sp else 9.5.sp).toPx()
                 paint.color = (if (light) Color(0xFF1E2A3A) else Color(0xFFEDF2F7)).copy(alpha = alpha).toArgb()
                 paint.setShadowLayer(

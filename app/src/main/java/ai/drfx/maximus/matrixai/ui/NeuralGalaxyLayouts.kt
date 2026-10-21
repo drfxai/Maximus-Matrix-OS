@@ -120,7 +120,7 @@ internal object NeuralGalaxyLayouts {
         val labels = linkedMapOf<String, SpacePoint>()
         val positions = linkedMapOf<String, SpacePoint>()
         groups.entries.forEachIndexed { index, (area, members) ->
-            val center = SpacePoint((index%columns-(columns-1)/2f)*105f,
+            val center = SpacePoint((index%columns-(columns-1)/2f)*160f,
                 (index/columns-(rows-1)/2f)*100f,0f)
             labels[area] = center + SpacePoint(0f,-40f,0f)
             members.forEachIndexed { i, node ->
