@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import ai.drfx.maximus.matrixai.database.entities.ChatSessionEntity
 import java.util.UUID
 import android.graphics.Bitmap
@@ -586,7 +588,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         validationJob?.cancel()
         _llmState.value = _llmState.value.copy(apiInputRevision = revision,
             models = emptyList(), supportedAgents = emptyList(),
-            catalogCheckedAtEpochMs = null, inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null,
+            catalogCheckedAtEpochMs = null, modelProbeEvidence = emptyMap(), inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null,
             status = ConnectionStatus.DISCONNECTED, statusMessage = "Discover the authenticated catalog for these API inputs.",
             tokenMetrics = _llmState.value.tokenMetrics.withoutProviderRateEvidence())
     }
@@ -666,12 +668,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val persona = requested.supportedAgents.firstOrNull { it.id == requested.selectedAgentId }
                     ?: error("No supported persona available.")
-                val result = chatClient.send(ApiConnectionConfig(requested.baseUrl, credential.first, requested.provider,
+                val result = withTimeout(30_000L) { chatClient.send(ApiConnectionConfig(requested.baseUrl, credential.first, requested.provider,
                     requested.selectedModel, persona.id), listOf(ChatMessage("user", "Reply only OK.")), persona,
                     maxOutputTokens = 128, beforeDispatch = {
                         requireCatalogSelection(requested, expectedRevision)
                         check(apiStore.credentialSnapshot(requested.provider, requested.baseUrl) == credential) { "API credentials changed; test approval expired." }
-                    })
+                    }) }
                 // Account for real usage even if the UI changed while the response was in flight.
                 usageStore.record(requested.provider, requested.selectedModel, result.usage)
                 _usage.value = usageStore.summary()
@@ -679,15 +681,32 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 requireCatalogSelection(requested, expectedRevision)
                 check(apiStore.credentialSnapshot(requested.provider, requested.baseUrl) == credential) { "API credentials changed; test evidence discarded." }
                 check(result.text.isNotBlank()) { "The model returned no text; chat inference remains unverified." }
+                check(apiCatalogSession.recordProbe(expectedRevision, requested.provider, requested.baseUrl,
+                    credential.second, requested.selectedModel, ModelProbeOutcome.SUCCEEDED)) { "Test evidence expired." }
                 _llmState.value = _llmState.value.copy(status = ConnectionStatus.CONNECTED,
+                    modelProbeEvidence = apiCatalogSession.probeEvidence(),
                     inferenceVerifiedModel = requested.selectedModel, inferenceVerifiedAtEpochMs = System.currentTimeMillis(),
                     statusMessage = "Authenticated chat inference verified for ${requested.selectedModel}.",
                     tokenMetrics = _llmState.value.tokenMetrics.copy(consumedLifetimeTokens = _usage.value.totalTokens))
             } catch (error: Throwable) {
-                if (error is CancellationException) throw error
-                if (apiCatalogSession.isCurrent(expectedRevision)) _llmState.value = _llmState.value.copy(
-                    status = ConnectionStatus.DEGRADED, inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null,
-                    statusMessage = error.message ?: "Inference test failed; compatibility remains unverified.")
+                if (error is CancellationException && error !is TimeoutCancellationException) throw error
+                // A timeout may have reached the provider. Record uncertainty; never retry automatically.
+                val outcome = if (error is TimeoutCancellationException || error is java.io.IOException)
+                    ModelProbeOutcome.UNCERTAIN else ModelProbeOutcome.FAILED
+                val sameCredential = catalogFingerprint(requested.provider, requested.baseUrl) == credential.second
+                if (sameCredential && apiCatalogSession.isCurrent(expectedRevision)) {
+                    val recorded = apiCatalogSession.recordProbe(expectedRevision, requested.provider, requested.baseUrl,
+                        credential.second, requested.selectedModel, outcome, (error as? ProviderRequestException)?.failure)
+                    _llmState.value = _llmState.value.copy(
+                        status = ConnectionStatus.DEGRADED, modelProbeEvidence = apiCatalogSession.probeEvidence(),
+                        inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null,
+                        statusMessage = when {
+                            !recorded -> "Catalog authorization expired during the test. Discover models again; no test result was accepted."
+                            error is TimeoutCancellationException -> "Test timed out. The provider may have processed it; no automatic retry was sent. Review account usage before testing again."
+                            outcome == ModelProbeOutcome.UNCERTAIN -> "Test interrupted by a network error. Processing and usage are unknown; no automatic retry was sent."
+                            else -> "This model test was unsuccessful. Check account access, credits and network; the catalog alone does not prove compatibility."
+                        })
+                }
             }
         }.also { it.invokeOnCompletion { SmartComboSessionBroker.release(ownership) } }
     }
@@ -724,11 +743,18 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             contextUsagePercent = percent
         )
 
+        val evidence = apiCatalogSession.probeEvidence()
+        val selectedTest = evidence[modelId]?.takeIf {
+            it.outcome == ModelProbeOutcome.SUCCEEDED && it.isFresh(System.currentTimeMillis())
+        }
         _llmState.value = current.copy(
-            status = ConnectionStatus.CONFIGURED,
+            status = if (selectedTest != null) ConnectionStatus.CONNECTED else ConnectionStatus.CONFIGURED,
             apiInputRevision = revision,
-            inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null,
-            statusMessage = "Selected catalog candidate; chat inference not yet verified.",
+            modelProbeEvidence = evidence,
+            inferenceVerifiedModel = if (selectedTest != null) modelId else "",
+            inferenceVerifiedAtEpochMs = selectedTest?.observedAtEpochMs,
+            statusMessage = if (selectedTest != null) "Selected model has a recent successful test for these API inputs."
+                else "Selected catalog candidate. Review its dated test evidence or test this model.",
             selectedModel = modelId,
             selectedAgentId = selectedAgent,
             supportedAgents = agents,

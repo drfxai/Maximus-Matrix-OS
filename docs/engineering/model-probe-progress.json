@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "base_sha": "2a9d8a0bed50a7ba225204619af1b8f7f33b68d7",
+  "branch": "feat/provider-model-verification",
+  "state": "VERIFYING",
+  "supersedes": "PR150 source checkpoint; merged and exact-head CI verified",
+  "tests": {
+    "python_scripts": "PASS37",
+    "release_identity": "PASS7",
+    "publication_policy": "PASS5",
+    "locales": "PASS parity, English-first increment",
+    "jvm_android": "PENDING CI"
+  },
+  "review": "Independent QA/security requested; TTL cleanup finding fixed",
+  "next_action": "Inspect exact-head CI and actual screenshots; fix any failures before owner review",
+  "limits": [
+    "No live API account acceptance",
+    "No full Pine execution/backtest",
+    "No physical device or FPS evidence",
+    "No merge/publication"
+  ]
+}
