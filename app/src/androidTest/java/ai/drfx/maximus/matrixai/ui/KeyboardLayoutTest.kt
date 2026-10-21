@@ -319,12 +319,71 @@ class KeyboardLayoutTest {
         }
     }
 
+    @Test fun importingPineDoesNotOverwriteUnreadableExistingDrafts() {
+        val prefs = instrumentation.targetContext.getSharedPreferences("pine_studio_v1", android.content.Context.MODE_PRIVATE)
+        val previous = prefs.getString("drafts", null)
+        val malformed = "[{\"id\":\"preserve-this-user-draft\",\"code\":\"plot(close)\"}]"
+        try {
+            assertTrue(prefs.edit().putString("drafts", malformed).commit())
+            val result = runCatching {
+                ai.drfx.maximus.matrixai.studio.PineStudioStore(instrumentation.targetContext)
+                    .importSource("//@version=6\nindicator(\"New\")\nplot(close)")
+            }
+            assertTrue("Malformed existing records must block import", result.isFailure)
+            assertEquals(malformed, prefs.getString("drafts", null))
+        } finally {
+            if (previous == null) prefs.edit().remove("drafts").commit()
+            else prefs.edit().putString("drafts", previous).commit()
+        }
+    }
+
+    @Test fun pineSourceFromChatOpensPersistedDraftWithoutOverwritingExistingWork() {
+        val context = instrumentation.targetContext
+        val store = ai.drfx.maximus.matrixai.studio.PineStudioStore(context)
+        val before = store.list().associate { it.id to it.code }
+        val source = "//@version=6\nindicator(\"Chat import fixture\", overlay=true)\nplot(close)"
+        var importedId: String? = null
+        try {
+            withLaunchedActivity {
+                withResumedActivity { activity ->
+                    activity.setContent {
+                        val selected = androidx.compose.runtime.remember {
+                            androidx.compose.runtime.mutableStateOf<String?>(null)
+                        }
+                        MaterialTheme {
+                            androidx.compose.material3.Scaffold(containerColor = Color.Black,
+                                contentWindowInsets = WindowInsets.safeDrawing) { insets ->
+                            Box(Modifier.fillMaxSize().padding(insets).consumeWindowInsets(insets)) {
+                            if (selected.value == null) Column(Modifier.fillMaxSize().background(Color.Black)) {
+                                Text("LOCAL CHAT TO PINE FIXTURE · NO PROVIDER", color = Color.White)
+                                WorkspaceMessageContent("```pine\n$source\n```", Color.White,
+                                    onOpenPine = {
+                                        val draft = store.importSource(it)
+                                        importedId = draft.id
+                                        selected.value = draft.id
+                                    })
+                            } else PineStudioScreen(onBack = {}, onAskAi = { false },
+                                initialDraftId = selected.value)
+                            }
+                            }
+                        }
+                    }
+                }
+                checkNotNull(device.wait(Until.findObject(By.text("Open in Pine Studio")), 10_000)).click()
+                checkNotNull(device.wait(Until.findObject(By.textContains("Chat import fixture")), 10_000))
+                captureWorkspace("pine-chat-import-fixture.png")
+                assertEquals(source, store.list().first { it.id == importedId }.code)
+                before.forEach { (id, code) -> assertEquals(code, store.list().first { it.id == id }.code) }
+            }
+        } finally { importedId?.let(store::delete) }
+    }
+
     @Test fun smartComboWorkspaceIsReachableAndCapturesObservedEmptyState() {
         withLaunchedActivity {
             objectWithDescription("More").click()
             awaitCondition("Tools Hub did not finish navigating") {
                 device.hasObject(By.text(instrumentation.targetContext.getString(
-                    ai.drfx.maximus.matrixai.R.string.ui_tools)))
+                    ai.drfx.maximus.matrixai.R.string.ui_hub)))
             }
             captureWorkspace("tools-hub.png")
             objectWithDescription(instrumentation.targetContext.getString(
@@ -373,7 +432,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "chat-code-fixture.png", "chat-html-preview-fixture.png", "studio-overview.png", "studio-changes.png", "studio-pine-premium.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "chat-code-fixture.png", "chat-html-preview-fixture.png", "studio-overview.png", "studio-changes.png", "studio-pine-premium.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-chat-import-fixture.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)

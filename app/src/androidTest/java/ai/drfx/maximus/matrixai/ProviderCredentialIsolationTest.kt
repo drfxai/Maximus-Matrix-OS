@@ -19,6 +19,17 @@ class ProviderCredentialIsolationTest {
     }
     @After fun cleanup() { store.clear() }
 
+    @Test fun rememberedModelIdentitySurvivesRecreationWithoutPresetFallback() {
+        assertEquals("", store.loadRememberedModelForProvider(LlmProvider.OPENAI))
+        assertEquals("", store.loadRememberedModelForProvider(LlmProvider.GEMINI))
+        store.save(LlmProvider.GEMINI.defaultBaseUrl, "AIza-fixture-not-a-real-key", LlmProvider.GEMINI, "remembered-gemini")
+        store.save(LlmProvider.NVIDIA.defaultBaseUrl, "", LlmProvider.NVIDIA, "remembered-nvidia")
+        val restored = SecureApiConfigStore(ApplicationProvider.getApplicationContext<Context>())
+        assertEquals("remembered-gemini", restored.loadRememberedModelForProvider(LlmProvider.GEMINI))
+        assertEquals("remembered-nvidia", restored.loadRememberedModelForProvider(LlmProvider.NVIDIA))
+        assertEquals("", restored.loadRememberedModelForProvider(LlmProvider.OPENAI))
+    }
+
     @Test fun selectingAnotherProviderNeverInheritsEncryptedKey() {
         store.save(LlmProvider.GEMINI.defaultBaseUrl, "AIza-fixture-not-a-real-key", LlmProvider.GEMINI, "gemini-2.5-flash")
         store.save(LlmProvider.NVIDIA.defaultBaseUrl, "", LlmProvider.NVIDIA, "fixture-model")

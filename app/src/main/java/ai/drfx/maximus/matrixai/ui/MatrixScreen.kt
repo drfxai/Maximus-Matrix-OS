@@ -17,6 +17,10 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import ai.drfx.maximus.matrixai.studio.PineStudioStore
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +54,7 @@ private enum class Destination(val label: String) {
     DATA("Data"),
     CONTROL("Control"),
     TOOLS("Tools"),
+    OPERATIONS("Operations"),
     TERMINAL("Terminal")
 }
 
@@ -63,12 +68,18 @@ fun MatrixScreen(
     viewModel: MatrixViewModel = viewModel()
 ) {
     var destination by remember { mutableStateOf(Destination.MATRIX) }
+    val context = LocalContext.current
+    var pineDraftId by rememberSaveable { mutableStateOf<String?>(null) }
     var workSection by remember { mutableIntStateOf(0) }
     var showMoreSheet by remember { mutableStateOf(false) }
     val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
     BackHandler(enabled = destination != Destination.MATRIX && !isImeVisible) {
-        destination = if (destination == Destination.PINE) Destination.STUDIO else Destination.MATRIX
+        destination = when (destination) {
+            Destination.PINE -> Destination.STUDIO
+            Destination.CONTROL, Destination.OPERATIONS -> Destination.TOOLS
+            else -> Destination.MATRIX
+        }
     }
 
 
@@ -190,12 +201,16 @@ fun MatrixScreen(
                         onWork = { workSection = it; destination = Destination.STUDIO },
                         onChat = { destination = Destination.CHAT },
                         onControl = { destination = Destination.CONTROL },
-                        onMore = { showMoreSheet = true }
+                        onMore = { showMoreSheet = true },
+                        onOperations = { destination = Destination.OPERATIONS }
                     )
+                    Destination.OPERATIONS -> OperationsScreen(viewModel,
+                        onBack = { destination = Destination.TOOLS },
+                        onWork = { workSection = it; destination = Destination.STUDIO })
                     Destination.STUDIO -> ProjectStudioScreen(
                         initialSection = workSection,
                         onChat = { destination = Destination.CHAT },
-                        onPine = { destination = Destination.PINE },
+                        onPine = { pineDraftId = null; destination = Destination.PINE },
                         projectTeamRun = viewModel.projectTeamRun.collectAsState().value,
                         projectTeamInvalid = viewModel.projectTeamInvalid.collectAsState().value,
                         onDiscardInvalidTeam = viewModel::discardInvalidProjectTeam,
@@ -220,6 +235,14 @@ fun MatrixScreen(
                         onWork = { destination = Destination.STUDIO },
                         onHub = { destination = Destination.TOOLS },
                         onSmartCombo = { destination = Destination.CONTROL },
+                        onOpenPine = { source ->
+                            try {
+                                pineDraftId = PineStudioStore(context).importSource(source).id
+                                destination = Destination.PINE
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "Pine source could not be saved. Please retry.", Toast.LENGTH_LONG).show()
+                            }
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
                     Destination.AGENTS -> AgentsScreen(
@@ -228,6 +251,7 @@ fun MatrixScreen(
                         modifier = Modifier.fillMaxSize()
                     )
                     Destination.PINE -> PineStudioScreen(
+                        initialDraftId = pineDraftId,
                         onBack = { destination = Destination.STUDIO },
                         onAskAi = { prompt ->
                             val submitted = viewModel.sendChat(prompt)
@@ -246,6 +270,7 @@ fun MatrixScreen(
                         onThemeModeChange = onThemeModeChange,
                         selectedLanguage = selectedLanguage,
                         onLanguageChange = onLanguageChange,
+                        onHub = { destination = Destination.TOOLS },
                         modifier = Modifier.fillMaxSize()
                     )
                     Destination.TERMINAL -> TerminalConsoleScreen(

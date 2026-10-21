@@ -28,15 +28,15 @@ internal fun PremiumSmartComboHero(
     requestDispatched: Boolean = false,
     streaming: Boolean = false,
     status: String,
-    contextUsed: Float,
+    contextUsed: Float?,
     contextLeft: String,
     verifiedRate: String,
     freeOffers: Int?,
     onRefresh: () -> Unit,
     refreshEnabled: Boolean
 ) {
-    val remaining = (1f - contextUsed.coerceIn(0f, 1f))
-    val ring by animateFloatAsState(remaining, animationSpec = tween(550), label = "combo-context-ring")
+    val remaining = contextUsed?.takeIf { it.isFinite() }?.let { 1f - it.coerceIn(0f, 1f) }
+    val ring by animateFloatAsState(remaining ?: 0f, animationSpec = tween(550), label = "combo-context-ring")
     val motion = rememberInfiniteTransition(label = "premium-route-animation")
     val pulse by motion.animateFloat(
         initialValue = .30f,
@@ -136,7 +136,7 @@ internal fun PremiumSmartComboHero(
                         color = MaximusReference.gold,
                         trackColor = MaximusReference.stroke,
                         strokeWidth = 5.dp)
-                    Text("${(remaining * 100).toInt()}%", color = MaximusReference.white,
+                    Text(if (remaining == null) "?" else "${(remaining * 100).toInt()}%", color = MaximusReference.white,
                         fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.width(6.dp))

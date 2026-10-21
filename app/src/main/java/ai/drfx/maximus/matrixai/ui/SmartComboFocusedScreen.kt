@@ -105,8 +105,8 @@ internal fun SmartComboFocusedScreen(
                     requestDispatched = dispatched != null,
                     streaming = evidence.phase == SmartComboEvidenceProjection.Phase.STREAMING,
                     status = smartComboStatusLabel(state),
-                    contextUsed = metrics.contextUsagePercent,
-                    contextLeft = if (state.selectedModel.isBlank()) "Unknown" else
+                    contextUsed = if (dispatched == null && state.selectedModel.isBlank()) null else metrics.contextUsagePercent,
+                    contextLeft = if (dispatched == null && state.selectedModel.isBlank()) "Unknown" else
                         NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens),
                     verifiedRate = comboReadingLabel(evidence.tokenRate),
                     freeOffers = evidence.catalog.value?.toInt(),
@@ -174,8 +174,8 @@ internal fun SmartComboFocusedScreen(
                                 fontSize = 13.sp, maxLines = 2,
                                 fontWeight = FontWeight.SemiBold)
                             Text(
-                                if (model.verified) "Provider catalog verified"
-                                else "Catalog entry · runtime not verified",
+                                if (model.id == state.inferenceVerifiedModel && state.inferenceVerifiedAtEpochMs != null) "Selected model inference tested"
+                                else "Catalog entry · inference not tested",
                                 color = MaximusReference.muted, fontSize = 10.sp)
                             val tags = model.capabilities.filter {
                                 it in setOf(ModelCapability.VISION, ModelCapability.REASONING,
@@ -234,7 +234,7 @@ internal fun SmartComboFocusedScreen(
                 if (usageExpanded) {
                     Spacer(Modifier.height(5.dp))
                     MaximusContextStrip(
-                        usedFraction = metrics.contextUsagePercent,
+                        usedFraction = if (state.selectedModel.isBlank()) null else metrics.contextUsagePercent,
                         remaining = if (state.selectedModel.isBlank()) "Unknown" else
                             NumberFormat.getIntegerInstance().format(metrics.remainingContextTokens) +
                                 " (estimated)",

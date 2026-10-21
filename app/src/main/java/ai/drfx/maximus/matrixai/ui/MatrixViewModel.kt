@@ -279,11 +279,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     val usage: StateFlow<ApiUsageSummary> = _usage.asStateFlow()
 
     private val initialProvider = apiStore.loadProvider()
-    private val initialModel = apiStore.loadModel().ifBlank { initialProvider.defaultModel }
+    private val apiCatalogSession = ApiCatalogSession()
+    private val initialModel = apiStore.loadRememberedModelForProvider(initialProvider)
     private val initialBaseUrl = apiStore.loadBaseUrl().ifBlank { initialProvider.defaultBaseUrl }
     private val initialTokenBudget = apiStore.loadMonthlyTokenBudget()
-    private val initialCatalog = ApiDiscoveryEngine.defaultCatalog(initialProvider)
-    private val initialCapabilities = ModelCapabilityResolver.resolve(initialProvider, initialModel)
+    private val initialCatalog = emptyList<ModelDescriptor>()
+    private val initialCapabilities = emptySet<ModelCapability>()
     private val initialCapacity = ModelLimitsResolver.contextWindow(initialProvider, initialModel)
     private val initialSummary = usageStore.summary()
 
@@ -298,7 +299,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             supportedAgents = AgentRegistry.supportedAgents(initialCapabilities),
             hasSavedKey = apiStore.hasKeyForProvider(initialProvider),
             statusMessage = if (apiStore.hasApiKey()) {
-                "Credentials stored for ${initialProvider.displayName}; inference not verified."
+                "Credentials stored for ${initialProvider.displayName}; discover the authenticated catalog before selecting a model."
             } else {
                 "Configure ${initialProvider.displayName} API to begin."
             },
@@ -534,12 +535,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
     fun applyProviderPreset(provider: LlmProvider) {
         cancelChat()
-        validationJob?.cancel()
+        invalidateApiInputs()
         val current = _llmState.value
-        val catalog = ApiDiscoveryEngine.defaultCatalog(provider)
-        val defaultModel = apiStore.loadModelForProvider(provider).ifBlank { provider.defaultModel }
+        val catalog = emptyList<ModelDescriptor>()
+        val defaultModel = apiStore.loadRememberedModelForProvider(provider)
         val providerEndpoint = apiStore.loadBaseUrlForProvider(provider).ifBlank { provider.defaultBaseUrl }
-        val capabilities = ModelCapabilityResolver.resolve(provider, defaultModel)
+        val capabilities = emptySet<ModelCapability>()
         val supportedAgents = AgentRegistry.supportedAgents(capabilities)
         val selectedAgent = supportedAgents.firstOrNull { it.id == current.selectedAgentId }?.id
             ?: supportedAgents.firstOrNull()?.id.orEmpty()
@@ -562,7 +563,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             selectedModel = defaultModel,
             selectedAgentId = selectedAgent,
             supportedAgents = supportedAgents,
-            statusMessage = "Switched to ${provider.displayName}. Default model: $defaultModel",
+            statusMessage = "Switched to ${provider.displayName}. Discover its authenticated model catalog.",
             tokenMetrics = updatedMetrics
         )
         createChatSession()
@@ -578,110 +579,117 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
+    /** Unsaved endpoint/key edits revoke both the catalog and any pending probe approval. */
+    fun invalidateApiInputs() {
+        cancelChat()
+        val revision = apiCatalogSession.invalidate()
+        validationJob?.cancel()
+        _llmState.value = _llmState.value.copy(apiInputRevision = revision,
+            models = emptyList(), supportedAgents = emptyList(),
+            catalogCheckedAtEpochMs = null, inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null,
+            status = ConnectionStatus.DISCONNECTED, statusMessage = "Discover the authenticated catalog for these API inputs.",
+            tokenMetrics = _llmState.value.tokenMetrics.withoutProviderRateEvidence())
+    }
+
+    private fun catalogFingerprint(provider: LlmProvider, endpoint: String): String =
+        runCatching { apiStore.credentialSnapshot(provider, endpoint).second }.getOrDefault("")
+
+    private fun requireCatalogSelection(state: LlmUiState, revision: Long = state.apiInputRevision) {
+        check(apiCatalogSession.permits(revision, state.provider, state.baseUrl,
+            catalogFingerprint(state.provider, state.baseUrl), state.selectedModel)) {
+            "Model catalog is missing, stale or belongs to different API credentials. Discover the catalog again."
+        }
+    }
+
+    /** Authenticated GET only. Listing a model never proves that chat inference succeeds. */
     fun detectApi(baseUrl: String, apiKeyInput: String) {
         if (projectTeamJob?.isActive == true || SmartComboSessionBroker.busy()) return
-        if (_llmState.value.status in setOf(ConnectionStatus.DETECTING, ConnectionStatus.VALIDATING)) return
-        val validationOwnership = UUID.randomUUID().toString()
-        if (!SmartComboSessionBroker.acquire(validationOwnership)) return
+        val ownership = UUID.randomUUID().toString()
+        if (!SmartComboSessionBroker.acquire(ownership)) return
         cancelChat()
-        // Explicit connection changes invalidate the previous account/endpoint snapshot,
-        // even when the provider and model IDs happen to remain the same.
-        _llmState.value = _llmState.value.copy(
-            tokenMetrics = _llmState.value.tokenMetrics.withoutProviderRateEvidence())
-        val requestedState = _llmState.value
+        invalidateApiInputs()
+        val requested = _llmState.value
+        val revision = requested.apiInputRevision
+        val originalCredential = catalogFingerprint(requested.provider, baseUrl)
+        _llmState.value = requested.copy(status = ConnectionStatus.DETECTING,
+            statusMessage = "Fetching authenticated model catalog; no inference request is sent.")
         validationJob = viewModelScope.launch {
-            val requestedProvider = requestedState.provider
-            var catalogVerified = false
-            _llmState.value = _llmState.value.copy(
-                status = ConnectionStatus.DETECTING,
-                statusMessage = "Detecting API protocol, models and agent compatibility..."
-            )
-            AppLogStore.info("API", "API discovery started")
-            appendLlmEvent(MatrixEventType.MODEL_DISCOVERY, "model:discovery", "provider:api", "API discovery started")
             try {
-                val key = apiKeyInput.ifBlank { apiStore.resolveCredential(requestedProvider, baseUrl) }
-                val result = discovery.discover(baseUrl, key, requestedProvider)
-                require(result.provider == requestedProvider || requestedProvider == LlmProvider.UNKNOWN) { "Endpoint protocol differs from selected provider. Select the matching provider and enter its credentials." }
-                val remembered = apiStore.loadModel()
-                val selectedModel = result.models.firstOrNull { it.id == remembered }?.id
-                    ?: result.models.firstOrNull { ModelCapability.CHAT in it.capabilities }?.id
-                    ?: result.models.firstOrNull()?.id.orEmpty()
-                val model = result.models.firstOrNull { it.id == selectedModel }
-                val capabilities = model?.capabilities ?: ModelCapabilityResolver.resolve(result.provider, selectedModel)
-                val supported = AgentRegistry.supportedAgents(capabilities)
-                val rememberedAgent = apiStore.loadAgentId()
-                val selectedAgent = supported.firstOrNull { it.id == rememberedAgent }?.id
-                    ?: supported.firstOrNull()?.id.orEmpty()
-
-                if (key.isNotBlank()) {
-                    apiStore.save(
-                        result.baseUrl,
-                        key,
-                        result.provider,
-                        selectedModel,
-                        selectedAgent,
-                        _llmState.value.subscriptionLabel,
-                        _llmState.value.monthlyBudgetUsd,
-                        _llmState.value.monthlyTokenBudget
-                    )
-                }
-
-                val capacity = ModelLimitsResolver.contextWindow(result.provider, selectedModel)
-                val summary = usageStore.summary()
-                val budget = _llmState.value.monthlyTokenBudget
-
-                val newMetrics = _llmState.value.tokenMetrics.copy(
-                    contextCapacity = capacity,
-                    remainingContextTokens = capacity,
-                    consumedLifetimeTokens = summary.totalTokens,
-                    remainingBudgetTokens = if (budget > 0) (budget - summary.totalTokens).coerceAtLeast(0L) else null
-                )
-
-                _llmState.value = _llmState.value.copy(
-                    status = ConnectionStatus.CONFIGURED,
-                    provider = result.provider,
-                    baseUrl = result.baseUrl,
-                    models = result.models,
-                    selectedModel = selectedModel,
-                    selectedAgentId = selectedAgent,
-                    supportedAgents = supported,
-                    hasSavedKey = apiStore.hasKeyForProvider(result.provider),
-                    statusMessage = result.message + " Catalog verified; inference not yet tested.",
-                    tokenMetrics = newMetrics
-                )
-                catalogVerified = true
-                if (requestedState.provider != result.provider || requestedState.selectedModel != selectedModel || requestedState.baseUrl != result.baseUrl) createChatSession()
-                _llmState.value = _llmState.value.copy(status = ConnectionStatus.VALIDATING, statusMessage = "Testing authenticated inference…")
-                chatClient.send(
-                    ApiConnectionConfig(result.baseUrl, key, result.provider, selectedModel, selectedAgent),
-                    listOf(ChatMessage("user", "Reply only OK.")),
-                    supported.firstOrNull { it.id == selectedAgent } ?: error("No chat persona available")
-                ).also { probe ->
-                    usageStore.record(result.provider, selectedModel, probe.usage)
-                    _usage.value = usageStore.summary()
-                    _llmState.value = _llmState.value.copy(tokenMetrics = _llmState.value.tokenMetrics.copy(consumedLifetimeTokens = _usage.value.totalTokens))
-                }
-                _llmState.value = _llmState.value.copy(status = ConnectionStatus.CONNECTED, statusMessage = "Authenticated inference verified for $selectedModel.")
-                AppLogStore.info("API", "API discovery successful: " + result.provider.displayName + " (" + result.models.size + " models)")
-                appendLlmEvent(
-                    MatrixEventType.MODEL_DISCOVERY,
-                    "provider:" + result.provider.name.lowercase(),
-                    "model:" + selectedModel,
-                    "API detected and model catalog loaded"
-                )
+                val key = apiKeyInput.ifBlank { apiStore.resolveCredential(requested.provider, baseUrl) }
+                val result = discovery.discover(baseUrl, key, requested.provider)
+                if (!apiCatalogSession.isCurrent(revision)) return@launch
+                check(catalogFingerprint(requested.provider, baseUrl) == originalCredential) { "Credentials changed during discovery. Discover again." }
+                require(result.provider == requested.provider || requested.provider == LlmProvider.UNKNOWN) { "Endpoint protocol differs from the selected provider." }
+                val models = result.models.filter { it.verified && ModelCapability.CHAT in it.capabilities }
+                val remembered = apiStore.loadModelForProvider(result.provider)
+                val model = models.firstOrNull { it.id == remembered } ?: models.firstOrNull()
+                    ?: error("No compatible chat candidates were returned by this endpoint.")
+                val agents = AgentRegistry.supportedAgents(model.capabilities)
+                val agent = agents.firstOrNull { it.id == requested.selectedAgentId } ?: agents.firstOrNull()
+                    ?: error("No compatible chat persona is available.")
+                apiStore.save(result.baseUrl, key, result.provider, model.id, agent.id,
+                    requested.subscriptionLabel, requested.monthlyBudgetUsd, requested.monthlyTokenBudget)
+                check(apiCatalogSession.bind(revision, result.provider, result.baseUrl,
+                    catalogFingerprint(result.provider, result.baseUrl), models)) { "API inputs changed." }
+                _llmState.value = _llmState.value.copy(status = ConnectionStatus.CONFIGURED,
+                    provider = result.provider, baseUrl = result.baseUrl, models = models, selectedModel = model.id,
+                    selectedAgentId = agent.id, supportedAgents = agents, hasSavedKey = true,
+                    catalogCheckedAtEpochMs = System.currentTimeMillis(),
+                    statusMessage = result.message + " Chat compatibility must be tested per model.",
+                    tokenMetrics = _llmState.value.tokenMetrics.copy(contextCapacity = ModelLimitsResolver.contextWindow(result.provider, model.id)))
+                if (requested.selectedModel != model.id || requested.baseUrl != result.baseUrl) createChatSession()
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
-                // A verified catalog does not make failed inference healthy.
-                _llmState.value = _llmState.value.copy(
-                    status = if (catalogVerified) ConnectionStatus.DEGRADED else ConnectionStatus.ERROR,
-                    models = if (catalogVerified) _llmState.value.models else emptyList(),
-                    selectedModel = if (catalogVerified) _llmState.value.selectedModel else "",
-                    statusMessage = error.message ?: "API detection failed."
-                )
-                AppLogStore.error("API", error.message ?: "API detection failed")
-                appendLlmEvent(MatrixEventType.MODEL_FAILED, "model:discovery", "provider:api", error.message ?: "API detection failed")
+                if (apiCatalogSession.isCurrent(revision)) _llmState.value = _llmState.value.copy(
+                    status = ConnectionStatus.ERROR, models = emptyList(), selectedModel = requested.selectedModel, supportedAgents = emptyList(),
+                    statusMessage = error.message ?: "Authenticated catalog discovery failed.")
             }
-        }.also { job -> job.invokeOnCompletion { SmartComboSessionBroker.release(validationOwnership) } }
+        }.also { it.invokeOnCompletion { SmartComboSessionBroker.release(ownership) } }
+    }
+
+    /** Called only after the UI confirms potential provider charges for this exact revision. */
+    fun testApiConnection(expectedRevision: Long) {
+        val requested = _llmState.value
+        if (requested.apiInputRevision != expectedRevision || !apiCatalogSession.isCurrent(expectedRevision)) return
+        if (projectTeamJob?.isActive == true || requested.isGenerating || SmartComboSessionBroker.busy()) return
+        try { requireCatalogSelection(requested, expectedRevision) } catch (error: Exception) {
+            _llmState.value = requested.copy(status = ConnectionStatus.DEGRADED, statusMessage = error.message.orEmpty())
+            return
+        }
+        val credential = try { apiStore.credentialSnapshot(requested.provider, requested.baseUrl) }
+            catch (_: Exception) { return }
+        val ownership = UUID.randomUUID().toString()
+        if (!SmartComboSessionBroker.acquire(ownership)) return
+        _llmState.value = requested.copy(status = ConnectionStatus.VALIDATING, statusMessage = "Testing this model with a bounded inference request…",
+            inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null)
+        validationJob = viewModelScope.launch {
+            try {
+                val persona = requested.supportedAgents.firstOrNull { it.id == requested.selectedAgentId }
+                    ?: error("No supported persona available.")
+                val result = chatClient.send(ApiConnectionConfig(requested.baseUrl, credential.first, requested.provider,
+                    requested.selectedModel, persona.id), listOf(ChatMessage("user", "Reply only OK.")), persona,
+                    maxOutputTokens = 128, beforeDispatch = {
+                        requireCatalogSelection(requested, expectedRevision)
+                        check(apiStore.credentialSnapshot(requested.provider, requested.baseUrl) == credential) { "API credentials changed; test approval expired." }
+                    })
+                // Account for real usage even if the UI changed while the response was in flight.
+                usageStore.record(requested.provider, requested.selectedModel, result.usage)
+                _usage.value = usageStore.summary()
+                if (!apiCatalogSession.isCurrent(expectedRevision)) return@launch
+                requireCatalogSelection(requested, expectedRevision)
+                check(apiStore.credentialSnapshot(requested.provider, requested.baseUrl) == credential) { "API credentials changed; test evidence discarded." }
+                check(result.text.isNotBlank()) { "The model returned no text; chat inference remains unverified." }
+                _llmState.value = _llmState.value.copy(status = ConnectionStatus.CONNECTED,
+                    inferenceVerifiedModel = requested.selectedModel, inferenceVerifiedAtEpochMs = System.currentTimeMillis(),
+                    statusMessage = "Authenticated chat inference verified for ${requested.selectedModel}.",
+                    tokenMetrics = _llmState.value.tokenMetrics.copy(consumedLifetimeTokens = _usage.value.totalTokens))
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                if (apiCatalogSession.isCurrent(expectedRevision)) _llmState.value = _llmState.value.copy(
+                    status = ConnectionStatus.DEGRADED, inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null,
+                    statusMessage = error.message ?: "Inference test failed; compatibility remains unverified.")
+            }
+        }.also { it.invokeOnCompletion { SmartComboSessionBroker.release(ownership) } }
     }
 
     private fun refreshProjectMemoriesInBackground() {
@@ -692,6 +700,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun selectModel(modelId: String) {
+        val candidate = _llmState.value.copy(selectedModel = modelId)
+        try { requireCatalogSelection(candidate) } catch (_: Exception) { return }
+        validationJob?.cancel()
+        val revision = apiCatalogSession.changeSelection()
         // New-model recall starts before the next user input, without blocking UI.
         refreshProjectMemoriesInBackground()
         if (_llmState.value.selectedModel != modelId) { cancelChat(); createChatSession(modelId) }
@@ -714,7 +726,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
         _llmState.value = current.copy(
             status = ConnectionStatus.CONFIGURED,
-            statusMessage = "Selected model; inference not yet verified.",
+            apiInputRevision = revision,
+            inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null,
+            statusMessage = "Selected catalog candidate; chat inference not yet verified.",
             selectedModel = modelId,
             selectedAgentId = selectedAgent,
             supportedAgents = agents,
@@ -801,11 +815,16 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         val memoryAccessAtRequest = try { sharedProjectMemory.captureAccess() }
             catch (_: Exception) { null }
         val memoryProjectAtRequest = memoryAccessAtRequest?.scope?.project.orEmpty()
-        if (!historyReady || current.status !in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED) || current.selectedModel.isBlank()) {
+        if (!historyReady || (!current.smartComboEnabled &&
+            (current.status !in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED) || current.selectedModel.isBlank()))) {
             appendAssistantError("Connect an API and select a supported model before sending a message.")
             return false
         }
-        val selectedAgent = current.supportedAgents.firstOrNull { it.id == current.selectedAgentId }
+        val eligibleAgents = if (current.smartComboEnabled) AgentRegistry.agents.filter { agent ->
+            freeOffers.any { it.route.capabilities.containsAll(agent.requiredCapabilities) }
+        } else current.supportedAgents
+        val selectedAgent = eligibleAgents.firstOrNull { it.id == current.selectedAgentId }
+            ?: if (current.smartComboEnabled) eligibleAgents.firstOrNull { it.id == "general" } else null
         if (selectedAgent == null) {
             appendAssistantError("Select an agent supported by the current model.")
             return false
@@ -848,6 +867,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
 
+        if (!current.smartComboEnabled) {
+            try { requireCatalogSelection(current) } catch (error: Exception) {
+                appendAssistantError(error.message ?: "Discover the authenticated catalog again.")
+                return false
+            }
+        }
         val dispatchOwnership = UUID.randomUUID().toString()
         if (!SmartComboSessionBroker.acquire(dispatchOwnership)) return false
         if (_activeChatSessionId.value == "legacy_unassigned") createChatSession()
@@ -968,7 +993,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 _llmState.value = _llmState.value.copy(activeRequest = dispatched, lastRequest = dispatched,
                     tokenMetrics = ChatTokenTelemetry.dispatched(_llmState.value.tokenMetrics,
                         dispatchedCapacity, selectedContext.estimatedTokens + memoryAndSystemBudget))
-                val result = chatClient.send(config, requestHistory, equippedAgent, maxOutputTokens = if (autoPrepared != null) 2048 else null, onQuota = { windows ->
+                val result = chatClient.send(config, requestHistory, equippedAgent, maxOutputTokens = if (autoPrepared != null) 2048 else null,
+                    beforeDispatch = { if (!current.smartComboEnabled) requireCatalogSelection(current) }, onQuota = { windows ->
                     if (windows.isNotEmpty()) {
                         autoPrepared?.let { freeExecutor.observeProviderQuota(it, windows) }
                         viewModelScope.launch {
@@ -1230,8 +1256,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         cancelProjectTeam()
         cancelChat()
         validationJob?.cancel()
+        val revision = apiCatalogSession.invalidate()
         apiStore.clear()
-        _llmState.value = LlmUiState()
+        _llmState.value = LlmUiState(apiInputRevision = revision)
         appendLlmEvent(MatrixEventType.MODEL_DISCOVERY, "provider:api", "model:none", "API configuration cleared")
     }
 

@@ -49,6 +49,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -852,7 +853,9 @@ fun MatrixGraphScreen(
                     DropdownMenu(expanded = layoutMenu, onDismissRequest = { layoutMenu = false }) {
                         NeuralGalaxyLayout.entries.forEach { mode ->
                             DropdownMenuItem(
-                                modifier = Modifier.testTag("galaxy_layout_" + mode.name),
+                                modifier = Modifier.testTag("galaxy_layout_" + mode.name).semantics {
+                                    this.selected = galaxyLayout == mode
+                                },
                                 text = { Text(mode.title) },
                                 onClick = {
                                     galaxyLayout = mode

@@ -67,6 +67,11 @@ class SecureApiConfigStore(context: Context) {
 
     fun loadBaseUrlForProvider(provider: LlmProvider): String = preferences.getString("endpoint_" + provider.name, null) ?: provider.defaultBaseUrl
     fun loadModelForProvider(provider: LlmProvider): String = preferences.getString("model_" + provider.name, null) ?: provider.defaultModel
+    /** Stored identity for offline history; never a discovered or dispatch-authorized model. */
+    fun loadRememberedModelForProvider(provider: LlmProvider): String =
+        preferences.getString("model_" + provider.name, null)
+            ?: if (loadProvider() == provider) loadModel() else ""
+
 
     /** Re-entering a key is required to authorize any custom endpoint change. */
     fun resolveCredential(provider: LlmProvider, endpoint: String): String =

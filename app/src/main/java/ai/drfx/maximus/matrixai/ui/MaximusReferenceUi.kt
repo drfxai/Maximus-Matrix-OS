@@ -93,16 +93,16 @@ internal fun MaximusTabs(
 
 @Composable
 internal fun MaximusContextStrip(
-    usedFraction: Float,
+    usedFraction: Float?,
     remaining: String,
     provider: String,
     model: String,
     modifier: Modifier = Modifier,
     compact: Boolean = false
 ) {
-    val remainingFraction = (1f - usedFraction.coerceIn(0f, 1f))
+    val remainingFraction = usedFraction?.takeIf { it.isFinite() }?.let { 1f - it.coerceIn(0f, 1f) }
     val animatedRemaining by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = remainingFraction,
+        targetValue = remainingFraction ?: 0f,
         animationSpec = androidx.compose.animation.core.tween(durationMillis = 450),
         label = "remaining-context")
     MaximusFramedCard(modifier, padding = if (compact) PaddingValues(horizontal = 9.dp, vertical = 7.dp)
@@ -154,7 +154,7 @@ internal fun MaximusContextStrip(
                     trackColor = MaximusReference.stroke,
                     strokeWidth = 5.dp
                 )
-                Text("${(animatedRemaining * 100).toInt()}%",
+                Text(if (remainingFraction == null) "?" else "${(animatedRemaining * 100).toInt()}%",
                     color = MaximusReference.white, fontSize = 9.sp,
                     fontWeight = FontWeight.Bold)
             }

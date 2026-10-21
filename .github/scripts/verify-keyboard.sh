@@ -34,6 +34,7 @@ if [[ -z "${ANDROID_TEST_CLASSES:-}" || "${ANDROID_TEST_CLASSES:-}" == *"Keyboar
     /data/local/tmp/maximus-keyboard-studio-populated.png \
     /data/local/tmp/maximus-keyboard-studio-files-populated.png \
     /data/local/tmp/maximus-keyboard-pine-studio.png \
+    /data/local/tmp/maximus-keyboard-pine-chat-import-fixture.png \
     /data/local/tmp/maximus-keyboard-pine-preview.png \
     /data/local/tmp/maximus-keyboard-pine-chart-expanded.png \
     /data/local/tmp/maximus-keyboard-agents-my-agents.png \
@@ -67,6 +68,7 @@ if [[ -z "${ANDROID_TEST_CLASSES:-}" || "${ANDROID_TEST_CLASSES:-}" == *"Keyboar
     /sdcard/Android/data/ai.drfx.maximus.matrixai/files/studio-populated.png \
     /sdcard/Android/data/ai.drfx.maximus.matrixai/files/studio-files-populated.png \
     /sdcard/Android/data/ai.drfx.maximus.matrixai/files/pine-studio.png \
+    /sdcard/Android/data/ai.drfx.maximus.matrixai/files/pine-chat-import-fixture.png \
     /sdcard/Android/data/ai.drfx.maximus.matrixai/files/pine-preview.png \
     /sdcard/Android/data/ai.drfx.maximus.matrixai/files/pine-chart-expanded.png \
     /sdcard/Android/data/ai.drfx.maximus.matrixai/files/agents-my-agents.png \
@@ -105,7 +107,7 @@ if ! timeout --kill-after=2s 15s adb pull /data/local/tmp/maximus-keyboard-failu
   timeout --kill-after=2s 15s adb pull /sdcard/Android/data/ai.drfx.maximus.matrixai/files/failure-state.png keyboard-check/test-failure-screen.png || true
 fi
 if [[ -z "${ANDROID_TEST_CLASSES:-}" || "${ANDROID_TEST_CLASSES:-}" == *"KeyboardLayoutTest"* ]]; then
-  for capture in home-graph.png chat-focus.png chat-code-fixture.png chat-html-preview-fixture.png studio-overview.png studio-changes.png studio-pine-premium.png studio-populated.png studio-files-populated.png pine-studio.png pine-preview.png pine-chart-expanded.png agents-my-agents.png agents-populated.png agents-edit-populated.png smart-combo.png tools-hub.png galaxy-brain.png galaxy-rings.png galaxy-circle.png galaxy-areas.png galaxy-links.png galaxy-timeline.png galaxy-orbit.png developer-operations.png galaxy-selected.png smart-combo-evidence.png smart-combo-usage.png operations-agents.png operations-pulse.png operations-memory.png operations-runtime.png operations-security.png; do
+  for capture in home-graph.png chat-focus.png chat-code-fixture.png chat-html-preview-fixture.png studio-overview.png studio-changes.png studio-pine-premium.png studio-populated.png studio-files-populated.png pine-studio.png pine-chat-import-fixture.png pine-preview.png pine-chart-expanded.png agents-my-agents.png agents-populated.png agents-edit-populated.png smart-combo.png tools-hub.png galaxy-brain.png galaxy-rings.png galaxy-circle.png galaxy-areas.png galaxy-links.png galaxy-timeline.png galaxy-orbit.png developer-operations.png galaxy-selected.png smart-combo-evidence.png smart-combo-usage.png operations-agents.png operations-pulse.png operations-memory.png operations-runtime.png operations-security.png; do
     # The test copies these before Gradle's uninstall; retain external storage as a fallback.
     if ! timeout --kill-after=2s 10s adb pull "/data/local/tmp/maximus-keyboard-$capture" "keyboard-check/$capture"; then
       timeout --kill-after=2s 10s adb pull "/sdcard/Android/data/ai.drfx.maximus.matrixai/files/$capture" "keyboard-check/$capture" || true

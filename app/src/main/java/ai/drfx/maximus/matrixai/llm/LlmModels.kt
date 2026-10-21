@@ -140,6 +140,10 @@ data class ChatRequestTelemetry(
 )
 
 data class LlmUiState(
+    val apiInputRevision: Long = 0L,
+    val catalogCheckedAtEpochMs: Long? = null,
+    val inferenceVerifiedModel: String = "",
+    val inferenceVerifiedAtEpochMs: Long? = null,
     val status: ConnectionStatus = ConnectionStatus.DISCONNECTED,
     val provider: LlmProvider = LlmProvider.UNKNOWN,
     val baseUrl: String = "",
