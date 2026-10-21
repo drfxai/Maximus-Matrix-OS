@@ -54,6 +54,8 @@ internal fun SmartComboFocusedScreen(
 ) {
     val state by viewModel.llmState.collectAsState()
     val metrics = state.tokenMetrics
+    val durability by viewModel.smartComboDurability.collectAsState()
+    val archiveMessage by viewModel.smartComboArchiveMessage.collectAsState()
     val evidence = rememberSmartComboEvidence(state)
     val dispatched = evidence.active
     var search by remember { mutableStateOf("") }
@@ -113,7 +115,8 @@ internal fun SmartComboFocusedScreen(
                 )
             }
             item {
-                SmartComboEvidencePanel(state, evidence, viewModel::refreshSmartCombo)
+                SmartComboEvidencePanel(state, evidence, viewModel::refreshSmartCombo, durability,
+                    onArchiveSettled = viewModel::archiveSmartComboHistory, archiveMessage = archiveMessage)
             }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {

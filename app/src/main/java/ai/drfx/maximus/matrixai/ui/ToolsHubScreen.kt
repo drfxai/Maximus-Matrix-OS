@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -41,6 +42,11 @@ internal fun ToolsHubScreen(
     onMore: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showOperations by remember { mutableStateOf(false) }
+    if (showOperations) {
+        OperationsScreen(viewModel, onBack = { showOperations = false }, onWork = onWork, modifier = modifier)
+        return
+    }
     var search by remember { mutableStateOf("") }
     var showConversations by remember { mutableStateOf(false) }
     var showPluginManagement by remember { mutableStateOf(false) }
@@ -79,6 +85,12 @@ internal fun ToolsHubScreen(
                 singleLine = true, shape = RoundedCornerShape(16.dp),
                 placeholder = { Text(stringResource(R.string.ui_search)) },
                 leadingIcon = { Icon(Icons.Default.Search, null) })
+        }
+        item {
+            OutlinedButton(onClick = { showOperations = true }, modifier = Modifier.fillMaxWidth()
+                .then(Modifier.testTag("operations_open"))) {
+                Text("Operations · Agents, Pulse, Memory & Runtime")
+            }
         }
         if (matches(searchTitle) || matches(imageTitle)) item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {

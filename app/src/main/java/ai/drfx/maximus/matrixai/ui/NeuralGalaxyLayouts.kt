@@ -14,12 +14,26 @@ internal data class GalaxyNode(
     val changedAt: Long? = null, val runtimeObserved: Boolean = false
 )
 internal data class GalaxyEdge(val source: String, val target: String)
+/** Each mark references one committed Room event; summaries are untrusted display text. */
+internal enum class GalaxyTimestampIssue { NONE, MISSING, INVALID, FUTURE }
+internal data class GalaxyActivity(
+    val id: String, val timestamp: Long?, val source: String, val target: String?,
+    val type: String, val summary: String,
+    val timestampIssue: GalaxyTimestampIssue = when {
+        timestamp == null || timestamp == 0L -> GalaxyTimestampIssue.MISSING
+        timestamp < 0L -> GalaxyTimestampIssue.INVALID
+        else -> GalaxyTimestampIssue.NONE
+    }
+) {
+    val chronological: Boolean get() = timestampIssue == GalaxyTimestampIssue.NONE && timestamp != null && timestamp > 0L
+}
 internal data class GalaxyGeometry(
     val positions: Map<String, SpacePoint>,
     val areaLabels: Map<String, SpacePoint> = emptyMap(),
     val firstTimestamp: Long? = null,
     val lastTimestamp: Long? = null,
-    val undatedCount: Int = 0
+    val undatedCount: Int = 0,
+    val activityPositions: Map<String, SpacePoint> = emptyMap()
 )
 
 /**
@@ -28,16 +42,40 @@ internal data class GalaxyGeometry(
  * Force preparation uses a fixed iteration/repulsion budget; it never runs in a draw loop.
  */
 internal object NeuralGalaxyLayouts {
+    fun clockChecked(record: GalaxyActivity, now: Long): GalaxyActivity {
+        require(now >= 0L)
+        return record.copy(timestampIssue = when {
+            record.timestamp == null || record.timestamp == 0L -> GalaxyTimestampIssue.MISSING
+            record.timestamp < 0L -> GalaxyTimestampIssue.INVALID
+            record.timestamp > now -> GalaxyTimestampIssue.FUTURE
+            else -> GalaxyTimestampIssue.NONE
+        })
+    }
+    /** Brain retains its exact original projection. Alternate layouts reserve HUD/footer space. */
+    fun viewport(mode: NeuralGalaxyLayout, width: Float, height: Float, density: Float): GraphViewport? {
+        if (mode == NeuralGalaxyLayout.BRAIN) return null
+        val side = minOf(12f*density, width*.1f)
+        val top = minOf(64f*density, height*.26f)
+        val bottom = minOf(48f*density, height*.22f)
+        return GraphViewport(side, top, (width-side).coerceAtLeast(side+1f),
+            (height-bottom).coerceAtLeast(top+1f))
+    }
+
+    fun matches(nodeId: String, label: String, group: String, area: String, query: String): Boolean =
+        query.isBlank() || listOf(nodeId,label,group,area).any { it.contains(query.trim(), true) }
+
     fun safeRadius(value: Float): Float =
         if (value.isFinite() && value > 0f) value.coerceAtMost(64f) else 16f
 
     fun safeCoordinate(value: Float): Float =
         if (value.isFinite()) value.coerceIn(-10_000f, 10_000f) else 0f
 
-    fun prepare(mode: NeuralGalaxyLayout, source: List<GalaxyNode>, edges: List<GalaxyEdge>): GalaxyGeometry {
+    fun prepare(mode: NeuralGalaxyLayout, source: List<GalaxyNode>, edges: List<GalaxyEdge>,
+        activity: List<GalaxyActivity> = emptyList()): GalaxyGeometry {
         require(source.map { it.id }.distinct().size == source.size) { "Duplicate graph node identity." }
         require(source.all { it.id.isNotBlank() })
-        if (source.isEmpty()) return GalaxyGeometry(emptyMap())
+        if (source.isEmpty()) return if (mode == NeuralGalaxyLayout.TIMELINE)
+            timeline(emptyList(), activity) else GalaxyGeometry(emptyMap())
         val nodes = source.sortedBy { it.id }
         val valid = nodes.map { n -> n.copy(initial = SpacePoint(
             safeCoordinate(n.initial.x), safeCoordinate(n.initial.y), safeCoordinate(n.initial.z))) }
@@ -49,7 +87,7 @@ internal object NeuralGalaxyLayouts {
             }.toMap())
             NeuralGalaxyLayout.AREAS -> areas(valid)
             NeuralGalaxyLayout.LINKS -> links(valid, edges)
-            NeuralGalaxyLayout.TIMELINE -> timeline(valid)
+            NeuralGalaxyLayout.TIMELINE -> timeline(valid, activity)
             NeuralGalaxyLayout.ORBIT -> GalaxyGeometry(valid.mapIndexed { i, n ->
                 val y = 1f - 2f * (i + .5f) / valid.size
                 val radial = sqrt((1f - y*y).coerceAtLeast(0f))
@@ -82,7 +120,7 @@ internal object NeuralGalaxyLayouts {
         val labels = linkedMapOf<String, SpacePoint>()
         val positions = linkedMapOf<String, SpacePoint>()
         groups.entries.forEachIndexed { index, (area, members) ->
-            val center = SpacePoint((index%columns-(columns-1)/2f)*105f,
+            val center = SpacePoint((index%columns-(columns-1)/2f)*160f,
                 (index/columns-(rows-1)/2f)*100f,0f)
             labels[area] = center + SpacePoint(0f,-40f,0f)
             members.forEachIndexed { i, node ->
@@ -92,10 +130,16 @@ internal object NeuralGalaxyLayouts {
         return GalaxyGeometry(positions, labels)
     }
 
-    private fun timeline(nodes: List<GalaxyNode>): GalaxyGeometry {
+    private fun timeline(nodes: List<GalaxyNode>, records: List<GalaxyActivity>): GalaxyGeometry {
+        // A persisted ID identifies a record, not a node/source label. Repeated events remain distinct.
+        val activity = records.filter { it.id.isNotBlank() }.distinctBy { it.id }
+            .sortedWith(compareBy<GalaxyActivity> { if(it.chronological) it.timestamp else Long.MIN_VALUE }
+                .thenBy { it.id }).takeLast(100)
         val dated = nodes.filter { it.changedAt != null && it.changedAt > 0L }
-        val first = dated.minOfOrNull { requireNotNull(it.changedAt) }
-        val last = dated.maxOfOrNull { requireNotNull(it.changedAt) }
+        val timestamps = dated.map { requireNotNull(it.changedAt) } +
+            activity.filter { it.chronological }.mapNotNull { it.timestamp }
+        val first = timestamps.minOrNull()
+        val last = timestamps.maxOrNull()
         val undated = nodes.filter { it.changedAt == null || it.changedAt <= 0L }
         val positions = linkedMapOf<String, SpacePoint>()
         dated.groupBy { requireNotNull(it.changedAt) }.toSortedMap().forEach { (time, simultaneous) ->
@@ -110,7 +154,22 @@ internal object NeuralGalaxyLayouts {
         undated.forEachIndexed { i, node ->
             positions[node.id] = SpacePoint((i%12-5.5f)*24f, 115f+(i/12)*13f,0f)
         }
-        return GalaxyGeometry(positions, firstTimestamp = first, lastTimestamp = last, undatedCount = undated.size)
+        val activityPositions = linkedMapOf<String,SpacePoint>()
+        val lanes = mutableMapOf<Long?,Int>()
+        activity.forEach { record ->
+            val time = record.timestamp?.takeIf { record.chronological }
+            val track = lanes.getOrDefault(time,0)
+            lanes[time] = track + 1
+            val fraction = if (time == null || first == last) .5 else
+                (time - requireNotNull(first)).toDouble() /
+                    (requireNotNull(last)-first).coerceAtLeast(1L).toDouble()
+            activityPositions[record.id] = if (time == null)
+                SpacePoint((track%12-5.5f)*24f,-190f-(track/12)*12f,0f)
+            else SpacePoint((fraction*280-140).toFloat(), -160f+(track%8)*10f,0f)
+        }
+        return GalaxyGeometry(positions, firstTimestamp = first, lastTimestamp = last,
+            undatedCount = undated.size + activity.count { !it.chronological },
+            activityPositions = activityPositions)
     }
 
     private fun links(nodes: List<GalaxyNode>, edges: List<GalaxyEdge>): GalaxyGeometry {

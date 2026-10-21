@@ -1,6 +1,8 @@
 import importlib.util
 from pathlib import Path
 import struct
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -11,6 +13,26 @@ spec.loader.exec_module(evidence)
 
 
 class ScreenshotEvidenceTests(unittest.TestCase):
+    def test_missing_dashboard_frame_prevents_partial_evidence_export(self):
+        with tempfile.TemporaryDirectory() as root:
+            data = b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + struct.pack(">II", 1080, 1920) + b"\0" * 9
+            for name in evidence.CAPTURES:
+                if name != "operations-security.png":
+                    Path(root, name).write_bytes(data)
+            result = subprocess.run([sys.executable, spec.origin, root], capture_output=True, text=True)
+            self.assertNotEqual(0, result.returncode)
+            self.assertEqual("", result.stdout)
+            self.assertIn("operations-security.png", result.stderr)
+
+    def test_required_frames_are_removed_before_device_run_and_collected_after(self):
+        collector = (Path(__file__).resolve().parents[1] / "verify-keyboard.sh").read_text()
+        cleanup, collection = collector.split("for capture in ", 1)
+        names, _ = collection.split("; do", 1)
+        for name in evidence.CAPTURES:
+            self.assertIn("/data/local/tmp/maximus-keyboard-" + name, cleanup)
+            self.assertIn("/sdcard/Android/data/ai.drfx.maximus.matrixai/files/" + name, cleanup)
+            self.assertIn(name, names.split())
+
     def test_rejects_non_allowlisted_path(self):
         with tempfile.TemporaryDirectory() as root:
             with self.assertRaises(ValueError):

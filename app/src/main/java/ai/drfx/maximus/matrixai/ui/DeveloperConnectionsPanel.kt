@@ -95,6 +95,7 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
     var loaded by remember { mutableStateOf<GithubSourceFile?>(null) }
     var proposedText by remember { mutableStateOf("") }
     var confirmAction by remember { mutableStateOf<String?>(null) }
+    var commitReview by remember { mutableStateOf<ai.drfx.maximus.matrixai.studio.connections.SourceChangeReview?>(null) }
 
     var repositoryEvidence by remember(owner, repo, branch, connection.revision, selected) {
         mutableStateOf<GithubRepositoryEvidence?>(null)
@@ -329,7 +330,7 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                             Button(
                                 enabled = !isBusy && proposedText != loaded?.text &&
                                     loaded?.branch !in setOf("main", "master", "production", "release"),
-                                onClick = { confirmAction = "commit" },
+                                onClick = { loaded?.let { commitReview = ai.drfx.maximus.matrixai.studio.connections.SourceChangeReview(it, proposedText) }; confirmAction = "commit" },
                                 modifier = Modifier.fillMaxWidth().testTag("developer_github_commit")
                             ) { Text(stringResource(R.string.dev_commit_review)) }
                         }
@@ -452,6 +453,11 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                     enabled = !isBusy,
                     label = { Text(stringResource(R.string.dev_worker_name)) }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
+                androidx.compose.runtime.key(accountId, workerName, connection.revision) {
+                    CloudflareRecoveryPanel(client.cloudflareDeployments(), accountId, workerName,
+                        credentialSaved && verified && rawToken.isBlank() && !isBusy,
+                        onBusyChanged = { isBusy = it })
+                }
                 OutlinedButton(enabled = !isBusy, onClick = {
                     accessKey = ByteArray(32).also { SecureRandom().nextBytes(it) }
                         .joinToString("") { "%02x".format(it.toInt() and 255) }
@@ -559,7 +565,8 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
 
     val requested = confirmAction
     if (requested != null) {
-        val change = loaded
+        val captured = commitReview
+        val change = if (requested == "commit") captured?.source else loaded
         AlertDialog(
             onDismissRequest = { confirmAction = null },
             title = {
@@ -567,16 +574,23 @@ fun DeveloperConnectionsPanel(modifier: Modifier = Modifier) {
                 else stringResource(R.string.dev_confirm_branch))
             },
             text = {
-                Text(if (requested == "commit" && change != null)
-                    "${change.owner}/${change.repo} • ${change.branch} • ${change.path}"
-                else "$owner/$repo • $branch → $newBranch")
+                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(if (requested == "commit" && change != null)
+                        "${change.owner}/${change.repo} • ${change.branch} • ${change.path}"
+                        else "$owner/$repo • $branch → $newBranch")
+                    if (requested == "commit" && captured != null) {
+                        Text("Proposed UTF-8 SHA-256: ${captured.sha256}", style = MaterialTheme.typography.labelSmall)
+                        Text(captured.preview(), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             },
             confirmButton = {
                 Button(onClick = {
                     confirmAction = null
                     if (requested == "commit" && change != null) {
                         perform {
-                            val commit = client.commitGithubFile(change, proposedText, confirmed = true)
+                            val commit = client.commitGithubFile(change, checkNotNull(captured).proposed, confirmed = true)
                             loaded = null; prReview = null; prUrl = ""
                             context.getString(R.string.dev_commit_done) + " " + commit.take(12)
                         }
@@ -621,7 +635,7 @@ private fun CloudflareStagedDeploymentPanel(
         scope.launch {
             try { action() }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { failed = true }
+            catch (_: Exception) { failed = true; receipt = receipt?.copy(verified = false) }
             finally { busy = false; onBusyChanged(false) }
         }
     }
@@ -632,6 +646,9 @@ private fun CloudflareStagedDeploymentPanel(
             OutlinedTextField(name, { name = it.take(63); review = null; receipt = null; failed = false },
                 enabled = enabled && !busy, singleLine = true,
                 label = { Text(stringResource(R.string.dev_worker_name)) }, modifier = Modifier.fillMaxWidth())
+            androidx.compose.runtime.key(accountId, name) {
+                CloudflareRecoveryPanel(client, accountId, name, enabled && !busy, onBusyChanged)
+            }
             OutlinedButton(enabled = enabled && !busy && Regex("[A-Za-z0-9_-]{1,63}").matches(name) &&
                 Regex("[a-fA-F0-9]{32}").matches(accountId), onClick = { perform {
                     review = null; receipt = null
@@ -784,5 +801,55 @@ private fun DeveloperOperationsEvidence(
                 style = MaterialTheme.typography.labelSmall,
                 color = androidx.compose.ui.graphics.Color(0xFFA9C7E9))
         }
+    }
+}
+
+/** Recovery inspects provider evidence and resolves only the local barrier; it never retries a write. */
+@Composable
+private fun CloudflareRecoveryPanel(client: CloudflareDeploymentClient, account: String, name: String,
+    enabled: Boolean, onBusyChanged: (Boolean) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var evidence by remember { mutableStateOf<ai.drfx.maximus.matrixai.studio.connections.CloudflareReconciliation?>(null) }
+    var status by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    val valid = runCatching {
+        ai.drfx.maximus.matrixai.studio.connections.DeveloperConnectionPolicy.cloudflareAccountId(account)
+        ai.drfx.maximus.matrixai.studio.connections.DeveloperConnectionPolicy.workerName(name)
+    }.isSuccess
+    OutlinedButton(enabled = enabled && valid && !busy, onClick = {
+        busy = true; onBusyChanged(true); evidence = null
+        scope.launch {
+            try {
+                if (client.pending(account, name) == null) status = "No pending local write barrier. This is not a provider health check."
+                else {
+                    evidence = client.reconcile(account, name)
+                    status = if (evidence?.observedId == null) "UNCERTAIN · No exact provider marker found. Barrier retained; no retry sent."
+                        else "Exact provider evidence observed. Review before resolving the local barrier."
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { evidence = null; status = "ERROR · Could not inspect write outcome. Barrier retained." }
+            finally { busy = false; onBusyChanged(false) }
+        }
+    }, modifier = Modifier.fillMaxWidth().testTag("cloudflare_reconcile")) { Text("Inspect pending write · read only") }
+    if (status.isNotBlank()) Text(status, style = MaterialTheme.typography.bodySmall)
+    evidence?.takeIf { it.observedId != null }?.let { value ->
+        Text("${value.intent.operation} · ${value.intent.worker} · evidence ${value.observedId}", style = MaterialTheme.typography.bodySmall)
+        TextButton(enabled = enabled && !busy, onClick = { confirm = true }) { Text("Review local resolution") }
+        if (confirm) AlertDialog(onDismissRequest = { confirm = false },
+            title = { Text("Resolve recorded uncertainty?") },
+            text = { Text("${value.intent.account}/${value.intent.worker}\n${value.intent.operation}\nProvider evidence: ${value.observedId}\nOnly the local barrier is resolved. No upload, activation, rollback or retry is sent.") },
+            confirmButton = { Button(enabled = enabled && !busy, onClick = {
+                confirm = false; busy = true; onBusyChanged(true)
+                scope.launch {
+                    try {
+                        client.confirmReconciliation(value, approved = true)
+                        evidence = null; status = "Local barrier resolved after a second matching provider inspection. Inspect afresh before any new write."
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { evidence = null; status = "ERROR · Evidence changed or unavailable. Barrier retained." }
+                    finally { busy = false; onBusyChanged(false) }
+                }
+            }) { Text("Confirm local resolution") } },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel") } })
     }
 }

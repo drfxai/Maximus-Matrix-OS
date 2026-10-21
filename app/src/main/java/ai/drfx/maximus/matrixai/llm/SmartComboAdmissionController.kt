@@ -21,7 +21,8 @@ internal class SmartComboAdmissionController(private val ledger: SmartComboQuota
         requestId: String,
         task: SmartComboPlanner.Task,
         routes: List<SmartComboPlanner.Route>,
-        quotaScopes: Map<String, String>
+        quotaScopes: Map<String, String>,
+        checkpoint: SmartComboCheckpointReference? = null
     ): Prepared {
         require(requestId.isNotBlank())
         // An already dispatched or settled request must never silently run on a second route.
@@ -50,7 +51,8 @@ internal class SmartComboAdmissionController(private val ledger: SmartComboQuota
                 routeId = route.id,
                 input = task.estimatedInputTokens.toLong(),
                 reservedOutput = task.reservedOutputTokens.toLong(),
-                reservedMicros = rawMicros.toLong()
+                reservedMicros = rawMicros.toLong(),
+                provider = route.provider, checkpoint = checkpoint
             )
             val reservation = ledger.reserve(plan)
             if (!reservation.accepted) {

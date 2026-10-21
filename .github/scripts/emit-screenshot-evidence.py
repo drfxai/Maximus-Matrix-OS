@@ -19,9 +19,26 @@ CAPTURES = (
     "galaxy-orbit.png",
     "smart-combo.png",
     "developer-operations.png",
+    "galaxy-selected.png",
+    "smart-combo-evidence.png",
+    "smart-combo-usage.png",
+    "operations-agents.png",
+    "operations-pulse.png",
+    "operations-memory.png",
+    "operations-runtime.png",
+    "operations-security.png",
 )
 EXPORTED = {"galaxy-rings.png", "galaxy-areas.png", "galaxy-orbit.png",
-            "smart-combo.png", "developer-operations.png"}
+            "smart-combo.png", "developer-operations.png",
+            "galaxy-selected.png",
+            "smart-combo-evidence.png",
+            "smart-combo-usage.png",
+            "operations-agents.png",
+            "operations-pulse.png",
+            "operations-memory.png",
+            "operations-runtime.png",
+            "operations-security.png",
+            }
 MAX_BYTES = 2 * 1024 * 1024
 
 

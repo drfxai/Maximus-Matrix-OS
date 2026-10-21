@@ -86,6 +86,11 @@ internal class DeveloperCredentialVault(context: Context) {
         check(preferences.edit().putString("cloudflare_last_creation_receipt", entry.toString()).commit())
     }
 
+    internal fun cloudflareMutationJournal() = CloudflareMutationJournal(
+        read = { preferences.getString("cloudflare_pending_mutations_v1", null) },
+        write = { data -> check(preferences.edit().putString("cloudflare_pending_mutations_v1", data).commit()) }
+    )
+
     private fun secret(): SecretKey {
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (ks.getKey(alias, null) as? SecretKey)?.let { return it }

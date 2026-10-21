@@ -4,13 +4,14 @@ import kotlin.math.ceil
 import kotlin.math.max
 
 /**
- * Process-local atomic quota reservation and reconciled usage. Cloud/multi-device deployments
+ * Device-local atomic quota reservation and reconciled usage. Cloud/multi-device deployments
  * MUST replace this with a transactional backend. No credentials or assumed account balances.
  */
 internal class SmartComboQuotaLedger(
     private val now: () -> Long = { System.currentTimeMillis() },
     private val headroom: Double = 0.15,
-    private val maxUnknownInFlightPerScope: Int = 2
+    private val maxUnknownInFlightPerScope: Int = 2,
+    private val journal: SmartComboRequestJournal? = null
 ) {
     init {
         require(headroom.isFinite() && headroom in 0.0..0.5)
@@ -23,7 +24,9 @@ internal class SmartComboQuotaLedger(
     /** Scope is a nonsecret identifier for a shared provider quota bucket. */
     data class Plan(
         val requestId: String, val scope: String, val routeId: String,
-        val input: Long, val reservedOutput: Long, val reservedMicros: Long
+        val input: Long, val reservedOutput: Long, val reservedMicros: Long,
+        val provider: LlmProvider = LlmProvider.UNKNOWN,
+        val checkpoint: SmartComboCheckpointReference? = null
     ) {
         init {
             require(requestId.isNotBlank() && scope.isNotBlank() && routeId.isNotBlank())
@@ -59,11 +62,120 @@ internal class SmartComboQuotaLedger(
     private val entries = linkedMapOf<String, Entry>()
     private val snapshots = linkedMapOf<String, MutableMap<SmartComboPlanner.LimitKind, Evidence>>()
 
+    data class Durability(
+        val status: String, val retainedRequests: Int, val uncertainRequests: Int,
+        val checkpointReferences: Int, val confirmedTokensByProvider: Map<LlmProvider, Long>,
+        val activeJournalRequests: Int, val archiveSegments: Int
+    )
+    private var loaded = journal == null
+    private var journalRevision = 0L
+    private var journalFailed = false
+    private var archiveReferences = emptyList<SmartComboRequestJournal.Archive>()
+    private var archived = SmartComboRequestJournal.ArchivedMetadata(emptySet(), 0, 0, emptyMap())
+
+    @Volatile private var cachedDurability = Durability(
+        if (journal == null) "PROCESS_LOCAL" else "NOT_OPENED", 0, 0, 0, emptyMap(), 0, 0)
+
+    /** Never acquires the journal lock, which may be held by a background fsync/recovery. */
+    fun durability(): Durability = cachedDurability
+
+    /** Called only while holding the ledger mutation lock. */
+    private fun computeDurability(): Durability {
+        val totals = archived.confirmedTokensByProvider.toMutableMap()
+        entries.values.filter { it.state == State.RECONCILED }.forEach { e ->
+            totals[e.plan.provider] = saturatingAdd(totals[e.plan.provider] ?: 0L, requireNotNull(e.confirmed).total)
+        }
+        return Durability(when { journal == null -> "PROCESS_LOCAL"; journalFailed -> "ERROR";
+            !loaded -> "NOT_OPENED"; entries.size >= SmartComboRequestJournal.MAX_ENTRIES -> "FULL";
+            else -> "DURABLE" }, entries.size + archived.count,
+            entries.values.count { it.state == State.UNCERTAIN },
+            entries.values.count { it.plan.checkpoint != null } + archived.checkpointReferences,
+            totals, entries.size, archiveReferences.size)
+    }
+
+    /** Explicit archival never removes idempotency history or unsettled quota reservations. */
+    @Synchronized fun archiveSettled(): Int {
+        check(ensureLoaded() && journal != null) { "Request journal unavailable." }
+        check(archiveReferences.size < SmartComboRequestJournal.MAX_ARCHIVES) { "Archive capacity reached; evidence was preserved." }
+        val cutoff = now() - 300_000L
+        val eligible = entries.values.filter {
+            it.state in setOf(State.RELEASED, State.RECONCILED, State.FINISHED_UNVERIFIED) &&
+                (it.settledAt ?: it.createdAt) < cutoff
+        }
+        if (eligible.isEmpty()) return 0
+        try {
+            val reference = journal.archive(eligible)
+            // Archive bytes exist first. A crash before the following commit retains active evidence.
+            archiveReferences = archiveReferences + reference
+            val metadata = journal.archivedMetadata(archiveReferences)
+            eligible.forEach { entries.remove(it.plan.requestId) }
+            // Publish active+archived evidence together; lock-free readers must never
+            // observe a temporary drop in confirmed totals during archival.
+            archived = metadata
+            check(persist()) { "Could not commit archival; automatic routing paused." }
+            return eligible.size
+        } catch (failure: Exception) { journalFailed = true; throw failure }
+        finally { cachedDurability = computeDurability() }
+    }
+
+    @Synchronized fun initialize(): Durability { ensureLoaded(); return durability() }
+
+    private fun scopeKey(scope: String): String =
+        if (journal == null) scope else SmartComboRequestJournal.identity(scope)
+
+    private fun ensureLoaded(): Boolean {
+        if (journalFailed) return false
+        if (loaded) return true
+        try {
+            val saved = requireNotNull(journal).load()
+            journalRevision = saved.revision
+            archiveReferences = saved.archives
+            archived = requireNotNull(journal).archivedMetadata(archiveReferences)
+            check(saved.entries.none { SmartComboRequestJournal.identity(it.plan.requestId) in archived.requestHashes })
+            saved.entries.forEach { original ->
+                val recovered = when (original.state) {
+                    State.RESERVED -> original.copy(state = State.RELEASED)
+                    State.DISPATCHED -> original.copy(state = State.UNCERTAIN)
+                    else -> original
+                }
+                entries[recovered.plan.requestId] = recovered
+            }
+            saved.quotas.forEach { (scope, windows) ->
+                snapshots[scope] = windows.associate { w ->
+                    w.kind to Evidence(w, w.observedAtEpochMs ?: 0L)
+                }.toMutableMap()
+            }
+            loaded = true
+            // Commit recovery before accepting new work. No saved request is replayed.
+            if (saved.entries.any { it.state == State.RESERVED || it.state == State.DISPATCHED })
+                return persist()
+            return true
+        } catch (_: Exception) { journalFailed = true; return false }
+        finally { cachedDurability = computeDurability() }
+    }
+    private fun persist(): Boolean {
+        if (journal == null) {
+            cachedDurability = computeDurability()
+            return true
+        }
+        if (journalFailed) return false
+        return try {
+            journalRevision = journal.save(journalRevision, SmartComboRequestJournal.Snapshot(
+                entries = entries.values.toList(),
+                quotas = snapshots.mapValues { (_, values) -> values.values.map { it.value } },
+                archives = archiveReferences
+            ))
+            true
+        } catch (_: Exception) { journalFailed = true; false }
+        finally { cachedDurability = computeDurability() }
+    }
+
     /** Inputs must be normalized and authenticated by a provider-specific quota adapter. */
     @Synchronized fun observe(scope: String, windows: List<SmartComboPlanner.QuotaWindow>) {
         require(scope.isNotBlank())
+        if (!ensureLoaded()) return
         val received = now()
-        val byKind = snapshots.getOrPut(scope) { linkedMapOf() }
+        val byKind = snapshots.getOrPut(scopeKey(scope)) { linkedMapOf() }
         for (window in windows) {
             val observed = window.observedAtEpochMs ?: continue
             if (observed > received || window.remaining == null ||
@@ -80,14 +192,21 @@ internal class SmartComboQuotaLedger(
                 byKind[window.kind] = Evidence(window, received)
             }
         }
+        persist()
     }
 
     /** Duplicate request IDs are rejected so retries cannot cause duplicate dispatch. */
-    @Synchronized fun reserve(plan: Plan): Admission {
-        if (entries.containsKey(plan.requestId)) return Admission(false, "Duplicate request ID", false)
+    @Synchronized fun reserve(requested: Plan): Admission {
+        if (!ensureLoaded()) return Admission(false, "Request journal unavailable; automatic routing paused", true)
+        val plan = if (journal == null) requested else requested.copy(
+            scope = scopeKey(requested.scope), routeId = SmartComboRequestJournal.identity(requested.routeId))
+        if (entries.containsKey(plan.requestId) ||
+            SmartComboRequestJournal.identity(plan.requestId) in archived.requestHashes) return Admission(false, "Duplicate request ID", false)
+        if (journal != null && entries.size >= SmartComboRequestJournal.MAX_ENTRIES)
+            return Admission(false, "Request journal full; no evidence was deleted", true)
         val at = now()
         var refresh = snapshots[plan.scope].isNullOrEmpty()
-        for (capacity in capacities(plan.scope, at)) {
+        for (capacity in capacitiesForKey(plan.scope, at)) {
             val available = capacity.safeAvailable
             if (available == null) { refresh = true; continue }
             val quota = snapshots[plan.scope]?.get(capacity.kind)?.value ?: continue
@@ -108,29 +227,33 @@ internal class SmartComboQuotaLedger(
             }
         }
         entries[plan.requestId] = Entry(plan, at, State.RESERVED)
+        if (!persist()) return Admission(false, "Request journal unavailable; automatic routing paused", true)
         return Admission(true, "Reserved locally", refresh)
     }
 
     @Synchronized fun dispatch(requestId: String): Boolean {
+        if (!ensureLoaded()) return false
         val current = entries[requestId] ?: return false
         if (current.state != State.RESERVED) return false
         entries[requestId] = current.copy(state = State.DISPATCHED)
-        return true
+        return persist()
     }
 
     /** Releasing dispatched/uncertain usage without provider evidence is forbidden. */
     @Synchronized fun releaseUndispatched(requestId: String): Boolean {
+        if (!ensureLoaded()) return false
         val current = entries[requestId] ?: return false
         if (current.state != State.RESERVED) return false
         entries[requestId] = current.copy(state = State.RELEASED)
-        return true
+        return persist()
     }
 
     @Synchronized fun markUncertain(requestId: String): Boolean {
+        if (!ensureLoaded()) return false
         val current = entries[requestId] ?: return false
         if (current.state != State.DISPATCHED && current.state != State.UNCERTAIN) return false
         entries[requestId] = current.copy(state = State.UNCERTAIN)
-        return true
+        return persist()
     }
 
     /**
@@ -139,14 +262,16 @@ internal class SmartComboQuotaLedger(
      * totals remain unknown; do not label local heuristic counts as verified.
      */
     @Synchronized fun completedWithoutUsage(requestId: String): Boolean {
+        if (!ensureLoaded()) return false
         val current = entries[requestId] ?: return false
         if (current.state != State.DISPATCHED) return false
         entries[requestId] = current.copy(state = State.FINISHED_UNVERIFIED, settledAt = now())
-        return true
+        return persist()
     }
 
     /** Accept only final provider/billing-confirmed usage, never a tokenization heuristic. */
     @Synchronized fun reconcile(requestId: String, usage: Usage): Boolean {
+        if (!ensureLoaded()) return false
         val current = entries[requestId] ?: return false
         if (current.state == State.RECONCILED) return current.confirmed == usage
         if (current.state !in setOf(State.DISPATCHED, State.UNCERTAIN, State.FINISHED_UNVERIFIED)) return false
@@ -157,12 +282,19 @@ internal class SmartComboQuotaLedger(
             state = State.RECONCILED, confirmed = usage,
             settledAt = current.settledAt ?: now()
         )
-        return true
+        return persist()
     }
 
-    @Synchronized fun entry(requestId: String): Entry? = entries[requestId]
+    @Synchronized fun entry(requestId: String): Entry? {
+        if (!ensureLoaded()) return null
+        return entries[requestId]
+    }
 
-    @Synchronized fun capacities(scope: String, at: Long = now()): List<Capacity> =
+    @Synchronized fun capacities(scope: String, at: Long = now()): List<Capacity> {
+        if (!ensureLoaded()) return emptyList()
+        return capacitiesForKey(scopeKey(scope), at)
+    }
+    private fun capacitiesForKey(scope: String, at: Long): List<Capacity> =
         snapshots[scope].orEmpty().values.map { evidence ->
             val w = evidence.value
             if (!fresh(w, at)) {

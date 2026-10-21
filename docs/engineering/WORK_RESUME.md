@@ -77,3 +77,9 @@ next_action: Start Work from the instructions above, verify live repo state, the
 ```
 
 **Boundary:** A ChatGPT Scheduled Task may run at a user-chosen time or supported event, subject to availability and quota. A GitHub custom agent becomes discoverable through supported GitHub Copilot agent surfaces after its definition is merged. Neither mechanism guarantees automatic resumption at the moment a ChatGPT Work usage cap resets.
+
+## Active authorized increment — 2026-10-21
+
+The setup checkpoint above is historical. Main was refreshed to `b0cff9209906788358587c248b64817e531acd15`; PR145 adds only continuity instructions. Current implementation branch `feat/operational-stages-1-4` contains Smart Combo durability/recovery, six-view graph fixes and Room timeline, Hub Operations projections, and credential-bound developer writes/reconciliation. See [implementation report](STAGES_1_4_IMPLEMENTATION.md) and [machine checkpoint](stages-1-4-progress.json).
+
+State: VERIFYING.37 Python script tests +7 identity +5 publication checks passed locally; exact-head full Android CI, emulator images and final review remain required. No merge/deploy/release. Next operation: find this branch's PR, inspect its current SHA/checks, fix any compile/runtime regressions, then inspect actual screenshots. Do not duplicate this work or infer approval from this checkpoint.

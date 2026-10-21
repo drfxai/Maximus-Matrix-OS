@@ -62,14 +62,47 @@ internal data class GraphRotation(val w: Float = 1f, val x: Float = 0f, val y: F
 
 internal data class GraphProjection(val x: Float, val y: Float, val z: Float, val perspective: Float)
 
+/** The same usable rectangle is passed to painting and hit testing. */
+internal data class GraphViewport(val left: Float, val top: Float, val right: Float, val bottom: Float) {
+    val width: Float get() = (right - left).coerceAtLeast(1f)
+    val height: Float get() = (bottom - top).coerceAtLeast(1f)
+    fun contains(x: Float, y: Float): Boolean = x in left..right && y in top..bottom
+}
+
+internal data class GraphLabelBox(val id: String, val left: Float, val top: Float,
+    val right: Float, val bottom: Float) {
+    fun overlaps(other: GraphLabelBox, gap: Float = 0f): Boolean =
+        left < other.right + gap && right + gap > other.left &&
+            top < other.bottom + gap && bottom + gap > other.top
+}
+
+/** Measured text sizes are supplied by the renderer; dense labels may be omitted from Canvas.
+ * Every area remains reachable through the accessible isolation/inspector controls. */
+internal fun placeGraphLabel(id: String, x: Float, y: Float, textWidth: Float, textHeight: Float,
+    viewport: GraphViewport, occupied: List<GraphLabelBox>, gap: Float): GraphLabelBox? {
+    val width = textWidth.coerceIn(1f, viewport.width)
+    val height = textHeight.coerceAtLeast(1f)
+    if (height > viewport.height) return null
+    val left = (x - width / 2f).coerceIn(viewport.left, viewport.right - width)
+    for (step in 0..24) {
+        val direction = if (step % 2 == 0) 1 else -1
+        val offset = ((step + 1) / 2) * direction * (height + gap)
+        val top = (y + offset).coerceIn(viewport.top, viewport.bottom - height)
+        val candidate = GraphLabelBox(id, left, top, left + width, top + height)
+        if (occupied.none { candidate.overlaps(it, gap) }) return candidate
+    }
+    return null
+}
+
 /** A bounding sphere fits the viewport at every orientation, including perspective. */
 internal fun projectGraph(p: SpacePoint, rotation: GraphRotation, width: Float, height: Float,
-                          radius: Float, zoom: Float): GraphProjection {
+                          radius: Float, zoom: Float, viewport: GraphViewport? = null): GraphProjection {
     val r = radius.coerceAtLeast(1f)
     val v = rotation.apply(p)
     val perspective = 4f * r / (4f * r - v.z).coerceAtLeast(r)
-    val scale = min(width, height) * .36f / r * zoom
-    return GraphProjection(width/2f + v.x*scale*perspective,
-        height/2f + v.y*scale*perspective, v.z, perspective)
+    val usable = viewport ?: GraphViewport(0f, 0f, width, height)
+    val scale = min(usable.width, usable.height) * (if (viewport == null) .36f else .46f) / r * zoom
+    return GraphProjection(usable.left + usable.width/2f + v.x*scale*perspective,
+        usable.top + usable.height/2f + v.y*scale*perspective, v.z, perspective)
 }
 

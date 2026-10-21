@@ -3,6 +3,16 @@ package ai.drfx.maximus.matrixai.llm
 /** One process-wide quota ledger and chat/team dispatch owner across Activity ViewModels. */
 internal object SmartComboSessionBroker {
     val executor = SmartComboFreeExecutor()
+    private var durableExecutor: SmartComboFreeExecutor? = null
+    private var journalPath: String? = null
+
+    /** Lazy journal opening happens on the caller's inference IO dispatcher. */
+    @Synchronized fun forStorage(file: java.io.File): SmartComboFreeExecutor {
+        check(journalPath == null || journalPath == file.absolutePath) { "Conflicting request journal." }
+        journalPath = file.absolutePath
+        return durableExecutor ?: SmartComboFreeExecutor(SmartComboQuotaLedger(
+            journal = SmartComboRequestJournal(file))).also { durableExecutor = it }
+    }
     private var owner: String? = null
     private var team = false
     private var cancellationRequested = false
