@@ -155,6 +155,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     val context = LocalContext.current
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val metrics = state.tokenMetrics
+    val displayedModel = state.activeRequest?.modelId ?: state.selectedModel
+    val displayedProvider = state.activeRequest?.provider ?: state.provider
     val numberFormat = remember { NumberFormat.getNumberInstance(Locale.US) }
     val clipboardManager = LocalClipboardManager.current
     val reactionStore = remember(context) { ChatFeedbackStore(context.applicationContext) }
@@ -427,11 +429,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         )
         if (!keyboardVisible) {
             MaximusContextStrip(
-                usedFraction = if (state.selectedModel.isBlank()) null else metrics.contextUsagePercent,
-                remaining = if (state.selectedModel.isBlank()) stringResource(R.string.api_unknown)
+                usedFraction = if (displayedModel.isBlank()) null else metrics.contextUsagePercent,
+                remaining = if (displayedModel.isBlank()) stringResource(R.string.api_unknown)
                     else numberFormat.format(metrics.remainingContextTokens),
-                provider = state.provider.displayName,
-                model = state.selectedModel,
+                provider = displayedProvider.displayName,
+                model = displayedModel,
                 modifier = Modifier.clickable { settingsOpen = true },
                 compact = true
             )
