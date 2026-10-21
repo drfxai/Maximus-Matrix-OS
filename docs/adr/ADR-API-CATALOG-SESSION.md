@@ -22,7 +22,9 @@ fallback are introduced. Existing verified-free Smart Combo catalogs remain inde
 The session expires after five minutes and rejects future timestamps. Static suggestions
 are never selectable. Credentials and saved model preferences remain in their existing
 secure store; catalogs are not migrated or persisted. Consequently startup/provider switching
-requires a fresh catalog GET, including offline restart. Persisting encrypted scoped catalogs
+requires a fresh catalog GET before dispatch. The stored-only model identity is retained for
+offline history restoration; it is not an authenticated catalog entry and cannot authorize a
+request. Failed discovery also preserves this historical identity. Persisting encrypted scoped catalogs
 may be considered separately if offline model selection is required. Missing catalog support
 is reported rather than silently substituting a hard-coded model.
 

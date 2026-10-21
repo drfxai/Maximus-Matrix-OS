@@ -5,6 +5,11 @@ import org.junit.Test
 
 class ApiCatalogSessionTest {
     private val model = ModelDescriptor("chat", verified = true, capabilities = setOf(ModelCapability.CHAT))
+    @Test fun rememberedIdentityCannotDispatchWithoutAuthenticatedCatalog() {
+        val session = ApiCatalogSession { 1000 }
+        assertFalse(session.permits(session.currentRevision(), LlmProvider.GEMINI,
+            LlmProvider.GEMINI.defaultBaseUrl, "fixture-fingerprint", "remembered-gemini"))
+    }
     @Test fun catalogRequiresExactCredentialEndpointProviderAndModel() {
         val session = ApiCatalogSession { 1000 }
         val revision = session.invalidate()

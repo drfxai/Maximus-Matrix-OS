@@ -150,7 +150,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var deleteOpen by remember { mutableStateOf(false) }
     var sessionTitle by remember { mutableStateOf("") }
     val comboReady = state.smartComboEnabled && state.smartComboOffers > 0 && !state.smartComboRefreshing
-    val sendable = comboReady || (!state.smartComboEnabled && state.selectedModel.isNotBlank() &&
+    val sendable = comboReady || (!state.smartComboEnabled && state.models.any { it.id == state.selectedModel && it.verified } &&
         state.status in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED))
     val context = LocalContext.current
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0

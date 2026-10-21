@@ -280,7 +280,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
     private val initialProvider = apiStore.loadProvider()
     private val apiCatalogSession = ApiCatalogSession()
-    private val initialModel = ""
+    private val initialModel = apiStore.loadRememberedModelForProvider(initialProvider)
     private val initialBaseUrl = apiStore.loadBaseUrl().ifBlank { initialProvider.defaultBaseUrl }
     private val initialTokenBudget = apiStore.loadMonthlyTokenBudget()
     private val initialCatalog = emptyList<ModelDescriptor>()
@@ -538,7 +538,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         invalidateApiInputs()
         val current = _llmState.value
         val catalog = emptyList<ModelDescriptor>()
-        val defaultModel = apiStore.loadModelForProvider(provider).ifBlank { provider.defaultModel }
+        val defaultModel = apiStore.loadRememberedModelForProvider(provider)
         val providerEndpoint = apiStore.loadBaseUrlForProvider(provider).ifBlank { provider.defaultBaseUrl }
         val capabilities = emptySet<ModelCapability>()
         val supportedAgents = AgentRegistry.supportedAgents(capabilities)
@@ -560,7 +560,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             provider = provider,
             baseUrl = providerEndpoint,
             models = catalog,
-            selectedModel = "",
+            selectedModel = defaultModel,
             selectedAgentId = selectedAgent,
             supportedAgents = supportedAgents,
             statusMessage = "Switched to ${provider.displayName}. Discover its authenticated model catalog.",
@@ -585,7 +585,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         val revision = apiCatalogSession.invalidate()
         validationJob?.cancel()
         _llmState.value = _llmState.value.copy(apiInputRevision = revision,
-            models = emptyList(), selectedModel = "", supportedAgents = emptyList(),
+            models = emptyList(), supportedAgents = emptyList(),
             catalogCheckedAtEpochMs = null, inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null,
             status = ConnectionStatus.DISCONNECTED, statusMessage = "Discover the authenticated catalog for these API inputs.",
             tokenMetrics = _llmState.value.tokenMetrics.withoutProviderRateEvidence())
@@ -641,7 +641,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
                 if (apiCatalogSession.isCurrent(revision)) _llmState.value = _llmState.value.copy(
-                    status = ConnectionStatus.ERROR, models = emptyList(), selectedModel = "", supportedAgents = emptyList(),
+                    status = ConnectionStatus.ERROR, models = emptyList(), selectedModel = requested.selectedModel, supportedAgents = emptyList(),
                     statusMessage = error.message ?: "Authenticated catalog discovery failed.")
             }
         }.also { it.invokeOnCompletion { SmartComboSessionBroker.release(ownership) } }
