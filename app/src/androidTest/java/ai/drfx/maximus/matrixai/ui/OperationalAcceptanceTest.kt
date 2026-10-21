@@ -129,7 +129,10 @@ class OperationalAcceptanceTest {
         search.text = "NoSuchMaximusNode-acceptance"
         assertNotNull(device.wait(Until.findObject(By.text("No matching modules")), 10_000))
         search.text = "Embedding Engine"
-        checkNotNull(device.wait(Until.findObject(By.text("Embedding Engine")), 10_000)).click()
+        // The editable query has the same text as the result. Select the result label,
+        // never the EditText whose click would merely refocus the keyboard.
+        checkNotNull(device.wait(Until.findObject(
+            By.text("Embedding Engine").clazz("android.widget.TextView")), 10_000)).click()
         // The production selected-node strip yields space to the IME while editing.
         // Close the keyboard before asserting the strip's accessible controls.
         dismissImeIfVisible()
@@ -238,7 +241,11 @@ class OperationalAcceptanceTest {
             languages.save(AppLanguage.ENGLISH)
             device.executeShellCommand(
                 "am start -W -f 0x10008000 -n ${context.packageName}/${MainActivity::class.java.name}")
-            try { block() } finally { runCatching { onActivity { it.finish() } } }
+            try { block() } catch (failure: Throwable) {
+                // Preserve the actual failed application frame without suppressing the failure.
+                runCatching { device.takeScreenshot(File(context.getExternalFilesDir(null), "failure-state.png")) }
+                throw failure
+            } finally { runCatching { onActivity { it.finish() } } }
         } finally {
             try {
                 val restore = visualization.edit().clear()
@@ -310,16 +317,16 @@ class OperationalAcceptanceTest {
                 labels.forEach { label ->
                     device.findObject(By.text(label))?.takeIf { it.visibleBounds.height() > 0 }?.let { return it }
                 }
-                val scrollable = device.findObjects(By.scrollable(true)).firstOrNull {
-                    it.visibleBounds.height() > 160 && it.visibleBounds.width() > 120
-                }
-                if (scrollable != null) scrollable.scroll(direction, .7f)
-                else {
-                    val top = device.displayHeight / 3
-                    val bottom = device.displayHeight * 3 / 4
-                    device.swipe(device.displayWidth / 4, if (direction == Direction.UP) top else bottom,
-                        device.displayWidth / 4, if (direction == Direction.UP) bottom else top, 25)
-                }
+                val bounds = device.findObjects(By.scrollable(true)).map { it.visibleBounds }
+                    .filter { it.height() > 160 && it.width() > 120 }
+                    .maxByOrNull { it.height() }
+                val top = bounds?.let { it.top + it.height() / 5 } ?: (device.displayHeight / 3)
+                val bottom = bounds?.let { it.bottom - it.height() / 5 } ?: (device.displayHeight * 3 / 4)
+                val x = bounds?.centerX() ?: (device.displayWidth / 4)
+                // Inject one bounded gesture from copied coordinates. UiObject2.scroll waits
+                // across semantic updates, so a once-per-second evidence clock can detach it.
+                device.swipe(x, if (direction == Direction.UP) top else bottom,
+                    x, if (direction == Direction.UP) bottom else top, 25)
             } catch (_: androidx.test.uiautomator.StaleObjectException) {
                 // Only a detached accessibility node is retried. Required UI assertions remain.
             }
