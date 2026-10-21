@@ -31,6 +31,39 @@ class ModelCatalogPriceEvidenceTest {
         assertNull(ModelCatalogPriceEvidence.verifiedContext(JSONObject()))
     }
 
+
+    @Test fun underflowSizedPricesAreNeverAcceptedAsFree() {
+        for (tiny in listOf("1e-9999", "1e-400", "-1e-9999")) {
+            assertNull(ModelCatalogPriceEvidence.verifiedFreeTextPricing(model(tiny, "0")))
+            assertNull(ModelCatalogPriceEvidence.verifiedFreeTextPricing(model("0", tiny)))
+            assertNull(ModelCatalogPriceEvidence.verifiedFreeTextPricing(model("0", "0", tiny)))
+        }
+        // Exercise the JSON parser, not only string values: Android may round this
+        // positive JSON number to floating-point zero before pricing is inspected.
+        val parsed = JSONObject("""{"pricing":{"prompt":1e-9999,"completion":0}}""")
+        assertNull(ModelCatalogPriceEvidence.verifiedFreeTextPricing(parsed))
+    }
+
+    @Test fun floatingPointZeroIsAmbiguousButExactDecimalZeroIsAccepted() {
+        val floating = JSONObject().put("pricing",
+            JSONObject().put("prompt", 0.0).put("completion", 0))
+        assertNull(ModelCatalogPriceEvidence.verifiedFreeTextPricing(floating))
+
+        assertTrue(ModelCatalogPriceEvidence.verifiedFreeTextPricing(
+            model("0e+9", "0.000", "0E-99")
+        )?.isFree == true)
+    }
+
+    @Test fun tinyAuxiliaryCacheFeesAreNotFree() {
+        for (fee in listOf("input_cache_read", "input_cache_write")) {
+            val pricing = JSONObject().put("prompt", "0").put("completion", "0")
+                .put(fee, "1e-9999")
+            assertNull(ModelCatalogPriceEvidence.verifiedFreeTextPricing(
+                JSONObject().put("pricing", pricing)
+            ))
+        }
+    }
+
     @Test fun numericPricingIsAllowedButUnknownExtraFeeIsRejected() {
         val candidate = model("0", "0").put("pricing",
             JSONObject().put("prompt", 0).put("completion", 0).put("input_cache_write", 0.01))
