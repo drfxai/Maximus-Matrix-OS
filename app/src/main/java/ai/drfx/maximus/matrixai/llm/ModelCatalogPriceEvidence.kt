@@ -10,13 +10,13 @@ import org.json.JSONObject
 internal object ModelCatalogPriceEvidence {
     fun verifiedFreeTextPricing(model: JSONObject): SmartComboPlanner.Price? {
         val pricing = model.optJSONObject("pricing") ?: return null
-        val prompt = parseNonNegative(pricing.opt("prompt")) ?: return null
-        val completion = parseNonNegative(pricing.opt("completion")) ?: return null
-        if (prompt != 0.0 || completion != 0.0) return null
+        // Floating-point parsing can underflow a tiny positive fee (e.g. 1e-9999)
+        // into 0.0. Require exact decimal zero before admitting an automatic route.
+        if (!isExplicitZero(pricing.opt("prompt")) || !isExplicitZero(pricing.opt("completion"))) return null
         // Explicit nonzero auxiliary fees disqualify a free claim. Missing auxiliary
         // fields are not evidence of chargeable modalities; automatic routes are text-only.
         for (fee in listOf("request", "input_cache_read", "input_cache_write")) {
-            if (pricing.has(fee) && parseNonNegative(pricing.opt(fee)) != 0.0) return null
+            if (pricing.has(fee) && !isExplicitZero(pricing.opt(fee))) return null
         }
         return SmartComboPlanner.Price(0.0, 0.0, verified = true)
     }
@@ -31,12 +31,12 @@ internal object ModelCatalogPriceEvidence {
         return tokens.takeIf { it in 512..10_000_000 }?.toInt()
     }
 
-    private fun parseNonNegative(value: Any?): Double? {
-        val number = when (value) {
-            is Number -> value.toDouble()
-            is String -> value.toDoubleOrNull()
-            else -> null
-        } ?: return null
-        return number.takeIf { it.isFinite() && it >= 0.0 }
+    private fun isExplicitZero(value: Any?): Boolean {
+        val decimal = when (value) {
+            is Number -> value.toString()
+            is String -> value.trim()
+            else -> return false
+        }.toBigDecimalOrNull() ?: return false
+        return decimal.signum() == 0
     }
 }
