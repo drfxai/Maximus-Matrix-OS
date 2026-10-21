@@ -33,6 +33,23 @@ class HttpLifecycleTest {
         assertTrue(connection.disconnected.await(2, TimeUnit.SECONDS))
         assertTrue(job.isCancelled)
     }
+    @Test fun timedOutProbeDisconnectsTransportWithoutReplay() = runBlocking {
+        val connection = Connection()
+        val attempts = java.util.concurrent.atomic.AtomicInteger()
+        try {
+            kotlinx.coroutines.withTimeout(1000L) {
+                CancellableHttp.execute {
+                    attempts.incrementAndGet()
+                    CancellableHttp.register(connection)
+                    connection.disconnected.await(10, TimeUnit.SECONDS)
+                }
+            }
+            fail("Blocked probe must time out")
+        } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+            assertTrue(connection.disconnected.await(2, TimeUnit.SECONDS))
+            assertEquals(1, attempts.get())
+        }
+    }
     @Test fun lateConnectionRegistrationAfterCancellationIsRejected() {
         val session = CancellableHttp.Session()
         session.cancel()

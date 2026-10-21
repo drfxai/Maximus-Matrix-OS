@@ -173,10 +173,7 @@ internal fun SmartComboFocusedScreen(
                             Text(model.displayName, color = MaximusReference.white,
                                 fontSize = 13.sp, maxLines = 2,
                                 fontWeight = FontWeight.SemiBold)
-                            Text(
-                                if (model.id == state.inferenceVerifiedModel && state.inferenceVerifiedAtEpochMs != null) "Selected model inference tested"
-                                else "Catalog entry · inference not tested",
-                                color = MaximusReference.muted, fontSize = 10.sp)
+                            ModelProbeEvidenceText(state.modelProbeEvidence[model.id])
                             val tags = model.capabilities.filter {
                                 it in setOf(ModelCapability.VISION, ModelCapability.REASONING,
                                     ModelCapability.TOOLS, ModelCapability.LONG_CONTEXT)

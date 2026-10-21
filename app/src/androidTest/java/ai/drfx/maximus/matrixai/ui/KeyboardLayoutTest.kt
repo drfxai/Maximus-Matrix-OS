@@ -378,6 +378,48 @@ class KeyboardLayoutTest {
         } finally { importedId?.let(store::delete) }
     }
 
+    @Test fun savedChatPineSourceUsesActualAppNavigationAndPersistsExactDraft() {
+        val context = instrumentation.targetContext
+        val store = ai.drfx.maximus.matrixai.studio.PineStudioStore(context)
+        val before = store.list().associate { it.id to it.code }
+        val prefs = context.getSharedPreferences("matrix_chat_sessions", android.content.Context.MODE_PRIVATE)
+        val previousActive = prefs.getString("active", null)
+        val sessionId = "pine-route-fixture-" + java.util.UUID.randomUUID()
+        val source = "//@version=6\nindicator(\"Chat route fixture\", overlay=true)\nplot(ta.sma(close, 14))"
+        var repository: ai.drfx.maximus.matrixai.database.repository.ChatHistoryRepository? = null
+        lateinit var vm: MatrixViewModel
+        var importedId: String? = null
+        try {
+            withLaunchedActivity {
+                withResumedActivity { vm = androidx.lifecycle.ViewModelProvider(it)[MatrixViewModel::class.java] }
+                repository = vm.chatRepository
+                val state = vm.llmState.value
+                kotlinx.coroutines.runBlocking {
+                    vm.chatRepository.saveSession(ai.drfx.maximus.matrixai.database.entities.ChatSessionEntity(
+                        sessionId, "LOCAL TEST DATA · Pine route", state.provider.name, state.selectedModel, state.selectedAgentId))
+                    vm.chatRepository.saveMessage(ai.drfx.maximus.matrixai.database.entities.ChatMessageEntity(
+                        sessionId = sessionId, role = "assistant", content = "```pine\n$source\n```"))
+                }
+                awaitCondition("Saved test conversation not observed") { vm.chatSessions.value.any { it.id == sessionId } }
+                withResumedActivity { vm.switchChatSession(sessionId) }
+                awaitCondition("Saved test message not restored") { vm.chatMessages.value.any { it.content.contains("Chat route fixture") } }
+                objectWithDescription(context.getString(ai.drfx.maximus.matrixai.R.string.nav_chat)).click()
+                checkNotNull(device.wait(Until.findObject(By.text("Open in Pine Studio")), 10_000)).click()
+                checkNotNull(device.wait(Until.findObject(By.textContains("Chat route fixture")), 10_000))
+                val imported = store.list().single { it.id !in before && it.code == source }
+                importedId = imported.id
+                assertEquals(source, imported.code)
+                before.forEach { (id, code) -> assertEquals(code, store.list().first { it.id == id }.code) }
+                captureWorkspace("pine-chat-route-fixture.png")
+            }
+        } finally {
+            importedId?.let(store::delete)
+            repository?.let { repo -> kotlinx.coroutines.runBlocking { repo.deleteSession(sessionId) } }
+            if (previousActive == null) prefs.edit().remove("active").commit()
+            else prefs.edit().putString("active", previousActive).commit()
+        }
+    }
+
     @Test fun smartComboWorkspaceIsReachableAndCapturesObservedEmptyState() {
         withLaunchedActivity {
             objectWithDescription("More").click()
@@ -432,7 +474,7 @@ class KeyboardLayoutTest {
 
     private fun captureWorkspace(name: String) {
         // Test-owned, fixed paths only: Gradle may uninstall the app before host collection.
-        require(name in listOf("home-graph.png", "chat-focus.png", "chat-code-fixture.png", "chat-html-preview-fixture.png", "studio-overview.png", "studio-changes.png", "studio-pine-premium.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-chat-import-fixture.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
+        require(name in listOf("home-graph.png", "chat-focus.png", "chat-code-fixture.png", "chat-html-preview-fixture.png", "studio-overview.png", "studio-changes.png", "studio-pine-premium.png", "studio-populated.png", "studio-files-populated.png", "pine-studio.png", "pine-chat-import-fixture.png", "pine-chat-route-fixture.png", "pine-preview.png", "pine-chart-expanded.png", "agents-my-agents.png", "agents-populated.png", "agents-edit-populated.png", "smart-combo.png", "tools-hub.png"))
         runCatching {
             // Let the destination crossfade finish before sampling the rendered frame.
             SystemClock.sleep(350L)

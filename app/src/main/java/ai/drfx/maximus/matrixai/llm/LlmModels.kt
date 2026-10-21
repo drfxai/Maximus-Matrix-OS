@@ -142,6 +142,7 @@ data class ChatRequestTelemetry(
 data class LlmUiState(
     val apiInputRevision: Long = 0L,
     val catalogCheckedAtEpochMs: Long? = null,
+    val modelProbeEvidence: Map<String, ModelProbeEvidence> = emptyMap(),
     val inferenceVerifiedModel: String = "",
     val inferenceVerifiedAtEpochMs: Long? = null,
     val status: ConnectionStatus = ConnectionStatus.DISCONNECTED,

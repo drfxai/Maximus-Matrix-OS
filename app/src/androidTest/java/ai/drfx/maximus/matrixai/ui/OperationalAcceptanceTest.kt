@@ -82,6 +82,33 @@ class OperationalAcceptanceTest {
         assertNotNull(device.wait(Until.findObject(By.desc("Interactive node graph")), 10_000))
     }
 
+    @Test fun modelProbeEvidenceShowsDistinctDatedOutcomesWithoutLiveClaims() = inEnglishActivity {
+        val now = System.currentTimeMillis()
+        onActivity { activity -> activity.setContent {
+            MaximusMatrixTheme {
+                Scaffold(containerColor = Color.Black, contentWindowInsets = WindowInsets.safeDrawing) { insets ->
+                    Column(Modifier.fillMaxSize().padding(insets).consumeWindowInsets(insets)) {
+                        Text("MODEL TEST EVIDENCE · TEST DATA", color = Color.White)
+                        ModelProbeEvidenceText(null)
+                        ModelProbeEvidenceText(ai.drfx.maximus.matrixai.llm.ModelProbeEvidence(
+                            ai.drfx.maximus.matrixai.llm.ModelProbeOutcome.SUCCEEDED, now))
+                        ModelProbeEvidenceText(ai.drfx.maximus.matrixai.llm.ModelProbeEvidence(
+                            ai.drfx.maximus.matrixai.llm.ModelProbeOutcome.FAILED, now,
+                            ai.drfx.maximus.matrixai.llm.ProviderFailure.FORBIDDEN))
+                        ModelProbeEvidenceText(ai.drfx.maximus.matrixai.llm.ModelProbeEvidence(
+                            ai.drfx.maximus.matrixai.llm.ModelProbeOutcome.UNCERTAIN,
+                            now - ai.drfx.maximus.matrixai.llm.ApiCatalogSession.CATALOG_TTL_MS - 1000))
+                    }
+                }
+            }
+        } }
+        assertNotNull(device.wait(Until.findObject(By.text("Catalog candidate · not tested")), 10_000))
+        assertNotNull(device.wait(Until.findObject(By.textContains("Last test passed")), 10_000))
+        assertNotNull(device.wait(Until.findObject(By.textContains("account access denied")), 10_000))
+        assertNotNull(device.wait(Until.findObject(By.textContains("stale; test again")), 10_000))
+        capture("model-probe-fixture.png")
+    }
+
     @Test fun developerOperationsShowsActualUnconfiguredState() = inEnglishActivity {
         onActivity { activity ->
             activity.setContent {
@@ -300,7 +327,7 @@ class OperationalAcceptanceTest {
             "galaxy-selected.png", "smart-combo-evidence.png", "smart-combo-usage.png",
             "operations-agents.png", "operations-pulse.png", "operations-memory.png",
             "operations-runtime.png", "operations-security.png",
-            "developer-operations.png"))
+            "developer-operations.png", "model-probe-fixture.png"))
         SystemClock.sleep(400)
         val file = File(context.getExternalFilesDir(null), name)
         check(device.takeScreenshot(file)) { "Unable to capture real Android frame" }
