@@ -186,7 +186,9 @@ class OperationalAcceptanceTest {
         assertNotNull(scrollToText("TPM snapshot: Unknown", contains = true))
         capture("smart-combo-evidence.png")
         scrollToText("Inspect evidence and candidates").click()
-        scrollToText("Provider credit: Unknown · no account balance API evidence")
+        // The expanded evidence card can be several viewports tall on compact devices.
+        // Search farther down before reversing, but keep the same bounded deadline and assertion.
+        scrollToText("Provider credit: Unknown · no account balance API evidence", forwardAttempts = 18)
         scrollToText("Automatic paid fallback: Disabled")
         capture("smart-combo-usage.png")
     }
@@ -363,7 +365,7 @@ class OperationalAcceptanceTest {
         } finally { bitmap.recycle() }
     }
 
-    private fun scrollToText(vararg labels: String, direction: Direction = Direction.DOWN, contains: Boolean = false): UiObject2 {
+    private fun scrollToText(vararg labels: String, direction: Direction = Direction.DOWN, contains: Boolean = false, forwardAttempts: Int = 8): UiObject2 {
         val deadline = SystemClock.uptimeMillis() + 15_000L
         var lastBounds = "no scroll container observed"
         var attempt = 0
@@ -382,7 +384,7 @@ class OperationalAcceptanceTest {
                 val top = bounds?.let { it.top + it.height() * 7 / 20 } ?: (device.displayHeight * 2 / 5)
                 val bottom = bounds?.let { it.bottom - it.height() * 7 / 20 } ?: (device.displayHeight * 3 / 5)
                 val x = bounds?.centerX() ?: (device.displayWidth / 4)
-                val move = if (attempt < 8) direction else
+                val move = if (attempt < forwardAttempts.coerceIn(1, 23)) direction else
                     if (direction == Direction.UP) Direction.DOWN else Direction.UP
                 // UiDevice.swipe synchronizes input-up with window animations. That wait
                 // can outlive the test when a clock-driven screen keeps updating. Send a
