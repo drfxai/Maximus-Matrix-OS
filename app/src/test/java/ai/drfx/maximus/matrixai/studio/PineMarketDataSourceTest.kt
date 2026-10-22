@@ -2,6 +2,7 @@ package ai.drfx.maximus.matrixai.studio
 
 import org.junit.Assert.*
 import org.junit.Test
+import kotlinx.coroutines.runBlocking
 
 class PineMarketDataSourceTest {
     @Test fun parsesDescendingExchangeCandlesAsAscending() {
@@ -42,5 +43,27 @@ class PineMarketDataSourceTest {
     @Test fun supportsExactlyFourRequestedTimeframes() {
         assertEquals(listOf(60, 300, 900, 3600),
             PineTimeframe.entries.map { it.seconds })
+    }
+
+    @Test fun excludesCurrentOpenCandleBeforeApplyingHistoryLimit() {
+        val payload = (0..200).joinToString(prefix = "[", postfix = "]") { index ->
+            "[${60_000L - index * 60L},1,3,2,2.5,1]"
+        }
+        val candles = PineCandleParser.parseCoinbase(payload, maxEpochExclusive = 60_000L)
+        assertEquals(200, candles.size)
+        assertEquals(48_000L, candles.first().epochSeconds)
+        assertEquals(59_940L, candles.last().epochSeconds)
+    }
+
+    @Test fun requestUsesLastCompletedInterval() = runBlocking {
+        var requested = ""
+        val source = PineMarketDataSource { url ->
+            requested = url
+            "[[60000,1,3,2,2.5,1],[59940,1,3,2,2.5,1],[59880,1,3,2,2.5,1]]"
+        }
+        val series = source.load("BTC-USD", PineTimeframe.ONE_MINUTE, nowSeconds = 60_005L)
+        assertEquals(2, series.candles.size)
+        assertEquals(59_940L, series.candles.last().epochSeconds)
+        assertTrue(requested.contains("end=1970-01-01T16:39:00Z"))
     }
 }

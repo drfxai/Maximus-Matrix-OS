@@ -37,7 +37,7 @@ data class PineMarketSeries(
 
 /** Strictly parse Coinbase Exchange candles [timestamp, low, high, open, close, volume]. */
 object PineCandleParser {
-    fun parseCoinbase(payload: String, limit: Int = 200): List<PineCandle> {
+    fun parseCoinbase(payload: String, limit: Int = 200, maxEpochExclusive: Long? = null): List<PineCandle> {
         require(limit in 1..200)
         val rows = JSONArray(payload)
         require(rows.length() > 0) { "Exchange returned no candles." }
@@ -58,7 +58,9 @@ object PineCandleParser {
                 high >= low && volume >= 0) { "Invalid OHLCV exchange response." }
             unique[time] = PineCandle(time, open, high, low, close, volume)
         }
-        return unique.values.sortedBy { it.epochSeconds }.takeLast(limit)
+        return unique.values.asSequence().filter {
+            maxEpochExclusive == null || it.epochSeconds < maxEpochExclusive
+        }.sortedBy { it.epochSeconds }.toList().takeLast(limit)
     }
 }
 
@@ -78,10 +80,16 @@ class PineMarketDataSource(
                 require(connection.responseCode == 200) {
                     "Exchange HTTP ${connection.responseCode}. Retry or change your network."
                 }
-                connection.inputStream.bufferedReader().use { reader ->
-                    val text = reader.readText()
-                    require(text.length <= 300_000) { "Exchange response is too large." }
-                    return text
+                connection.inputStream.use { stream ->
+                    val output = java.io.ByteArrayOutputStream()
+                    val buffer = ByteArray(8192)
+                    while (true) {
+                        val count = stream.read(buffer)
+                        if (count < 0) break
+                        require(output.size() + count <= 300_000) { "Exchange response is too large." }
+                        output.write(buffer, 0, count)
+                    }
+                    return output.toString(Charsets.UTF_8.name())
                 }
             } finally { connection.disconnect() }
         }
@@ -93,14 +101,15 @@ class PineMarketDataSource(
         nowSeconds: Long = System.currentTimeMillis() / 1000
     ): PineMarketSeries = withContext(Dispatchers.IO) {
         require(product in PRODUCTS) { "Unsupported market symbol." }
-        val end = (nowSeconds / timeframe.seconds) * timeframe.seconds
+        val currentOpen = (nowSeconds / timeframe.seconds) * timeframe.seconds
+        val end = currentOpen - timeframe.seconds
         val start = end - (206L * timeframe.seconds)
         val url = "https://api.exchange.coinbase.com/products/$product/candles" +
             "?granularity=${timeframe.seconds}" +
             "&start=${DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochSecond(start))}" +
             "&end=${DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochSecond(end))}"
-        val candles = PineCandleParser.parseCoinbase(fetch(url)).filter {
-            it.epochSeconds <= end && it.epochSeconds >= start
+        val candles = PineCandleParser.parseCoinbase(fetch(url), maxEpochExclusive = currentOpen).filter {
+            it.epochSeconds >= start
         }
         require(candles.isNotEmpty()) { "No recent candles from Coinbase Exchange." }
         PineMarketSeries(product, "Coinbase Exchange", timeframe, candles.takeLast(200),

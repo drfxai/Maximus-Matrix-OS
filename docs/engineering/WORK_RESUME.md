@@ -99,3 +99,7 @@ Main refreshed to `2a9d8a0bed50a7ba225204619af1b8f7f33b68d7`; PR150 is owner-mer
 ## App update10031 — 2026-10-22 Tehran
 
 PR151 is owner-merged as9f3a3c1c9aff54d62215e4031fca46b1933d536e; main CI39688785503 passed. Owner requested an app update. Branch release/prepare-10031 increments only internal versionCode and adds release notes/checkpoint. See RELEASE_10031_CHECKPOINT.md and release-10031-progress.json. Find existing preparation PR and release/verify-v1 run; verify permanent signing identity and in-place data preservation before installation/publication. Current public release is10030.
+
+## Brain, Chat, Pine and Smart Combo debug — 2026-10-22
+
+Earlier source checkpoints are historical. Main was refreshed to `bce8af722f6008d5e3da44ab7f381448afe537f8`; required main CI39728515165 passed and open PR count was zero before this increment. Branch `codex/brain-chat-pine-combo-debug` and PR153 address typed/voice routing, Brain action concurrency, Chat search scrolling, completed Pine candle boundaries, Smart Combo candidate-category claims and graph label collisions. See [debug checkpoint](BRAIN_CHAT_PINE_COMBO_DEBUG.md). The exact final-head CI and screenshot review are pending; do not merge or publish solely from this checkpoint. Stable v1.0.0 still carries internal10030 while source main carries candidate10031.

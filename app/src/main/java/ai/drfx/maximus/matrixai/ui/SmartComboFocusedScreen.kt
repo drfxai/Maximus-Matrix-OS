@@ -29,18 +29,23 @@ private val comboCategories = listOf("All", "Code", "Vision", "Audio", "Reasonin
 
 /** Category labels never upgrade catalog metadata into verified runtime capabilities. */
 internal fun smartComboCategoryMatch(model: ModelDescriptor, category: String): Boolean {
-    val id = model.id.lowercase()
     return when (category) {
         "Code" -> ModelCapability.TOOLS in model.capabilities ||
-            ModelCapability.STRUCTURED_OUTPUT in model.capabilities ||
-            id.contains("code") || id.contains("coder")
-        "Vision" -> ModelCapability.VISION in model.capabilities
-        "Audio" -> id.contains("audio") || id.contains("whisper") || id.contains("speech")
+            ModelCapability.STRUCTURED_OUTPUT in model.capabilities
+        "Vision" -> model.imageInputSupport == ImageInputSupport.SUPPORTED ||
+            (model.imageInputSupport != ImageInputSupport.UNSUPPORTED &&
+                ModelCapability.VISION in model.capabilities)
+        "Audio" -> false // No authenticated audio-input capability is represented in this catalog.
         "Reasoning" -> ModelCapability.REASONING in model.capabilities
         "Local" -> false // never present a cloud model as installed locally
         else -> true
     }
 }
+
+internal fun smartComboModelSearchMatch(model: ModelDescriptor, providerName: String, query: String): Boolean =
+    model.id.contains(query, ignoreCase = true) ||
+        model.displayName.contains(query, ignoreCase = true) ||
+        providerName.contains(query, ignoreCase = true)
 
 /**
  * Live routing view: animation represents selected route state, not unverified
@@ -64,12 +69,9 @@ internal fun SmartComboFocusedScreen(
     var choice by remember(state.provider, state.models, state.selectedModel) {
         mutableStateOf(state.selectedModel)
     }
-    val filtered = remember(state.models, search, category) {
-        state.models.filter {
-            (it.id.contains(search, ignoreCase = true) ||
-                it.displayName.contains(search, ignoreCase = true)) &&
-                smartComboCategoryMatch(it, category)
-        }
+    val filtered = remember(state.models, state.provider, search, category) {
+        state.models.filter { smartComboModelSearchMatch(it, state.provider.displayName, search) &&
+            smartComboCategoryMatch(it, category) }
     }
     Column(modifier.fillMaxSize()) {
         LazyColumn(
@@ -144,9 +146,11 @@ internal fun SmartComboFocusedScreen(
                         }
                     }
                     if (filtered.isEmpty()) {
-                        Text(if (category == "Local")
-                            "Select installed models in the Local Model Hub via Advanced."
-                            else "No compatible catalog models. Check provider connection and refresh.",
+                        Text(when (category) {
+                            "Local" -> "Select installed models in the Local Model Hub via Advanced."
+                            "Audio" -> "Audio input support is not verified by this model catalog."
+                            else -> "No matching catalog models. Check provider connection and refresh."
+                        },
                             color = MaximusReference.muted, fontSize = 11.sp)
                     }
                 }
@@ -245,7 +249,7 @@ internal fun SmartComboFocusedScreen(
                 }
             }
             item {
-                Text("Models are grouped by catalog attributes, not guaranteed benchmark quality. Live availability requires provider authentication.",
+                Text("Categories are candidates from available metadata. Inference and account access require a separate test.",
                     color = MaximusReference.muted, fontSize = 10.sp)
                 TextButton(onClick = onAdvanced, modifier = Modifier.fillMaxWidth()) {
                     Text("Advanced API · quotas · local models")

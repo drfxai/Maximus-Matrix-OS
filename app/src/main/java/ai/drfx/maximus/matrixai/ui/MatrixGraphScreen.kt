@@ -445,7 +445,7 @@ fun MatrixGraphScreen(
         onDispose { engine.stop(); engine.shutdown(); brainTts = null }
     }
     fun submitBrain(raw: String) {
-        if (raw.isBlank() || llm.isGenerating) return
+        if (raw.isBlank() || llm.isGenerating || status in setOf("EXECUTING", "PLANNING", "CONFIRM")) return
         when (val req = BrainRequestRouter.route(raw)) {
             is BrainRequestRouter.Request.DeviceAction -> {
                 viewModel.runMission(req.canonicalObjective)
@@ -453,8 +453,7 @@ fun MatrixGraphScreen(
                 brainInputFromVoice = false
             }
             is BrainRequestRouter.Request.Conversation -> {
-                if (viewModel.sendChat(req.text,
-                        fromVoice = brainInputFromVoice || brainSpokenReplies)) {
+                if (viewModel.sendChat(req.text, fromVoice = brainInputFromVoice)) {
                     mission = ""
                     brainInputFromVoice = false
                 }
@@ -1343,7 +1342,7 @@ fun MatrixGraphScreen(
                     trailingIcon = {
                         IconButton(onClick = { submitBrain(mission) },
                             enabled = mission.isNotBlank() && !llm.isGenerating &&
-                                status != "EXECUTING" && status != "PLANNING",
+                                status !in setOf("EXECUTING", "PLANNING", "CONFIRM"),
                             modifier = Modifier.size(48.dp)) {
                             Icon(Icons.Default.ArrowUpward, stringResource(R.string.brain_send),
                                 tint = if (mission.isBlank()) muted else graphTone(GraphAccent, light))
@@ -2083,7 +2082,21 @@ private fun NeuralScene(
         }
 
         // 4. Volumetric 3D Neurons (Cellular Somas) with Realistic Bio-Lighting
-        val labelRects = areaLabelBoxes.map { android.graphics.RectF(it.left,it.top,it.right,it.bottom) }.toMutableList()
+        // The Brain camera HUD and footer float above the canvas. Keep node text
+        // inside the unobscured band even though the original graph projection
+        // still spans the full scene.
+        val labelViewport = viewport ?: GraphViewport(
+            0f,
+            minOf(56.dp.toPx(), size.height * .3f),
+            size.width,
+            size.height - minOf(34.dp.toPx(), size.height * .2f)
+        )
+        val nodeLabelObstacles = visible.map { other ->
+            val p = projected.getValue(other.id)
+            val extent = (if (other.hub) 12.dp else 7.dp).toPx() * p.perspective * sqrt(zoom)
+            GraphLabelBox(other.id, p.x - extent, p.y - extent, p.x + extent, p.y + extent)
+        }
+        val labelBoxes = areaLabelBoxes.toMutableList()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textAlign = Paint.Align.CENTER
             typeface = android.graphics.Typeface.DEFAULT_BOLD
@@ -2235,21 +2248,20 @@ private fun NeuralScene(
                     3.dp.toPx(), 0f, 1.5.dp.toPx(),
                     if (light) android.graphics.Color.WHITE else android.graphics.Color.BLACK
                 )
-                val width = paint.measureText(node.label)
-                val rect = android.graphics.RectF(
-                    center.x - width / 2 - 4,
-                    center.y + effectiveR + 3,
-                    center.x + width / 2 + 4,
-                    center.y + effectiveR + paint.textSize + 7
-                )
-                if (node.id == selected || labelRects.none { android.graphics.RectF.intersects(it, rect) }) {
+                val width = paint.measureText(node.label) + 8.dp.toPx()
+                val height = paint.fontSpacing + 4.dp.toPx()
+                val box = placeGraphLabel(node.id, center.x,
+                    center.y + effectiveR + 3.dp.toPx(), width, height, labelViewport,
+                    nodeLabelObstacles.filterNot { it.id == node.id } + labelBoxes,
+                    2.dp.toPx())
+                if (box != null) {
                     drawContext.canvas.nativeCanvas.drawText(
                         node.label,
-                        center.x,
-                        center.y + effectiveR + paint.textSize + 4,
+                        (box.left + box.right) / 2f,
+                        box.top + 2.dp.toPx() - paint.fontMetrics.ascent,
                         paint
                     )
-                    labelRects += rect
+                    labelBoxes += box
                 }
             }
         }
