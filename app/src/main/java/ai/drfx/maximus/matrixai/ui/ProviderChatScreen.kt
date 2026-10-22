@@ -199,6 +199,11 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var confirmApiTest by remember { mutableStateOf(false) }
     var searchOpen by remember { mutableStateOf(false) }
     var messageSearch by remember { mutableStateOf("") }
+    val visibleMessages = remember(messages, messageSearch) {
+        if (messageSearch.isBlank()) messages else messages.filter {
+            it.content.contains(messageSearch, ignoreCase = true)
+        }
+    }
     var tokenDetailsOpen by remember { mutableStateOf(false) }
     var quickKeyDialogOpen by remember { mutableStateOf(false) }
     var confirmDirectProvider by remember { mutableStateOf(false) }
@@ -223,7 +228,15 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     LaunchedEffect(state.provider) { apiKey = ""; quickKeyInput = ""; attachment = null }
     val listState = rememberLazyListState()
     var followLatest by remember(activeSessionId) { mutableStateOf(true) }
-    val showJumpToLatest = messages.isNotEmpty() && listState.canScrollForward
+    val showJumpToLatest = messageSearch.isBlank() && messages.isNotEmpty() && listState.canScrollForward
+
+    LaunchedEffect(activeSessionId) { messageSearch = ""; searchOpen = false }
+    LaunchedEffect(messageSearch) {
+        if (messageSearch.isNotBlank()) {
+            followLatest = false
+            listState.scrollToItem(0)
+        }
+    }
 
     // Auto-follow fresh messages only while the reader stays at the bottom.
     // A real user drag away from the latest message suspends auto-follow.
@@ -234,8 +247,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }
         }
     }
-    LaunchedEffect(messages.size, state.isGenerating, activeSessionId) {
-        if (followLatest && messages.isNotEmpty()) {
+    LaunchedEffect(messages.size, state.isGenerating, activeSessionId, messageSearch) {
+        if (messageSearch.isBlank() && followLatest && messages.isNotEmpty()) {
             val last = messages.lastIndex + if (state.isGenerating) 1 else 0
             listState.animateScrollToItem(last)
         }
@@ -415,7 +428,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 Icon(Icons.Default.Tune,
                     stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show))
             }
-            IconButton(onClick = { searchOpen = !searchOpen; if (!searchOpen) messageSearch = "" }) {
+            IconButton(onClick = {
+                searchOpen = !searchOpen
+                if (!searchOpen) { messageSearch = ""; followLatest = true }
+            }) {
                 Icon(Icons.Default.Search, "Search conversation")
             }
             IconButton(onClick = { settingsOpen = true }) {
@@ -838,7 +854,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(messages.filter { messageSearch.isBlank() || it.content.contains(messageSearch, ignoreCase = true) }) { message ->
+                    if (messageSearch.isNotBlank() && visibleMessages.isEmpty()) item {
+                        Text("No messages match this search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    items(visibleMessages) { message ->
                         ChatBubble(
                             message = message,
                             onOpenPine = if (state.isGenerating) null else onOpenPine,

@@ -453,8 +453,7 @@ fun MatrixGraphScreen(
                 brainInputFromVoice = false
             }
             is BrainRequestRouter.Request.Conversation -> {
-                if (viewModel.sendChat(req.text,
-                        fromVoice = brainInputFromVoice || brainSpokenReplies)) {
+                if (viewModel.sendChat(req.text, fromVoice = brainInputFromVoice)) {
                     mission = ""
                     brainInputFromVoice = false
                 }
@@ -2083,7 +2082,13 @@ private fun NeuralScene(
         }
 
         // 4. Volumetric 3D Neurons (Cellular Somas) with Realistic Bio-Lighting
-        val labelRects = areaLabelBoxes.map { android.graphics.RectF(it.left,it.top,it.right,it.bottom) }.toMutableList()
+        val labelViewport = viewport ?: GraphViewport(0f, 0f, size.width, size.height)
+        val nodeLabelObstacles = visible.map { other ->
+            val p = projected.getValue(other.id)
+            val extent = (if (other.hub) 12.dp else 7.dp).toPx() * p.perspective * sqrt(zoom)
+            GraphLabelBox(other.id, p.x - extent, p.y - extent, p.x + extent, p.y + extent)
+        }
+        val labelBoxes = areaLabelBoxes.toMutableList()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textAlign = Paint.Align.CENTER
             typeface = android.graphics.Typeface.DEFAULT_BOLD
@@ -2235,21 +2240,20 @@ private fun NeuralScene(
                     3.dp.toPx(), 0f, 1.5.dp.toPx(),
                     if (light) android.graphics.Color.WHITE else android.graphics.Color.BLACK
                 )
-                val width = paint.measureText(node.label)
-                val rect = android.graphics.RectF(
-                    center.x - width / 2 - 4,
-                    center.y + effectiveR + 3,
-                    center.x + width / 2 + 4,
-                    center.y + effectiveR + paint.textSize + 7
-                )
-                if (node.id == selected || labelRects.none { android.graphics.RectF.intersects(it, rect) }) {
+                val width = paint.measureText(node.label) + 8.dp.toPx()
+                val height = paint.fontSpacing + 4.dp.toPx()
+                val box = placeGraphLabel(node.id, center.x,
+                    center.y + effectiveR + 3.dp.toPx(), width, height, labelViewport,
+                    nodeLabelObstacles.filterNot { it.id == node.id } + labelBoxes,
+                    2.dp.toPx())
+                if (box != null) {
                     drawContext.canvas.nativeCanvas.drawText(
                         node.label,
-                        center.x,
-                        center.y + effectiveR + paint.textSize + 4,
+                        (box.left + box.right) / 2f,
+                        box.top + 2.dp.toPx() - paint.fontMetrics.ascent,
                         paint
                     )
-                    labelRects += rect
+                    labelBoxes += box
                 }
             }
         }
