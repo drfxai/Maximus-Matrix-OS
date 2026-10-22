@@ -416,14 +416,18 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     }
 
     Column(
-        modifier = modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        modifier = modifier.fillMaxSize().padding(horizontal = 2.dp, vertical = 0.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        if (!keyboardVisible) Row(verticalAlignment = Alignment.CenterVertically) {
+        if (!keyboardVisible) Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { sessionsOpen = true }) { Icon(Icons.Default.Menu, stringResource(R.string.ui_conversations)) }
-            Text("MAXIMUS", Modifier.weight(1f),
-                color = MaximusReference.gold, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(Modifier.weight(1f).clickable { sessionsOpen = true }) {
+                Text("MAXIMUS", color = MaximusReference.gold, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val sessionLabel = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty()
+                if (sessionLabel.isNotBlank()) Text(sessionLabel, color = MaximusReference.muted, fontSize = 10.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             IconButton(onClick = { tokenDetailsOpen = true }) {
                 Icon(Icons.Default.DataUsage, stringResource(R.string.dash_session_tokens))
             }
@@ -855,8 +859,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     if (messageSearch.isNotBlank() && visibleMessages.isEmpty()) item {
                         Text("No messages match this search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1090,15 +1094,16 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
 
         // Compact message input field; screen-level IME insets keep it above the keyboard.
         Surface(
-            modifier = Modifier.semantics { contentDescription = context.getString(R.string.chat_composer_description) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp)
+                .semantics { contentDescription = context.getString(R.string.chat_composer_description) },
             color = MaximusReference.navy,
-            shape = RoundedCornerShape(28.dp),
-            border = BorderStroke(1.dp, MaximusReference.stroke)
+            shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, if (prompt.isNotBlank()) MaximusReference.gold.copy(alpha = .55f) else MaximusReference.stroke)
         ) {
-            Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
+            Column(Modifier.padding(horizontal = 4.dp, vertical = 3.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Bottom
                 ) {
                     Box {
                         IconButton(onClick = { attachmentMenuOpen = !attachmentMenuOpen }, enabled = !recording) {
@@ -1136,10 +1141,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 androidx.compose.foundation.text.BasicTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
-                    modifier = Modifier.weight(1f).heightIn(min = 38.dp, max = 100.dp)
-                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                    modifier = Modifier.weight(1f).heightIn(min = 40.dp, max = 168.dp)
+                        .padding(horizontal = 8.dp, vertical = 10.dp)
                         .semantics { contentDescription = context.getString(R.string.chat_input_description) },
-                    maxLines = 3,
+                    maxLines = 7,
                     enabled = !recording,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
@@ -1920,9 +1925,10 @@ private fun ChatBubble(
     pineUpdate: PineUpdateTarget? = null
 ) {
     val isUser = message.role == "user"
+    // Assistant replies read like a document (no bubble, full width); user turns stay compact bubbles.
     val background = if (message.isError) MaterialTheme.colorScheme.errorContainer
     else if (isUser) Color(0xFF103560)
-    else MaximusReference.navy
+    else Color.Transparent
     val textColor = if (message.isError) MaterialTheme.colorScheme.onErrorContainer
     else if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
     else MaterialTheme.colorScheme.onSurface
@@ -1943,14 +1949,17 @@ private fun ChatBubble(
         Surface(
             color = background,
             shape = RoundedCornerShape(
-                topStart = 16.dp, topEnd = 16.dp,
-                bottomStart = if (isUser) 16.dp else 3.dp,
-                bottomEnd = if (isUser) 3.dp else 16.dp
+                topStart = 18.dp, topEnd = 18.dp,
+                bottomStart = if (isUser) 18.dp else 4.dp,
+                bottomEnd = if (isUser) 4.dp else 18.dp
             ),
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.84f else 1f),
-            border = BorderStroke(1.dp, if (isUser) MaximusReference.stroke else MaximusReference.stroke.copy(alpha = .75f))
+            modifier = if (isUser) Modifier.widthIn(max = 560.dp).fillMaxWidth(0.86f).wrapContentWidth(Alignment.End)
+                else Modifier.fillMaxWidth(),
+            border = if (message.isError) BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = .5f)) else null
         ) {
-            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(Modifier.padding(horizontal = if (isUser || message.isError) 12.dp else 4.dp,
+                vertical = if (isUser || message.isError) 9.dp else 2.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 message.attachment?.let { attachment ->
                     Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(9.dp)) {
@@ -1970,7 +1979,7 @@ private fun ChatBubble(
                     }
                 }
                 if (draft == null) {
-                    if (isUser) Text(message.content, color = textColor, fontSize = 14.sp, lineHeight = 21.sp)
+                    if (isUser) Text(message.content, color = textColor, fontSize = 15.sp, lineHeight = 22.sp)
                     else WorkspaceMessageContent(message.content, textColor, onOpenPine, onPreviewPine, pineUpdate)
                 } else {
                     // Keep the prose and code around a suggested tool call; only the tool markup is hidden.
@@ -2030,7 +2039,7 @@ private fun ChatBubble(
                                 animationSpec = spring(dampingRatio = .5f), label = "reaction-scale")
                             val haptics = LocalHapticFeedback.current
                             IconButton(onClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); clicked() },
-                                interactionSource = interactions, modifier = Modifier.size(48.dp).scale(scale)) {
+                                interactionSource = interactions, modifier = Modifier.size(40.dp).scale(scale)) {
                                 Icon(icon, contentDescription = name, modifier = Modifier.size(17.dp),
                                     tint = if (selected) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
