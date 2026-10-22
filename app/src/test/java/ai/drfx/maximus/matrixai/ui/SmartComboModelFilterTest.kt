@@ -21,6 +21,8 @@ class SmartComboModelFilterTest {
         assertTrue(smartComboCategoryMatch(capable, "Code"))
         assertTrue(smartComboCategoryMatch(capable, "Vision"))
         assertFalse(smartComboCategoryMatch(capable, "Audio"))
+        val knownUnsupported = capable.copy(imageInputSupport = ImageInputSupport.UNSUPPORTED)
+        assertFalse(smartComboCategoryMatch(knownUnsupported, "Vision"))
     }
 
     @Test fun searchIncludesProviderAndModelNames() {

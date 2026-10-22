@@ -445,7 +445,7 @@ fun MatrixGraphScreen(
         onDispose { engine.stop(); engine.shutdown(); brainTts = null }
     }
     fun submitBrain(raw: String) {
-        if (raw.isBlank() || llm.isGenerating) return
+        if (raw.isBlank() || llm.isGenerating || status in setOf("EXECUTING", "PLANNING", "CONFIRM")) return
         when (val req = BrainRequestRouter.route(raw)) {
             is BrainRequestRouter.Request.DeviceAction -> {
                 viewModel.runMission(req.canonicalObjective)
@@ -1342,7 +1342,7 @@ fun MatrixGraphScreen(
                     trailingIcon = {
                         IconButton(onClick = { submitBrain(mission) },
                             enabled = mission.isNotBlank() && !llm.isGenerating &&
-                                status != "EXECUTING" && status != "PLANNING",
+                                status !in setOf("EXECUTING", "PLANNING", "CONFIRM"),
                             modifier = Modifier.size(48.dp)) {
                             Icon(Icons.Default.ArrowUpward, stringResource(R.string.brain_send),
                                 tint = if (mission.isBlank()) muted else graphTone(GraphAccent, light))

@@ -32,7 +32,9 @@ internal fun smartComboCategoryMatch(model: ModelDescriptor, category: String): 
     return when (category) {
         "Code" -> ModelCapability.TOOLS in model.capabilities ||
             ModelCapability.STRUCTURED_OUTPUT in model.capabilities
-        "Vision" -> model.imageInputSupport == ImageInputSupport.SUPPORTED
+        "Vision" -> model.imageInputSupport == ImageInputSupport.SUPPORTED ||
+            (model.imageInputSupport != ImageInputSupport.UNSUPPORTED &&
+                ModelCapability.VISION in model.capabilities)
         "Audio" -> false // No authenticated audio-input capability is represented in this catalog.
         "Reasoning" -> ModelCapability.REASONING in model.capabilities
         "Local" -> false // never present a cloud model as installed locally
