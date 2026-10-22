@@ -1,5 +1,13 @@
 # Changelog
 
+## V1.0.0 — internal build 10033
+
+- Chat → Pine Studio: Pine code in a reply can be opened in Pine Studio, previewed on a live chart or used to replace a draft. A new local Pine engine runs real indicators and simplified strategies on the chart, with an AI review action.
+- Smarter API setup: pasted keys are recognised by provider and switch the endpoint, and an opt-in test lists only the models the key can actually use.
+- Smart Combo: requests are classified (code, reasoning, long document, quick) to choose among verified free routes, model capabilities and quality estimates come from the catalog, and the history window no longer shrinks to the smallest route.
+- Larger chat area with smaller margins, a searchable Hub launcher for every workspace, a Control Center status line, clearer Neural Galaxy labels and a timeline legend.
+- Public version 1.0.0, package identity and signing certificate are preserved; the Android build number increases for an in-place update.
+
 ## V1.0.0 — internal build 10032
 
 - Refreshed the public project page with product banners and verified Android screenshots.
