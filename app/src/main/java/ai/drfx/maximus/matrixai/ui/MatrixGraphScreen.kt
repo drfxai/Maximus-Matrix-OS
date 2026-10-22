@@ -2082,7 +2082,15 @@ private fun NeuralScene(
         }
 
         // 4. Volumetric 3D Neurons (Cellular Somas) with Realistic Bio-Lighting
-        val labelViewport = viewport ?: GraphViewport(0f, 0f, size.width, size.height)
+        // The Brain camera HUD and footer float above the canvas. Keep node text
+        // inside the unobscured band even though the original graph projection
+        // still spans the full scene.
+        val labelViewport = viewport ?: GraphViewport(
+            0f,
+            minOf(56.dp.toPx(), size.height * .3f),
+            size.width,
+            size.height - minOf(34.dp.toPx(), size.height * .2f)
+        )
         val nodeLabelObstacles = visible.map { other ->
             val p = projected.getValue(other.id)
             val extent = (if (other.hub) 12.dp else 7.dp).toPx() * p.perspective * sqrt(zoom)

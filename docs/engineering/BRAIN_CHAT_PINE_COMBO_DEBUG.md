@@ -10,7 +10,7 @@ Public version and internal version code are unchanged by this branch.
 - Chat search keeps its own visible-message list and stops scrolling to hidden messages; closing search returns to the latest conversation.
 - Pine market requests end at the last completed candle. Response parsing discards the current open interval before limiting history to 200 candles. Exchange responses are bounded while reading.
 - Smart Combo search includes the provider name. Model names alone no longer imply code, vision or audio input support; the audio group reports unavailable capability evidence.
-- Brain graph label placement avoids visible node and label rectangles within the canvas viewport.
+- Brain graph label placement avoids visible node and label rectangles and reserves the camera toolbar and footer bands.
 
 ## Verification and limits
 
