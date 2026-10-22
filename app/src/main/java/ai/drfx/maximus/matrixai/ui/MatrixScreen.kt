@@ -84,9 +84,18 @@ fun MatrixScreen(
     }
     var workSection by remember { mutableIntStateOf(0) }
     var showMoreSheet by remember { mutableStateOf(false) }
+    var returnToHub by remember { mutableStateOf(false) }
     val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
-    BackHandler(enabled = destination != Destination.MATRIX && !isImeVisible) {
+    BackHandler(enabled = (destination != Destination.MATRIX || returnToHub) && !isImeVisible) {
+        // A screen opened from the Hub launcher returns to the Hub, not to the Brain.
+        if (returnToHub && destination != Destination.TOOLS && destination != Destination.CONTROL &&
+            destination != Destination.OPERATIONS) {
+            returnToHub = false
+            destination = Destination.TOOLS
+            return@BackHandler
+        }
+        returnToHub = false
         destination = when (destination) {
             Destination.PINE -> Destination.STUDIO
             Destination.CONTROL, Destination.OPERATIONS -> Destination.TOOLS
@@ -129,7 +138,7 @@ fun MatrixScreen(
                         }
                         NavigationBarItem(
                             selected = destination == target || (target == Destination.STUDIO && destination == Destination.PINE),
-                            onClick = { destination = target },
+                            onClick = { returnToHub = false; destination = target },
                             icon = {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(icon, contentDescription = null, modifier = Modifier.size(23.dp))
@@ -214,7 +223,24 @@ fun MatrixScreen(
                         onChat = { destination = Destination.CHAT },
                         onControl = { destination = Destination.CONTROL },
                         onMore = { showMoreSheet = true },
-                        onOperations = { destination = Destination.OPERATIONS }
+                        onOperations = { destination = Destination.OPERATIONS },
+                        onOpen = { target ->
+                            returnToHub = true
+                            destination = when (target) {
+                                HubTarget.BRAIN -> Destination.MATRIX
+                                HubTarget.CHAT -> Destination.CHAT
+                                HubTarget.WORK -> Destination.STUDIO
+                                HubTarget.PINE -> { pineDraftId = null; Destination.PINE }
+                                HubTarget.PERSONAS -> Destination.AGENTS
+                                HubTarget.SIGNALS -> Destination.SIGNALS
+                                HubTarget.VISION -> Destination.VISION
+                                HubTarget.NEWS -> Destination.NEWS
+                                HubTarget.CONTROL -> Destination.CONTROL
+                                HubTarget.OPERATIONS -> Destination.OPERATIONS
+                                HubTarget.DATA -> Destination.DATA
+                                HubTarget.TERMINAL -> Destination.TERMINAL
+                            }
+                        }
                     )
                     Destination.OPERATIONS -> OperationsScreen(viewModel,
                         onBack = { destination = Destination.TOOLS },
