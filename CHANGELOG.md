@@ -2,9 +2,10 @@
 
 ## V1.0.0 — internal build10031
 
-- Integrates owner-merged PR150 and PR151: preserved-source Chat→Pine handoff, account-bound model catalog and dated per-model tests, compact Chat and reachable Hub/Control.
-- Limited SMA/EMA chart preview remains explicitly distinct from full Pine compilation/backtesting.
-- Public1.0.0, package/signing identity and Room schema are preserved. Candidate signed identity/in-place-upgrade checks remain pending until exact verification CI succeeds.
+- Updated Brain input handling and graph labels, Chat search, Pine completed-candle previews and Smart Combo capability filters.
+- Added preserved-source Chat→Pine handoff, account-bound model catalog and dated per-model tests, compact Chat and reachable Hub/Control.
+- Public version 1.0.0, package identity and signing certificate are preserved. Signed build 10030→10031 in-place upgrade and emulator checks passed before the release assets were replaced.
+- Limited chart previews remain distinct from full Pine compilation and backtesting.
 
 ## v1.0.0 (build 10027)
 

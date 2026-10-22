@@ -81,10 +81,10 @@ class DeveloperConnectionsUiTest {
                 compose.onNodeWithText(text(R.string.dev_repository_invalid))
                     .performScrollTo().assertIsDisplayed()
             }
-            field("developer_repository_url").performTextReplacement("https://github.com/DrFXAi/Maximus-Matrix-OS")
-            val selected = text(R.string.dev_repository_selected, "DrFXAi", "Maximus-Matrix-OS")
+            field("developer_repository_url").performTextReplacement("https://github.com/ExampleOrg/ExampleRepo")
+            val selected = text(R.string.dev_repository_selected, "ExampleOrg", "ExampleRepo")
             compose.onNodeWithText(selected).performScrollTo().assertIsDisplayed()
-            field("developer_repository_url").performTextReplacement("https://github.com.evil.test/DrFXAi/Maximus-Matrix-OS")
+            field("developer_repository_url").performTextReplacement("https://github.com.evil.test/ExampleOrg/ExampleRepo")
             compose.onNodeWithText(text(R.string.dev_repository_invalid)).performScrollTo().assertIsDisplayed()
             compose.onNodeWithText(selected).assertDoesNotExist()
 

@@ -148,7 +148,7 @@ fun NewsIntelligenceScreen(
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. Top Header with Title, Search, Notifications & DrFXAi Badge
+        // 1. Top header with title, search, notifications and product badge
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
@@ -222,8 +222,8 @@ fun NewsIntelligenceScreen(
                             }
                         }
 
-                        // DrFXAi Badge with Animated Gradient Border
-                        val badgeTransition = rememberInfiniteTransition(label = "drfx_badge_anim")
+                        // Product badge with animated gradient border
+                        val badgeTransition = rememberInfiniteTransition(label = "maximus_badge_anim")
                         val badgePulse by badgeTransition.animateFloat(
                             initialValue = 0.5f,
                             targetValue = 1f,
@@ -249,7 +249,7 @@ fun NewsIntelligenceScreen(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
-                                    "DrFXAi",
+                                    "MAX",
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color(0xFF00E5FF)
