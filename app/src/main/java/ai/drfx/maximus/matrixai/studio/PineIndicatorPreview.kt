@@ -2,7 +2,7 @@ package ai.drfx.maximus.matrixai.studio
 
 /** Bounded local arithmetic preview, NOT a Pine interpreter, compiler or backtester. */
 object PineIndicatorPreview {
-    data class Line(val label: String, val values: List<Double?>)
+    data class Line(val label: String, val values: List<Double?>, val markersOnly: Boolean = false)
     sealed interface Result {
         data class Supported(val lines: List<Line>) : Result
         data class Unsupported(val reason: String) : Result
@@ -16,6 +16,7 @@ object PineIndicatorPreview {
     fun evaluate(source: String, candles: List<PineCandle>): Result {
         if (source.length > 100_000 || candles.size > 200) return Result.Unsupported(LIMIT)
         if (candles.any { candle -> listOf(candle.open, candle.high, candle.low, candle.close).any { !it.isFinite() || it <= 0.0 || it > MAX_PRICE } }) return Result.Unsupported(NUMERIC_LIMIT)
+        PineSweepPreview.evaluate(source, candles)?.let { return it }
         val periods = mutableMapOf<String, Int>()
         val averages = mutableMapOf<String, Average>()
         val plots = mutableListOf<Average>()
