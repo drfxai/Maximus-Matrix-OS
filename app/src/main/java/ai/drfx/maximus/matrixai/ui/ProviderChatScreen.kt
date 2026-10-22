@@ -445,8 +445,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         )
         if (!keyboardVisible) {
             MaximusContextStrip(
-                usedFraction = if (displayedModel.isBlank()) null else metrics.contextUsagePercent,
-                remaining = if (displayedModel.isBlank()) stringResource(R.string.api_unknown)
+                usedFraction = if (displayedModel.isBlank() || !sendable) null else metrics.contextUsagePercent,
+                remaining = if (displayedModel.isBlank() || !sendable) stringResource(R.string.api_unknown)
                     else numberFormat.format(metrics.remainingContextTokens),
                 provider = displayedProvider.displayName,
                 model = displayedModel,
@@ -1040,6 +1040,43 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 }
             ) {
                 Text(stringResource(R.string.speech_install_tts))
+            }
+        }
+
+        // A persisted API key is not a persisted authenticated model catalog.
+        // Never leave a disabled Send icon unexplained after app/process restart.
+        if (!sendable && !state.isGenerating && state.hasSavedKey) {
+            Surface(color = MaximusReference.navy,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaximusReference.stroke),
+                modifier = Modifier.fillMaxWidth().testTag("chat_connection_recovery")) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (state.smartComboEnabled) "No verified free route available."
+                        else if (state.status == ConnectionStatus.DETECTING) "Restoring saved API models…"
+                        else "API saved · model catalog needs verification.",
+                        color = MaximusReference.muted, fontSize = 11.sp,
+                        modifier = Modifier.weight(1f), maxLines = 2
+                    )
+                    TextButton(onClick = {
+                        when {
+                            state.smartComboEnabled -> viewModel.refreshSmartCombo()
+                            state.models.isEmpty() -> viewModel.detectApi(state.baseUrl, "")
+                            else -> settingsOpen = true
+                        }
+                    }, enabled = state.status !in setOf(ConnectionStatus.DETECTING, ConnectionStatus.VALIDATING) &&
+                        !state.smartComboRefreshing) {
+                        Text(if (state.smartComboEnabled) "Refresh routes"
+                            else if (state.models.isEmpty()) "Reload models" else "API details",
+                            fontSize = 11.sp, color = MaximusReference.gold)
+                    }
+                    if (state.smartComboEnabled && state.models.any { it.verified && it.id == state.selectedModel }) {
+                        TextButton(onClick = { confirmDirectProvider = true }) {
+                            Text("Direct", fontSize = 11.sp, color = MaximusReference.gold)
+                        }
+                    }
+                }
             }
         }
 
