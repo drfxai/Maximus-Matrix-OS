@@ -40,6 +40,7 @@ cat > dist/release-notes.md <<NOTES
 
 - Public Android version: 1.0.0; internal version code: $version_code.
 - Application ID: ai.drfx.maximus.matrixai.
+- Refreshed the public project page with banners and Android screenshots; visible legacy branding in Modules, News and chart reports now uses MAXIMUS MATRIX OS.
 - Chat can explicitly open Pine source in a separate persisted Pine Studio draft; imported source and existing drafts are preserved. A limited SMA/EMA(close) preview uses exchange candles; general Pine compilation and backtesting remain unavailable.
 - Provider discovery is authenticated and bound to the selected API key and endpoint. Listed candidates remain distinct from per-model inference tests. Dated successful, unsuccessful and inconclusive tests are shown; API changes revoke old evidence. Explicit tests are bounded to 30 seconds and 128 output tokens with no automatic replay.
 - Chat has a compact toolbar and smaller margins. Hub exposes Smart Combo/API Control, developer connections and operational panels; all Control sections are reachable. Chat displays the actual dispatched model and unknown context remains unknown.

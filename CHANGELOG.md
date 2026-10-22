@@ -1,6 +1,12 @@
 # Changelog
 
-## V1.0.0 — internal build10031
+## V1.0.0 — internal build 10032
+
+- Refreshed the public project page with product banners and verified Android screenshots.
+- Removed obsolete internal coordination files and legacy personal branding from visible screens.
+- Preserved the V1.0.0 application ID and signing identity; increased the Android build number for an in-place update.
+
+## V1.0.0 — internal build 10031
 
 - Updated Brain input handling and graph labels, Chat search, Pine completed-candle previews and Smart Combo capability filters.
 - Added preserved-source Chat→Pine handoff, account-bound model catalog and dated per-model tests, compact Chat and reachable Hub/Control.
