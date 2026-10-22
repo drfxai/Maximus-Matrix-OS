@@ -40,4 +40,16 @@ class GraphSpaceTest {
         val rolled = GraphRotation().orbit(roll = quarter).apply(SpacePoint(50f,0f,100f))
         assertEquals(100f, rolled.z, .00001f)
     }
+    @Test fun labelsNeverDriftAwayFromTheirNodesInDenseGalaxy() {
+        val viewport = GraphViewport(0f, 0f, 360f, 640f)
+        val nearby = placeGraphLabel("focus", 170f, 300f, 95f, 20f, viewport, emptyList(), 3f)
+        assertNotNull(nearby)
+        assertTrue(kotlin.math.abs(nearby!!.top - 300f) <= 46f)
+        val obstacles = listOf(
+            GraphLabelBox("crowd", 100f, 235f, 260f, 375f)
+        )
+        assertNull(placeGraphLabel("crowded", 170f, 300f, 95f, 20f, viewport, obstacles, 3f))
+        assertNull(placeGraphLabel("offscreen", 170f, -400f, 95f, 20f, viewport, emptyList(), 3f))
+    }
+
 }
