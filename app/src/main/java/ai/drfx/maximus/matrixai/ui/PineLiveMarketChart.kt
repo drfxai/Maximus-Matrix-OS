@@ -287,17 +287,34 @@ private fun PineOhlcvCanvas(
         }
         val lineColors = listOf(MaximusReference.gold, Color(0xFF60B8EF), Color(0xFFCE8AFF), Color(0xFF19C7A0))
         overlays.forEachIndexed { lineIndex, overlay ->
-            val path = Path()
-            var connected = false
-            overlay.values.forEachIndexed { index, value ->
-                if (value == null || !value.isFinite()) connected = false
-                else {
-                    val x = (index + .5f) * step
-                    if (!connected) path.moveTo(x, priceY(value)) else path.lineTo(x, priceY(value))
-                    connected = true
+            if (overlay.markersOnly) {
+                // An audited arithmetic marker, not a Pine/TradingView execution.
+                overlay.values.forEachIndexed { index, value ->
+                    if (value != null && value.isFinite()) {
+                        val x = (index + .5f) * step
+                        val y = (priceY(value) - 11f).coerceAtLeast(4f)
+                        val glyph = Path().apply {
+                            moveTo(x - 5f, y - 4f)
+                            lineTo(x + 5f, y - 4f)
+                            lineTo(x, y + 4f)
+                            close()
+                        }
+                        drawPath(glyph, lineColors[lineIndex % lineColors.size])
+                    }
                 }
+            } else {
+                val path = Path()
+                var connected = false
+                overlay.values.forEachIndexed { index, value ->
+                    if (value == null || !value.isFinite()) connected = false
+                    else {
+                        val x = (index + .5f) * step
+                        if (!connected) path.moveTo(x, priceY(value)) else path.lineTo(x, priceY(value))
+                        connected = true
+                    }
+                }
+                drawPath(path, lineColors[lineIndex % lineColors.size], style = Stroke(2f))
             }
-            drawPath(path, lineColors[lineIndex % lineColors.size], style = Stroke(2f))
         }
         if (markSweeps && candles.size > 20) {
             // Derived from ACTUAL exchange bars, never a fabricated Pine script/backtest signal.

@@ -74,4 +74,29 @@ class PineIndicatorPreviewTest {
         }
     }
 
+    @Test fun builtInLiquiditySweepPreviewsOnlyConfirmedPriorHighMarkers() {
+        val source = """
+            //@version=6
+            indicator("Liquidity sweep", overlay=true)
+            length = input.int(2, "Lookback", minval=2)
+            level = ta.highest(high[1], length)
+            sweep = high > level and close < level
+            plotshape(sweep, title="Sweep", style=shape.triangledown, location=location.abovebar, color=color.orange)
+            alertcondition(sweep, title="Liquidity sweep", message="Potential liquidity sweep detected")
+        """.trimIndent()
+        val bars = listOf(
+            PineCandle(1, 10.0, 12.0, 9.0, 11.0, 100.0),
+            PineCandle(2, 11.0, 13.0, 10.0, 12.0, 100.0),
+            PineCandle(3, 12.0, 16.0, 11.0, 12.0, 100.0),
+            PineCandle(4, 13.0, 14.0, 12.0, 13.0, 100.0)
+        )
+        val preview = PineIndicatorPreview.evaluate(source, bars) as PineIndicatorPreview.Result.Supported
+        assertTrue(preview.lines.single().markersOnly)
+        assertEquals(listOf(null, null, 16.0, null), preview.lines.single().values)
+        assertTrue(PineIndicatorPreview.evaluate(source + "\nstrategy.entry(\"buy\", strategy.long)", bars)
+            is PineIndicatorPreview.Result.Unsupported)
+        assertTrue(PineIndicatorPreview.evaluate(source.replace("high[1]", "high"), bars)
+            is PineIndicatorPreview.Result.Unsupported)
+    }
+
 }

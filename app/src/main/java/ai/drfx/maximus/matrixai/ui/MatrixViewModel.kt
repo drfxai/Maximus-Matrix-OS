@@ -342,7 +342,17 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     init {
         viewModelScope.launch { chatRepository.sessions.collect { sessions -> _chatSessions.value = sessions.map { if (it.id == "default_session") it.copy(title = "Legacy history (read only)", provider = "UNKNOWN") else it } } }
         restoreChatSession(_activeChatSessionId.value)
-        if (apiStore.smartComboEnabled()) scheduleSmartComboRefresh()
+        // Restore an existing user's authenticated catalog after process death.
+        // GET /models does not dispatch inference, spend model tokens or claim that
+        // a listed model has passed an actual chat test.
+        val restoreCatalog = apiStore.hasKeyForProvider(initialProvider) &&
+            initialProvider != LlmProvider.UNKNOWN && initialBaseUrl.startsWith("https://")
+        if (restoreCatalog) {
+            detectApi(initialBaseUrl, "")
+            validationJob?.invokeOnCompletion {
+                if (apiStore.smartComboEnabled()) scheduleSmartComboRefresh()
+            }
+        } else if (apiStore.smartComboEnabled()) scheduleSmartComboRefresh()
         refreshProjectMemoriesInBackground()
 
 

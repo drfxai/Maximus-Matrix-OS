@@ -82,15 +82,19 @@ internal fun placeGraphLabel(id: String, x: Float, y: Float, textWidth: Float, t
     viewport: GraphViewport, occupied: List<GraphLabelBox>, gap: Float): GraphLabelBox? {
     val width = textWidth.coerceIn(1f, viewport.width)
     val height = textHeight.coerceAtLeast(1f)
-    if (height > viewport.height) return null
+    if (height > viewport.height || !x.isFinite() || !y.isFinite()) return null
+    // Labels belong to nearby nodes. The old 24-row search could put a caption
+    // hundreds of pixels away from its node, covering unrelated graph regions.
+    if (x < viewport.left || x > viewport.right || y < viewport.top || y > viewport.bottom) return null
     val left = (x - width / 2f).coerceIn(viewport.left, viewport.right - width)
-    for (step in 0..24) {
-        val direction = if (step % 2 == 0) 1 else -1
-        val offset = ((step + 1) / 2) * direction * (height + gap)
-        val top = (y + offset).coerceIn(viewport.top, viewport.bottom - height)
-        val candidate = GraphLabelBox(id, left, top, left + width, top + height)
+    for (offsetRows in listOf(0f, -1f, 1f, -2f, 2f)) {
+        val rawTop = y + offsetRows * (height + gap)
+        if (rawTop < viewport.top || rawTop + height > viewport.bottom) continue
+        val candidate = GraphLabelBox(id, left, rawTop, left + width, rawTop + height)
         if (occupied.none { candidate.overlaps(it, gap) }) return candidate
     }
+    // A dense graph should omit a label rather than detach it from its node.
+    // All nodes remain discoverable through search, focus and accessible inspector.
     return null
 }
 
