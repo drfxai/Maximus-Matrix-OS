@@ -71,9 +71,12 @@ class PineStudioStore(context: Context) {
         val old = current.firstOrNull { it.id == id } ?: error("Draft unavailable.")
         val cleanName = name?.trim()?.take(60) ?: old.name
         require(cleanName.isNotBlank()) { "Enter a draft name." }
-        require((brief ?: old.brief).length <= 12_000 && (code ?: old.code).length <= 100_000) { "Draft is too large." }
-        val newRevisions = if (code != null && code != old.code)
-            (listOf(PineRevision(old.code, old.updatedAt)) + old.revisions).take(30) else old.revisions
+        require((brief ?: old.brief).length <= 12_000 && (code ?: old.code).length <= LargeSource.MAX_CHARS) { "Draft is too large." }
+        val newRevisions = if (code != null && code != old.code) {
+            val all = listOf(PineRevision(old.code, old.updatedAt)) + old.revisions
+            // Large drafts keep fewer snapshots so preferences stay within a safe size.
+            all.take(LargeSource.revisionsWithinBudget(all.map { it.code.length }))
+        } else old.revisions
         val changed = old.copy(
             name = cleanName, brief = brief ?: old.brief, code = code ?: old.code,
             revisions = newRevisions, updatedAt = System.currentTimeMillis()

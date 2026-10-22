@@ -4,9 +4,26 @@ package ai.drfx.maximus.matrixai.studio
 object PineSourceImport {
     fun validate(source: String): String {
         require(source.isNotBlank()) { "Pine source is empty." }
-        require(source.length <= 100_000) { "Pine source exceeds 100,000 characters." }
+        require(source.length <= LargeSource.MAX_CHARS) { "Pine source exceeds ${LargeSource.MAX_LABEL}." }
         require('\u0000' !in source) { "Pine source contains an invalid character." }
         return source
+    }
+
+    private val declaration = Regex("""(?m)^\s*(?:indicator|strategy|study|library)\s*\(""")
+
+    /** A whole script declares indicator/strategy/library; a section-only AI reply does not. */
+    fun isCompleteScript(source: String): Boolean = declaration.containsMatchIn(source)
+
+    /**
+     * Rejects replacing a complete draft with a fragment, e.g. the changed sections an AI returns
+     * for a large draft, which would otherwise silently drop thousands of lines.
+     */
+    fun validateReplacement(current: String, replacement: String): String {
+        val clean = validate(replacement)
+        require(!isCompleteScript(current) || isCompleteScript(clean)) {
+            "This reply holds only part of the script. Open it in Pine Studio's editor to apply the changed section."
+        }
+        return clean
     }
 
     fun title(source: String): String = Regex("""(?m)^\s*(?:indicator|strategy|library)\s*\(\s*["']([^"'\r\n]{1,60})["']""")

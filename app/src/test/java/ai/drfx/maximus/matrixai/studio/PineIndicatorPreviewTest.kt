@@ -49,7 +49,7 @@ class PineIndicatorPreviewTest {
         val header = "indicator(\"X\", overlay=true)\n"
         assertTrue(PineIndicatorPreview.evaluate(header + "plot(ta.sma(close, 3))",
             List(PineIndicatorPreview.MAX_CANDLES + 1) { candles(1.0).single() }) is PineIndicatorPreview.Result.Unsupported)
-        assertTrue(PineIndicatorPreview.evaluate(" ".repeat(100_001), emptyList()) is PineIndicatorPreview.Result.Unsupported)
+        assertTrue(PineIndicatorPreview.evaluate("a".repeat(LargeSource.MAX_CHARS + 1), emptyList()) is PineIndicatorPreview.Result.Unsupported)
     }
     @Test fun multipleLinesPreserveSameCandleIdentity() {
         val result = PineIndicatorPreview.evaluate("""

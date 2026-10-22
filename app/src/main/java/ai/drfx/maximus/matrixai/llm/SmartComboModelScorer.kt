@@ -34,9 +34,11 @@ object SmartComboModelScorer {
     fun classify(prompt: String, estimatedInputTokens: Int = 0): Intent {
         val text = prompt.trim()
         if (estimatedInputTokens >= 24_000 || text.length >= 60_000) return Intent.LONG_DOCUMENT
-        val code = codeSignals.findAll(text.take(8_000)).count()
+        // Scan the head and tail: a long paste often has its code (or the ask) at either end.
+        val sample = if (text.length <= 16_000) text else text.take(8_000) + "\n" + text.takeLast(8_000)
+        val code = codeSignals.findAll(sample).count()
         if (code >= 1 && (text.contains("```") || code >= 2)) return Intent.CODE
-        val reasoning = reasoningSignals.findAll(text.take(8_000)).count()
+        val reasoning = reasoningSignals.findAll(sample).count()
         if (reasoning >= 2 || (reasoning >= 1 && text.length > 280)) return Intent.REASONING
         if (code >= 1) return Intent.CODE
         if (text.length <= 80 && !text.contains('\n')) return Intent.QUICK
@@ -85,6 +87,19 @@ object SmartComboModelScorer {
         if (contextTokens != null && contextTokens >= LONG_CONTEXT_TOKENS) setOf(ModelCapability.LONG_CONTEXT) else emptySet()
 
     const val LONG_CONTEXT_TOKENS = 100_000
+    /** Highest output cap any request path sends; whole-file code rewrites need this much room. */
+    const val MAX_OUTPUT_TOKENS = 32_768
+
+    /**
+     * Output reservations to try, largest first. Code and long documents ask for room to return whole
+     * files; a smaller fallback keeps routes with tight context or token-per-minute quotas usable.
+     */
+    fun outputBudgets(intent: Intent): List<Int> = when (intent) {
+        Intent.CODE -> listOf(16_384, 8_192, 2_048)
+        Intent.LONG_DOCUMENT -> listOf(8_192, 2_048)
+        Intent.REASONING -> listOf(4_096, 2_048)
+        Intent.GENERAL, Intent.QUICK -> listOf(2_048)
+    }
 
     /** Extra ordering weight for how well a model id fits the request intent; 0 when unknown. */
     fun intentFit(modelId: String, intent: Intent, contextTokens: Int?): Double {

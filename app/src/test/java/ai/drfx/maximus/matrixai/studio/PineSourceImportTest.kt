@@ -13,7 +13,7 @@ class PineSourceImportTest {
         assertEquals("Chat indicator", PineSourceImport.title("plot(close)"))
     }
     @Test fun oversizedAndEmptySourcesAreRejected() {
-        listOf("", "  ", "a".repeat(100_001), "plot(close)\u0000").forEach {
+        listOf("", "  ", "a".repeat(LargeSource.MAX_CHARS + 1), "plot(close)\u0000").forEach {
             assertTrue(runCatching { PineSourceImport.validate(it) }.isFailure)
         }
     }
