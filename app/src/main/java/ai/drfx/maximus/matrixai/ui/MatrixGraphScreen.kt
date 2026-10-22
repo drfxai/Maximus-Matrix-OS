@@ -921,7 +921,20 @@ fun MatrixGraphScreen(
                     persistedNodes.count { it.lastUpdatedMs < 0L || it.lastUpdatedMs > System.currentTimeMillis() }
                 if (timestampProblems>0) Text("ERROR · " + timestampProblems + " invalid/future timestamps; excluded from chronology",
                     Modifier.padding(horizontal=12.dp),color=Color(0xFFFF6677),fontSize=9.sp)
-                Text("Project revision history: unavailable · Memory history: unavailable",
+                val errorEvents = timelineActivity.count { it.type.contains("ERROR") || it.type.contains("FAILED") }
+                val busiestType = timelineActivity.groupingBy { it.type }.eachCount().maxByOrNull { it.value }
+                Row(Modifier.padding(horizontal = 12.dp).testTag("galaxy_timeline_legend"),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Box(Modifier.size(7.dp).background(GraphVisionCyan))
+                    Text("event", color = muted, fontSize = 8.sp)
+                    Box(Modifier.size(7.dp).background(Color(0xFFFF6677)))
+                    Text("error / bad time", color = muted, fontSize = 8.sp)
+                    Text("· " + timelineActivity.size + " shown · " + errorEvents + " errors" +
+                        (busiestType?.let { " · most: " + it.key.lowercase().replace('_', ' ') + " ×" + it.value } ?: ""),
+                        color = muted, fontSize = 8.sp, maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                Text("Project revisions and memory history are not recorded on this timeline.",
                     Modifier.padding(horizontal = 12.dp), color = muted, fontSize = 8.sp)
             }
         }
@@ -2097,6 +2110,7 @@ private fun NeuralScene(
             GraphLabelBox(other.id, p.x - extent, p.y - extent, p.x + extent, p.y + extent)
         }
         val labelBoxes = areaLabelBoxes.toMutableList()
+        val labelRequests = mutableListOf<NodeLabelRequest>()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textAlign = Paint.Align.CENTER
             typeface = android.graphics.Typeface.DEFAULT_BOLD
@@ -2240,29 +2254,54 @@ private fun NeuralScene(
                 style = Stroke(width = 0.5.dp.toPx())
             )
 
-            // I. Clear Anatomical Node Typography
-            if ((labels && node.hub && layout != NeuralGalaxyLayout.AREAS || node.id == selected || search.isNotBlank() && node.label.contains(search, true)) && alpha > 0.25f) {
-                paint.textSize = (if (node.id == selected) 11.5.sp else if (node.id == "maximus") 11.sp else 9.5.sp).toPx()
-                paint.color = (if (light) Color(0xFF1E2A3A) else Color(0xFFEDF2F7)).copy(alpha = alpha).toArgb()
-                paint.setShadowLayer(
-                    3.dp.toPx(), 0f, 1.5.dp.toPx(),
-                    if (light) android.graphics.Color.WHITE else android.graphics.Color.BLACK
-                )
-                val width = paint.measureText(node.label) + 8.dp.toPx()
-                val height = paint.fontSpacing + 4.dp.toPx()
-                val box = placeGraphLabel(node.id, center.x,
-                    center.y + effectiveR + 3.dp.toPx(), width, height, labelViewport,
-                    nodeLabelObstacles.filterNot { it.id == node.id } + labelBoxes,
-                    2.dp.toPx())
-                if (box != null) {
-                    drawContext.canvas.nativeCanvas.drawText(
-                        node.label,
-                        (box.left + box.right) / 2f,
-                        box.top + 2.dp.toPx() - paint.fontMetrics.ascent,
-                        paint
-                    )
-                    labelBoxes += box
+            // I. Node typography is queued and drawn after every node, so a label is never
+            // painted over by a nearer sphere and the most important labels claim space first.
+            val searchHit = search.isNotBlank() &&
+                NeuralGalaxyLayouts.matches(node.id, node.label, node.group, galaxyArea(node.group), search)
+            val zoomedChild = labels && !node.hub && zoom >= 1.6f && layout != NeuralGalaxyLayout.AREAS
+            if ((labels && node.hub && layout != NeuralGalaxyLayout.AREAS || node.id == selected || searchHit || zoomedChild) && alpha > 0.25f) {
+                val priority = when {
+                    node.id == selected -> 0
+                    node.id == "maximus" -> 1
+                    searchHit -> 2
+                    node.hub -> 3
+                    else -> 4
                 }
+                labelRequests += NodeLabelRequest(node, center, effectiveR, alpha, priority, p.z)
+            }
+        }
+        labelRequests.sortedWith(compareBy<NodeLabelRequest> { it.priority }.thenByDescending { it.z }).forEach { request ->
+            val node = request.node
+            paint.textSize = (if (node.id == selected) 11.5.sp else if (node.id == "maximus") 11.sp
+                else if (node.hub) 9.5.sp else 8.5.sp).toPx()
+            paint.color = (if (light) Color(0xFF1E2A3A) else Color(0xFFEDF2F7)).copy(alpha = request.alpha).toArgb()
+            paint.setShadowLayer(
+                3.dp.toPx(), 0f, 1.5.dp.toPx(),
+                if (light) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+            )
+            val padding = 4.dp.toPx()
+            val maxText = minOf(150.dp.toPx(), labelViewport.width - 2 * padding)
+            val text = ellipsizeGraphLabel(node.label, paint, maxText)
+            val width = paint.measureText(text) + 2 * padding
+            val height = paint.fontSpacing + 4.dp.toPx()
+            val top = request.center.y + request.radius + 3.dp.toPx()
+            val box = placeGraphLabel(node.id, request.center.x, top, width, height, labelViewport,
+                nodeLabelObstacles.filterNot { it.id == node.id } + labelBoxes, 2.dp.toPx())
+                // The selected node always keeps its caption, even in a dense neighbourhood.
+                ?: if (node.id == selected) placeGraphLabel(node.id, request.center.x, top, width, height,
+                    labelViewport, emptyList(), 0f) else null
+            if (box != null) {
+                if (node.id == selected) drawRoundRect(
+                    (if (light) Color(0xEEF4F7FB) else Color(0xE0061A2D)),
+                    Offset(box.left, box.top), Size(box.right - box.left, box.bottom - box.top),
+                    androidx.compose.ui.geometry.CornerRadius(5.dp.toPx(), 5.dp.toPx()))
+                drawContext.canvas.nativeCanvas.drawText(
+                    text,
+                    (box.left + box.right) / 2f,
+                    box.top + 2.dp.toPx() - paint.fontMetrics.ascent,
+                    paint
+                )
+                labelBoxes += box
             }
         }
         }
@@ -2282,11 +2321,21 @@ private fun wrapGraphLabel(text: String, paint: Paint, maxWidth: Float): List<St
     }
     if (current.isNotEmpty()) lines += current
     return lines.take(2).mapIndexed { index,line ->
-        var value = line
-        val suffix = if (index == 1 && lines.size > 2) "…" else ""
-        while (value.isNotEmpty() && paint.measureText(value+suffix)>maxWidth) value=value.dropLast(1)
-        value+suffix
+        // Ellipsize when a word is wider than the box or when text continues past line two.
+        if (index == 1 && lines.size > 2) ellipsizeGraphLabel("$line …", paint, maxWidth, force = true)
+        else ellipsizeGraphLabel(line, paint, maxWidth)
     }.ifEmpty { listOf(text.take(1)) }
+}
+
+private class NodeLabelRequest(val node: LiveNode, val center: Offset, val radius: Float,
+    val alpha: Float, val priority: Int, val z: Float)
+
+/** Shortens [text] to [maxWidth] with a trailing ellipsis instead of clipping it mid-glyph. */
+private fun ellipsizeGraphLabel(text: String, paint: Paint, maxWidth: Float, force: Boolean = false): String {
+    if (!force && paint.measureText(text) <= maxWidth) return text
+    var value = text.removeSuffix(" …").trimEnd()
+    while (value.isNotEmpty() && paint.measureText("$value…") > maxWidth) value = value.dropLast(1)
+    return if (value.isEmpty()) "…" else value.trimEnd() + "…"
 }
 
 private data class NeuralMotionFrame(

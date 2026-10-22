@@ -130,7 +130,8 @@ import java.util.Locale
 @Composable
 fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier,
     onWork: () -> Unit = {}, onHub: () -> Unit = {}, onSmartCombo: () -> Unit = {},
-    onOpenPine: (String) -> Unit = {}) {
+    onOpenPine: (String) -> Unit = {}, onPreviewPine: ((String) -> Unit)? = null,
+    pineUpdate: PineUpdateTarget? = null) {
     val state by viewModel.llmState.collectAsState()
     val pendingAction by viewModel.pendingAgentConfirmation.collectAsState()
     pendingAction?.let { request ->
@@ -209,6 +210,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var confirmDirectProvider by remember { mutableStateOf(false) }
     var quickKeyTargetProvider by remember { mutableStateOf(state.provider) }
     var quickKeyInput by remember { mutableStateOf("") }
+    var quickConnectRequested by remember { mutableStateOf(false) }
+    var showAllModels by remember { mutableStateOf(false) }
+    var scanConfirmOpen by remember { mutableStateOf(false) }
 
     var attachment by remember { mutableStateOf<ChatAttachment?>(null) }
     var attachmentError by remember { mutableStateOf<String?>(null) }
@@ -412,14 +416,18 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     }
 
     Column(
-        modifier = modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        modifier = modifier.fillMaxSize().padding(horizontal = 2.dp, vertical = 0.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        if (!keyboardVisible) Row(verticalAlignment = Alignment.CenterVertically) {
+        if (!keyboardVisible) Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { sessionsOpen = true }) { Icon(Icons.Default.Menu, stringResource(R.string.ui_conversations)) }
-            Text("MAXIMUS", Modifier.weight(1f),
-                color = MaximusReference.gold, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(Modifier.weight(1f).clickable { sessionsOpen = true }) {
+                Text("MAXIMUS", color = MaximusReference.gold, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val sessionLabel = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty()
+                if (sessionLabel.isNotBlank()) Text(sessionLabel, color = MaximusReference.muted, fontSize = 10.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             IconButton(onClick = { tokenDetailsOpen = true }) {
                 Icon(Icons.Default.DataUsage, stringResource(R.string.dash_session_tokens))
             }
@@ -851,16 +859,20 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     if (messageSearch.isNotBlank() && visibleMessages.isEmpty()) item {
                         Text("No messages match this search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     items(visibleMessages) { message ->
+                        // Only the reply still streaming is incomplete; earlier code stays actionable.
+                        val streaming = state.isGenerating && message === visibleMessages.lastOrNull() && message.role == "assistant"
                         ChatBubble(
                             message = message,
-                            onOpenPine = if (state.isGenerating) null else onOpenPine,
+                            onOpenPine = if (streaming) null else onOpenPine,
+                            onPreviewPine = if (streaming) null else onPreviewPine,
+                            pineUpdate = if (streaming) null else pineUpdate,
                             sessionId = activeSessionId,
                             feedbackStore = reactionStore,
                             copied = copiedKey == reactionStore.key(activeSessionId, message.timestampMs, message.content),
@@ -1082,15 +1094,16 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
 
         // Compact message input field; screen-level IME insets keep it above the keyboard.
         Surface(
-            modifier = Modifier.semantics { contentDescription = context.getString(R.string.chat_composer_description) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp)
+                .semantics { contentDescription = context.getString(R.string.chat_composer_description) },
             color = MaximusReference.navy,
-            shape = RoundedCornerShape(28.dp),
-            border = BorderStroke(1.dp, MaximusReference.stroke)
+            shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, if (prompt.isNotBlank()) MaximusReference.gold.copy(alpha = .55f) else MaximusReference.stroke)
         ) {
-            Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
+            Column(Modifier.padding(horizontal = 4.dp, vertical = 3.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Bottom
                 ) {
                     Box {
                         IconButton(onClick = { attachmentMenuOpen = !attachmentMenuOpen }, enabled = !recording) {
@@ -1128,10 +1141,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 androidx.compose.foundation.text.BasicTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
-                    modifier = Modifier.weight(1f).heightIn(min = 38.dp, max = 100.dp)
-                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                    modifier = Modifier.weight(1f).heightIn(min = 40.dp, max = 168.dp)
+                        .padding(horizontal = 8.dp, vertical = 10.dp)
                         .semantics { contentDescription = context.getString(R.string.chat_input_description) },
-                    maxLines = 3,
+                    maxLines = 7,
                     enabled = !recording,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
@@ -1244,19 +1257,27 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }) { Text("Send test request") } },
             dismissButton = { TextButton(onClick = { confirmApiTest = false }) { Text("Cancel") } })
     }
-    // Quick In-Chat API Key Entry Dialog
+    // Quick In-Chat API Key Entry Dialog: detect the provider from the key, connect, then test models.
     if (quickKeyDialogOpen) {
+        val detected = remember(quickKeyInput) { ai.drfx.maximus.matrixai.llm.ProviderKeyDetector.detect(quickKeyInput) }
+        val switching = remember(quickKeyInput, state.provider) {
+            ai.drfx.maximus.matrixai.llm.ProviderKeyDetector.mismatch(state.provider, quickKeyInput)
+        }
+        val needsEndpoint = quickKeyTargetProvider.isNineRouter || quickKeyTargetProvider == LlmProvider.OPENAI_COMPATIBLE ||
+            switching?.provider == LlmProvider.OPENAI_COMPATIBLE || detected?.ambiguous == true
+        val connected = quickConnectRequested && state.status in setOf(ConnectionStatus.CONFIGURED, ConnectionStatus.CONNECTED,
+            ConnectionStatus.DEGRADED) && state.models.isNotEmpty()
         AlertDialog(
-            onDismissRequest = { quickKeyDialogOpen = false },
+            onDismissRequest = { quickKeyDialogOpen = false; quickConnectRequested = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Key, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.chat_connect_provider, quickKeyTargetProvider.displayName), fontSize = 16.sp)
+                    Text(stringResource(R.string.chat_connect_provider, (switching?.service ?: state.provider.displayName)), fontSize = 16.sp)
                 }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = when (quickKeyTargetProvider) {
                             LlmProvider.GEMINI -> stringResource(R.string.conv_gemini_hint)
@@ -1269,53 +1290,70 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 16.sp
                     )
-                    if (quickKeyTargetProvider.isNineRouter || quickKeyTargetProvider == LlmProvider.OPENAI_COMPATIBLE) {
-                        OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it; viewModel.invalidateApiInputs() }, label = { Text(stringResource(R.string.chat_trusted_endpoint)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    }
-                    OutlinedTextField(
+                    SmartApiKeyField(
                         value = quickKeyInput,
-                        onValueChange = { quickKeyInput = it; viewModel.invalidateApiInputs() },
-                        label = { Text(stringResource(R.string.chat_api_key)) },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth()
+                        onValueChange = {
+                            quickKeyInput = it
+                            quickConnectRequested = false
+                            viewModel.invalidateApiInputs()
+                        },
+                        selected = state.provider,
+                        label = stringResource(R.string.chat_api_key),
+                        onPaste = {
+                            val clip = clipboardManager.getText()?.text.orEmpty()
+                            if (clip.isNotBlank()) { quickKeyInput = clip.trim(); quickConnectRequested = false; viewModel.invalidateApiInputs() }
+                        }
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(
-                            onClick = {
-                                val clip = clipboardManager.getText()?.text.orEmpty()
-                                if (clip.isNotBlank()) { quickKeyInput = clip.trim(); viewModel.invalidateApiInputs() }
-                            }
-                        ) {
-                            Text(stringResource(R.string.chat_paste), fontSize = 11.sp)
+                    if (needsEndpoint) {
+                        val suggested = switching?.baseUrl ?: detected?.takeIf { !it.ambiguous }?.baseUrl
+                        LaunchedEffect(suggested) { if (suggested != null && (baseUrl.isBlank() || baseUrl == state.provider.defaultBaseUrl)) baseUrl = suggested }
+                        OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it; quickConnectRequested = false; viewModel.invalidateApiInputs() },
+                            label = { Text(stringResource(R.string.chat_trusted_endpoint)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
+                    if (quickConnectRequested) when {
+                        state.status == ConnectionStatus.DETECTING -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Checking the key and listing chat models…", fontSize = 12.sp)
+                        }
+                        state.status == ConnectionStatus.ERROR -> Text(state.statusMessage, color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp, modifier = Modifier.testTag("api_connect_error"))
+                        connected -> {
+                            Text("✓ Key accepted by ${state.provider.displayName} · ${state.models.size} chat models listed",
+                                color = Color(0xFF2AD49F), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.testTag("api_connect_ok"))
+                            ModelCompatibilityPanel(state, showAllModels, { showAllModels = it },
+                                onScan = { scanConfirmOpen = true }, onCancel = viewModel::cancelModelScan)
                         }
                     }
                 }
             },
             confirmButton = {
-                Button(
+                if (connected) Button(onClick = { quickKeyDialogOpen = false; quickConnectRequested = false }) { Text("Done") }
+                else Button(
                     onClick = {
                         val key = quickKeyInput.trim()
                         if (key.isNotBlank()) {
-                            viewModel.detectApi(baseUrl.ifBlank { quickKeyTargetProvider.defaultBaseUrl }, key)
-                            quickKeyDialogOpen = false
+                            quickConnectRequested = true
+                            viewModel.connectWithKey(if (needsEndpoint) baseUrl else "", key)
                         }
                     },
-                    enabled = quickKeyInput.isNotBlank()
+                    enabled = quickKeyInput.isNotBlank() && state.status != ConnectionStatus.DETECTING,
+                    modifier = Modifier.testTag("api_connect_button")
                 ) {
-                    Text("Discover models")
+                    Text("Connect & list models")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { quickKeyDialogOpen = false }) {
+                TextButton(onClick = { quickKeyDialogOpen = false; quickConnectRequested = false }) {
                     Text(stringResource(R.string.studio_cancel))
                 }
             }
         )
     }
+    if (scanConfirmOpen) ModelScanConfirmDialog(state,
+        onConfirm = { revision -> scanConfirmOpen = false; viewModel.scanModelCompatibility(revision) },
+        onDismiss = { scanConfirmOpen = false })
 
     // Token Details & Context Inspector BottomSheet
     if (tokenDetailsOpen) {
@@ -1498,23 +1536,21 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                OutlinedTextField(
+                                SmartApiKeyField(
                                     value = apiKey,
                                     onValueChange = { apiKey = it; viewModel.invalidateApiInputs() },
-                                    label = {
-                                        Text(
-                                            when (state.provider) {
-                                                LlmProvider.GEMINI -> stringResource(R.string.chat_gemini_api_key)
-                                                LlmProvider.NVIDIA -> stringResource(R.string.chat_nvidia_api_key)
-                                                LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO ->
-                                                    stringResource(R.string.chat_router_api_key)
-                                                else -> stringResource(R.string.chat_generic_api_key)
-                                            }
-                                        )
+                                    selected = state.provider,
+                                    label = when (state.provider) {
+                                        LlmProvider.GEMINI -> stringResource(R.string.chat_gemini_api_key)
+                                        LlmProvider.NVIDIA -> stringResource(R.string.chat_nvidia_api_key)
+                                        LlmProvider.ROUTER_9_SMART, LlmProvider.ROUTER_9_COMBO ->
+                                            stringResource(R.string.chat_router_api_key)
+                                        else -> stringResource(R.string.chat_generic_api_key)
                                     },
-                                    singleLine = true,
-                                    visualTransformation = PasswordVisualTransformation(),
-                                    modifier = Modifier.fillMaxWidth()
+                                    onPaste = {
+                                        val clip = clipboardManager.getText()?.text.orEmpty()
+                                        if (clip.isNotBlank()) { apiKey = clip.trim(); viewModel.invalidateApiInputs() }
+                                    }
                                 )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -1536,7 +1572,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                             fontSize = 11.sp
                                         )
                                     }
-                                    Button(onClick = { viewModel.detectApi(baseUrl, apiKey) },
+                                    Button(onClick = {
+                                        if (apiKey.isBlank()) viewModel.detectApi(baseUrl, apiKey)
+                                        else viewModel.connectWithKey(baseUrl, apiKey)
+                                    },
                                         enabled = state.status != ConnectionStatus.DETECTING,
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
                                         Icon(Icons.Default.Refresh, null, Modifier.size(17.dp))
@@ -1564,6 +1603,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 Text("Test selected model")
                             }
                             ModelProbeEvidenceText(state.modelProbeEvidence[state.selectedModel])
+                            ModelCompatibilityPanel(state, showAllModels, { showAllModels = it },
+                                onScan = { scanConfirmOpen = true }, onCancel = viewModel::cancelModelScan)
                         }
                     }
                     if (state.models.isNotEmpty()) {
@@ -1584,7 +1625,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                         }
                                         if (modelExpanded) WorkspaceChoiceSheet(
                                             title = stringResource(R.string.chat_select_model),
-                                            choices = state.models.map { WorkspaceChoice(it.id, it.id,
+                                            choices = ModelCompatibilityFilter.visible(state.models, state.modelProbeEvidence,
+                                                showAllModels, state.selectedModel).map { WorkspaceChoice(it.id, it.id,
                                                 modelProbeChoiceDetail(state.modelProbeEvidence[it.id]) + " · " + it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() } + " · " +
                                                 (it.catalogContextTokens?.let { count -> numberFormat.format(count) } ?: context.getString(R.string.api_unknown)), it.capabilities.map { capability -> capability.name.lowercase() }) },
                                             selected = state.selectedModel,
@@ -1771,7 +1813,7 @@ private fun ChatProviderSwitcherBar(
 
             if (modelPickerOpen) WorkspaceChoiceSheet(
                 title = stringResource(R.string.chat_select_model),
-                choices = models.map { WorkspaceChoice(it.id, it.id, modelProbeChoiceDetail(probeEvidence[it.id]) + " · " + it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() }, it.capabilities.map { capability -> capability.name.lowercase() }) },
+                choices = ModelCompatibilityFilter.visible(models, probeEvidence, false, currentModel).map { WorkspaceChoice(it.id, it.id, modelProbeChoiceDetail(probeEvidence[it.id]) + " · " + it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() }, it.capabilities.map { capability -> capability.name.lowercase() }) },
                 selected = currentModel,
                 confirmSelection = true,
                 onDismiss = { modelPickerOpen = false },
@@ -1878,12 +1920,15 @@ private fun ChatBubble(
     onDownload: () -> Unit,
     onSpeak: () -> Unit,
     onPlayVoice: () -> Unit,
-    onOpenPine: ((String) -> Unit)? = null
+    onOpenPine: ((String) -> Unit)? = null,
+    onPreviewPine: ((String) -> Unit)? = null,
+    pineUpdate: PineUpdateTarget? = null
 ) {
     val isUser = message.role == "user"
+    // Assistant replies read like a document (no bubble, full width); user turns stay compact bubbles.
     val background = if (message.isError) MaterialTheme.colorScheme.errorContainer
     else if (isUser) Color(0xFF103560)
-    else MaximusReference.navy
+    else Color.Transparent
     val textColor = if (message.isError) MaterialTheme.colorScheme.onErrorContainer
     else if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
     else MaterialTheme.colorScheme.onSurface
@@ -1904,14 +1949,17 @@ private fun ChatBubble(
         Surface(
             color = background,
             shape = RoundedCornerShape(
-                topStart = 16.dp, topEnd = 16.dp,
-                bottomStart = if (isUser) 16.dp else 3.dp,
-                bottomEnd = if (isUser) 3.dp else 16.dp
+                topStart = 18.dp, topEnd = 18.dp,
+                bottomStart = if (isUser) 18.dp else 4.dp,
+                bottomEnd = if (isUser) 4.dp else 18.dp
             ),
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.84f else 1f),
-            border = BorderStroke(1.dp, if (isUser) MaximusReference.stroke else MaximusReference.stroke.copy(alpha = .75f))
+            modifier = if (isUser) Modifier.widthIn(max = 560.dp).fillMaxWidth(0.86f).wrapContentWidth(Alignment.End)
+                else Modifier.fillMaxWidth(),
+            border = if (message.isError) BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = .5f)) else null
         ) {
-            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(Modifier.padding(horizontal = if (isUser || message.isError) 12.dp else 4.dp,
+                vertical = if (isUser || message.isError) 9.dp else 2.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 message.attachment?.let { attachment ->
                     Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(9.dp)) {
@@ -1931,9 +1979,12 @@ private fun ChatBubble(
                     }
                 }
                 if (draft == null) {
-                    if (isUser) Text(message.content, color = textColor, fontSize = 14.sp, lineHeight = 21.sp)
-                    else WorkspaceMessageContent(message.content, textColor, onOpenPine)
+                    if (isUser) Text(message.content, color = textColor, fontSize = 15.sp, lineHeight = 22.sp)
+                    else WorkspaceMessageContent(message.content, textColor, onOpenPine, onPreviewPine, pineUpdate)
                 } else {
+                    // Keep the prose and code around a suggested tool call; only the tool markup is hidden.
+                    val visibleText = remember(message.content) { ChatPresentation.withoutToolMarkup(message.content) }
+                    if (visibleText.isNotBlank()) WorkspaceMessageContent(visibleText, textColor, onOpenPine, onPreviewPine, pineUpdate)
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surface,
@@ -1955,11 +2006,12 @@ private fun ChatBubble(
                             // A proposed file is inert source, but can be explicitly opened as a separate draft.
                             val pineFile = remember(message.content) {
                                 runCatching { ChatPresentation.export(message.content) }.getOrNull()
-                                    ?.takeIf { draft.tool == "create_file" && it.name.endsWith(".pine", true) }
+                                    ?.takeIf { draft.tool == "create_file" && (it.name.endsWith(".pine", true) ||
+                                        ai.drfx.maximus.matrixai.studio.PineSourceDetector.looksLikePine(it.bytes.toString(Charsets.UTF_8))) }
                             }
                             if (pineFile != null) WorkspaceCodeCard(
                                 MessagePart(pineFile.bytes.toString(Charsets.UTF_8), "pine"),
-                                title = pineFile.name, onOpenPine = onOpenPine)
+                                title = pineFile.name, onOpenPine = onOpenPine, onPreviewPine = onPreviewPine, updatePine = pineUpdate)
                         }
                     }
                 }
@@ -1987,7 +2039,7 @@ private fun ChatBubble(
                                 animationSpec = spring(dampingRatio = .5f), label = "reaction-scale")
                             val haptics = LocalHapticFeedback.current
                             IconButton(onClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); clicked() },
-                                interactionSource = interactions, modifier = Modifier.size(48.dp).scale(scale)) {
+                                interactionSource = interactions, modifier = Modifier.size(40.dp).scale(scale)) {
                                 Icon(icon, contentDescription = name, modifier = Modifier.size(17.dp),
                                     tint = if (selected) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant)

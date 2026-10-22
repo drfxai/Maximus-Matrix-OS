@@ -70,11 +70,32 @@ fun MatrixScreen(
     var destination by remember { mutableStateOf(Destination.MATRIX) }
     val context = LocalContext.current
     var pineDraftId by rememberSaveable { mutableStateOf<String?>(null) }
+    // The Pine draft that last asked Chat for a revision, so a reply can update it in place.
+    var pineRevisionDraftId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pineOpenChart by remember { mutableStateOf(false) }
+    fun importPine(source: String, chart: Boolean) {
+        try {
+            pineDraftId = PineStudioStore(context).importSource(source).id
+            pineOpenChart = chart
+            destination = Destination.PINE
+        } catch (_: Exception) {
+            Toast.makeText(context, "Pine source could not be saved. Please retry.", Toast.LENGTH_LONG).show()
+        }
+    }
     var workSection by remember { mutableIntStateOf(0) }
     var showMoreSheet by remember { mutableStateOf(false) }
+    var returnToHub by remember { mutableStateOf(false) }
     val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
-    BackHandler(enabled = destination != Destination.MATRIX && !isImeVisible) {
+    BackHandler(enabled = (destination != Destination.MATRIX || returnToHub) && !isImeVisible) {
+        // A screen opened from the Hub launcher returns to the Hub, not to the Brain.
+        if (returnToHub && destination != Destination.TOOLS && destination != Destination.CONTROL &&
+            destination != Destination.OPERATIONS) {
+            returnToHub = false
+            destination = Destination.TOOLS
+            return@BackHandler
+        }
+        returnToHub = false
         destination = when (destination) {
             Destination.PINE -> Destination.STUDIO
             Destination.CONTROL, Destination.OPERATIONS -> Destination.TOOLS
@@ -117,7 +138,7 @@ fun MatrixScreen(
                         }
                         NavigationBarItem(
                             selected = destination == target || (target == Destination.STUDIO && destination == Destination.PINE),
-                            onClick = { destination = target },
+                            onClick = { returnToHub = false; destination = target },
                             icon = {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(icon, contentDescription = null, modifier = Modifier.size(23.dp))
@@ -202,7 +223,24 @@ fun MatrixScreen(
                         onChat = { destination = Destination.CHAT },
                         onControl = { destination = Destination.CONTROL },
                         onMore = { showMoreSheet = true },
-                        onOperations = { destination = Destination.OPERATIONS }
+                        onOperations = { destination = Destination.OPERATIONS },
+                        onOpen = { target ->
+                            returnToHub = true
+                            destination = when (target) {
+                                HubTarget.BRAIN -> Destination.MATRIX
+                                HubTarget.CHAT -> Destination.CHAT
+                                HubTarget.WORK -> Destination.STUDIO
+                                HubTarget.PINE -> { pineDraftId = null; Destination.PINE }
+                                HubTarget.PERSONAS -> Destination.AGENTS
+                                HubTarget.SIGNALS -> Destination.SIGNALS
+                                HubTarget.VISION -> Destination.VISION
+                                HubTarget.NEWS -> Destination.NEWS
+                                HubTarget.CONTROL -> Destination.CONTROL
+                                HubTarget.OPERATIONS -> Destination.OPERATIONS
+                                HubTarget.DATA -> Destination.DATA
+                                HubTarget.TERMINAL -> Destination.TERMINAL
+                            }
+                        }
                     )
                     Destination.OPERATIONS -> OperationsScreen(viewModel,
                         onBack = { destination = Destination.TOOLS },
@@ -235,12 +273,22 @@ fun MatrixScreen(
                         onWork = { destination = Destination.STUDIO },
                         onHub = { destination = Destination.TOOLS },
                         onSmartCombo = { destination = Destination.CONTROL },
-                        onOpenPine = { source ->
-                            try {
-                                pineDraftId = PineStudioStore(context).importSource(source).id
-                                destination = Destination.PINE
-                            } catch (_: Exception) {
-                                Toast.makeText(context, "Pine source could not be saved. Please retry.", Toast.LENGTH_LONG).show()
+                        onOpenPine = { source -> importPine(source, chart = false) },
+                        onPreviewPine = { source -> importPine(source, chart = true) },
+                        pineUpdate = pineRevisionDraftId?.let { id ->
+                            PineStudioStore(context).list().firstOrNull { it.id == id }?.let { target ->
+                                PineUpdateTarget(target.name) { source ->
+                                    try {
+                                        PineStudioStore(context).update(target.id,
+                                            code = ai.drfx.maximus.matrixai.studio.PineSourceImport.validate(source))
+                                        pineDraftId = target.id
+                                        pineOpenChart = true
+                                        destination = Destination.PINE
+                                        Toast.makeText(context, "Draft updated. The previous code is kept in Versions.", Toast.LENGTH_SHORT).show()
+                                    } catch (_: Exception) {
+                                        Toast.makeText(context, "Draft could not be updated. Use Open in Pine Studio instead.", Toast.LENGTH_LONG).show()
+                                    }
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxSize()
@@ -252,6 +300,9 @@ fun MatrixScreen(
                     )
                     Destination.PINE -> PineStudioScreen(
                         initialDraftId = pineDraftId,
+                        openChart = pineOpenChart,
+                        onChartOpened = { pineOpenChart = false },
+                        onRevisionRequested = { pineRevisionDraftId = it },
                         onBack = { destination = Destination.STUDIO },
                         onAskAi = { prompt ->
                             val submitted = viewModel.sendChat(prompt)

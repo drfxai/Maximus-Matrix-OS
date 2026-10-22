@@ -36,4 +36,10 @@ class ChatPresentationTest {
             "<parameter name=\"contents\">private</parameter></invoke>"
         assertEquals("maximus-response.md", ChatPresentation.export(raw).name)
     }
+
+    @Test fun toolMarkupIsRemovedButSurroundingReplyIsKept() {
+        val raw = "Here is the plan.\n<function_calls>\n<invoke name=\"create_file\">\n<parameter name=\"path\">a.pine</parameter>\n</invoke>\n</function_calls>\n```pine\nplot(close)\n```"
+        val visible = ChatPresentation.withoutToolMarkup(raw)
+        assertEquals("Here is the plan.\n\n```pine\nplot(close)\n```", visible)
+    }
 }

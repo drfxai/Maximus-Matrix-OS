@@ -71,7 +71,9 @@ object SmartComboPlanner {
         val paidFallbackApproved: Boolean = false,
         val maxRequestCostUsd: Double? = null,
         val nowEpochMs: Long,
-        val interactive: Boolean = true
+        val interactive: Boolean = true,
+        /** Ordering hint only; never makes an ineligible route eligible. */
+        val intent: SmartComboModelScorer.Intent = SmartComboModelScorer.Intent.GENERAL
     ) {
         init {
             require(estimatedInputTokens >= 0 && reservedOutputTokens > 0)
@@ -167,6 +169,7 @@ object SmartComboPlanner {
         val latencyPenalty = if (task.interactive) ((route.p95TimeToFirstTokenMs ?: 5000L).coerceAtMost(20000L) / 80.0) else 0.0
         val unknownQuotaPenalty = if (route.quota.isEmpty()) 8.0 else
             route.quota.count { it.remaining == null || it.confidence == Confidence.UNKNOWN || it.confidence == Confidence.ESTIMATED }.toDouble() * 4.0
-        return route.quality.toDouble() * 3 - latencyPenalty - unknownQuotaPenalty
+        val fit = SmartComboModelScorer.intentFit(route.modelId, task.intent, route.contextWindowTokens)
+        return route.quality.toDouble() * 3 + fit - latencyPenalty - unknownQuotaPenalty
     }
 }

@@ -23,4 +23,9 @@ class WorkspaceMessageContentTest {
         assertEquals(listOf(MessagePart("one", "sh"), MessagePart("two", "json")),
             messageParts("```sh\none\n```\n```json\ntwo\n```"))
     }
+    @Test fun unfencedPineInsideProseBecomesItsOwnCodePart() {
+        val parts = messagePartsWithPine("Here you go:\n\n//@version=6\nindicator(\"X\", overlay=true)\nplot(ta.sma(close, 20))\n\nNotes:\n- tune the length")
+        assertEquals(listOf(null, "pine", null), parts.map { it.language })
+        assertTrue(parts[1].text.startsWith("//@version=6"))
+    }
 }

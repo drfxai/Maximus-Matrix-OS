@@ -45,6 +45,10 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
                 Text(stringResource(R.string.api_combo_title), Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                 MotionSwitch(state.smartComboEnabled, onRoutingChange, enabled = !state.isGenerating)
             }
+            if (state.smartComboEnabled) Text(
+                "Each request is classified (code, reasoning, long document, quick) and sent to the best-fitting " +
+                    "verified free route; quality is estimated from the model name, not benchmarked.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primaryContainer) {
                 Text(stringResource(if (state.smartComboEnabled) R.string.dash_free_first else R.string.dash_manual_route), Modifier.padding(9.dp),
                     style = MaterialTheme.typography.labelMedium,
@@ -83,8 +87,6 @@ internal fun SmartComboCommandDashboard(state: LlmUiState, modifier: Modifier = 
                 Modifier.weight(1f), attention = metrics.contextUsagePercent >= .85f,
                 remainingValue = metrics.remainingContextTokens.toLong().takeIf { state.selectedModel.isNotBlank() })
         }
-        Text(stringResource(R.string.motion_context_not_credit), style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(stringResource(R.string.ui_provider_credit) + ": " + unknown,
             style = MaterialTheme.typography.labelMedium)
         ContextSegments(metrics.contextUsagePercent)

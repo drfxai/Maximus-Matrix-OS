@@ -41,6 +41,7 @@ internal fun ToolsHubScreen(
     onControl: () -> Unit,
     onMore: () -> Unit,
     onOperations: () -> Unit = {},
+    onOpen: (HubTarget) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var search by remember { mutableStateOf("") }
@@ -81,6 +82,37 @@ internal fun ToolsHubScreen(
                 singleLine = true, shape = RoundedCornerShape(16.dp),
                 placeholder = { Text(stringResource(R.string.ui_search)) },
                 leadingIcon = { Icon(Icons.Default.Search, null) })
+        }
+        val sections = hubSections.mapNotNull { (title, tiles) ->
+            tiles.filter { matches(it.label) || matches(it.detail) || matches(title) }
+                .takeIf { it.isNotEmpty() }?.let { title to it }
+        }
+        sections.forEach { (title, tiles) ->
+            item(key = "hub_section_$title") {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(title.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                    tiles.chunked(4).forEach { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { tile ->
+                                HubLauncherTile(tile, Modifier.weight(1f)) {
+                                    when (tile.target) {
+                                        HubTarget.CONTROL -> onControl()
+                                        HubTarget.OPERATIONS -> onOperations()
+                                        HubTarget.CHAT -> onChat()
+                                        else -> onOpen(tile.target)
+                                    }
+                                }
+                            }
+                            repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                }
+            }
+        }
+        if (search.isNotBlank() && sections.isEmpty()) item {
+            Text("No workspace matches “$search”. Tools below are still searchable.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
         item {
             OutlinedButton(onClick = onOperations, modifier = Modifier.fillMaxWidth()
@@ -339,6 +371,49 @@ private fun HubInstalledRow(icon: ImageVector, title: String, detail: String,
                 color = if (warning) HubOrange else HubGold, maxLines = 2)
             Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** Destinations the Hub launcher can open; MatrixScreen maps them to its own navigation. */
+internal enum class HubTarget { BRAIN, CHAT, WORK, PINE, PERSONAS, SIGNALS, VISION, NEWS, CONTROL, OPERATIONS, DATA, TERMINAL }
+
+private data class HubTile(val target: HubTarget, val label: String, val detail: String, val icon: ImageVector, val tone: Color)
+
+private val hubSections = listOf(
+    "Workspaces" to listOf(
+        HubTile(HubTarget.CHAT, "Chat", "Assistant conversations", Icons.Default.ChatBubbleOutline, HubGold),
+        HubTile(HubTarget.WORK, "Work", "Projects, files and code", Icons.Default.WorkOutline, HubGold),
+        HubTile(HubTarget.PINE, "Pine", "Pine Script studio and chart", Icons.Default.ShowChart, HubOrange),
+        HubTile(HubTarget.PERSONAS, "Personas", "Agents and roles", Icons.Default.Groups, HubGold)
+    ),
+    "Markets" to listOf(
+        HubTile(HubTarget.SIGNALS, "Signals", "Live market signals", Icons.Default.Insights, HubOrange),
+        HubTile(HubTarget.VISION, "Vision", "Chart and image analysis", Icons.Default.Visibility, HubOrange),
+        HubTile(HubTarget.NEWS, "News", "News intelligence", Icons.Default.Newspaper, HubOrange),
+        HubTile(HubTarget.BRAIN, "Brain", "Neural Galaxy graph", Icons.Default.Hub, HubGold)
+    ),
+    "System" to listOf(
+        HubTile(HubTarget.CONTROL, "Control", "Smart Combo, API keys and models", Icons.Default.Tune, HubGold),
+        HubTile(HubTarget.OPERATIONS, "Ops", "Agents, pulse, memory and runtime", Icons.Default.MonitorHeart, HubGold),
+        HubTile(HubTarget.DATA, "Data", "Storage and evidence", Icons.Default.Storage, HubGold),
+        HubTile(HubTarget.TERMINAL, "Terminal", "Local shell runtime", Icons.Default.Terminal, HubRed)
+    )
+)
+
+@Composable
+private fun HubLauncherTile(tile: HubTile, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(onClick = onClick, modifier = modifier.testTag("hub_tile_" + tile.target.name.lowercase()),
+        shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 10.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Box(Modifier.size(38.dp).background(tile.tone.copy(alpha = .13f), RoundedCornerShape(11.dp)),
+                contentAlignment = Alignment.Center) {
+                Icon(tile.icon, tile.detail, Modifier.size(21.dp), tint = tile.tone)
+            }
+            Text(tile.label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
         }
     }
 }

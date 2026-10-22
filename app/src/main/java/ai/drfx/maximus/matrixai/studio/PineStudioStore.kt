@@ -21,6 +21,9 @@ class PineStudioStore(context: Context) {
 
     fun list(): List<PineDraft> = runCatching { readDrafts() }.getOrDefault(emptyList())
 
+    /** False when saved drafts exist but cannot be parsed; callers must not write over them. */
+    fun isReadable(): Boolean = runCatching { readDrafts() }.isSuccess
+
     private fun readDrafts(): List<PineDraft> {
         val array = JSONArray(preferences.getString("drafts", "[]"))
         return (0 until array.length()).map { index ->
@@ -49,7 +52,7 @@ class PineStudioStore(context: Context) {
                 "Mark liquidity sweeps and add configurable alerts." else "",
             code = starterCode(clean), revisions = emptyList(), updatedAt = System.currentTimeMillis()
         )
-        persist(list() + draft)
+        persist(readDrafts() + draft)
         return draft
     }
 
@@ -64,7 +67,7 @@ class PineStudioStore(context: Context) {
     }
 
     fun update(id: String, name: String? = null, brief: String? = null, code: String? = null): PineDraft {
-        val current = list()
+        val current = readDrafts()
         val old = current.firstOrNull { it.id == id } ?: error("Draft unavailable.")
         val cleanName = name?.trim()?.take(60) ?: old.name
         require(cleanName.isNotBlank()) { "Enter a draft name." }
@@ -79,7 +82,7 @@ class PineStudioStore(context: Context) {
         return changed
     }
 
-    fun delete(id: String) { persist(list().filterNot { it.id == id }) }
+    fun delete(id: String) { persist(readDrafts().filterNot { it.id == id }) }
 
     private fun persist(drafts: List<PineDraft>) {
         val array = JSONArray()

@@ -25,7 +25,8 @@ internal class SmartComboFreeExecutor(
         resolveCredential: (LlmProvider, String) -> String,
         agentId: String,
         nowMs: Long = System.currentTimeMillis(),
-        checkpoint: SmartComboCheckpointReference? = null
+        checkpoint: SmartComboCheckpointReference? = null,
+        intent: SmartComboModelScorer.Intent = SmartComboModelScorer.Intent.GENERAL
     ): Prepared? {
         // Ambiguous route IDs could bind a credential to a different endpoint.
         // Treat all duplicates as untrusted instead of allowing last-write wins.
@@ -38,7 +39,8 @@ internal class SmartComboFreeExecutor(
             minimumQuality = 60,
             paidFallbackApproved = false,
             maxRequestCostUsd = null,
-            nowEpochMs = nowMs
+            nowEpochMs = nowMs,
+            intent = intent
         )
         // Never reserve a route that cannot actually authenticate. A failed lookup may
         // otherwise consume the request ID and prevent a safe, pre-dispatch alternate.
@@ -87,7 +89,8 @@ internal class SmartComboFreeExecutor(
         resolveCredential: (LlmProvider, String) -> String,
         agentId: String,
         nowMs: Long = System.currentTimeMillis(),
-        checkpoint: SmartComboCheckpointReference? = null
+        checkpoint: SmartComboCheckpointReference? = null,
+        intent: SmartComboModelScorer.Intent = SmartComboModelScorer.Intent.GENERAL
     ): Prepared? {
         if (newRequestId.isBlank() || newRequestId == previous.requestId) return null
         // Do not release a DISPATCHED, UNCERTAIN or reconciled request.
@@ -95,7 +98,7 @@ internal class SmartComboFreeExecutor(
         return prepare(
             newRequestId, estimatedInput, reservedOutput, requiredCapabilities,
             offers.filterNot { it.route.id == previous.offer.route.id },
-            resolveCredential, agentId, nowMs, checkpoint
+            resolveCredential, agentId, nowMs, checkpoint, intent
         )
     }
 

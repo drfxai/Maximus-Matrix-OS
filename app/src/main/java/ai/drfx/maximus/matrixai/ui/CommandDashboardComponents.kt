@@ -49,8 +49,9 @@ internal fun CommandMetric(label: String, value: String, detail: String,
     val readingColor by animateColorAsState(
         if (attention || decreased) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         label = "remaining-token-direction")
+    // One step above the card colour so metric tiles read as distinct tiles.
     Surface(modifier, shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Column(Modifier.padding(9.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(label, maxLines = 2, style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)

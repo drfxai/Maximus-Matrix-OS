@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.drfx.maximus.matrixai.R
+import ai.drfx.maximus.matrixai.studio.PineSourceDetector
+import androidx.compose.ui.platform.testTag
 
 /** Fences are parsed without interpreting HTML, tools, or executing model output. */
 internal data class MessagePart(val text: String, val language: String? = null)
@@ -50,17 +52,29 @@ internal fun messageParts(text: String): List<MessagePart> {
     return parts
 }
 
+/** Replaces the source of an existing Pine Studio draft, e.g. the one that asked Chat for a revision. */
+class PineUpdateTarget(val draftName: String, val apply: (String) -> Unit)
+
+/** Fenced parts, with any unfenced Pine script in the prose split out as its own code part. */
+internal fun messagePartsWithPine(text: String): List<MessagePart> = messageParts(text).flatMap { part ->
+    if (part.language != null) listOf(part)
+    else PineSourceDetector.splitProse(part.text).map { (segment, pine) -> MessagePart(segment, if (pine) "pine" else null) }
+}
+
 @Composable
-internal fun WorkspaceMessageContent(text: String, color: Color, onOpenPine: ((String) -> Unit)? = null) {
-    val parts = remember(text) {
-        if (!text.contains("```") && text.trimStart().startsWith("//@version="))
-            listOf(MessagePart(text, "pine")) else messageParts(text)
-    }
+internal fun WorkspaceMessageContent(
+    text: String,
+    color: Color,
+    onOpenPine: ((String) -> Unit)? = null,
+    onPreviewPine: ((String) -> Unit)? = null,
+    updatePine: PineUpdateTarget? = null
+) {
+    val parts = remember(text) { messagePartsWithPine(text) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         parts.forEach { part ->
             if (part.language == null) SelectionContainer {
                 Text(part.text, color = color, fontSize = 15.sp, lineHeight = 23.sp)
-            } else WorkspaceCodeCard(part, onOpenPine = onOpenPine)
+            } else WorkspaceCodeCard(part, onOpenPine = onOpenPine, onPreviewPine = onPreviewPine, updatePine = updatePine)
         }
         val html = parts.firstOrNull {
             it.language != null && CodeLanguageCatalog.resolve(it.language, it.text).canPreviewHtml
@@ -76,7 +90,13 @@ internal fun WorkspaceMessageContent(text: String, color: Color, onOpenPine: ((S
 }
 
 @Composable
-internal fun WorkspaceCodeCard(part: MessagePart, title: String? = null, onOpenPine: ((String) -> Unit)? = null) {
+internal fun WorkspaceCodeCard(
+    part: MessagePart,
+    title: String? = null,
+    onOpenPine: ((String) -> Unit)? = null,
+    onPreviewPine: ((String) -> Unit)? = null,
+    updatePine: PineUpdateTarget? = null
+) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     var copied by remember(part.text) { mutableStateOf(false) }
@@ -129,10 +149,25 @@ internal fun WorkspaceCodeCard(part: MessagePart, title: String? = null, onOpenP
                 }) { Icon(Icons.Default.FileDownload, stringResource(R.string.chat_download), Modifier.size(18.dp)) }
             }
             if (language.extension == "pine" && onOpenPine != null) {
-                TextButton(onClick = { onOpenPine(part.text) }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.OpenInNew, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Open in Pine Studio")
+                Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TextButton(onClick = { onOpenPine(part.text) }, modifier = Modifier.weight(1f)
+                        .testTag("chat_open_in_pine")) {
+                        Icon(Icons.Default.OpenInNew, null, Modifier.size(17.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Open in Pine Studio", fontSize = 12.sp, maxLines = 1)
+                    }
+                    if (onPreviewPine != null) TextButton(onClick = { onPreviewPine(part.text) },
+                        modifier = Modifier.weight(1f).testTag("chat_preview_pine_chart")) {
+                        Icon(Icons.Default.CandlestickChart, null, Modifier.size(17.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Preview on chart", fontSize = 12.sp, maxLines = 1)
+                    }
+                }
+                if (updatePine != null) TextButton(onClick = { updatePine.apply(part.text) },
+                    modifier = Modifier.fillMaxWidth().testTag("chat_update_pine_draft")) {
+                    Icon(Icons.Default.SyncAlt, null, Modifier.size(17.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Replace code in “${updatePine.draftName.take(32)}”", fontSize = 12.sp, maxLines = 1)
                 }
             }
             HorizontalDivider(color = MaximusReference.stroke)

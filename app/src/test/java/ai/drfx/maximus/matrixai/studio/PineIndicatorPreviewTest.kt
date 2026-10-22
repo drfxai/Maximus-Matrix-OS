@@ -14,6 +14,7 @@ class PineIndicatorPreviewTest {
             plot(ta.sma(close, 3), color=color.orange)
         """.trimIndent(), candles(1.0, 2.0, 3.0, 6.0)) as PineIndicatorPreview.Result.Supported
         assertEquals(listOf(null, null, 2.0, 11.0 / 3), result.lines.single().values)
+        assertEquals(PineScriptEngine.Pane.PRICE, result.lines.single().pane)
     }
     @Test fun emaInputAndAssignmentHaveExplicitFirstLoadedCloseSeed() {
         val result = PineIndicatorPreview.evaluate("""
@@ -23,25 +24,31 @@ class PineIndicatorPreviewTest {
             plot(average, title="EMA", linewidth=2)
         """.trimIndent(), candles(2.0, 4.0, 8.0)) as PineIndicatorPreview.Result.Supported
         assertEquals(listOf(2.0, 3.0, 5.5), result.lines.single().values)
+        assertEquals("EMA", result.lines.single().label)
     }
-    @Test fun rejectsUnsupportedCodeRatherThanRenderingPartialMisleadingResult() {
+    @Test fun oscillatorsRenderInSeparatePane() {
+        val result = PineIndicatorPreview.evaluate("""
+            indicator("RSI")
+            plot(ta.rsi(close, 2))
+            hline(70)
+        """.trimIndent(), candles(1.0, 2.0, 3.0, 2.0)) as PineIndicatorPreview.Result.Supported
+        assertEquals(PineScriptEngine.Pane.INDICATOR, result.lines.single().pane)
+        assertEquals(70.0, result.output!!.hlines.single().price, 0.0)
+    }
+    @Test fun reportsUnrunnableScriptsInsteadOfDrawingThem() {
         listOf(
-            "plot(ta.rsi(close, 14))",
-            "plot(ta.sma(open, 3))",
-            "plot(ta.sma(close, 0))",
-            "plot(ta.sma(close, 501))",
-            "plot(ta.sma(close, 3))\nstrategy.entry(\"buy\", strategy.long)",
-            "plot(ta.sma(close, 3))\nif close > open\n    plot(close)",
-            "plot(ta.sma(close, 3), offset=4)",
-            "x = close * 2\nplot(ta.sma(close, 3))"
+            "indicator(\"X\")\nplot(array.new_float(3))",
+            "indicator(\"X\")\nplot(request.financial(\"A\", \"B\", \"FQ\"))",
+            "indicator(\"X\")\nx = 1",
+            "library(\"Lib\")\nexport f() => 1"
         ).forEach { code ->
-            assertTrue(code, PineIndicatorPreview.evaluate("indicator(\"X\", overlay=true)\n$code", candles(1.0)) is PineIndicatorPreview.Result.Unsupported)
+            assertTrue(code, PineIndicatorPreview.evaluate(code, candles(1.0, 2.0)) is PineIndicatorPreview.Result.Unsupported)
         }
     }
-    @Test fun limitsPlotCountAndDataSize() {
+    @Test fun limitsDataSize() {
         val header = "indicator(\"X\", overlay=true)\n"
-        assertTrue(PineIndicatorPreview.evaluate(header + List(5) { "plot(ta.ema(close, 2))" }.joinToString("\n"), candles(1.0)) is PineIndicatorPreview.Result.Unsupported)
-        assertTrue(PineIndicatorPreview.evaluate(header + "plot(ta.sma(close, 3))", List(201) { candles(1.0).single() }) is PineIndicatorPreview.Result.Unsupported)
+        assertTrue(PineIndicatorPreview.evaluate(header + "plot(ta.sma(close, 3))",
+            List(PineIndicatorPreview.MAX_CANDLES + 1) { candles(1.0).single() }) is PineIndicatorPreview.Result.Unsupported)
         assertTrue(PineIndicatorPreview.evaluate(" ".repeat(100_001), emptyList()) is PineIndicatorPreview.Result.Unsupported)
     }
     @Test fun multipleLinesPreserveSameCandleIdentity() {
@@ -65,16 +72,8 @@ class PineIndicatorPreviewTest {
             assertTrue(valid.lines.single().values.filterNotNull().all { it.isFinite() })
         }
     }
-    @Test fun rejectsReservedInputAndAverageNames() {
-        for (name in listOf("close", "open", "high", "low", "volume", "time", "bar_index", "hl2", "ta", "input", "color", "plot", "indicator", "na")) {
-            for (assignment in listOf("$name = input.int(3)", "$name = ta.sma(close, 3)")) {
-                val source = "indicator(\"X\", overlay=true)\n$assignment\nplot(ta.sma(close, 2))"
-                assertTrue(assignment, PineIndicatorPreview.evaluate(source, candles(1.0, 2.0)) is PineIndicatorPreview.Result.Unsupported)
-            }
-        }
-    }
 
-    @Test fun builtInLiquiditySweepPreviewsOnlyConfirmedPriorHighMarkers() {
+    @Test fun liquiditySweepMarksOnlyConfirmedPriorHighBreaks() {
         val source = """
             //@version=6
             indicator("Liquidity sweep", overlay=true)
@@ -93,10 +92,6 @@ class PineIndicatorPreviewTest {
         val preview = PineIndicatorPreview.evaluate(source, bars) as PineIndicatorPreview.Result.Supported
         assertTrue(preview.lines.single().markersOnly)
         assertEquals(listOf(null, null, 16.0, null), preview.lines.single().values)
-        assertTrue(PineIndicatorPreview.evaluate(source + "\nstrategy.entry(\"buy\", strategy.long)", bars)
-            is PineIndicatorPreview.Result.Unsupported)
-        assertTrue(PineIndicatorPreview.evaluate(source.replace("high[1]", "high"), bars)
-            is PineIndicatorPreview.Result.Unsupported)
+        assertEquals(listOf(2), preview.output!!.alerts.single().bars)
     }
-
 }
