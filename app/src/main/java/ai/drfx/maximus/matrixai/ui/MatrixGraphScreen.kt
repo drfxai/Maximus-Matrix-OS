@@ -1006,6 +1006,9 @@ fun MatrixGraphScreen(
                     Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) { inspector() }
                 }
                 Box(Modifier.weight(1f).fillMaxHeight()) {
+                    // The orbit updates rotation every frame; reading it inside RotationScope keeps that
+                    // from recomposing the whole Brain screen (panels, lists, labels) at 60 fps.
+                    RotationScope({ rotation }) { currentRotation ->
                     NeuralScene(
                         nodes = nodes,
                         edges = edges,
@@ -1016,7 +1019,7 @@ fun MatrixGraphScreen(
                         activity = if (galaxyLayout == NeuralGalaxyLayout.TIMELINE && layoutReady) timelineActivity else emptyList(),
                         activityPositions = if (galaxyLayout == NeuralGalaxyLayout.TIMELINE && layoutReady) geometry.activityPositions else emptyMap(),
                         onSelectActivity = { selectedActivityId = it },
-                        rotation = rotation,
+                        rotation = currentRotation,
                         zoom = zoom,
                         spread = spread,
                         linkOpacity = linkOpacity,
@@ -1040,6 +1043,7 @@ fun MatrixGraphScreen(
                         onSelect = { selectedId = it },
                         onReset = { reset() }
                     )
+                    }
 
                     // Anatomical Camera Controls Floating HUD
                     Surface(
@@ -1617,6 +1621,12 @@ private fun IntelligenceRing(status: String, light: Boolean, modifier: Modifier)
 
 private fun world(node: LiveNode, spread: Float): SpacePoint =
     SpacePoint(node.x * spread, node.y * spread, node.z * spread)
+
+/** Restartable boundary: only this scope re-runs when the per-frame rotation changes. */
+@Composable
+private fun RotationScope(rotation: () -> GraphRotation, content: @Composable (GraphRotation) -> Unit) {
+    content(rotation())
+}
 
 @Composable
 private fun NeuralScene(

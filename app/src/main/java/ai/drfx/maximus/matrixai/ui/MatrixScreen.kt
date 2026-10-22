@@ -73,6 +73,13 @@ fun MatrixScreen(
     // The Pine draft that last asked Chat for a revision, so a reply can update it in place.
     var pineRevisionDraftId by rememberSaveable { mutableStateOf<String?>(null) }
     var pineOpenChart by remember { mutableStateOf(false) }
+    // Resolved off the main thread: drafts can hold megabytes of source, and this screen recomposes often.
+    val pineRevisionTarget by produceState<Pair<String, String>?>(null, pineRevisionDraftId, destination) {
+        val id = pineRevisionDraftId
+        value = if (id == null) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { PineStudioStore(context).list().firstOrNull { it.id == id }?.let { it.id to it.name } }.getOrNull()
+        }
+    }
     fun importPine(source: String, chart: Boolean) {
         try {
             pineDraftId = PineStudioStore(context).importSource(source).id
@@ -275,20 +282,21 @@ fun MatrixScreen(
                         onSmartCombo = { destination = Destination.CONTROL },
                         onOpenPine = { source -> importPine(source, chart = false) },
                         onPreviewPine = { source -> importPine(source, chart = true) },
-                        pineUpdate = pineRevisionDraftId?.let { id ->
-                            PineStudioStore(context).list().firstOrNull { it.id == id }?.let { target ->
-                                PineUpdateTarget(target.name) { source ->
+                        pineUpdate = pineRevisionTarget?.let { (targetId, targetName) ->
+                            PineUpdateTarget(targetName) { source ->
                                     try {
-                                        PineStudioStore(context).update(target.id,
-                                            code = ai.drfx.maximus.matrixai.studio.PineSourceImport.validate(source))
-                                        pineDraftId = target.id
+                                        val store = PineStudioStore(context)
+                                        val current = store.list().firstOrNull { it.id == targetId } ?: error("Draft unavailable.")
+                                        store.update(targetId, code = ai.drfx.maximus.matrixai.studio.PineSourceImport
+                                            .validateReplacement(current.code, source))
+                                        pineDraftId = targetId
                                         pineOpenChart = true
                                         destination = Destination.PINE
                                         Toast.makeText(context, "Draft updated. The previous code is kept in Versions.", Toast.LENGTH_SHORT).show()
-                                    } catch (_: Exception) {
-                                        Toast.makeText(context, "Draft could not be updated. Use Open in Pine Studio instead.", Toast.LENGTH_LONG).show()
+                                    } catch (error: Exception) {
+                                        Toast.makeText(context, error.message?.takeIf { it.startsWith("This reply") }
+                                            ?: "Draft could not be updated. Use Open in Pine Studio instead.", Toast.LENGTH_LONG).show()
                                     }
-                                }
                             }
                         },
                         modifier = Modifier.fillMaxSize()

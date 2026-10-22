@@ -72,9 +72,8 @@ internal fun WorkspaceMessageContent(
     val parts = remember(text) { messagePartsWithPine(text) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         parts.forEach { part ->
-            if (part.language == null) SelectionContainer {
-                Text(part.text, color = color, fontSize = 15.sp, lineHeight = 23.sp)
-            } else WorkspaceCodeCard(part, onOpenPine = onOpenPine, onPreviewPine = onPreviewPine, updatePine = updatePine)
+            if (part.language == null) LongProse(part.text, color)
+            else WorkspaceCodeCard(part, onOpenPine = onOpenPine, onPreviewPine = onPreviewPine, updatePine = updatePine)
         }
         val html = parts.firstOrNull {
             it.language != null && CodeLanguageCatalog.resolve(it.language, it.text).canPreviewHtml
@@ -114,22 +113,19 @@ internal fun WorkspaceCodeCard(
     val language = remember(part.language, part.text) {
         CodeLanguageCatalog.resolve(part.language, part.text)
     }
-    val accent = MaximusReference.gold
-    val highlighted = remember(part.text, accent) {
-        buildAnnotatedString {
-            append(part.text)
-            Regex("\\b(class|fun|val|var|if|else|return|import|package|override|def|const|let|function|export|async|await|public|private|true|false|null)\\b")
-                .findAll(part.text).forEach { addStyle(SpanStyle(color = accent), it.range.first, it.range.last + 1) }
-        }
-    }
+    var fullScreen by remember(part.text) { mutableStateOf(false) }
+    val lineCount = remember(part.text) { part.text.count { it == '\n' } + 1 }
+    val highlight: (String) -> AnnotatedString = if (language.extension == "pine") ::highlightPineLine else { line -> highlightCodeLine(line) }
     Surface(shape = RoundedCornerShape(12.dp), color = MaximusReference.navy,
         border = BorderStroke(1.dp, MaximusReference.stroke), modifier = Modifier.fillMaxWidth().animateContentSize()) {
         Column {
             Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Code, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                Text(title ?: "source.${language.extension}", Modifier.weight(1f),
-                    maxLines = 1, fontSize = 12.sp, color = MaximusReference.white)
+                Column(Modifier.weight(1f)) {
+                    Text(title ?: "source.${language.extension}", maxLines = 1, fontSize = 12.sp, color = MaximusReference.white)
+                    if (lineCount > 1) Text("%,d lines".format(lineCount), maxLines = 1, fontSize = 10.sp, color = MaximusReference.muted)
+                }
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = Color(0xFF142E49),
@@ -137,6 +133,9 @@ internal fun WorkspaceCodeCard(
                 ) {
                     Text(language.label, Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                         color = MaximusReference.gold, fontSize = 10.sp)
+                }
+                IconButton(onClick = { fullScreen = true }, modifier = Modifier.testTag("code_card_expand")) {
+                    Icon(Icons.Default.OpenInFull, "Open code full screen", Modifier.size(17.dp))
                 }
                 IconButton(onClick = { clipboard.setText(AnnotatedString(part.text)); copied = true }) {
                     Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
@@ -171,18 +170,38 @@ internal fun WorkspaceCodeCard(
                 }
             }
             HorizontalDivider(color = MaximusReference.stroke)
-        androidx.compose.runtime.CompositionLocalProvider(
-            androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr
-        ) {
-            SelectionContainer {
-                Row(Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()).padding(12.dp)) {
-                    Text((1..part.text.lines().size).joinToString("\n"), color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 20.sp)
-                    Spacer(Modifier.width(16.dp))
-                    Text(highlighted, fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 20.sp, softWrap = false)
-                }
-            }
+            // Virtualized: only visible rows are laid out, so 10k+ line replies stay smooth.
+            LargeCodeView(part.text, maxHeight = 340.dp, highlight = highlight)
         }
+    }
+    if (fullScreen) LargeCodeDialog(title ?: "source.${language.extension}", part.text,
+        onDismiss = { fullScreen = false }, highlight = highlight, actions = {
+            IconButton(onClick = { clipboard.setText(AnnotatedString(part.text)); copied = true }) {
+                Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy, stringResource(R.string.chat_copy))
+            }
+            if (language.extension == "pine" && onOpenPine != null) IconButton(onClick = { fullScreen = false; onOpenPine(part.text) }) {
+                Icon(Icons.Default.OpenInNew, "Open in Pine Studio")
+            }
+        })
+}
+
+private const val PROSE_PREVIEW_CHARS = 4_000
+
+/** Very long prose (a pasted log or unfenced source) shows a preview until expanded. */
+@Composable
+private fun LongProse(text: String, color: Color) {
+    var expanded by remember(text) { mutableStateOf(false) }
+    val long = text.length > PROSE_PREVIEW_CHARS * 2
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SelectionContainer {
+            Text(if (long && !expanded) text.take(PROSE_PREVIEW_CHARS).trimEnd() + " …" else text,
+                color = color, fontSize = 15.sp, lineHeight = 23.sp)
+        }
+        if (long) TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 4.dp)) {
+            Text(if (expanded) "Show less" else "Show all · ${LargeSourceLabel(text)}", fontSize = 12.sp)
         }
     }
 }
+
+private fun LargeSourceLabel(text: String) = ai.drfx.maximus.matrixai.studio.LargeSource.sizeLabel(text)
+

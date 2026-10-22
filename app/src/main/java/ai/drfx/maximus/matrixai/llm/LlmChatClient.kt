@@ -22,7 +22,7 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
     ): ChatCompletionResult = CancellableHttp.execute {
         dispatchGuard.set(beforeDispatch)
         try {
-        require(maxOutputTokens == null || maxOutputTokens in 1..4096) { "Invalid output token cap." }
+        require(maxOutputTokens == null || maxOutputTokens in 1..SmartComboModelScorer.MAX_OUTPUT_TOKENS) { "Invalid output token cap." }
         EndpointPolicy.validate(config.baseUrl, config.provider)
         CredentialPolicy.validate(config.provider, config.apiKey)
         require(config.selectedModel.isNotBlank()) { "Select a discovered model before inference." }

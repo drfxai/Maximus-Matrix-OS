@@ -1067,6 +1067,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
         chatJob = viewModelScope.launch {
             var autoPrepared: SmartComboFreeExecutor.Prepared? = null
+            var comboOutputBudget = 2048
             try {
             chatRepository.saveMessage(
                 ChatMessageEntity(
@@ -1085,21 +1086,27 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val comboIntent = SmartComboModelScorer.classify(prompt,
                     selectedContext.estimatedTokens + memoryAndSystemBudget)
                 if (current.smartComboEnabled) {
-                    ai.drfx.maximus.matrixai.llm.SmartComboPreparation.captureBeforeReturn(prepare = {
-                        freeExecutor.prepare(
-                        requestId = UUID.randomUUID().toString(),
-                        estimatedInput = (selectedContext.estimatedTokens.toLong() + memoryAndSystemBudget).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-                        reservedOutput = 2048,
-                        requiredCapabilities = selectedAgent.requiredCapabilities,
-                        offers = freeRouteHealth.decorate(freeOffers, System.currentTimeMillis()),
-                        resolveCredential = { provider, endpoint -> apiStore.resolveCredential(provider, endpoint) },
-                        agentId = selectedAgent.id,
-                        intent = comboIntent
-                        )
-                    }, capture = { prepared ->
-                        autoPrepared = prepared
-                        refreshSmartComboDurability()
-                    })
+                    // Code asks for room to return whole files first, then falls back to smaller
+                    // reservations so tight-context or low token-per-minute routes stay usable.
+                    for (budget in SmartComboModelScorer.outputBudgets(comboIntent)) {
+                        if (autoPrepared != null) break
+                        ai.drfx.maximus.matrixai.llm.SmartComboPreparation.captureBeforeReturn(prepare = {
+                            freeExecutor.prepare(
+                            requestId = UUID.randomUUID().toString(),
+                            estimatedInput = (selectedContext.estimatedTokens.toLong() + memoryAndSystemBudget).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                            reservedOutput = budget,
+                            requiredCapabilities = selectedAgent.requiredCapabilities,
+                            offers = freeRouteHealth.decorate(freeOffers, System.currentTimeMillis()),
+                            resolveCredential = { provider, endpoint -> apiStore.resolveCredential(provider, endpoint) },
+                            agentId = selectedAgent.id,
+                            intent = comboIntent
+                            )
+                        }, capture = { prepared ->
+                            autoPrepared = prepared
+                            if (prepared != null) comboOutputBudget = budget
+                            refreshSmartComboDurability()
+                        })
+                    }
                     require(autoPrepared != null) {
                         "No compatible, verified free route passed the capability and quota admission checks."
                     }
@@ -1163,7 +1170,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 _llmState.value = _llmState.value.copy(activeRequest = dispatched, lastRequest = dispatched,
                     tokenMetrics = ChatTokenTelemetry.dispatched(_llmState.value.tokenMetrics,
                         dispatchedCapacity, selectedContext.estimatedTokens + memoryAndSystemBudget))
-                val result = chatClient.send(config, requestHistory, equippedAgent, maxOutputTokens = if (autoPrepared != null) 2048 else null,
+                val result = chatClient.send(config, requestHistory, equippedAgent, maxOutputTokens = if (autoPrepared != null) comboOutputBudget else OutputTokenLimit.directCap(config.provider, config.selectedModel, comboIntent),
                     beforeDispatch = { if (!current.smartComboEnabled) requireCatalogSelection(current) }, onQuota = { windows ->
                     if (windows.isNotEmpty()) {
                         autoPrepared?.let { freeExecutor.observeProviderQuota(it, windows) }

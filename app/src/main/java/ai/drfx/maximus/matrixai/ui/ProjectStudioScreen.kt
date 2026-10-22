@@ -336,10 +336,8 @@ fun ProjectStudioScreen(
             item {
                 val change = pendingEdit!!
                 val lineCounts = remember(change) {
-                    val old = change.second.lines()
-                    val new = change.third.lines()
-                    val common = old.indices.count { old[it] == new.getOrNull(it) }
-                    (new.size - common) to (old.size - common)
+                    val diff = ai.drfx.maximus.matrixai.studio.LineDiff.compute(change.second, change.third, maxRows = 1)
+                    diff.added to diff.removed
                 }
                 MaximusFramedCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -774,23 +772,18 @@ fun ProjectStudioScreen(
 
     if (editingFile != null) {
         val path = editingFile!!
-        AlertDialog(onDismissRequest = { editingFile = null },
-            title = { Text(path, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-            text = {
-                OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 240.dp, max = 440.dp),
-                    value = editor, onValueChange = { editor = it.take(512 * 1024) },
-                    textStyle = MaterialTheme.typography.bodySmall,
-                    minLines = 10
-                )
+        LargeCodeEditorDialog(path, originalEditor, ProjectWorkspaceStore.MAX_EDITABLE_BYTES,
+            onSave = { edited ->
+                editor = edited
+                if (edited == originalEditor) editingFile = null
+                else {
+                    pendingEdit = Triple(path, originalEditor, edited)
+                    previewExpanded = true
+                    editingFile = null
+                    section = 0
+                }
             },
-            confirmButton = { TextButton(onClick = {
-                pendingEdit = Triple(path, originalEditor, editor)
-                previewExpanded = true
-                editingFile = null
-                section = 0
-            }) { Text(stringResource(R.string.ui_review)) } },
-            dismissButton = { TextButton(onClick = { editingFile = null }) { Text(stringResource(R.string.studio_cancel)) } })
+            onDismiss = { editingFile = null })
     }
 }
 

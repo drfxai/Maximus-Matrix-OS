@@ -859,8 +859,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    // Edge-to-edge reading width with generous vertical rhythm between turns.
+                    contentPadding = PaddingValues(start = 2.dp, end = 2.dp, top = 6.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     if (messageSearch.isNotBlank() && visibleMessages.isEmpty()) item {
                         Text("No messages match this search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1953,7 +1954,7 @@ private fun ChatBubble(
                 bottomStart = if (isUser) 18.dp else 4.dp,
                 bottomEnd = if (isUser) 4.dp else 18.dp
             ),
-            modifier = if (isUser) Modifier.widthIn(max = 560.dp).fillMaxWidth(0.86f).wrapContentWidth(Alignment.End)
+            modifier = if (isUser) Modifier.widthIn(max = 760.dp).fillMaxWidth(0.92f).wrapContentWidth(Alignment.End)
                 else Modifier.fillMaxWidth(),
             border = if (message.isError) BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = .5f)) else null
         ) {
@@ -1979,7 +1980,9 @@ private fun ChatBubble(
                     }
                 }
                 if (draft == null) {
-                    if (isUser) Text(message.content, color = textColor, fontSize = 15.sp, lineHeight = 22.sp)
+                    // Long pastes (code, logs) render through the virtualized code cards instead of one huge Text.
+                    if (isUser && message.content.length <= 2_000) Text(message.content, color = textColor, fontSize = 15.sp, lineHeight = 22.sp)
+                    else if (isUser) WorkspaceMessageContent(message.content, textColor, onOpenPine, onPreviewPine)
                     else WorkspaceMessageContent(message.content, textColor, onOpenPine, onPreviewPine, pineUpdate)
                 } else {
                     // Keep the prose and code around a suggested tool call; only the tool markup is hidden.

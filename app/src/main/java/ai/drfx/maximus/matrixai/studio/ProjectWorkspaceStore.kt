@@ -18,6 +18,11 @@ data class StudioFile(val path: String, val length: Long)
 
 /** App-private workspaces. No shell execution, implicit cloud upload, or deployment. */
 class ProjectWorkspaceStore(context: Context) {
+    companion object {
+        /** About 40k lines of typical source; the Work editor and review share this cap. */
+        const val MAX_EDITABLE_BYTES = 2 * 1024 * 1024
+    }
+
     private val root = File(context.filesDir, "studio/projects").apply { mkdirs() }
 
     fun projects(): List<StudioProject> = root.listFiles().orEmpty().filter { it.isDirectory }
@@ -110,14 +115,14 @@ class ProjectWorkspaceStore(context: Context) {
 
     fun readFile(id: String, path: String): String {
         val file = child(projectDirectory(id), safePath(path))
-        require(file.isFile && file.length() <= 512 * 1024 && editable(file.name)) { "Only small text files are editable." }
+        require(file.isFile && file.length() <= MAX_EDITABLE_BYTES && editable(file.name)) { "Only text files up to 2 MB are editable." }
         return file.readText(Charsets.UTF_8)
     }
 
     fun saveFile(id: String, path: String, text: String) {
         val file = child(projectDirectory(id), safePath(path))
-        require(file.isFile && editable(file.name) && text.toByteArray().size <= 512 * 1024) {
-            "Only existing text files up to 512 KB are editable."
+        require(file.isFile && editable(file.name) && text.toByteArray().size <= MAX_EDITABLE_BYTES) {
+            "Only existing text files up to 2 MB are editable."
         }
         file.writeText(text, Charsets.UTF_8)
     }
@@ -200,7 +205,8 @@ class ProjectWorkspaceStore(context: Context) {
 
     private fun editable(name: String): Boolean = name.substringAfterLast('.', "").lowercase() in
         setOf("kt", "java", "xml", "json", "md", "txt", "kts", "gradle", "properties", "yaml",
-            "yml", "html", "css", "js", "ts", "py", "sql", "toml", "sh")
+            "yml", "html", "css", "js", "ts", "py", "sql", "toml", "sh", "pine", "tsx", "jsx", "mjs",
+            "scss", "go", "rs", "c", "h", "cpp", "hpp", "cs", "swift", "dart", "rb", "php", "vue", "svelte")
 
     private fun readLimited(url: URL, max: Int): ByteArray {
         require(url.protocol == "https" && url.host in setOf("api.github.com", "codeload.github.com"))

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Large projects: Pine drafts, imports and the local engine accept sources up to 1,000,000 characters (about 20k lines); Work edits text files up to 2 MB.
+- New full-screen code editor for Pine Studio and Work with find/replace, go-to-line, a live cursor position and a local syntax check; code views in Chat, Pine Studio and Work are virtualized so 10k+ line sources scroll smoothly.
+- Work reviews now use a real line diff, so an edit deep in a large file shows exactly where it happened.
+- AI revisions of large Pine drafts send an outline plus the relevant excerpts and ask for targeted section changes; a partial reply can no longer overwrite a whole draft.
+- Smart Combo reserves up to 16k output tokens for code (falling back to smaller budgets when routes are tight), and Claude models get 8k output for code.
+- Chat uses edge-to-edge width with more space between turns, and long pastes collapse into previews.
+- Fixes: the Brain no longer recomposes its whole screen on every orbit frame, and Pine parsing and draft lookups moved off the main thread.
+
 ## V1.0.0 — internal build 10033
 
 - Chat → Pine Studio: Pine code in a reply can be opened in Pine Studio, previewed on a live chart or used to replace a draft. A new local Pine engine runs real indicators and simplified strategies on the chart, with an AI review action.

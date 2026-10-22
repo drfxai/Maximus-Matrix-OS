@@ -88,7 +88,12 @@ internal fun PineLiveMarketChart(
         } finally { loading = false }
     }
 
-    val sourceCheck = remember(indicatorSource) { indicatorSource?.let { PineIndicatorPreview.evaluate(it, emptyList()) } }
+    // Large indicators take real time to parse and run; never block the main thread on them.
+    val sourceCheckState by produceState<PineIndicatorPreview.Result?>(null, indicatorSource) {
+        value = indicatorSource?.let { source -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            PineIndicatorPreview.evaluate(source, emptyList()) } }
+    }
+    val sourceCheck = sourceCheckState
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 7.dp)) {
         if (!previewOnly) Row(verticalAlignment = Alignment.CenterVertically) {
             Box {
@@ -148,9 +153,11 @@ internal fun PineLiveMarketChart(
             }
             series != null -> {
                 val market = series!!
-                val indicator = remember(indicatorSource, market) {
-                    indicatorSource?.let { PineIndicatorPreview.evaluate(it, market.candles, market.product, market.timeframe.seconds) }
+                val indicatorState by produceState<PineIndicatorPreview.Result?>(null, indicatorSource, market) {
+                    value = indicatorSource?.let { source -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                        PineIndicatorPreview.evaluate(source, market.candles, market.product, market.timeframe.seconds) } }
                 }
+                val indicator = indicatorState
                 val supported = indicator as? PineIndicatorPreview.Result.Supported
                 val output = supported?.output
                 val lines = supported?.lines.orEmpty()

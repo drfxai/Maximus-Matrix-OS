@@ -35,7 +35,7 @@ object PineIndicatorPreview {
         symbol: String = "BTC-USD",
         timeframeSeconds: Int = 60
     ): Result {
-        if (source.length > PineScriptEngine.MAX_SOURCE) return Result.Unsupported("Pine source exceeds 100,000 characters.")
+        if (source.length > PineScriptEngine.MAX_SOURCE) return Result.Unsupported("Pine source exceeds ${LargeSource.MAX_LABEL}.")
         if (source.isBlank()) return Result.Unsupported("Pine source is empty.")
         if (candles.size > MAX_CANDLES) return Result.Unsupported("Preview is limited to $MAX_CANDLES candles.")
         if (candles.any { candle -> listOf(candle.open, candle.high, candle.low, candle.close).any { !it.isFinite() || it <= 0.0 || it > MAX_PRICE } })

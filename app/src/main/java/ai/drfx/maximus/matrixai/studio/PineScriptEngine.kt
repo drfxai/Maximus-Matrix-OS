@@ -28,10 +28,11 @@ import kotlin.math.sqrt
  * Source text is data only; nothing is executed outside this interpreter.
  */
 object PineScriptEngine {
-    const val MAX_SOURCE = 100_000
+    const val MAX_SOURCE = LargeSource.MAX_CHARS
     const val MAX_BARS = 1_000
     private const val MAX_LOOP = 2_000
-    private const val MAX_STEPS = 4_000_000L
+    // Scales with large scripts: a 10k+ line indicator runs thousands of statements per bar.
+    private const val MAX_STEPS = 40_000_000L
 
     enum class Pane { PRICE, INDICATOR }
     enum class PlotStyle { LINE, STEP, HISTOGRAM, COLUMNS, CIRCLES, AREA, CROSS, MARKER_UP, MARKER_DOWN, MARKER }
@@ -94,7 +95,7 @@ object PineScriptEngine {
     class PineException(message: String, val line: Int = 0) : RuntimeException(message)
 
     fun run(source: String, candles: List<PineCandle>, symbol: String = "BTC-USD", timeframeSeconds: Int = 60): Output {
-        if (source.length > MAX_SOURCE) throw PineException("Pine source exceeds 100,000 characters.")
+        if (source.length > MAX_SOURCE) throw PineException("Pine source exceeds ${LargeSource.MAX_LABEL}.")
         if (candles.size > MAX_BARS) throw PineException("Preview is limited to $MAX_BARS candles.")
         val program = Parser(Lexer.lines(source)).parseProgram()
         return Interpreter(program, candles, symbol, timeframeSeconds).execute()
@@ -102,7 +103,7 @@ object PineScriptEngine {
 
     /** Syntax-only check without market data, for instant feedback in editors. */
     fun check(source: String): List<Diagnostic> = try {
-        if (source.length > MAX_SOURCE) listOf(Diagnostic(0, "Pine source exceeds 100,000 characters.", Severity.ERROR))
+        if (source.length > MAX_SOURCE) listOf(Diagnostic(0, "Pine source exceeds ${LargeSource.MAX_LABEL}.", Severity.ERROR))
         else Parser(Lexer.lines(source)).parseProgram().diagnostics
     } catch (error: PineException) {
         listOf(Diagnostic(error.line, error.message ?: "Syntax error", Severity.ERROR))
