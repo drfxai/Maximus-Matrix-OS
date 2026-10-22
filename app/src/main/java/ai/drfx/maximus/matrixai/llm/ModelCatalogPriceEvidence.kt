@@ -24,7 +24,7 @@ internal object ModelCatalogPriceEvidence {
     fun verifiedContext(model: JSONObject): Int? {
         val value = model.opt("context_length") ?: return null
         val tokens = when (value) {
-            is Number -> value.toLong()
+            is Number -> runCatching { java.math.BigDecimal(value.toString()).longValueExact() }.getOrNull()
             is String -> value.toLongOrNull()
             else -> null
         } ?: return null
