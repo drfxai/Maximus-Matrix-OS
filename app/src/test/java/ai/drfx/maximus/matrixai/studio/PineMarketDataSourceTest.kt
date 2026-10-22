@@ -40,8 +40,8 @@ class PineMarketDataSourceTest {
         assertEquals(240L, candles.last().epochSeconds)
     }
 
-    @Test fun supportsExactlyFourRequestedTimeframes() {
-        assertEquals(listOf(60, 300, 900, 3600),
+    @Test fun supportsCoinbaseGranularitiesOnly() {
+        assertEquals(listOf(60, 300, 900, 3600, 21600, 86400),
             PineTimeframe.entries.map { it.seconds })
     }
 

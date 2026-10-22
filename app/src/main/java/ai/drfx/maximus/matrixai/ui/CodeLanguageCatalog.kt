@@ -1,5 +1,7 @@
 package ai.drfx.maximus.matrixai.ui
 
+import ai.drfx.maximus.matrixai.studio.PineSourceDetector
+
 /** Conservative source-code language classification. Never interprets or executes source text. */
 internal data class CodeLanguage(val label: String, val extension: String, val canPreviewHtml: Boolean = false)
 
@@ -7,6 +9,9 @@ internal object CodeLanguageCatalog {
     fun resolve(rawTag: String?, source: String): CodeLanguage {
         val tag = rawTag.orEmpty().trim().lowercase().substringBefore(' ')
             .removePrefix(".").take(32)
+        // Models often fence Pine as js/javascript/c/text; the content decides.
+        if (tag !in setOf("html", "htm", "xml", "svg", "css", "json") && PineSourceDetector.looksLikePine(source))
+            return CodeLanguage("Pine Script", "pine")
         return when(tag) {
             "html", "htm", "xml", "svg" -> CodeLanguage("HTML", "html", true)
             "css", "scss", "sass" -> CodeLanguage("CSS", "css")
@@ -15,7 +20,7 @@ internal object CodeLanguageCatalog {
             "python", "py" -> CodeLanguage("Python", "py")
             "kotlin", "kt", "kts" -> CodeLanguage("Kotlin", "kt")
             "java" -> CodeLanguage("Java", "java")
-            "pine", "pinescript", "tradingview" -> CodeLanguage("Pine Script", "pine")
+            "pine", "pinescript", "pine-script", "pine_script", "pinev5", "pinev6", "tradingview" -> CodeLanguage("Pine Script", "pine")
             "rust", "rs" -> CodeLanguage("Rust", "rs")
             "go", "golang" -> CodeLanguage("Go", "go")
             "cpp", "c++", "cc", "cxx", "hpp" -> CodeLanguage("C++", "cpp")

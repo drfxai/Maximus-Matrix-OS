@@ -22,6 +22,14 @@ object ChatPresentation {
         return ToolDraft(action, file, "Suggested tool operation — not executed or verified")
     }
 
+    /** The reply text with suggested tool-call markup removed, so surrounding prose and code still show. */
+    fun withoutToolMarkup(raw: String): String = raw
+        .replace(Regex("<function_calls>.*?(?:</function_calls>|$)", RegexOption.DOT_MATCHES_ALL), "")
+        .replace(Regex("<invoke\\s.*?(?:</invoke>|$)", RegexOption.DOT_MATCHES_ALL), "")
+        .replace(Regex("<(web_search|image_gen|execute_code)>.*?</\\1>", RegexOption.DOT_MATCHES_ALL), "")
+        .replace(Regex("\n{3,}"), "\n\n")
+        .trim()
+
     fun export(raw: String): ChatExport {
         val draft = draft(raw)
         val suggestedName = draft?.path?.substringAfterLast('/')?.substringAfterLast('\\')

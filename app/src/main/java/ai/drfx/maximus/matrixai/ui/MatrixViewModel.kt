@@ -596,7 +596,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         cancelChat()
         val revision = apiCatalogSession.invalidate()
         validationJob?.cancel()
-        _llmState.value = _llmState.value.copy(apiInputRevision = revision,
+        scanJob?.cancel()
+        _llmState.value = _llmState.value.copy(apiInputRevision = revision, modelScan = ModelScanUi(),
             models = emptyList(), supportedAgents = emptyList(),
             catalogCheckedAtEpochMs = null, modelProbeEvidence = emptyMap(), inferenceVerifiedModel = "", inferenceVerifiedAtEpochMs = null,
             status = ConnectionStatus.DISCONNECTED, statusMessage = "Discover the authenticated catalog for these API inputs.",
@@ -720,6 +721,123 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             }
         }.also { it.invokeOnCompletion { SmartComboSessionBroker.release(ownership) } }
     }
+
+    /**
+     * Pastes a key with the right provider: a key that clearly belongs to another service switches
+     * the preset (and its endpoint) first, then fetches that provider's authenticated catalog.
+     */
+    fun connectWithKey(baseUrlInput: String, apiKeyInput: String) {
+        val key = apiKeyInput.trim()
+        val current = _llmState.value
+        val switch = if (key.isBlank()) null else ProviderKeyDetector.mismatch(current.provider, key)
+        if (switch != null) {
+            applyProviderPreset(switch.provider)
+            detectApi(switch.baseUrl, key)
+            return
+        }
+        val detected = ProviderKeyDetector.detect(key)?.takeIf { it.provider == current.provider && !it.ambiguous }
+        val base = baseUrlInput.trim().ifBlank { detected?.baseUrl ?: current.baseUrl.ifBlank { current.provider.defaultBaseUrl } }
+        detectApi(base, key)
+    }
+
+    private var scanJob: Job? = null
+
+    /**
+     * Sends one tiny request ("Reply only OK.", at most 16 output tokens) to each untested catalog
+     * model so the picker can show only models that really answer with these credentials.
+     * Called only after the UI confirms the request count; stops on invalid credentials or rate limits.
+     */
+    fun scanModelCompatibility(expectedRevision: Long, limit: Int = MODEL_SCAN_LIMIT) {
+        val requested = _llmState.value
+        if (requested.apiInputRevision != expectedRevision || !apiCatalogSession.isCurrent(expectedRevision)) return
+        if (projectTeamJob?.isActive == true || requested.isGenerating || SmartComboSessionBroker.busy()) return
+        val credential = try { apiStore.credentialSnapshot(requested.provider, requested.baseUrl) } catch (_: Exception) { return }
+        val now = System.currentTimeMillis()
+        val evidence = apiCatalogSession.probeEvidence()
+        val candidates = (listOfNotNull(requested.models.firstOrNull { it.id == requested.selectedModel }) + requested.models)
+            .distinctBy { it.id }
+            .filter { model -> evidence[model.id]?.takeIf { it.isFresh(now) && it.outcome != ModelProbeOutcome.UNCERTAIN } == null }
+            .filter { apiCatalogSession.permits(expectedRevision, requested.provider, requested.baseUrl, credential.second, it.id) }
+            .take(limit.coerceIn(1, MODEL_SCAN_LIMIT))
+        if (candidates.isEmpty()) {
+            _llmState.value = requested.copy(modelScan = ModelScanUi(message = "Every listed model already has a recent test result."))
+            return
+        }
+        val ownership = UUID.randomUUID().toString()
+        if (!SmartComboSessionBroker.acquire(ownership)) return
+        val persona = AgentRegistry.byId("general") ?: AgentRegistry.agents.first()
+        _llmState.value = requested.copy(modelScan = ModelScanUi(running = true, total = candidates.size,
+            message = "Testing ${candidates.size} models with one tiny request each…"))
+        scanJob = viewModelScope.launch {
+            val gate = kotlinx.coroutines.sync.Semaphore(3)
+            var stopReason: String? = null
+            fun progress(update: (ModelScanUi) -> ModelScanUi) {
+                if (apiCatalogSession.isCurrent(expectedRevision)) _llmState.value = _llmState.value.copy(
+                    modelScan = update(_llmState.value.modelScan), modelProbeEvidence = apiCatalogSession.probeEvidence())
+            }
+            try {
+                kotlinx.coroutines.coroutineScope {
+                    candidates.map { model ->
+                        launch {
+                            gate.acquire()
+                            try {
+                                if (stopReason != null || !apiCatalogSession.isCurrent(expectedRevision)) return@launch
+                                val outcome = try {
+                                    val result = withTimeout(25_000L) {
+                                        chatClient.send(ApiConnectionConfig(requested.baseUrl, credential.first, requested.provider,
+                                            model.id, persona.id), listOf(ChatMessage("user", "Reply only OK.")), persona,
+                                            maxOutputTokens = 16, beforeDispatch = {
+                                                check(apiCatalogSession.isCurrent(expectedRevision)) { "API inputs changed." }
+                                                check(apiStore.credentialSnapshot(requested.provider, requested.baseUrl) == credential) { "API credentials changed." }
+                                            })
+                                    }
+                                    usageStore.record(requested.provider, model.id, result.usage)
+                                    ModelProbeOutcome.SUCCEEDED to null
+                                } catch (error: Throwable) {
+                                    if (error is CancellationException && error !is TimeoutCancellationException) throw error
+                                    val failure = (error as? ProviderRequestException)?.failure
+                                    when (failure) {
+                                        ProviderFailure.AUTHENTICATION -> stopReason = "The provider rejected these credentials; the scan stopped."
+                                        ProviderFailure.RATE_LIMIT_OR_QUOTA -> stopReason = "The provider's rate limit or quota was reached; the scan paused. Retry later."
+                                        else -> Unit
+                                    }
+                                    val uncertain = error is TimeoutCancellationException || error is java.io.IOException ||
+                                        failure == ProviderFailure.RATE_LIMIT_OR_QUOTA || failure == ProviderFailure.SERVICE_OUTAGE
+                                    (if (uncertain) ModelProbeOutcome.UNCERTAIN else ModelProbeOutcome.FAILED) to failure
+                                }
+                                apiCatalogSession.recordProbe(expectedRevision, requested.provider, requested.baseUrl,
+                                    credential.second, model.id, outcome.first, outcome.second)
+                                progress { scan -> scan.copy(tested = scan.tested + 1,
+                                    passed = scan.passed + if (outcome.first == ModelProbeOutcome.SUCCEEDED) 1 else 0,
+                                    failed = scan.failed + if (outcome.first == ModelProbeOutcome.FAILED) 1 else 0,
+                                    uncertain = scan.uncertain + if (outcome.first == ModelProbeOutcome.UNCERTAIN) 1 else 0) }
+                            } finally { gate.release() }
+                        }
+                    }
+                }
+            } finally {
+                _usage.value = usageStore.summary()
+                progress { scan ->
+                    scan.copy(running = false, message = stopReason ?: when {
+                        scan.passed == 0 -> "No tested model answered. Check the account's access and credits."
+                        else -> "${scan.passed} of ${scan.tested} tested models answered with these credentials."
+                    })
+                }
+                val state = _llmState.value
+                val selectedOk = state.modelProbeEvidence[state.selectedModel]?.outcome == ModelProbeOutcome.SUCCEEDED
+                if (!selectedOk && apiCatalogSession.isCurrent(expectedRevision)) {
+                    // Move the selection to a model that just answered, so chat works right away.
+                    state.models.firstOrNull { state.modelProbeEvidence[it.id]?.outcome == ModelProbeOutcome.SUCCEEDED }
+                        ?.let { SmartComboSessionBroker.release(ownership); selectModel(it.id) }
+                } else if (selectedOk && apiCatalogSession.isCurrent(expectedRevision)) {
+                    _llmState.value = state.copy(status = ConnectionStatus.CONNECTED, inferenceVerifiedModel = state.selectedModel,
+                        inferenceVerifiedAtEpochMs = state.modelProbeEvidence[state.selectedModel]?.observedAtEpochMs)
+                }
+            }
+        }.also { it.invokeOnCompletion { SmartComboSessionBroker.release(ownership) } }
+    }
+
+    fun cancelModelScan() { scanJob?.cancel() }
 
     private fun refreshProjectMemoriesInBackground() {
         if (!sharedProjectMemory.enabled() || sharedProjectMemory.activeProject().isBlank()) return
@@ -1519,3 +1637,6 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 }
+
+/** Upper bound on one compatibility scan, so a huge router catalog cannot fan out hundreds of requests. */
+private const val MODEL_SCAN_LIMIT = 40

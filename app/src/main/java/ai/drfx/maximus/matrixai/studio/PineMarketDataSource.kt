@@ -24,7 +24,9 @@ enum class PineTimeframe(val seconds: Int, val label: String) {
     ONE_MINUTE(60, "1m"),
     FIVE_MINUTES(300, "5m"),
     FIFTEEN_MINUTES(900, "15m"),
-    ONE_HOUR(3600, "1h")
+    ONE_HOUR(3600, "1h"),
+    SIX_HOURS(21600, "6h"),
+    ONE_DAY(86400, "1D")
 }
 
 data class PineMarketSeries(
@@ -68,7 +70,8 @@ class PineMarketDataSource(
     private val fetch: (String) -> String = ::fetchHttps
 ) {
     companion object {
-        val PRODUCTS = listOf("BTC-USD", "ETH-USD")
+        val PRODUCTS = listOf("BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD", "ADA-USD",
+            "AVAX-USD", "LINK-USD", "LTC-USD", "BCH-USD")
         private fun fetchHttps(url: String): String {
             val connection = URL(url).openConnection() as HttpURLConnection
             try {

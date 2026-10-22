@@ -139,7 +139,21 @@ data class ChatRequestTelemetry(
     val automatic: Boolean
 )
 
+/** Progress of an explicit, user-approved compatibility scan. Counts only; no prompts or responses. */
+data class ModelScanUi(
+    val running: Boolean = false,
+    val tested: Int = 0,
+    val total: Int = 0,
+    val passed: Int = 0,
+    val failed: Int = 0,
+    val uncertain: Int = 0,
+    val message: String = ""
+) {
+    val finished: Boolean get() = !running && total > 0
+}
+
 data class LlmUiState(
+    val modelScan: ModelScanUi = ModelScanUi(),
     val apiInputRevision: Long = 0L,
     val catalogCheckedAtEpochMs: Long? = null,
     val modelProbeEvidence: Map<String, ModelProbeEvidence> = emptyMap(),

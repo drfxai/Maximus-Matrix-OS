@@ -70,6 +70,18 @@ fun MatrixScreen(
     var destination by remember { mutableStateOf(Destination.MATRIX) }
     val context = LocalContext.current
     var pineDraftId by rememberSaveable { mutableStateOf<String?>(null) }
+    // The Pine draft that last asked Chat for a revision, so a reply can update it in place.
+    var pineRevisionDraftId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pineOpenChart by remember { mutableStateOf(false) }
+    fun importPine(source: String, chart: Boolean) {
+        try {
+            pineDraftId = PineStudioStore(context).importSource(source).id
+            pineOpenChart = chart
+            destination = Destination.PINE
+        } catch (_: Exception) {
+            Toast.makeText(context, "Pine source could not be saved. Please retry.", Toast.LENGTH_LONG).show()
+        }
+    }
     var workSection by remember { mutableIntStateOf(0) }
     var showMoreSheet by remember { mutableStateOf(false) }
     val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
@@ -235,12 +247,22 @@ fun MatrixScreen(
                         onWork = { destination = Destination.STUDIO },
                         onHub = { destination = Destination.TOOLS },
                         onSmartCombo = { destination = Destination.CONTROL },
-                        onOpenPine = { source ->
-                            try {
-                                pineDraftId = PineStudioStore(context).importSource(source).id
-                                destination = Destination.PINE
-                            } catch (_: Exception) {
-                                Toast.makeText(context, "Pine source could not be saved. Please retry.", Toast.LENGTH_LONG).show()
+                        onOpenPine = { source -> importPine(source, chart = false) },
+                        onPreviewPine = { source -> importPine(source, chart = true) },
+                        pineUpdate = pineRevisionDraftId?.let { id ->
+                            PineStudioStore(context).list().firstOrNull { it.id == id }?.let { target ->
+                                PineUpdateTarget(target.name) { source ->
+                                    try {
+                                        PineStudioStore(context).update(target.id,
+                                            code = ai.drfx.maximus.matrixai.studio.PineSourceImport.validate(source))
+                                        pineDraftId = target.id
+                                        pineOpenChart = true
+                                        destination = Destination.PINE
+                                        Toast.makeText(context, "Draft updated. The previous code is kept in Versions.", Toast.LENGTH_SHORT).show()
+                                    } catch (_: Exception) {
+                                        Toast.makeText(context, "Draft could not be updated. Use Open in Pine Studio instead.", Toast.LENGTH_LONG).show()
+                                    }
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxSize()
@@ -252,6 +274,9 @@ fun MatrixScreen(
                     )
                     Destination.PINE -> PineStudioScreen(
                         initialDraftId = pineDraftId,
+                        openChart = pineOpenChart,
+                        onChartOpened = { pineOpenChart = false },
+                        onRevisionRequested = { pineRevisionDraftId = it },
                         onBack = { destination = Destination.STUDIO },
                         onAskAi = { prompt ->
                             val submitted = viewModel.sendChat(prompt)

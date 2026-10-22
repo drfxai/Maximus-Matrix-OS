@@ -59,6 +59,7 @@ class ApiDiscoveryEngine {
                             val rawName = model.optString("name")
                             if (rawName.isBlank()) continue
                             val id = rawName.removePrefix("models/")
+                            if (!CatalogChatPolicy.isGeminiChatCandidate(id)) continue
                             add(ModelDescriptor(id, model.optString("displayName").ifBlank { id }))
                         }
                     }
@@ -172,12 +173,9 @@ class ApiDiscoveryEngine {
                 return GEMINI_BASE_URL
             }
             if (input.isBlank()) {
-                return when {
-                    apiKey.startsWith("nvapi-") -> NVIDIA_BASE_URL
-                    apiKey.startsWith("AIza") -> GEMINI_BASE_URL
-                    apiKey.startsWith("9r-") -> ROUTER_9_BASE_URL
-                    else -> GEMINI_BASE_URL
-                }
+                // Never guess Gemini for an unknown key: that sent foreign keys to Google.
+                return ProviderKeyDetector.detect(apiKey)?.baseUrl
+                    ?: throw IllegalArgumentException("This key format is not recognized. Enter the provider's API endpoint URL.")
             }
             return normalizeBaseUrl(input)
         }

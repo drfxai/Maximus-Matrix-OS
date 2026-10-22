@@ -26,4 +26,12 @@ class CodeLanguageCatalogTest {
         assertEquals("txt", item.extension)
         assertFalse(item.canPreviewHtml)
     }
+
+    @Test fun pineMislabeledAsAnotherLanguageIsStillPine() {
+        val source = "//@version=5\nindicator(\"EMA\", overlay=true)\nplot(ta.ema(close, 9))"
+        listOf("javascript", "js", "c", "text", "pine-script").forEach { tag ->
+            assertEquals(tag, "pine", CodeLanguageCatalog.resolve(tag, source).extension)
+        }
+        assertEquals("js", CodeLanguageCatalog.resolve("js", "const plot = () => 1").extension)
+    }
 }
