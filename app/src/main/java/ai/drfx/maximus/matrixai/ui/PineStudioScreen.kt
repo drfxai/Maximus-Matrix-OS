@@ -384,8 +384,11 @@ fun PineStudioScreen(
                 Column(Modifier.padding(10.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(draft?.name?.let { "$it · Real OHLCV" } ?: "Market chart · Real OHLCV", Modifier.weight(1f),
-                            color = Color.White, fontWeight = FontWeight.Bold)
+                        Column(Modifier.weight(1f)) {
+                            Text("Market chart · Real OHLCV", color = Color.White, fontWeight = FontWeight.Bold)
+                            draft?.name?.let { Text(it, color = pineMuted, fontSize = 11.sp, maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }
+                        }
                         IconButton(onClick = { chartExpanded = false }) {
                             Icon(Icons.Default.Close, "Close chart", tint = pineMuted)
                         }
