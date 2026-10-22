@@ -7,7 +7,7 @@ package ai.drfx.maximus.matrixai.studio
 internal object PineSweepPreview {
     private val declaration = Regex("""indicator\(\s*"[^"\r\n]{1,80}"\s*,\s*overlay\s*=\s*true\s*\)""")
     private val input = Regex("""length\s*=\s*input\.int\(\s*(\d{1,3})\s*,\s*"[^"\r\n]{1,80}"\s*,\s*minval\s*=\s*2\s*\)""")
-    private val level = Regex("""level\s*=\s*ta\.highest\(\s*high\[1]\s*,\s*length\s*\)""")
+    private val level = Regex("""level\s*=\s*ta\.highest\(\s*high\[1\]\s*,\s*length\s*\)""")
     private val sweep = Regex("""sweep\s*=\s*high\s*>\s*level\s+and\s+close\s*<\s*level""")
     private val marker = Regex("""plotshape\(\s*sweep\s*,\s*title\s*=\s*"Sweep"\s*,\s*style\s*=\s*shape\.triangledown\s*,\s*location\s*=\s*location\.abovebar\s*,\s*color\s*=\s*color\.orange\s*\)""")
     private val alert = Regex("""alertcondition\(\s*sweep\s*,\s*title\s*=\s*"Liquidity sweep"\s*,\s*message\s*=\s*"Potential liquidity sweep detected"\s*\)""")
