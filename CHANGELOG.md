@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## V1.0.0 — internal build 10034
 
 - Large projects: Pine drafts, imports and the local engine accept sources up to 1,000,000 characters (about 20k lines); Work edits text files up to 2 MB.
 - New full-screen code editor for Pine Studio and Work with find/replace, go-to-line, a live cursor position and a local syntax check; code views in Chat, Pine Studio and Work are virtualized so 10k+ line sources scroll smoothly.
@@ -9,6 +9,7 @@
 - Smart Combo reserves up to 16k output tokens for code (falling back to smaller budgets when routes are tight), and Claude models get 8k output for code.
 - Chat uses edge-to-edge width with more space between turns, and long pastes collapse into previews.
 - Fixes: the Brain no longer recomposes its whole screen on every orbit frame, and Pine parsing and draft lookups moved off the main thread.
+- Public version 1.0.0, package identity and signing certificate are preserved; the Android build number increases for an in-place update.
 
 ## V1.0.0 — internal build 10033
 

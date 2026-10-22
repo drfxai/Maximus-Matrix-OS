@@ -9,7 +9,7 @@
 <p align="center">
   <a href="https://github.com/drfxai/Maximus-Matrix-OS/releases/tag/v1.0.0"><strong>Download V1.0.0</strong></a>
   · Android 8.0+
-  · Build 10033
+  · Build 10034
 </p>
 
 ### One connected workspace
