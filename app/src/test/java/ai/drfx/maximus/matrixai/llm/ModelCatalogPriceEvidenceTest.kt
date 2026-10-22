@@ -31,6 +31,22 @@ class ModelCatalogPriceEvidenceTest {
         assertNull(ModelCatalogPriceEvidence.verifiedContext(JSONObject()))
     }
 
+    @Test fun contextEvidenceRejectsFractionalAndOverflowingNumbers() {
+        val candidate = model("0", "0")
+        assertNull(ModelCatalogPriceEvidence.verifiedContext(candidate.put("context_length", 32768.5)))
+        assertNull(ModelCatalogPriceEvidence.verifiedContext(candidate.put("context_length", 1.0e20)))
+        assertNull(ModelCatalogPriceEvidence.verifiedContext(candidate.put("context_length", "32768.5")))
+        assertEquals(32768, ModelCatalogPriceEvidence.verifiedContext(candidate.put("context_length", 32768.0)))
+    }
+
+    @Test fun contextEvidenceRespectsInclusiveSafetyBounds() {
+        val candidate = model("0", "0")
+        assertNull(ModelCatalogPriceEvidence.verifiedContext(candidate.put("context_length", 511)))
+        assertEquals(512, ModelCatalogPriceEvidence.verifiedContext(candidate.put("context_length", 512)))
+        assertEquals(10_000_000, ModelCatalogPriceEvidence.verifiedContext(candidate.put("context_length", 10_000_000)))
+        assertNull(ModelCatalogPriceEvidence.verifiedContext(candidate.put("context_length", 10_000_001)))
+    }
+
     @Test fun numericPricingIsAllowedButUnknownExtraFeeIsRejected() {
         val candidate = model("0", "0").put("pricing",
             JSONObject().put("prompt", 0).put("completion", 0).put("input_cache_write", 0.01))
