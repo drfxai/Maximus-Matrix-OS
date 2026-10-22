@@ -4,6 +4,13 @@
 **/.cxx/
 **/.externalNativeBuild/
 local.properties
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.hprof
 *.apk
 *.aab
 *.jks

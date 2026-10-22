@@ -1,23 +1,38 @@
-# MAXIMUS MATRIX OS (Android)
+<p align="center">
+  <img src="docs/media/maximus-hero.png" alt="MAXIMUS MATRIX OS neural workspace illustration" width="100%">
+</p>
 
-MAXIMUS MATRIX OS is a graph-native intelligence platform and executive Android assistant app built with Kotlin and Jetpack Compose.
+<h1 align="center">MAXIMUS MATRIX OS</h1>
 
-## Key Features & Capabilities
+<p align="center"><strong>Think. Build. Stay ahead.</strong><br>One Android workspace for your assistant, projects and market intelligence.</p>
 
-- **Chat, News and Vision (V1.0.0 build 10010)**: Floating jump-to-latest chat button, message Copy/Download and local reactions, animated response generation and unexecuted tool proposals. Official verified RSS/Atom sources support publisher images where available and retry; common vision images are sampled and normalized. See [limitations and tests](docs/chat-news-vision-v10010.md).
-- **Remote Runtime discovery (v1.0.0 build 10008)**: Authenticated HTTPS connection from Project Studio to a Python loopback gateway on Windows/Linux. Worker tokens are encrypted using Android Keystore. Discovery only: project upload, code execution, Gradle and remote builds are not available. See [Gateway setup](remote-worker/README.md).
-- **Multilingual UI (v1.0.0 build 10007)**: Choose English (default), Russian, Turkish, Arabic or Persian in Control Hub → Language. Main navigation, settings and Project Studio use localized resources, with RTL layouts for Arabic/Persian; legacy hardcoded screen copy may remain English. See [language notes](docs/app-languages.md).
-- **Mobile Project Studio (v1.0.0 build 10006)**: Private Kotlin/Jetpack Compose starter projects, public GitHub and safe ZIP import, file editor, project brief, explicit ZIP export and deliberate AI planning through a connected model. User-project cloud builds are **not** connected. See [scope and phased plan](docs/project-studio-cloud-plan.md).
-- **Living Matrix Graph**: Interactive canvas graph visualization featuring multi-touch pinch zoom, drag-to-pan, node inspection, and live mission path telemetry.
-- **AI Control Hub & Multi-Provider LLM Chat**: Integration architecture for OpenAI, Anthropic, Gemini, NVIDIA NIM API Catalog, and custom endpoints with capability discovery and usage tracking.
-- **Deterministic Mission Runtime**: Matrix event stream, policy engine with risk gate validation, mission planner, and execution pipeline.
-- **Android Capabilities & Tools**: Real system integration for alarms, camera, calendar, dialer, SMS composer, share, clipboard, and app launching.
-- **Data Center & Knowledge Connector**: Configurable gateway for documents, research sources, and enterprise datasets.
-- **Redacted Diagnostics & Telemetry**: Full runtime event logging and diagnostic tracing with sensitive data redaction.
-- **Adaptive Material 3 Design**: Supports dark, light, and system themes with edge-to-edge support.
-- **News Intelligence (v1.0.0)**: Verified publisher reports, an optional authorized HTTPS news and economic calendar feed, manual and 15-minute in-screen refresh, daily and weekly views, and advance reminders for high-impact events. See [feed setup](docs/news-feed-v1.md).
+<p align="center">
+  <a href="https://github.com/drfxai/Maximus-Matrix-OS/releases/tag/v1.0.0"><strong>Download V1.0.0</strong></a>
+  · Android 8.0+
+  · Build 10031
+</p>
 
-## Architecture
+### One connected workspace
 
-- **Runtime**: Android SDK 36 (Min SDK 26), Kotlin 2.2.10, AGP 9.1.1, Jetpack Compose Material 3.
-- **State Management**: Kotlin Coroutines, StateFlow, ViewModel.
+- **Brain & Chat** — explore the interactive graph and talk with models you connect.
+- **Work & Pine Studio** — organize projects, edit Pine drafts and export source.
+- **Smart Combo** — choose among eligible models with visible capability and usage evidence.
+- **News Intelligence** — follow publisher news and an optional daily or weekly economic calendar with event reminders.
+
+<p align="center">
+  <img src="docs/media/maximus-features.png" alt="Illustration of the graph, code workspace and news calendar" width="100%">
+</p>
+
+### Inside the app
+
+| Brain | Chat | Pine Studio | Smart Combo |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/media/home-graph.png" alt="Brain graph on Android" width="190"> | <img src="docs/media/chat-focus.png" alt="Chat on Android" width="190"> | <img src="docs/media/pine-studio.png" alt="Pine Studio on Android" width="190"> | <img src="docs/media/smart-combo.png" alt="Smart Combo on Android" width="190"> |
+
+Screenshots are from the released build's Android emulator with no connected account. The wide banners are illustrations.
+
+### Get started
+
+Download the [ARM64 or universal APK](https://github.com/drfxai/Maximus-Matrix-OS/releases/tag/v1.0.0), install or update the app, then connect your own model provider and optional news calendar feed. The app keeps unverified account limits visibly unknown. Pine Studio previews are illustrative; full Pine compilation and backtesting are not included.
+
+Built with Kotlin, Jetpack Compose and Android SDK 36. See the [changelog](CHANGELOG.md) and [news feed setup](docs/news-feed-v1.md).

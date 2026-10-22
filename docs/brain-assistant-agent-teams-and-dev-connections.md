@@ -28,7 +28,7 @@ The user must separately enter their own narrowly scoped tokens. Android Keystor
 
 **Cloudflare**: verify the user's token and read the account's Worker script names. Deployment/configuration changes are intentionally NOT implemented: Workers bindings, secrets, environment and production routes are not to be overwritten by a blind upload. A secure Cloudflare deployment adapter needs staged previews, compatibility metadata, version snapshots and explicit deployment confirmations before activation.
 
-The new app connector screens do **not** automatically inherit ChatGPT's connected GitHub/Cloudflare app permissions. The end user must explicitly connect them independently in Matrix OS.
+The app connector screens do **not** inherit permissions from other clients. Users connect their own GitHub and Cloudflare accounts independently in Matrix OS.
 
 ## Required release gates and following engineering stages
 

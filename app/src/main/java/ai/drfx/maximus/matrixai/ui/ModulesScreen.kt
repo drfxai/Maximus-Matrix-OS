@@ -32,12 +32,12 @@ fun ModulesScreen(modifier: Modifier = Modifier) {
         ModuleItem("Maximus AI Chart Vision", "Gemini Vision", "Chart image analysis when a compatible Gemini connection is verified.", "CONNECTION REQUIRED", Color(0xFF00E676)),
         ModuleItem("Maximus Control Plane", "AI Ops Hub", "Provider routing, policy, tools, observability and usage control.", "ACTIVE", Color(0xFF4C9EFF)),
         ModuleItem("Maximus Mission Control", "AI Ops Hub Mission Control", "Mission planning, execution paths, approvals and runtime events.", "ACTIVE", Color(0xFF35B98E)),
-        ModuleItem("Maximus Intelligence Foundry", "DrFXAi Intelligence Foundry", "Ingestion, sanitization, metadata, classification and lineage.", "FOUNDATION", Color(0xFF299AAF)),
-        ModuleItem("Maximus Trading Intelligence", "DrFXAi Trading Intelligence OS", "Indicator, strategy, Pine and market-research intelligence.", "FOUNDATION", Color(0xFFD09414)),
-        ModuleItem("Maximus Research Engine", "DrFXAi Research OS", "Research missions, experiments, evidence and failure memory.", "FOUNDATION", Color(0xFF7D5DD1)),
-        ModuleItem("Maximus Trading Genome", "DrFXAi Trading Genome", "Indicator DNA, Strategy DNA and reusable trading primitives.", "FOUNDATION", Color(0xFFD09414)),
-        ModuleItem("Maximus Quant Lab", "DrFXAi Quant Lab", "OOS, walk-forward, stress, sensitivity and backtest architecture.", "REQUIRES DATA", Color(0xFF299AAF)),
-        ModuleItem("Maximus Persona Catalog", "DrFXAi Persona Catalog", "Conversational personas for research, planning and writing.", "ACTIVE", Color(0xFF35B98E))
+        ModuleItem("Maximus Intelligence Foundry", "Core module", "Ingestion, sanitization, metadata, classification and lineage.", "FOUNDATION", Color(0xFF299AAF)),
+        ModuleItem("Maximus Trading Intelligence", "Trading module", "Indicator, strategy, Pine and market-research intelligence.", "FOUNDATION", Color(0xFFD09414)),
+        ModuleItem("Maximus Research Engine", "Research module", "Research missions, experiments, evidence and failure memory.", "FOUNDATION", Color(0xFF7D5DD1)),
+        ModuleItem("Maximus Trading Genome", "Strategy module", "Indicator DNA, Strategy DNA and reusable trading primitives.", "FOUNDATION", Color(0xFFD09414)),
+        ModuleItem("Maximus Quant Lab", "Quant module", "OOS, walk-forward, stress, sensitivity and backtest architecture.", "REQUIRES DATA", Color(0xFF299AAF)),
+        ModuleItem("Maximus Persona Catalog", "Assistant module", "Conversational personas for research, planning and writing.", "ACTIVE", Color(0xFF35B98E))
     )
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -47,7 +47,7 @@ fun ModulesScreen(modifier: Modifier = Modifier) {
         item {
             Text(stringResource(R.string.modules_title), style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Legacy projects are internal engines of MAXIMUS MATRIX OS, not separate user-facing products.",
+                "Explore the modules that power MAXIMUS MATRIX OS.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 lineHeight = 17.sp

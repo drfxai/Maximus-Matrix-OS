@@ -136,7 +136,7 @@ data class ChartVisionAnalysis(
             appendLine("══════════════════════════════════════════════════")
             appendLine(comprehensiveReport)
             appendLine("Educational AI interpretation; verify against original chart. Token usage: ${if (usageEstimated) "estimated" else "provider reported"}.")
-            appendLine("Generated with MAXIMUS AI · DrFXAi Matrix OS")
+            appendLine("Generated with MAXIMUS MATRIX OS")
             appendLine("══════════════════════════════════════════════════")
         }
     }

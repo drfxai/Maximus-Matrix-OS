@@ -7,9 +7,9 @@ import org.junit.Test
 
 class DeveloperSetupPolicyTest {
     @Test fun parsesRepositoryIdentityFromUrlOrShorthand() {
-        for (input in listOf("DrFXAi/Maximus-Matrix-OS", " https://github.com/DrFXAi/Maximus-Matrix-OS/ ",
-            "https://github.com/DrFXAi/Maximus-Matrix-OS.git")) {
-            assertEquals("DrFXAi" to "Maximus-Matrix-OS", DeveloperSetupPolicy.parseGithubRepository(input))
+        for (input in listOf("ExampleOrg/ExampleRepo", " https://github.com/ExampleOrg/ExampleRepo/ ",
+            "https://github.com/ExampleOrg/ExampleRepo.git")) {
+            assertEquals("ExampleOrg" to "ExampleRepo", DeveloperSetupPolicy.parseGithubRepository(input))
         }
     }
 
