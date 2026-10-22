@@ -95,3 +95,7 @@ Prior release preparation entries are historical. Main refreshed to `05a45345492
 ## Per-model evidence and full Chat route — 2026-10-22 Tehran
 
 Main refreshed to `2a9d8a0bed50a7ba225204619af1b8f7f33b68d7`; PR150 is owner-merged, superseding its historical VERIFYING source checkpoint. New branch `feat/provider-model-verification` adds account-bound dated per-model probe outcomes, bounded cancellable tests, and actual MatrixScreen Chat→Pine acceptance. See [increment report](MODEL_PROBE_EVIDENCE.md) and [machine checkpoint](model-probe-progress.json). Find the existing branch PR/head-specific CI before repeating this work. No release or version change.
+
+## App update10031 — 2026-10-22 Tehran
+
+PR151 is owner-merged as9f3a3c1c9aff54d62215e4031fca46b1933d536e; main CI39688785503 passed. Owner requested an app update. Branch release/prepare-10031 increments only internal versionCode and adds release notes/checkpoint. See RELEASE_10031_CHECKPOINT.md and release-10031-progress.json. Find existing preparation PR and release/verify-v1 run; verify permanent signing identity and in-place data preservation before installation/publication. Current public release is10030.
