@@ -983,6 +983,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             appendAssistantError("Select an agent supported by the current model.")
             return false
         }
+        val personaFallbackNote = if (selectedAgent.id != current.selectedAgentId)
+            "Smart Combo: no verified free route offers " +
+                (AgentRegistry.byId(current.selectedAgentId)?.name ?: "the selected persona") +
+                "'s capabilities, so General answered." else null
         if (current.isGenerating || projectTeamJob?.isActive == true) return false
         if (current.smartComboEnabled) {
             if (attachment != null) {
@@ -1040,10 +1044,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         val memoryAndSystemBudget = ChatContextPolicy.estimateTokens(memoryEvidenceAtRequest) +
             ChatContextPolicy.estimateTokens(selectedAgent.systemPrompt)
         val modelContext = ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
-        val smallestFreeContext = if (current.smartComboEnabled)
-            freeOffers.mapNotNull { it.route.contextWindowTokens }.minOrNull() ?: modelContext
-        else modelContext
-        val effectiveWindow = (minOf(modelContext, smallestFreeContext) -
+        // Smart Combo picks among routes, so the history may use the LARGEST verified free
+        // window; the planner then rejects any route whose own window is too small.
+        val largestFreeContext = freeOffers.mapNotNull { it.route.contextWindowTokens }.maxOrNull()
+        val effectiveWindow = ((if (current.smartComboEnabled) largestFreeContext ?: modelContext else modelContext) -
             memoryAndSystemBudget).coerceAtLeast(1024)
         val selectedContext = ChatContextPolicy.bounded(_chatMessages.value, effectiveWindow)
         if (selectedContext.messages.lastOrNull() != userMessage) {
@@ -1078,6 +1082,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 val requestHistory = selectedContext.messages
+                val comboIntent = SmartComboModelScorer.classify(prompt,
+                    selectedContext.estimatedTokens + memoryAndSystemBudget)
                 if (current.smartComboEnabled) {
                     ai.drfx.maximus.matrixai.llm.SmartComboPreparation.captureBeforeReturn(prepare = {
                         freeExecutor.prepare(
@@ -1087,7 +1093,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         requiredCapabilities = selectedAgent.requiredCapabilities,
                         offers = freeRouteHealth.decorate(freeOffers, System.currentTimeMillis()),
                         resolveCredential = { provider, endpoint -> apiStore.resolveCredential(provider, endpoint) },
-                        agentId = selectedAgent.id
+                        agentId = selectedAgent.id,
+                        intent = comboIntent
                         )
                     }, capture = { prepared ->
                         autoPrepared = prepared
@@ -1095,6 +1102,15 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     })
                     require(autoPrepared != null) {
                         "No compatible, verified free route passed the capability and quota admission checks."
+                    }
+                    autoPrepared?.let { chosen ->
+                        val route = chosen.offer.route
+                        _llmState.value = _llmState.value.copy(statusMessage = listOfNotNull(personaFallbackNote,
+                            "Smart Combo routed this ${comboIntent.label} request to ${route.modelId} " +
+                                "(${route.provider.displayName}, est. quality ${route.quality}" +
+                                (route.contextWindowTokens?.let { ", ${it / 1000}k context" } ?: "") + ")" +
+                                (chosen.standby?.let { " · standby ${it.substringAfter("::")}" } ?: "") + "."
+                        ).joinToString(" "))
                     }
                 }
                 val config = autoPrepared?.config ?: ApiConnectionConfig(

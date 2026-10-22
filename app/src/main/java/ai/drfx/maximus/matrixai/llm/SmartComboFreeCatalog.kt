@@ -96,11 +96,14 @@ internal class SmartComboFreeCatalog(
                             modelId = model.id,
                             verified = true,
                             healthy = true,
-                            capabilities = setOf(ModelCapability.CHAT),
+                            // Keep the catalog's own capability evidence so personas needing tools,
+                            // reasoning or long context can be routed instead of always failing.
+                            capabilities = model.capabilities + ModelCapability.CHAT +
+                                SmartComboModelScorer.contextCapabilities(context),
                             contextWindowTokens = context,
                             price = price,
                             p95TimeToFirstTokenMs = null,
-                            quality = 75
+                            quality = SmartComboModelScorer.quality(model.id, context)
                         ),
                         endpoint = catalog.baseUrl,
                         quotaScope = scope
