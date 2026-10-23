@@ -47,9 +47,12 @@ internal class SmartComboFreeExecutor(
         // A local credential lookup does not send a model request or spend provider quota.
         val usableCredentials = linkedMapOf<String, String>()
         val filtered = offers.filter { offer ->
+            // Signed subtraction can overflow for corrupt/extreme catalog timestamps.
+            // A negative age is either future evidence or overflow: reject both.
+            val evidenceAgeMs = nowMs - offer.checkedAtEpochMs
             if (offer.route.id in ambiguousIds || offer.route.price?.isFree != true ||
                 nowMs < offer.checkedAtEpochMs ||
-                nowMs - offer.checkedAtEpochMs > 10 * 60_000L) return@filter false
+                evidenceAgeMs < 0L || evidenceAgeMs > 10 * 60_000L) return@filter false
             val credential = runCatching {
                 resolveCredential(offer.route.provider, offer.endpoint)
             }.getOrDefault("")
