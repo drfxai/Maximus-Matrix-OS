@@ -55,4 +55,22 @@ class ModelCatalogPriceEvidenceTest {
             model("0", "0").put("pricing", JSONObject().put("prompt", 0).put("completion", 0))
         )?.isFree == true)
     }
+
+    @Test fun positiveSubnormalPricingIsNeverTreatedAsFree() {
+        // Positive fees smaller than Double.MIN_VALUE must not underflow to a free claim.
+        assertNull(ModelCatalogPriceEvidence.verifiedFreeTextPricing(model("1e-400", "0")))
+        assertNull(ModelCatalogPriceEvidence.verifiedFreeTextPricing(model("0", "1e-400")))
+        assertNull(ModelCatalogPriceEvidence.verifiedFreeTextPricing(model("0", "0", "1e-400")))
+        for (field in listOf("input_cache_read", "input_cache_write")) {
+            val candidate = model("0", "0")
+            candidate.getJSONObject("pricing").put(field, "1e-400")
+            assertNull(ModelCatalogPriceEvidence.verifiedFreeTextPricing(candidate))
+        }
+    }
+
+    @Test fun scientificNotationZeroRemainsEligible() {
+        assertTrue(ModelCatalogPriceEvidence.verifiedFreeTextPricing(
+            model("0e-400", "0.0000", "0")
+        )?.isFree == true)
+    }
 }
