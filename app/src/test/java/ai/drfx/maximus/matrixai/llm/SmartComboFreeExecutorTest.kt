@@ -127,6 +127,23 @@ class SmartComboFreeExecutorTest {
     }
 
 
+    @Test fun rejectsCatalogTimestampOverflowBeforeCredentialLookup() {
+        val executor = SmartComboFreeExecutor()
+        var credentialLookups = 0
+        val result = executor.prepare(
+            "overflow-evidence", 300, 1000, setOf(ModelCapability.CHAT),
+            listOf(offer("overflow").copy(checkedAtEpochMs = Long.MIN_VALUE)),
+            resolveCredential = { _, _ ->
+                credentialLookups++
+                "test-only-key"
+            },
+            agentId = "general", nowMs = Long.MAX_VALUE
+        )
+        assertNull(result)
+        assertEquals(0, credentialLookups)
+        assertNull(executor.requestState("overflow-evidence"))
+    }
+
     @Test fun rejectsExpiredAndFutureCatalogEvidenceWithoutReservingRequestId() {
         val executor = SmartComboFreeExecutor()
         val now = 1_000_000L
