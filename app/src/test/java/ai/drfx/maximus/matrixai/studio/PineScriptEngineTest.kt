@@ -193,4 +193,25 @@ class PineScriptEngineTest {
         assertTrue(diagnostics.isNotEmpty())
         assertTrue(diagnostics.all { it.line > 0 })
     }
+
+    @Test fun volumeBuiltinsMatchPineReferenceDefinitions() {
+        val out = run("""
+            indicator("Volume built-ins", overlay=false)
+            plot(ta.pvt, "pvt")
+            plot(ta.wad, "wad")
+            plot(ta.nvi, "nvi")
+            plot(ta.pvi, "pvi")
+            plot(ta.iii, "iii")
+            plot(ta.wvad, "wvad")
+        """, 10.0, 12.0, 11.0, 11.0)
+        val pvt = out.plot("pvt").values
+        assertEquals(listOf(0.0, 2.0), pvt.take(2))
+        assertEquals(2.0 - 10.0 / 12.0, pvt[2]!!, 1e-9)
+        assertEquals(pvt[2]!!, pvt[3]!!, 1e-9)
+        assertEquals(listOf(0.0, 2.0, 1.0, 1.0), out.plot("wad").values)
+        assertEquals(listOf(1.0, 1.0, 1.0, 1.0), out.plot("nvi").values)
+        assertEquals(listOf(1.0, 1.0, 1.0, 1.0), out.plot("pvi").values)
+        assertEquals(listOf(0.0, 0.0, 0.0, 0.0), out.plot("iii").values)
+        assertEquals(listOf(0.0, 0.0, 0.0, 0.0), out.plot("wvad").values)
+    }
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## V1.0.0 — internal build 10035
+
+- Pine Studio local engine: `ta.pvt`, `ta.nvi`, `ta.pvi`, `ta.wad`, `ta.iii` and `ta.wvad` now run in the chart preview instead of being rejected, with a unit test against the Pine reference definitions.
+- Public version 1.0.0, package identity and signing certificate are preserved; the Android build number increases for an in-place update.
+
 ## V1.0.0 — internal build 10034
 
 - Large projects: Pine drafts, imports and the local engine accept sources up to 1,000,000 characters (about 20k lines); Work edits text files up to 2 MB.

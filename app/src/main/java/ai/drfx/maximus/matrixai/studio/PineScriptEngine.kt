@@ -1001,7 +1001,12 @@ object PineScriptEngine {
                 "ta.obv", "obv" -> obv()
                 "ta.vwap", "vwap" -> vwap("ta.vwap", seriesAt("hlc3", bar))
                 "ta.accdist", "accdist" -> accdist()
-                "ta.nvi", "ta.pvi", "ta.wad", "ta.iii", "ta.wvad", "ta.pvt" -> throw PineException("$name is not supported by the local preview.", line)
+                "ta.pvt", "pvt" -> volumeIndicator("pvt")
+                "ta.nvi", "nvi" -> volumeIndicator("nvi")
+                "ta.pvi", "pvi" -> volumeIndicator("pvi")
+                "ta.wad", "wad" -> volumeIndicator("wad")
+                "ta.iii", "iii" -> volumeIndicator("iii")
+                "ta.wvad", "wvad" -> volumeIndicator("wvad")
                 "strategy.position_size" -> position.toDouble()
                 "strategy.position_avg_price" -> if (position != 0) positionEntry else null
                 "strategy.long" -> "long"
@@ -1740,6 +1745,35 @@ object PineScriptEngine {
                 val c = candles[bar]
                 val mfm = if (c.high == c.low) 0.0 else ((c.close - c.low) - (c.high - c.close)) / (c.high - c.low)
                 st.out[bar] = (if (bar > 0) st.out[bar - 1] else 0.0) + mfm * c.volume
+            }
+            return st.out[bar]
+        }
+
+        /** Volume-based built-ins that Pine exposes as plain variables, computed per the Pine reference definitions. */
+        private fun volumeIndicator(kind: String): Double {
+            val st = state.getOrPut(kind) { CallState(n) } as CallState
+            if (st.lastBar != bar) {
+                st.lastBar = bar
+                val c = candles[bar]
+                val p = candles.getOrNull(bar - 1)
+                val range = c.high - c.low
+                val prev = if (bar > 0) st.out[bar - 1] else if (kind == "nvi" || kind == "pvi") 1.0 else 0.0
+                st.out[bar] = when (kind) {
+                    "pvt" -> if (p == null || p.close == 0.0) prev else prev + (c.close - p.close) / p.close * c.volume
+                    "nvi" -> if (p != null && p.close != 0.0 && c.volume < p.volume) prev + prev * (c.close - p.close) / p.close else prev
+                    "pvi" -> if (p != null && p.close != 0.0 && c.volume > p.volume) prev + prev * (c.close - p.close) / p.close else prev
+                    "wad" -> if (p == null) prev else {
+                        val trueHigh = maxOf(c.high, p.close)
+                        val trueLow = minOf(c.low, p.close)
+                        prev + when {
+                            c.close > p.close -> c.close - trueLow
+                            c.close < p.close -> c.close - trueHigh
+                            else -> 0.0
+                        }
+                    }
+                    "iii" -> if (range == 0.0 || c.volume == 0.0) prev else prev + (2 * c.close - c.high - c.low) / (range * c.volume)
+                    else -> if (range == 0.0) 0.0 else (c.close - c.open) / range * c.volume
+                }
             }
             return st.out[bar]
         }
