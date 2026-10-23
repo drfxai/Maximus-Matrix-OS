@@ -68,6 +68,22 @@ class ModelCatalogPriceEvidenceTest {
         }
     }
 
+
+    @Test fun invalidAuxiliaryPricingNeverAuthorizesFreeRoute() {
+        for (field in listOf("request", "input_cache_read", "input_cache_write")) {
+            for (bad in listOf("-0.00001", "not-a-price", "NaN", "Infinity")) {
+                val candidate = model("0", "0")
+                candidate.getJSONObject("pricing").put(field, bad)
+                assertNull("$field=$bad must not authorize a free route",
+                    ModelCatalogPriceEvidence.verifiedFreeTextPricing(candidate))
+            }
+            val missingPrice = model("0", "0")
+            missingPrice.getJSONObject("pricing").put(field, JSONObject.NULL)
+            assertNull("$field=null must not authorize a free route",
+                ModelCatalogPriceEvidence.verifiedFreeTextPricing(missingPrice))
+        }
+    }
+
     @Test fun scientificNotationZeroRemainsEligible() {
         assertTrue(ModelCatalogPriceEvidence.verifiedFreeTextPricing(
             model("0e-400", "0.0000", "0")
