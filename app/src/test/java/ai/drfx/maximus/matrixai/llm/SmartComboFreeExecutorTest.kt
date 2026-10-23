@@ -134,13 +134,20 @@ class SmartComboFreeExecutorTest {
         val future = offer("future").copy(checkedAtEpochMs = now + 1L)
         val boundary = offer("boundary").copy(checkedAtEpochMs = now - 600_000L)
 
+        var credentialLookups = 0
         fun attempt(candidates: List<SmartComboFreeCatalog.Offer>) = executor.prepare(
             "freshness-check", 300, 1000, setOf(ModelCapability.CHAT), candidates,
-            resolveCredential = { _, _ -> "test-only-key" }, agentId = "general", nowMs = now
+            resolveCredential = { _, _ ->
+                credentialLookups++
+                "test-only-key"
+            }, agentId = "general", nowMs = now
         )
 
         assertNull(attempt(listOf(stale)))
         assertNull(attempt(listOf(future)))
+        // Rejected catalog evidence must never access a user-owned credential.
+        assertEquals(0, credentialLookups)
         assertEquals("boundary", attempt(listOf(stale, future, boundary))?.config?.selectedModel)
+        assertEquals(1, credentialLookups)
     }
 }
