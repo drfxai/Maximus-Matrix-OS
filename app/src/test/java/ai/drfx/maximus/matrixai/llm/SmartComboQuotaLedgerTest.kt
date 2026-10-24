@@ -37,15 +37,32 @@ class SmartComboQuotaLedgerTest {
         assertEquals(2000L, ledger.capacities("shared-account").single().safeAvailable)
     }
 
-    @Test fun inflatedRemainingCannotExceedVerifiedWindowLimit() {
-        val ledger = SmartComboQuotaLedger(now = { clock })
+    @Test fun inconsistentRemainingCannotBecomeConfirmedLedgerCapacity() {
+        val ledger = SmartComboQuotaLedger(now = { clock }, maxUnknownInFlightPerScope = 2)
         ledger.observe("shared-account", listOf(quota(remaining = 100_000L, limit = 3_000L)))
+        // A contradictory provider snapshot is not evidence of any confirmed balance.
+        assertTrue(ledger.capacities("shared-account").isEmpty())
+        val first = ledger.reserve(plan("unknown-1", amount = 2_000L))
+        assertTrue(first.accepted)
+        assertTrue(first.needsQuotaRefresh)
+        assertTrue(ledger.reserve(plan("unknown-2", amount = 2_000L)).accepted)
+        val blocked = ledger.reserve(plan("unknown-3", amount = 2_000L))
+        assertFalse(blocked.accepted)
+        assertTrue(blocked.needsQuotaRefresh)
+    }
+
+    @Test fun newerContradictoryQuotaCannotReplaceLastValidSnapshot() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        ledger.observe("shared-account", listOf(quota(remaining = 8_000L)))
+        time += 100L
+        ledger.observe("shared-account", listOf(
+            quota(remaining = 100_000L, limit = 3_000L, observed = time)
+        ))
         val capacity = ledger.capacities("shared-account").single()
-        assertEquals(3_000L, capacity.providerRemaining)
-        assertEquals(3_000L, capacity.safeAvailable)
-        assertFalse(ledger.reserve(plan("inflated", amount = 2_000L)).accepted)
-        assertTrue(ledger.reserve(plan("within-limit", amount = 1_000L)).accepted)
-        assertEquals(2_000L, ledger.capacities("shared-account").single().safeAvailable)
+        assertEquals(SmartComboQuotaLedger.Source.PROVIDER_SNAPSHOT, capacity.source)
+        assertEquals(8_000L, capacity.providerRemaining)
+        assertEquals(8_000L, capacity.safeAvailable)
     }
 
     @Test fun duplicateIdCannotBeDispatchedTwice() {
