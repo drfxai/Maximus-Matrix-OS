@@ -1,5 +1,38 @@
 # MAXIMUS MATRIX OS — continuity checkpoint
 
+## Supervisor refresh — 2026-10-24 (reviewable Smart Combo ranking increment)
+
+This is the latest proposed checkpoint; earlier observations below are historical. It is not evidence of unattended Work, a physical-device test, or merge authorization.
+
+- Live base `main`: `180e5fd7a55d706b5b57ff508a8a52a15e552b66` (merge of PR #182); exact-main push Actions [#40108989963](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40108989963) completed SUCCESS: `validate`, both `emulator-smoke` shards and `required-ci` passed; `build-release` skipped.
+- [PR #145](https://github.com/drfxai/Maximus-Matrix-OS/pull/145) is merged and the three continuity instruction files are present. No open PRs were found at this observation; do not recreate already-merged quota-reset fixes in PRs #181/#182.
+- `main.protected=false`, repository rulesets `[]`, and [issue #89](https://github.com/drfxai/Maximus-Matrix-OS/issues/89) remains open. PR #182 has no submitted independent review. Required protection/review must be enforced by authorized repository administration.
+- Proposed change: score expired or internally contradictory Smart Combo quota evidence as unknown for **ranking only**; keep the existing route eligibility, verified-free-first, quota admission and explicit paid-approval gates unchanged. Add deterministic regression tests. No provider calls, secrets, version/signing, merge or release.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_date_utc: "2026-10-24"
+base_sha: 180e5fd7a55d706b5b57ff508a8a52a15e552b66
+task: rank verified-free routes with fresh quota ahead of equally scored stale/contradictory evidence
+task_state: VERIFYING
+branch: fix/smart-combo-stale-quota-ranking-20261024
+changed_paths:
+  - app/src/main/java/ai/drfx/maximus/matrixai/llm/SmartComboPlanner.kt
+  - app/src/test/java/ai/drfx/maximus/matrixai/llm/SmartComboPlannerTest.kt
+  - docs/engineering/WORK_RESUME.md
+implemented: [quota_freshness_ranking_penalty, two_regression_tests]
+tests:
+  - command: GitHub readback and exact-base diff
+    result: PENDING
+  - command: exact-head Android GitHub Actions
+    result: PENDING
+  - command: local Gradle and physical-device tests
+    result: NOT_RUN
+approvals_needed: [independent_PR_review, explicit_owner_merge_authorization, repository_admin_branch_protection]
+blockers: [issue_89_main_unprotected, independent_review_missing]
+next_action: verify final PR head and CI, request independent review; do not merge without explicit authorization
+```
+
 ## Verified supervisor refresh — 2026-10-24 (proposed reviewable documentation change)
 
 This section **supersedes the historical snapshots below**. Those older entries describe their original observation times, not the current state. This is a GitHub evidence checkpoint, **not** unattended Work execution, physical-device acceptance, or permission to merge.
