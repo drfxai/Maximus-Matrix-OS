@@ -69,6 +69,17 @@ class SmartComboRouteHealthTest {
             .route.p95TimeToFirstTokenMs)
     }
 
+    @Test fun exponentialBackoffSaturatesBeforeMultiplicationOverflows() {
+        val base = Long.MAX_VALUE / 2L + 1L
+        val health = SmartComboRouteHealth(baseCooldownMs = base, maxCooldownMs = Long.MAX_VALUE)
+        health.failed("route-a", 100L)
+        health.failed("route-a", 101L)
+        // Without pre-multiplication saturation, the second cooldown wraps negative,
+        // incorrectly making a failing provider immediately available.
+        assertFalse(health.decorate(listOf(offer("route-a")), 102L).single().route.healthy)
+        assertEquals(Long.MAX_VALUE - 102L, health.remainingCooldownMs("route-a", 102L))
+    }
+
     @Test fun overflowsCannotWrapIntoAvailableState() {
         val health = SmartComboRouteHealth()
         health.failed("test", Long.MAX_VALUE - 1L)
