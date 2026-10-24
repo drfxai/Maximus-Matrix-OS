@@ -92,7 +92,15 @@ object SmartComboPlanner {
 
     fun choose(task: Task, routes: List<Route>): Selection {
         val rejected = linkedMapOf<String, String>()
-        val candidates = routes.mapNotNull { route ->
+        // A route ID is an execution identity. Never offer a duplicate as its own fallback,
+        // or select conflicting records that disagree about privacy, price or quota.
+        val uniqueRoutes = routes.groupBy { it.id }.mapNotNull { (id, records) ->
+            if (records.any { it != records.first() }) {
+                rejected[id] = "Conflicting route identity"
+                null
+            } else records.first()
+        }
+        val candidates = uniqueRoutes.mapNotNull { route ->
             val rejectedFor = rejectionReason(task, route)
             if (rejectedFor != null) {
                 rejected[route.id] = rejectedFor
