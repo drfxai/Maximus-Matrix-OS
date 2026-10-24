@@ -162,7 +162,10 @@ object SmartComboPlanner {
             LimitKind.REQUESTS_PER_MINUTE, LimitKind.INPUT_TOKENS_PER_MINUTE, LimitKind.TOTAL_TOKENS_PER_MINUTE -> 60_000L
             else -> 300_000L
         }
-        return nowEpochMs - observed <= maxAgeMs
+        // Signed timestamp subtraction can overflow for corrupt or extreme evidence.
+        // Such evidence must never be treated as a fresh provider quota snapshot.
+        val ageMs = nowEpochMs - observed
+        return ageMs >= 0L && ageMs <= maxAgeMs
     }
 
     private fun score(route: Route, task: Task): Double {
