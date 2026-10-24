@@ -1,5 +1,34 @@
 # MAXIMUS MATRIX OS — continuity checkpoint
 
+## Verified supervisor refresh — 2026-10-24 (proposed reviewable documentation change)
+
+This section **supersedes the historical snapshots below**. Those older entries describe their original observation times, not the current state. This is a GitHub evidence checkpoint, **not** unattended Work execution, physical-device acceptance, or permission to merge.
+
+- Live `main`: `1eb663bc27195b7974150aab053fc939e77da0c3` (merge of PR #176). The three continuity instructions are now present on `main`; [PR #145](https://github.com/drfxai/Maximus-Matrix-OS/pull/145) and the restoration [PR #169](https://github.com/drfxai/Maximus-Matrix-OS/pull/169) are already merged. Do not reopen or re-merge them.
+- The exact-`main` **push** workflow [#40082397218](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40082397218) completed successfully. This is a push run, so it does not appear in the PR-only commit-workflow listing.
+- Open PRs: [#177](https://github.com/drfxai/Maximus-Matrix-OS/pull/177), head `a9e2467f205a782ff4b9bdd39f3be914c55f46de` (ready for review); [#178](https://github.com/drfxai/Maximus-Matrix-OS/pull/178), head `0ce4775b17a3b7a56a9aea5fb24d6acd5797598b` (draft). Their respective exact-head workflows [#40082664856](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40082664856) and [#40091155717](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40091155717) both completed **SUCCESS**: `validate`, both `emulator-smoke` shards and `required-ci` succeeded; `build-release` skipped. Neither PR has a submitted independent review. **Do not merge.**
+- `main.protected=false`, repository rulesets `[]`, and [issue #89](https://github.com/drfxai/Maximus-Matrix-OS/issues/89) remains open. The branch-protection detail endpoint returns 403 to this integration; only authorized repository administration can enforce required checks and independent review.
+- Latest public release tag remains `v1.0.0`; `app/build.gradle.kts` on `main` specifies `versionName=1.0.0` and `versionCode=10035`. No signing, APK, deployment or physical-device acceptance was performed in this refresh.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_date_utc: "2026-10-24"
+observed_main_sha: 1eb663bc27195b7974150aab053fc939e77da0c3
+task: reconcile exact-head Smart Combo checks and stale main continuity evidence
+task_state: AWAITING_APPROVAL
+branch: docs/continuity-verified-main-ci-20261024
+changed_paths: [docs/engineering/WORK_RESUME.md]
+implemented: [verified_evidence_checkpoint_only]
+tests:
+  - command: GitHub main branch, PR review, rulesets, release, exact-head Actions and job API reads
+    result: PASS
+  - command: local Gradle / emulator / physical-device tests for this documentation change
+    result: NOT_RUN
+approvals_needed: [independent_PR_review, explicit_owner_merge_authorization, repository_admin_branch_protection]
+blockers: [issue_89_main_unprotected, PR_177_and_178_independent_review_missing]
+next_action: verify this documentation PR's exact-head checks, obtain independent review and enforce main protection; no merge without explicit approval
+```
+
 ## Supervisor refresh — 2026-10-24T07:13:32.378Z (PR #169 branch only)
 
 This is a **read-only evidence checkpoint**, not proof of unattended Work execution. The three continuity files are still absent from `main`; PR #145 was merged historically, and draft PR #169 proposes their restoration. The earlier checkpoints below remain historical.
