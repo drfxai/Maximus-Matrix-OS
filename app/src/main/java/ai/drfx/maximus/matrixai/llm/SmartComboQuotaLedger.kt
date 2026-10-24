@@ -179,6 +179,7 @@ internal class SmartComboQuotaLedger(
         for (window in windows) {
             val observed = window.observedAtEpochMs ?: continue
             if (observed > received || window.remaining == null ||
+                (window.limit != null && window.remaining > window.limit) ||
                 window.confidence != SmartComboPlanner.Confidence.PROVIDER_VERIFIED) continue
             val previous = byKind[window.kind]
             val previousAt = previous?.value?.observedAtEpochMs ?: Long.MIN_VALUE
@@ -338,8 +339,8 @@ internal class SmartComboQuotaLedger(
     private fun fresh(w: SmartComboPlanner.QuotaWindow, at: Long): Boolean {
         val observed = w.observedAtEpochMs ?: return false
         if (w.confidence != SmartComboPlanner.Confidence.PROVIDER_VERIFIED ||
-            w.remaining == null || observed > at ||
-            (w.resetAtEpochMs != null && at >= w.resetAtEpochMs)) return false
+            w.remaining == null || (w.limit != null && w.remaining > w.limit) ||
+            observed > at || (w.resetAtEpochMs != null && at >= w.resetAtEpochMs)) return false
         val ttl = when (w.kind) {
             SmartComboPlanner.LimitKind.REQUESTS_PER_MINUTE,
             SmartComboPlanner.LimitKind.INPUT_TOKENS_PER_MINUTE,
