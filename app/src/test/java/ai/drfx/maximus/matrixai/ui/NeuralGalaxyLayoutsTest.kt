@@ -50,6 +50,19 @@ class NeuralGalaxyLayoutsTest {
         assertTrue(rings.positions.getValue("project").length > rings.positions.getValue("model").length)
     }
 
+    @Test fun sparseRingsKeepCanonicalLayerDistances() {
+        val sparse = listOf(
+            GalaxyNode("maximus","AI Core",0,SpacePoint(0f,0f,0f)),
+            GalaxyNode("middle","Work",3,SpacePoint(0f,0f,0f)),
+            GalaxyNode("outer","Infrastructure",5,SpacePoint(0f,0f,0f))
+        )
+        val result = NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.RINGS,sparse,emptyList())
+        assertEquals(0f,result.positions.getValue("maximus").length,.001f)
+        assertEquals(195f,result.positions.getValue("middle").length,.001f)
+        assertEquals(325f,result.positions.getValue("outer").length,.001f)
+        assertEquals(result,NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.RINGS,sparse.reversed(),emptyList()))
+    }
+
     @Test fun areasExposeOnlyDomainsPresentInTheCanonicalInput() {
         val result=NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.AREAS,nodes,edges)
         assertEquals(nodes.map { it.area }.toSet(),result.areaLabels.keys)
