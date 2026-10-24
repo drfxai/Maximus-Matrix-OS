@@ -107,8 +107,9 @@ internal object NeuralGalaxyLayouts {
         val groups = nodes.filter { it.id != root?.id }.groupBy { it.layer.coerceIn(1, 5) }.toSortedMap()
         val positions = linkedMapOf<String, SpacePoint>()
         root?.let { positions[it.id] = SpacePoint(0f,0f,0f) }
-        groups.entries.forEachIndexed { ring, (_, members) ->
-            members.forEachIndexed { i, node -> positions[node.id] = onCircle(i, members.size, 65f + ring*65f) }
+        // Preserve the canonical layer radius even when intermediate layers have no nodes.
+        groups.forEach { (layer, members) ->
+            members.forEachIndexed { i, node -> positions[node.id] = onCircle(i, members.size, 65f + (layer-1)*65f) }
         }
         return GalaxyGeometry(positions)
     }
