@@ -163,4 +163,25 @@ class SmartComboPlannerTest {
         assertNull(SmartComboPlanner.choose(task(paid = true, maxCostUsd = 1.0),
             listOf(route("paid", free = false, quota = listOf(credit)))).primary)
     }
+
+    @Test fun duplicateIdenticalRoutesCannotBecomeTheirOwnStandby() {
+        val duplicate = route("same")
+        val choice = SmartComboPlanner.choose(
+            task(), listOf(duplicate, duplicate, route("backup", quality = 80))
+        )
+        assertEquals("same", choice.primary?.id)
+        assertEquals("backup", choice.standby?.id)
+        assertEquals(2, choice.eligible.size)
+    }
+
+    @Test fun conflictingRecordsForOneRouteIdFailClosed() {
+        val allowed = route("collision")
+        val restricted = allowed.copy(approvedForUserData = false)
+        val choice = SmartComboPlanner.choose(
+            task(), listOf(allowed, restricted, route("safe"))
+        )
+        assertEquals("safe", choice.primary?.id)
+        assertNull(choice.standby)
+        assertEquals("Conflicting route identity", choice.rejectedReasons["collision"])
+    }
 }
