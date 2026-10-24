@@ -30,6 +30,30 @@ class NeuralGalaxyLayoutsTest {
         assertEquals(10_000f,NeuralGalaxyLayouts.safeCoordinate(Float.MAX_VALUE),0f)
     }
 
+    @Test fun alternateLayoutViewportRejectsInvalidTransientMeasurements() {
+        assertNull(NeuralGalaxyLayouts.viewport(NeuralGalaxyLayout.BRAIN, Float.NaN, 0f, 0f))
+        val normal = requireNotNull(NeuralGalaxyLayouts.viewport(
+            NeuralGalaxyLayout.RINGS, 360f, 640f, 2f))
+        assertEquals(24f, normal.left, 0f)
+        assertEquals(128f, normal.top, 0f)
+        assertEquals(336f, normal.right, 0f)
+        assertEquals(544f, normal.bottom, 0f)
+
+        val invalid = listOf(
+            Triple(Float.NaN, Float.POSITIVE_INFINITY, Float.NaN),
+            Triple(-100f, 0f, -1f),
+            Triple(Float.NEGATIVE_INFINITY, Float.NaN, Float.POSITIVE_INFINITY)
+        )
+        for (layout in NeuralGalaxyLayout.entries.filter { it != NeuralGalaxyLayout.BRAIN }) {
+            for ((width, height, density) in invalid) {
+                val viewport = requireNotNull(NeuralGalaxyLayouts.viewport(layout, width, height, density))
+                assertTrue(listOf(viewport.left, viewport.top, viewport.right, viewport.bottom)
+                    .all { it.isFinite() })
+                assertTrue(viewport.width >= 1f && viewport.height >= 1f)
+            }
+        }
+    }
+
     @Test fun originalBrainCoordinatesArePreserved() {
         val result=NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.BRAIN,nodes,edges)
         nodes.forEach { assertEquals(it.initial,result.positions[it.id]) }
