@@ -93,6 +93,12 @@ class NeuralGalaxyLayoutsTest {
         }
     }
 
+    @Test fun linksIgnoreReversedAndRepeatedUndirectedEdges() {
+        val baseline = NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.LINKS, nodes, edges)
+        val repeated = edges + edges.map { GalaxyEdge(it.target, it.source) } + edges.first()
+        assertEquals(baseline, NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.LINKS, nodes, repeated))
+    }
+
     @Test fun forcePreparationIsBoundedForLargeGraphsAndIgnoresDanglingEdges() {
         val large=(0 until 513).map {
             GalaxyNode("node-"+it,"Projects",1,SpacePoint(0f,0f,0f))
