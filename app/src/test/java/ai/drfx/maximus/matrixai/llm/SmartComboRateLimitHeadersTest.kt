@@ -31,6 +31,20 @@ class SmartComboRateLimitHeadersTest {
             "https://example.com/v1", pairs::get).isEmpty())
     }
 
+    @Test fun onlyValidatedHttpsEndpointsCanProvideVerifiedQuota() {
+        val rejected = listOf(
+            LlmProvider.OPENAI to "http://api.openai.com/v1",
+            LlmProvider.OPENAI_COMPATIBLE to "http://api.groq.com/openai/v1",
+            LlmProvider.OPENAI to "https://user@api.openai.com/v1",
+            LlmProvider.OPENAI_COMPATIBLE to "https://api.groq.com/openai/v1?debug=true",
+            LlmProvider.OPENAI to "https://api.openai.com/v1#fragment"
+        )
+        for ((provider, endpoint) in rejected) {
+            assertTrue("Untrusted endpoint: $endpoint",
+                SmartComboRateLimitHeaders.parse(provider, endpoint, pairs::get, 1000L).isEmpty())
+        }
+    }
+
     @Test fun malformedOrInconsistentQuotaIsNeverTrusted() {
         val modified = pairs + ("x-ratelimit-remaining-requests" to "999999")
         val windows = SmartComboRateLimitHeaders.parse(LlmProvider.OPENAI,
