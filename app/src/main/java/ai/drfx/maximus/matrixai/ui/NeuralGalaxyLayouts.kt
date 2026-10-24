@@ -138,7 +138,19 @@ internal object NeuralGalaxyLayouts {
 
     private fun timeline(nodes: List<GalaxyNode>, records: List<GalaxyActivity>): GalaxyGeometry {
         // A persisted ID identifies a record, not a node/source label. Repeated events remain distinct.
-        val activity = records.filter { it.id.isNotBlank() }.distinctBy { it.id }
+        // Conflicting imported records can share an ID. Pick one deterministically for
+        // presentation rather than allowing repository iteration order to change the timeline.
+        // Prefer a dated record, then its latest timestamp; this does not rewrite Room history.
+        val activity = records.filter { it.id.isNotBlank() }
+            .sortedWith(compareBy<GalaxyActivity> { it.id }
+                .thenBy { !it.chronological }
+                .thenByDescending { it.timestamp ?: Long.MIN_VALUE }
+                .thenBy { it.timestampIssue.ordinal }
+                .thenBy { it.source }
+                .thenBy { it.target ?: "" }
+                .thenBy { it.type }
+                .thenBy { it.summary })
+            .distinctBy { it.id }
             .sortedWith(compareBy<GalaxyActivity> { if(it.chronological) it.timestamp else Long.MIN_VALUE }
                 .thenBy { it.id }).takeLast(100)
         val dated = nodes.filter { it.changedAt != null && it.changedAt > 0L }
