@@ -1,5 +1,38 @@
 # MAXIMUS MATRIX OS — continuity checkpoint
 
+## Supervisor refresh — 2026-10-24 (proposed deterministic Neural Galaxy activity projection)
+
+This is a **reviewable branch checkpoint**, not an assertion that the change has merged or that Android CI, emulator, or physical-device acceptance has passed. Historical entries below are snapshots, not live state.
+
+- Observed live `main`: `178249629330b8eec913929c570a264e30fb7d9a` (merge of PR #183). Exact-main push [Actions #40115637552](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40115637552) completed SUCCESS: `validate`, both `emulator-smoke` shards, and `required-ci` passed; `build-release` skipped.
+- No open PRs at the time this branch was created. [PR #145](https://github.com/drfxai/Maximus-Matrix-OS/pull/145) was already merged; all three continuity instruction files exist on main.
+- Main branch API reports `protected=false`; repository rulesets `[]`; [issue #89](https://github.com/drfxai/Maximus-Matrix-OS/issues/89) remains open. This GitHub app cannot administer protection settings. **Do not merge without independent review and explicit authorization.**
+- Scoped change: resolve conflicting duplicate activity IDs deterministically for the read-only Timeline projection, independent of source iteration order. Add a regression test. No Room data mutation, service execution, provider usage, permissions, signing or version changes.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_date_utc: "2026-10-24"
+base_sha: 178249629330b8eec913929c570a264e30fb7d9a
+task: stabilize conflicting duplicate activity IDs in Neural Galaxy Timeline
+task_state: VERIFYING
+branch: fix/galaxy-deterministic-activity-ids-20261024
+changed_paths:
+  - app/src/main/java/ai/drfx/maximus/matrixai/ui/NeuralGalaxyLayouts.kt
+  - app/src/test/java/ai/drfx/maximus/matrixai/ui/NeuralGalaxyStage2Test.kt
+  - docs/engineering/WORK_RESUME.md
+implemented: [deterministic_duplicate_activity_selection, regression_test]
+tests:
+  - command: GitHub readback and exact-base diff
+    result: PENDING
+  - command: exact-head Android GitHub Actions
+    result: PENDING
+  - command: local Gradle / physical-device acceptance
+    result: NOT_RUN
+approvals_needed: [independent_PR_review, explicit_owner_merge_authorization, repository_admin_branch_protection]
+blockers: [issue_89_main_unprotected, independent_review_missing]
+next_action: verify final PR head, exact-head CI and review; do not merge without gates
+```
+
 ## Supervisor refresh — 2026-10-24 (reviewable Smart Combo ranking increment)
 
 This is the latest proposed checkpoint; earlier observations below are historical. It is not evidence of unattended Work, a physical-device test, or merge authorization.
