@@ -1,5 +1,35 @@
 # MAXIMUS MATRIX OS — continuity checkpoint
 
+## Supervisor refresh — 2026-10-24T07:13:32.378Z (PR #169 branch only)
+
+This is a **read-only evidence checkpoint**, not proof of unattended Work execution. The three continuity files are still absent from `main`; PR #145 was merged historically, and draft PR #169 proposes their restoration. The earlier checkpoints below remain historical.
+
+- Live `main`: `62750b2b29472449942035b4bb65a8a98a8fdbe9` (unchanged). Branch API: `protected=false`; rulesets API: `[]`. [Issue #89](https://github.com/drfxai/Maximus-Matrix-OS/issues/89) remains open and requires authorized repository administration.
+- Open PRs: **#169–#175**; all seven remain **DRAFT** with **zero independent submitted reviews**. PR #145 is already merged and must not be re-merged.
+- Exact-head Actions observed: #169 `73ebb418024cabf674fb6ab6133e3fc71a1b429a` [run 40053335398](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40053335398) SUCCESS; #170 `b127b504e396b008e7fd5d05be7ff10afa2972b0` [run 40014212579](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40014212579) SUCCESS; #171 `e403baf4eb5834eabffdf9697d02a35b0c1c9a82` [run 40044434371](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40044434371) SUCCESS; #172 `984d88d9bd2c0b8c077e9319fa1c98023895fd24` [run 40056368874](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40056368874) SUCCESS; #173 `210ddeeb6379d3bd8510956d6a3b09a9058005e0` [run 40059322964](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40059322964) SUCCESS; #175 `6b70224f23402758627b501925116011324419d0` [run 40066794096](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40066794096) SUCCESS. These green runs passed `validate`, both `emulator-smoke` shards and `required-ci`; `build-release` was skipped.
+- **New blocker #174:** exact head `18defa265ff2dfa98751b08067f9bab580938bc7`, [run 40065913847](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40065913847) initial attempt FAILED at the keyboard emulator's `OperationalAcceptanceTest` scroll assertion for `TPM snapshot: Unknown`. A failed-jobs-only rerun was requested and was IN_PROGRESS at the last check. Do not treat this as green until exact-head rerun verification. Root cause unproven.
+- All green CI is Android emulator/build evidence, not physical-device acceptance. No merges, releases, deployments, paid models, credentials or signing changes were authorized by this checkpoint. This edit itself changes PR #169's head, so **PR #169 must pass a new exact-head CI run** before any review/merge decision.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_at_utc: "2026-10-24T07:13:32.378Z"
+observed_main_sha: 62750b2b29472449942035b4bb65a8a98a8fdbe9
+task: reconcile seven open PRs and exact-head CI without duplicating implementation
+state: VERIFYING
+branch: docs/restore-maximus-continuity-20261023
+changed_paths: [docs/engineering/WORK_RESUME.md]
+tests:
+  - command: GitHub branch, PR, reviews, rulesets, Actions jobs and failing job logs
+    result: PASS
+  - command: PR 174 failed-jobs-only rerun
+    result: PENDING
+  - command: new PR 169 exact-head Actions after checkpoint commit
+    result: PENDING
+approvals_needed: [independent_review, explicit_owner_merge_authorization, repository_admin_branch_protection]
+blockers: [main_unprotected_issue_89, all_open_PRs_draft_and_unreviewed, PR_174_keyboard_emulator_test_failure_pending_rerun]
+next_action: verify PR 174 rerun and PR 169 new-head CI, then investigate recurring Smart Combo UI scroll flake if needed; do not merge
+```
+
 This is a secret-free, auditable handoff for authorized engineering sessions. It is **not** an always-on coding agent, a ChatGPT Work session, or a mechanism for detecting or bypassing usage limits.
 
 ## Supervisor refresh — 2026-10-24 02:13 UTC (PR #169 branch only)
