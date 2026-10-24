@@ -346,7 +346,10 @@ internal class SmartComboQuotaLedger(
             SmartComboPlanner.LimitKind.TOTAL_TOKENS_PER_MINUTE -> 60_000L
             else -> 300_000L
         }
-        return at - observed <= ttl
+        // A negative age also catches signed subtraction overflow from extreme timestamps.
+        // Do not advertise untrustworthy provider quota as confirmed remaining capacity.
+        val ageMs = at - observed
+        return ageMs >= 0L && ageMs <= ttl
     }
 
     private fun accounted(entry: Entry, kind: SmartComboPlanner.LimitKind): Long {
