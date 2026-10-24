@@ -126,4 +126,45 @@ class SmartComboFreeExecutorTest {
         assertTrue(executor.dispatched(first))
     }
 
+
+    @Test fun rejectsCatalogTimestampOverflowBeforeCredentialLookup() {
+        val executor = SmartComboFreeExecutor()
+        var credentialLookups = 0
+        val result = executor.prepare(
+            "overflow-evidence", 300, 1000, setOf(ModelCapability.CHAT),
+            listOf(offer("overflow").copy(checkedAtEpochMs = Long.MIN_VALUE)),
+            resolveCredential = { _, _ ->
+                credentialLookups++
+                "test-only-key"
+            },
+            agentId = "general", nowMs = Long.MAX_VALUE
+        )
+        assertNull(result)
+        assertEquals(0, credentialLookups)
+        assertNull(executor.requestState("overflow-evidence"))
+    }
+
+    @Test fun rejectsExpiredAndFutureCatalogEvidenceWithoutReservingRequestId() {
+        val executor = SmartComboFreeExecutor()
+        val now = 1_000_000L
+        val stale = offer("stale").copy(checkedAtEpochMs = now - 600_001L)
+        val future = offer("future").copy(checkedAtEpochMs = now + 1L)
+        val boundary = offer("boundary").copy(checkedAtEpochMs = now - 600_000L)
+
+        var credentialLookups = 0
+        fun attempt(candidates: List<SmartComboFreeCatalog.Offer>) = executor.prepare(
+            "freshness-check", 300, 1000, setOf(ModelCapability.CHAT), candidates,
+            resolveCredential = { _, _ ->
+                credentialLookups++
+                "test-only-key"
+            }, agentId = "general", nowMs = now
+        )
+
+        assertNull(attempt(listOf(stale)))
+        assertNull(attempt(listOf(future)))
+        // Rejected catalog evidence must never access a user-owned credential.
+        assertEquals(0, credentialLookups)
+        assertEquals("boundary", attempt(listOf(stale, future, boundary))?.config?.selectedModel)
+        assertEquals(1, credentialLookups)
+    }
 }
