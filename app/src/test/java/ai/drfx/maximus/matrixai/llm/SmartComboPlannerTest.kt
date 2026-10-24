@@ -138,6 +138,23 @@ class SmartComboPlannerTest {
             listOf(route("free", quota = windows))).primary)
     }
 
+    @Test fun overflowedQuotaAgeNeverCountsAsFreshProviderEvidence() {
+        val extreme = SmartComboPlanner.QuotaWindow(
+            kind = SmartComboPlanner.LimitKind.REQUESTS_PER_MINUTE,
+            remaining = 0L,
+            limit = 10L,
+            observedAtEpochMs = Long.MIN_VALUE,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+        )
+        val choice = SmartComboPlanner.choose(
+            task().copy(nowEpochMs = Long.MAX_VALUE),
+            listOf(route("extreme", quota = listOf(extreme)))
+        )
+        // Stale evidence is unknown, not proof of an exhausted current quota.
+        assertEquals("extreme", choice.primary?.id)
+        assertTrue(choice.requiresLiveQuotaConfirmation)
+    }
+
     @Test fun paidRouteStillRequiresRealCreditDespiteExplicitBudget() {
         val credit = SmartComboPlanner.QuotaWindow(
             SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS, 0L, 1_000_000L,
