@@ -23,7 +23,7 @@ changed_paths:
 implemented: [quota_freshness_ranking_penalty, two_regression_tests]
 tests:
   - command: GitHub readback and exact-base diff
-    result: PENDING
+    result: PASS (3 intended files; 0 behind base)
   - command: exact-head Android GitHub Actions
     result: PENDING
   - command: local Gradle and physical-device tests
