@@ -13,6 +13,8 @@ internal object SmartComboRateLimitHeaders {
         header: (String) -> String?,
         observedAt: Long = System.currentTimeMillis()
     ): List<SmartComboPlanner.QuotaWindow> {
+        // Only authenticated HTTPS origins may contribute provider-verified quota evidence.
+        if (runCatching { EndpointPolicy.validate(endpoint, provider) }.isFailure) return emptyList()
         val host = runCatching { URI(endpoint).host?.lowercase() }.getOrNull() ?: return emptyList()
         val groq = host == "api.groq.com" && provider == LlmProvider.OPENAI_COMPATIBLE
         val openAi = host == "api.openai.com" && provider == LlmProvider.OPENAI
