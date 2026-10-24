@@ -143,7 +143,7 @@ class SmartComboPlannerTest {
             kind = SmartComboPlanner.LimitKind.REQUESTS_PER_MINUTE,
             remaining = 0L,
             limit = 10L,
-            observedAtEpochMs = Long.MIN_VALUE,
+            observedAtEpochMs = Long.MIN_VALUE + 1L,
             confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
         )
         val choice = SmartComboPlanner.choose(
