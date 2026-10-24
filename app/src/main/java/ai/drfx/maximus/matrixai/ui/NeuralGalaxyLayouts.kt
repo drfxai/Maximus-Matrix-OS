@@ -54,11 +54,16 @@ internal object NeuralGalaxyLayouts {
     /** Brain retains its exact original projection. Alternate layouts reserve HUD/footer space. */
     fun viewport(mode: NeuralGalaxyLayout, width: Float, height: Float, density: Float): GraphViewport? {
         if (mode == NeuralGalaxyLayout.BRAIN) return null
-        val side = minOf(12f*density, width*.1f)
-        val top = minOf(64f*density, height*.26f)
-        val bottom = minOf(48f*density, height*.22f)
-        return GraphViewport(side, top, (width-side).coerceAtLeast(side+1f),
-            (height-bottom).coerceAtLeast(top+1f))
+        // Canvas measurements can be zero or non-finite during transient layout states.
+        // Keep alternate-layout hit testing finite without changing valid screen geometry.
+        val safeWidth = width.takeIf { it.isFinite() && it > 0f } ?: 1f
+        val safeHeight = height.takeIf { it.isFinite() && it > 0f } ?: 1f
+        val safeDensity = density.takeIf { it.isFinite() && it > 0f } ?: 1f
+        val side = minOf(12f*safeDensity, safeWidth*.1f)
+        val top = minOf(64f*safeDensity, safeHeight*.26f)
+        val bottom = minOf(48f*safeDensity, safeHeight*.22f)
+        return GraphViewport(side, top, (safeWidth-side).coerceAtLeast(side+1f),
+            (safeHeight-bottom).coerceAtLeast(top+1f))
     }
 
     fun matches(nodeId: String, label: String, group: String, area: String, query: String): Boolean =
