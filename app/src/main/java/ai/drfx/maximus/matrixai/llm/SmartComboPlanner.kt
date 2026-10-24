@@ -182,7 +182,8 @@ object SmartComboPlanner {
     private fun score(route: Route, task: Task): Double {
         val latencyPenalty = if (task.interactive) ((route.p95TimeToFirstTokenMs ?: 5000L).coerceAtMost(20000L) / 80.0) else 0.0
         val unknownQuotaPenalty = if (route.quota.isEmpty()) 8.0 else
-            route.quota.count { it.remaining == null || it.confidence == Confidence.UNKNOWN || it.confidence == Confidence.ESTIMATED }.toDouble() * 4.0
+            // Expired, contradictory, or unverified quota is unknown for ranking too.
+            route.quota.count { !isFreshConfirmed(it, task.nowEpochMs) }.toDouble() * 4.0
         val fit = SmartComboModelScorer.intentFit(route.modelId, task.intent, route.contextWindowTokens)
         return route.quality.toDouble() * 3 + fit - latencyPenalty - unknownQuotaPenalty
     }
