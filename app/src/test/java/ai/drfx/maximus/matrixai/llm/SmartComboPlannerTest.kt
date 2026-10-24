@@ -201,4 +201,40 @@ class SmartComboPlannerTest {
         assertNull(choice.standby)
         assertEquals("Conflicting route identity", choice.rejectedReasons["collision"])
     }
+
+    @Test fun freshQuotaOutranksExpiredQuotaWhenFreeRoutesOtherwiseTie() {
+        val at = task().nowEpochMs
+        val fresh = SmartComboPlanner.QuotaWindow(
+            SmartComboPlanner.LimitKind.REQUESTS_PER_MINUTE,
+            remaining = 100L, limit = 100L, observedAtEpochMs = at,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+        )
+        val stale = fresh.copy(observedAtEpochMs = at - 120_000L)
+        val choice = SmartComboPlanner.choose(task(), listOf(
+            route("a-stale", quota = listOf(stale)),
+            route("z-fresh", quota = listOf(fresh))
+        ))
+        assertEquals("z-fresh", choice.primary?.id)
+        assertEquals("a-stale", choice.standby?.id)
+        assertFalse(choice.requiresLiveQuotaConfirmation)
+        assertTrue(SmartComboPlanner.choose(task(), listOf(
+            route("a-stale", quota = listOf(stale))
+        )).requiresLiveQuotaConfirmation)
+    }
+
+    @Test fun contradictoryQuotaIsPenalizedLikeUnknownEvidence() {
+        val at = task().nowEpochMs
+        val fresh = SmartComboPlanner.QuotaWindow(
+            SmartComboPlanner.LimitKind.REQUESTS_PER_DAY,
+            remaining = 100L, limit = 100L, observedAtEpochMs = at,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+        )
+        val contradictory = fresh.copy(remaining = 101L)
+        val choice = SmartComboPlanner.choose(task(), listOf(
+            route("a-contradictory", quota = listOf(contradictory)),
+            route("z-confirmed", quota = listOf(fresh))
+        ))
+        assertEquals("z-confirmed", choice.primary?.id)
+        assertEquals("a-contradictory", choice.standby?.id)
+    }
 }
