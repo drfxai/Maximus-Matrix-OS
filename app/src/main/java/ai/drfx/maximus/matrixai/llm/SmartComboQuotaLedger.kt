@@ -178,7 +178,12 @@ internal class SmartComboQuotaLedger(
         val byKind = snapshots.getOrPut(scopeKey(scope)) { linkedMapOf() }
         for (window in windows) {
             val observed = window.observedAtEpochMs ?: continue
-            if (observed > received || window.remaining == null ||
+            // A reset that precedes (or coincides with) its own observation cannot
+            // describe a live quota window. Do not let malformed evidence replace
+            // the last consistent provider snapshot.
+            if (observed > received ||
+                (window.resetAtEpochMs != null && window.resetAtEpochMs <= observed) ||
+                window.remaining == null ||
                 (window.limit != null && window.remaining > window.limit) ||
                 window.confidence != SmartComboPlanner.Confidence.PROVIDER_VERIFIED) continue
             val previous = byKind[window.kind]
