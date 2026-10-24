@@ -96,7 +96,7 @@ class SmartComboQuotaLedgerTest {
 
     @Test fun overflowedQuotaAgeNeverReportsConfirmedRemaining() {
         val ledger = SmartComboQuotaLedger(now = { Long.MAX_VALUE })
-        ledger.observe("shared-account", listOf(quota(observed = Long.MIN_VALUE)))
+        ledger.observe("shared-account", listOf(quota(observed = Long.MIN_VALUE + 1L)))
         val capacity = ledger.capacities("shared-account").single()
         assertEquals(SmartComboQuotaLedger.Source.UNKNOWN, capacity.source)
         assertNull(capacity.providerRemaining)
