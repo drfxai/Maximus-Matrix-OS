@@ -30,7 +30,10 @@ internal class SmartComboRouteHealth(
         val old = routes[routeId]
         val failures = (old?.failures ?: 0).coerceAtMost(19) + 1
         val shift = (failures - 1).coerceAtMost(10)
-        val backoff = (baseCooldownMs * (1L shl shift)).coerceAtMost(maxCooldownMs)
+        // Clamp before multiplying: overflowing Long arithmetic must never clear a cooldown.
+        val multiplier = 1L shl shift
+        val backoff = if (baseCooldownMs > maxCooldownMs / multiplier) maxCooldownMs
+            else baseCooldownMs * multiplier
         val until = if (nowMs > Long.MAX_VALUE - backoff) Long.MAX_VALUE else nowMs + backoff
         routes[routeId] = Record(failures, until, old?.lastHealthyAt,
             old?.firstTokenSamplesMs.orEmpty())
