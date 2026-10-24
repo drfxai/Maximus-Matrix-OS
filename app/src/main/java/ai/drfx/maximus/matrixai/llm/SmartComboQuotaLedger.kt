@@ -178,11 +178,11 @@ internal class SmartComboQuotaLedger(
         val byKind = snapshots.getOrPut(scopeKey(scope)) { linkedMapOf() }
         for (window in windows) {
             val observed = window.observedAtEpochMs ?: continue
-            // A reset that precedes (or coincides with) its own observation cannot
-            // describe a live quota window. Do not let malformed evidence replace
-            // the last consistent provider snapshot.
+            // An already-expired reset cannot establish live quota, even if it was
+            // later than the provider observation. Preserve the last valid snapshot
+            // instead of replacing it with stale evidence received after expiry.
             if (observed > received ||
-                (window.resetAtEpochMs != null && window.resetAtEpochMs <= observed) ||
+                (window.resetAtEpochMs != null && window.resetAtEpochMs <= received) ||
                 window.remaining == null ||
                 (window.limit != null && window.remaining > window.limit) ||
                 window.confidence != SmartComboPlanner.Confidence.PROVIDER_VERIFIED) continue
