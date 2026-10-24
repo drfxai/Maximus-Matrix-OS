@@ -30,7 +30,10 @@ internal class SmartComboRouteHealth(
         val old = routes[routeId]
         val failures = (old?.failures ?: 0).coerceAtMost(19) + 1
         val shift = (failures - 1).coerceAtMost(10)
-        val backoff = (baseCooldownMs * (1L shl shift)).coerceAtMost(maxCooldownMs)
+        // Clamp before multiplying: overflowing Long arithmetic must never clear a cooldown.
+        val multiplier = 1L shl shift
+        val backoff = if (baseCooldownMs > maxCooldownMs / multiplier) maxCooldownMs
+            else baseCooldownMs * multiplier
         val until = if (nowMs > Long.MAX_VALUE - backoff) Long.MAX_VALUE else nowMs + backoff
         routes[routeId] = Record(failures, until, old?.lastHealthyAt,
             old?.firstTokenSamplesMs.orEmpty())
@@ -80,7 +83,11 @@ internal class SmartComboRouteHealth(
 
     @Synchronized fun remainingCooldownMs(routeId: String, nowMs: Long): Long =
         (routes[routeId]?.cooldownUntil ?: nowMs).let { until ->
-            if (until <= nowMs) 0L else until - nowMs
+            if (until <= nowMs) 0L else {
+                // A backwards wall-clock jump must not overflow into negative "remaining" time.
+                val remaining = until - nowMs
+                if (remaining < 0L) Long.MAX_VALUE else remaining
+            }
         }
 
     private fun trim() {
