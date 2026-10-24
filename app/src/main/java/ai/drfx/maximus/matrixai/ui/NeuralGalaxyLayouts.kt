@@ -178,7 +178,9 @@ internal object NeuralGalaxyLayouts {
         val index = nodes.mapIndexed { i,n -> n.id to i }.toMap()
         val connections = edges.mapNotNull { e ->
             val from = index[e.source]; val to = index[e.target]
-            if (from == null || to == null || from == to) null else from to to
+            // Links are visual undirected springs: reversed or repeated edges must not add force.
+            if (from == null || to == null || from == to) null
+            else minOf(from, to) to maxOf(from, to)
         }.distinct().sortedWith(compareBy<Pair<Int,Int>> { it.first }.thenBy { it.second })
         val x = FloatArray(count) { onCircle(it,count,120f).x }
         val y = FloatArray(count) { onCircle(it,count,120f).y }
