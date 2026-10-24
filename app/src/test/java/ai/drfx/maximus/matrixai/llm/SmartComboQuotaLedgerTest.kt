@@ -65,6 +65,32 @@ class SmartComboQuotaLedgerTest {
         assertEquals(8_000L, capacity.safeAvailable)
     }
 
+    @Test fun invalidResetTimestampCannotEstablishConfirmedCapacity() {
+        val ledger = SmartComboQuotaLedger(now = { clock })
+        ledger.observe("shared-account", listOf(
+            quota(remaining = 9_000L).copy(resetAtEpochMs = clock - 1L)
+        ))
+        assertTrue(ledger.capacities("shared-account").isEmpty())
+    }
+
+    @Test fun invalidResetTimestampCannotReplaceEarlierValidQuota() {
+        var time = clock
+        val ledger = SmartComboQuotaLedger(now = { time })
+        ledger.observe("shared-account", listOf(quota(remaining = 8_000L)))
+        time += 100L
+        // Neither an already-expired reset nor a reset at observation time
+        // can displace previously trusted quota evidence.
+        for (invalidReset in listOf(time - 1L, time)) {
+            ledger.observe("shared-account", listOf(
+                quota(remaining = 1_000L, observed = time).copy(resetAtEpochMs = invalidReset)
+            ))
+            val capacity = ledger.capacities("shared-account").single()
+            assertEquals(SmartComboQuotaLedger.Source.PROVIDER_SNAPSHOT, capacity.source)
+            assertEquals(8_000L, capacity.providerRemaining)
+            assertEquals(8_000L, capacity.safeAvailable)
+        }
+    }
+
     @Test fun duplicateIdCannotBeDispatchedTwice() {
         val ledger = SmartComboQuotaLedger(now = { clock })
         assertTrue(ledger.reserve(plan("r1")).accepted)
