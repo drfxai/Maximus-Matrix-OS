@@ -154,6 +154,9 @@ object SmartComboPlanner {
 
     private fun isFreshConfirmed(window: QuotaWindow, nowEpochMs: Long): Boolean {
         if (window.remaining == null) return false
+        // A balance larger than its published limit is internally inconsistent.
+        // Keep the route eligible, but require fresh confirmation before trusting quota.
+        if (window.limit != null && window.remaining > window.limit) return false
         if (window.confidence != Confidence.PROVIDER_VERIFIED &&
             window.confidence != Confidence.LEDGER_RECONCILED) return false
         val observed = window.observedAtEpochMs ?: return false
