@@ -83,7 +83,11 @@ internal class SmartComboRouteHealth(
 
     @Synchronized fun remainingCooldownMs(routeId: String, nowMs: Long): Long =
         (routes[routeId]?.cooldownUntil ?: nowMs).let { until ->
-            if (until <= nowMs) 0L else until - nowMs
+            if (until <= nowMs) 0L else {
+                // A backwards wall-clock jump must not overflow into negative "remaining" time.
+                val remaining = until - nowMs
+                if (remaining < 0L) Long.MAX_VALUE else remaining
+            }
         }
 
     private fun trim() {
