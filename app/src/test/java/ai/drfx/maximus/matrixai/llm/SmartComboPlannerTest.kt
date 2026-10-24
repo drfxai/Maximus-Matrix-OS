@@ -155,6 +155,23 @@ class SmartComboPlannerTest {
         assertTrue(choice.requiresLiveQuotaConfirmation)
     }
 
+    @Test fun inconsistentRemainingAboveLimitIsNotTrustedAsConfirmedQuota() {
+        val inconsistent = SmartComboPlanner.QuotaWindow(
+            kind = SmartComboPlanner.LimitKind.TOTAL_TOKENS_PER_DAY,
+            remaining = 5_000L,
+            limit = 100L,
+            observedAtEpochMs = task().nowEpochMs,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+        )
+        val choice = SmartComboPlanner.choose(
+            task(), listOf(route("inconsistent", quota = listOf(inconsistent)))
+        )
+        // Contradictory evidence must not be presented as a confirmed quota.
+        // The route remains a candidate pending a live admission check.
+        assertEquals("inconsistent", choice.primary?.id)
+        assertTrue(choice.requiresLiveQuotaConfirmation)
+    }
+
     @Test fun paidRouteStillRequiresRealCreditDespiteExplicitBudget() {
         val credit = SmartComboPlanner.QuotaWindow(
             SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS, 0L, 1_000_000L,
