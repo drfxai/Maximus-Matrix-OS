@@ -2,6 +2,35 @@
 
 This is a secret-free, auditable handoff for authorized engineering sessions. It is **not** an always-on coding agent, a ChatGPT Work session, or a mechanism for detecting or bypassing usage limits.
 
+## Supervisor refresh — 2026-10-24 02:13 UTC (PR #169 branch only)
+
+This update is an observed **historical** snapshot, not a claim of an unattended Work session. The three continuity files are **absent from live main** and are proposed in draft PR #169. Do not use this snapshot as proof of a later state.
+
+- Live `main`: `62750b2b29472449942035b4bb65a8a98a8fdbe9`; GitHub branch API reports `protected=false`; repository rulesets API returns `[]`. [Issue #89](https://github.com/drfxai/Maximus-Matrix-OS/issues/89) remains open. Repository administrator action is needed to enforce required checks and independent review; this GitHub connector cannot write protection settings.
+- [PR #145](https://github.com/drfxai/Maximus-Matrix-OS/pull/145) is **merged**, so do not re-merge it. Its continuity files are not on current main; restoration is in [draft PR #169](https://github.com/drfxai/Maximus-Matrix-OS/pull/169).
+- Open PRs (all **draft**, none with independent submitted reviews): **#169** docs restoration, head `8c4b410df28d62ec67eace3c999692b259ae2dfe`; **#170** Smart Combo catalog timestamp freshness, head `b127b504e396b008e7fd5d05be7ff10afa2972b0`; **#171** Smart Combo quota timestamp overflow, head `e403baf4eb5834eabffdf9697d02a35b0c1c9a82`. Do not duplicate their changes.
+- Exact-head Actions **before this checkpoint edit**: #169 [run 39938443067](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/39938443067), attempt 1 success; #170 [run 40014212579](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40014212579), attempt 2 success after an initial keyboard emulator failure; #171 [run 40044434371](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40044434371), attempt 1 success. Each completed `validate`, both `emulator-smoke` shards and `required-ci` successfully; `build-release` skipped. The #170 initial failure's root cause remains **unverified**. None of these runs proves physical-device acceptance.
+- **Important:** Editing this file creates a **new head** for PR #169. The prior green run for `8c4b410` is then historical and must **not** be reused as the new head's CI gate. Refresh exact-head checks after this commit.
+- Open work remains prioritized: Smart Combo quota/routing/continuity; six Neural Galaxy layouts and operational dashboards; agent teams/Hindsight; GitHub/Cloudflare Work integration. The outstanding PR review and main-protection gates take precedence over any merge.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_at_utc: "2026-10-24T02:13:00Z"
+observed_main_sha: 62750b2b29472449942035b4bb65a8a98a8fdbe9
+task: refresh auditable continuity checkpoint without duplicating in-flight changes
+state: VERIFYING
+branch: docs/restore-maximus-continuity-20261023
+changed_paths: [docs/engineering/WORK_RESUME.md]
+tests:
+  - command: GitHub branch, PR review, ruleset and exact-head Actions API reads
+    result: PASS (read-only evidence before this edit)
+  - command: new PR #169 head CI
+    result: PENDING (must recheck after this commit)
+approvals_needed: [independent_review, explicit_owner_merge_authorization, repository_admin_branch_protection]
+blockers: [main_unprotected_issue_89, all_open_PRs_draft_and_unreviewed]
+next_action: verify new PR #169 head and its CI; obtain independent review and branch protection before any authorized merge
+```
+
 ## Observed repository state — 2026-10-23 10:19 UTC
 
 Recheck all facts before acting. This checkpoint is historical immediately after a new commit.
