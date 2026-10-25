@@ -211,8 +211,12 @@ internal class SmartComboQuotaLedger(
         if (journal != null && entries.size >= SmartComboRequestJournal.MAX_ENTRIES)
             return Admission(false, "Request journal full; no evidence was deleted", true)
         val at = now()
-        var refresh = snapshots[plan.scope].isNullOrEmpty()
-        for (capacity in capacitiesForKey(plan.scope, at)) {
+        val capacities = capacitiesForKey(plan.scope, at)
+        // A confirmed dollar balance does not establish request/token quota for a free
+        // dispatch. Keep unknown-quota concurrency bounded when credit is the only evidence.
+        var refresh = capacities.isEmpty() || (plan.reservedMicros == 0L &&
+            capacities.all { it.kind == SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS })
+        for (capacity in capacities) {
             val available = capacity.safeAvailable
             if (available == null) { refresh = true; continue }
             val quota = snapshots[plan.scope]?.get(capacity.kind)?.value ?: continue
