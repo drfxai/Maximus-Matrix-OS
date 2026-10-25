@@ -1,5 +1,6 @@
 package ai.drfx.maximus.matrixai.llm
 
+import kotlin.math.ceil
 import kotlin.math.max
 
 /**
@@ -150,7 +151,11 @@ object SmartComboPlanner {
                 LimitKind.INPUT_TOKENS_PER_MINUTE -> task.estimatedInputTokens.toLong()
                 LimitKind.TOTAL_TOKENS_PER_MINUTE, LimitKind.TOTAL_TOKENS_PER_DAY, LimitKind.TOKEN_BALANCE ->
                     requiredContext
-                LimitKind.DOLLAR_BALANCE_MICROS -> (cost * 1_000_000.0).toLong().coerceAtLeast(if (cost > 0.0) 1L else 0L)
+                LimitKind.DOLLAR_BALANCE_MICROS -> {
+                    // A fractional microdollar still consumes credit. Rounding down can
+                    // admit a paid request that the conservative balance cannot cover.
+                    if (cost > 0.0) ceil(cost * 1_000_000.0).toLong().coerceAtLeast(1L) else 0L
+                }
             }
             // A verified zero-price route consumes no dollar credit. Free request/token
             // windows are still enforced independently below and by the admission ledger.

@@ -224,6 +224,27 @@ class SmartComboPlannerTest {
         assertTrue(choice.requiresLiveQuotaConfirmation)
     }
 
+    @Test fun fractionalMicrodollarPaidCostRoundsUpBeforeQuotaAdmission() {
+        val now = task().nowEpochMs
+        val paid = route("fractional", free = false).copy(
+            price = SmartComboPlanner.Price(1.5, 0.0, verified = true),
+            quota = listOf(SmartComboPlanner.QuotaWindow(
+                kind = SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS,
+                remaining = 2L,
+                observedAtEpochMs = now,
+                confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+            ))
+        )
+        val request = task(paid = true, maxCostUsd = 0.01, input = 1, output = 1)
+        // $0.0000015 requires two whole microdollars plus the admission guard.
+        // Truncating to one microdollar incorrectly admits the two-microdollar balance.
+        val insufficient = SmartComboPlanner.choose(request, listOf(paid))
+        assertNull(insufficient.primary)
+        assertTrue(insufficient.rejectedReasons.getValue("fractional").contains("Quota nearing exhaustion"))
+        val sufficient = paid.copy(quota = paid.quota.map { it.copy(remaining = 4L) })
+        assertEquals("fractional", SmartComboPlanner.choose(request, listOf(sufficient)).primary?.id)
+    }
+
     @Test fun paidRouteStillRequiresRealCreditDespiteExplicitBudget() {
         val credit = SmartComboPlanner.QuotaWindow(
             SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS, 0L, 1_000_000L,

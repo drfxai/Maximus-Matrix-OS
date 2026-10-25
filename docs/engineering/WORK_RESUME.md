@@ -1,5 +1,44 @@
 # MAXIMUS MATRIX OS — continuity checkpoint
 
+## Reconciled paid quota rounding checkpoint — 2026-10-25
+
+Historical review and pending-CI text below reflects the original PR before the current integration; consult current GitHub PR and CI for latest status.
+
+## Supervisor refresh — 2026-10-25 (proposed conservative paid-quota rounding)
+
+This is a **reviewable branch checkpoint**. All previous snapshots below are historical. It does not authorize paid provider usage, a merge, release, deployment, or unattended Work execution.
+
+- Verified live base `main`: `178249629330b8eec913929c570a264e30fb7d9a` (PR #183 merged). [PR #145](https://github.com/drfxai/Maximus-Matrix-OS/pull/145) remains merged; continuity instructions are present.
+- Open draft [PR #184](https://github.com/drfxai/Maximus-Matrix-OS/pull/184) at `57dfdabb8596e2242a8a13094f8d4894e7c60507` and [PR #185](https://github.com/drfxai/Maximus-Matrix-OS/pull/185) at `d429c71715b5633b140d94d29b61a6e16d0e1e8b`: exact-head Actions [#40121673248](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40121673248) and [#40134418148](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40134418148) completed SUCCESS (`validate`, both `emulator-smoke` shards, `required-ci`); `build-release` skipped. Neither has a submitted independent review. Do not merge.
+- Live branch metadata: `main.protected=false`; repository rulesets `[]`; [issue #89](https://github.com/drfxai/Maximus-Matrix-OS/issues/89) remains open. GitHub connector exposes no branch-protection/ruleset write action. No administrative protection was changed.
+- Latest public release remains `v1.0.0`. No signing, version, device acceptance, provider dispatch or release action performed.
+- Proposed Smart Combo fix: round **positive fractional microdollar** paid quota requirements upward before the existing headroom check. Prior truncation could admit an underfunded request. Add a regression for a 1.5-microdollar request and its balance boundary. This changes only the deterministic planner, not paid authorization, provider calls, prices, budgets or journal persistence.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_date_utc: "2026-10-24"
+base_sha: 178249629330b8eec913929c570a264e30fb7d9a
+task: conservatively round fractional paid microdollar quota demand
+task_state: VERIFYING
+branch: fix/smart-combo-conservative-microcredit-20261025
+changed_paths:
+  - app/src/main/java/ai/drfx/maximus/matrixai/llm/SmartComboPlanner.kt
+  - app/src/test/java/ai/drfx/maximus/matrixai/llm/SmartComboPlannerTest.kt
+  - docs/engineering/WORK_RESUME.md
+implemented: [fractional_microcredit_ceiling, admission_boundary_regression]
+tests:
+  - command: GitHub readback and exact-base compare
+    result: PENDING
+  - command: exact-head Android GitHub Actions
+    result: PENDING
+  - command: local Gradle / physical-device tests
+    result: NOT_RUN
+approvals_needed: [independent_PR_review, explicit_owner_merge_authorization, repository_admin_branch_protection]
+blockers: [issue_89_main_unprotected, independent_review_missing]
+next_action: verify final PR head and exact-head CI; obtain independent review; do not merge without verified gates and explicit authorization
+```
+
+
 ## Reconciled Galaxy Timeline checkpoint — 2026-10-25
 
 The archived proposed checkpoint below describes its original historical state; present merge and test status must be read from GitHub.
