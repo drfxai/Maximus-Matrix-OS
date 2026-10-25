@@ -117,9 +117,12 @@ object SmartComboPlanner {
             standby = sorted.drop(1).firstOrNull(),
             eligible = sorted,
             rejectedReasons = rejected,
-            requiresLiveQuotaConfirmation = sorted.firstOrNull()?.quota
-                ?.let { windows -> windows.isEmpty() || windows.any { !isFreshConfirmed(it, task.nowEpochMs) } }
-                ?: false
+            requiresLiveQuotaConfirmation = sorted.firstOrNull()?.let { route ->
+                val windows = route.quota
+                windows.isEmpty() || windows.any { !isFreshConfirmed(it, task.nowEpochMs) } ||
+                    // Dollar credit alone cannot confirm the request/token allowance of a free model.
+                    (route.price?.isFree == true && windows.none { it.kind != LimitKind.DOLLAR_BALANCE_MICROS })
+            } ?: false
         )
     }
 
