@@ -121,8 +121,9 @@ object SmartComboPlanner {
             requiresLiveQuotaConfirmation = sorted.firstOrNull()?.let { route ->
                 val windows = route.quota
                 windows.isEmpty() || windows.any { !isFreshConfirmed(it, task.nowEpochMs) } ||
-                    // Dollar credit alone cannot confirm the request/token allowance of a free model.
-                    (route.price?.isFree == true && windows.none { it.kind != LimitKind.DOLLAR_BALANCE_MICROS })
+                    // A confirmed credit balance alone never establishes request/token allowance.
+                    // Keep both paid and free routes subject to live quota confirmation.
+                    windows.none { it.kind != LimitKind.DOLLAR_BALANCE_MICROS }
             } ?: false
         )
     }
