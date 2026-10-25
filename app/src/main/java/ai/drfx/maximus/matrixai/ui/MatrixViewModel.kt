@@ -30,6 +30,8 @@ import ai.drfx.maximus.matrixai.database.entities.ChatMessageEntity
 import ai.drfx.maximus.matrixai.database.entities.MatrixNodeEntity
 import ai.drfx.maximus.matrixai.llm.*
 import ai.drfx.maximus.matrixai.memory.SharedProjectMemory
+import ai.drfx.maximus.matrixai.rea.ReaModeStore
+import ai.drfx.maximus.matrixai.rea.ReaPolicy
 import ai.drfx.maximus.matrixai.logging.AppLogStore
 import ai.drfx.maximus.matrixai.news.*
 import ai.drfx.maximus.matrixai.vision.*
@@ -40,6 +42,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     fun approveAgentAction(requestId: String, approved: Boolean) = agentRuntime.approveAction(requestId, approved)
     private val discovery = ApiDiscoveryEngine()
     private val chatClient = LlmChatClient()
+    // App-wide REA policy is deliberately outside provider/Smart Combo state.
+    private val reaModes = ReaModeStore.get(application)
+    val reaMode = reaModes.mode
     private val apiStore = SecureApiConfigStore(application)
     private val usageStore = ApiUsageStore(application)
     private val freeCatalog = SmartComboFreeCatalog(discovery, apiStore)
@@ -1041,8 +1046,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         // Capture the project at user-send time: a workspace switch must never inject
         // another project's history into a request that is already in flight.
         val memoryEvidenceAtRequest = sharedProjectMemory.cachedContext(memoryAccessAtRequest)
+        val reaGuidanceAtRequest = ReaPolicy.guidance(reaModes.mode.value)
         val memoryAndSystemBudget = ChatContextPolicy.estimateTokens(memoryEvidenceAtRequest) +
-            ChatContextPolicy.estimateTokens(selectedAgent.systemPrompt)
+            ChatContextPolicy.estimateTokens(selectedAgent.systemPrompt) +
+            ChatContextPolicy.estimateTokens(reaGuidanceAtRequest)
         val modelContext = ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
         // Smart Combo picks among routes, so the history may use the LARGEST verified free
         // window; the planner then rejects any route whose own window is too small.
@@ -1156,12 +1163,13 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         "For fa-IR use fluent Persian written in Persian script. " +
                         "Do not claim an audio recording or transcription was verified by the model."
                 } else ""
-                val equippedAgent = if (memoryEvidenceAtRequest.isBlank() && speechInstruction.isBlank()) {
+                val equippedAgent = if (memoryEvidenceAtRequest.isBlank() && speechInstruction.isBlank() && reaGuidanceAtRequest.isBlank()) {
                     selectedAgent
                 } else {
                     selectedAgent.copy(systemPrompt = selectedAgent.systemPrompt +
                         (if (memoryEvidenceAtRequest.isBlank()) "" else "\n\n" + memoryEvidenceAtRequest) +
-                        speechInstruction)
+                        speechInstruction +
+                        (if (reaGuidanceAtRequest.isBlank()) "" else "\n\n" + reaGuidanceAtRequest))
                 }
                 val dispatched = ChatRequestTelemetry(config.provider, config.selectedModel,
                     selectedAgent.id, selectedAgent.name, streamTime, current.smartComboEnabled)
