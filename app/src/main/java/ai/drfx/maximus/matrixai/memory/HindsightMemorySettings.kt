@@ -156,12 +156,13 @@ internal class HindsightMemorySettings(context: Context) {
         if (value.isBlank()) return ""
         return runCatching {
             val array = JSONArray(decrypt(value))
+            val nowMs = System.currentTimeMillis()
             val eligible = buildList {
                 for (i in (array.length() - 4).coerceAtLeast(0) until array.length()) {
                     val item = array.getJSONObject(i)
                     val timestamp = item.optLong("time", 0)
                     val text = item.optString("text")
-                    if (timestamp > 0 && System.currentTimeMillis() - timestamp < 30L * 24 * 3600 * 1000 &&
+                    if (ProjectProgressContextPolicy.isRecentTimestamp(timestamp, nowMs) &&
                         HindsightMemoryClient.shareable(text)) add(text.take(1200))
                 }
             }

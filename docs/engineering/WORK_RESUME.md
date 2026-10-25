@@ -1,5 +1,9 @@
 # MAXIMUS MATRIX OS — continuity checkpoint
 
+## Reconciled Galaxy Timeline checkpoint — 2026-10-25
+
+The archived proposed checkpoint below describes its original historical state; present merge and test status must be read from GitHub.
+
 ## Supervisor refresh — 2026-10-24 (proposed deterministic Neural Galaxy activity projection)
 
 This is a **reviewable branch checkpoint**, not an assertion that the change has merged or that Android CI, emulator, or physical-device acceptance has passed. Historical entries below are snapshots, not live state.
@@ -32,6 +36,41 @@ approvals_needed: [independent_PR_review, explicit_owner_merge_authorization, re
 blockers: [issue_89_main_unprotected, independent_review_missing]
 next_action: verify final PR head, exact-head CI and review; do not merge without gates
 ```
+
+## Supervisor increment — 2026-10-25 (free-route unknown quota admission)
+
+This branch proposes a bounded, reviewable Smart Combo quota safety fix; it is **not merged**, deployed, signed or device-verified. Earlier checkpoints below are historical and may refer to superseded GitHub states.
+
+- Verified live base `main`: `178249629330b8eec913929c570a264e30fb7d9a`. PR #145 is merged and the continuity instruction files are present on main.
+- Open draft PRs #184–#187: exact-head Actions reported SUCCESS on their respective heads; none had an independent submitted review at this observation. Do not merge without required review and authorization.
+- Issue #89 remains open; main protection still requires authorized repository administration. No protection settings were modified.
+- Scope: when a free dispatch has only dollar-credit quota evidence, that zero-cost credit window cannot establish request/token headroom. Apply the existing bounded unknown-quota concurrency policy instead of allowing unbounded free in-flight requests. Preserve normal admission when a confirmed request quota is present.
+- Added two deterministic regression tests. CI and physical-device verification are not claimed by this checkpoint.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_date_utc: "2026-10-25"
+base_sha: 178249629330b8eec913929c570a264e30fb7d9a
+task: prevent free credit-only quota evidence from bypassing unknown-concurrency admission
+task_state: VERIFYING
+branch: fix/smart-combo-free-credit-unknown-concurrency-20261025
+changed_paths:
+  - app/src/main/java/ai/drfx/maximus/matrixai/llm/SmartComboQuotaLedger.kt
+  - app/src/test/java/ai/drfx/maximus/matrixai/llm/SmartComboQuotaLedgerTest.kt
+  - docs/engineering/WORK_RESUME.md
+implemented: [free_credit_only_refresh_gate, two_regression_tests]
+tests:
+  - command: GitHub source readback and branch diff
+    result: PENDING
+  - command: exact-head Android GitHub Actions
+    result: PENDING
+  - command: local Gradle and physical-device tests
+    result: NOT_RUN
+approvals_needed: [independent_PR_review, explicit_owner_merge_authorization, repository_admin_branch_protection]
+blockers: [issue_89_main_unprotected, independent_review_missing]
+next_action: inspect exact-head CI and request independent review; do not merge or release without approval
+```
+
 
 ## Supervisor refresh — 2026-10-24 (reviewable Smart Combo ranking increment)
 

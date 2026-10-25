@@ -32,6 +32,21 @@ class NeuralGalaxyStage2Test {
         }
     }
 
+    @Test fun subpixelAlternateViewportsStayWithinMeasuredCanvas() {
+        val sizes = listOf(0.25f to 0.5f, 0.5f to 0.25f, 1f to 1f, 2f to 0.5f)
+        for (mode in NeuralGalaxyLayout.entries.filter { it != NeuralGalaxyLayout.BRAIN }) {
+            for ((width, height) in sizes) {
+                val viewport = requireNotNull(NeuralGalaxyLayouts.viewport(mode, width, height, 3f))
+                assertTrue("left bound: $mode, $width", viewport.left >= 0f)
+                assertTrue("top bound: $mode, $height", viewport.top >= 0f)
+                assertTrue("positive width: $mode", viewport.right > viewport.left)
+                assertTrue("positive height: $mode", viewport.bottom > viewport.top)
+                assertTrue("right bound: $mode, $width", viewport.right <= width)
+                assertTrue("bottom bound: $mode, $height", viewport.bottom <= height)
+            }
+        }
+    }
+
     @Test fun measuredAreaLabelBoxesNeverOverlapOrEscapeTheUsableCanvas() {
         val viewport=GraphViewport(12f,64f,348f,500f)
         val occupied=mutableListOf<GraphLabelBox>()

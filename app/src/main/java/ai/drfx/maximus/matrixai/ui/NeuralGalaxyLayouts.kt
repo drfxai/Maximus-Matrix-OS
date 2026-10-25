@@ -62,8 +62,10 @@ internal object NeuralGalaxyLayouts {
         val side = minOf(12f*safeDensity, safeWidth*.1f)
         val top = minOf(64f*safeDensity, safeHeight*.26f)
         val bottom = minOf(48f*safeDensity, safeHeight*.22f)
-        return GraphViewport(side, top, (safeWidth-side).coerceAtLeast(side+1f),
-            (safeHeight-bottom).coerceAtLeast(top+1f))
+        // Insets are capped to fractions of each measured dimension, so the remaining
+        // rectangle is already strictly positive. A fixed 1px minimum can escape a
+        // transient subpixel canvas and desynchronize drawing from hit testing.
+        return GraphViewport(side, top, safeWidth-side, safeHeight-bottom)
     }
 
     fun matches(nodeId: String, label: String, group: String, area: String, query: String): Boolean =
