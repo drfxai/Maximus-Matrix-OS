@@ -7,6 +7,11 @@ package ai.drfx.maximus.matrixai.memory
  */
 internal object ProjectProgressContextPolicy {
     const val MAX_CONTEXT_CHARS = 2100
+    private const val MAX_JOURNAL_AGE_MS = 30L * 24 * 60 * 60 * 1000
+
+    /** Ignore future/invalid journal clocks rather than treating them as fresh handoff evidence. */
+    fun isRecentTimestamp(timestampMs: Long, nowMs: Long): Boolean =
+        timestampMs > 0 && timestampMs <= nowMs && nowMs - timestampMs < MAX_JOURNAL_AGE_MS
 
     fun newestFirst(chronologicalEntries: List<String>, maxChars: Int = MAX_CONTEXT_CHARS): String {
         require(maxChars in 0..MAX_CONTEXT_CHARS)
