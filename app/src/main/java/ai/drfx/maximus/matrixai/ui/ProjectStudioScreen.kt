@@ -212,6 +212,7 @@ fun ProjectStudioScreen(
         }
 
 
+        item { ReaWorkspaceControls(Modifier.fillMaxWidth()) }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 Surface(
