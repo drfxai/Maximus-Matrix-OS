@@ -245,6 +245,22 @@ class SmartComboPlannerTest {
         assertEquals("fractional", SmartComboPlanner.choose(request, listOf(sufficient)).primary?.id)
     }
 
+    @Test fun paidCreditOnlyEvidenceStillRequiresLiveQuotaConfirmation() {
+        val credit = SmartComboPlanner.QuotaWindow(
+            kind = SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS,
+            remaining = 1_000_000L, limit = 2_000_000L,
+            observedAtEpochMs = task().nowEpochMs,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+        )
+        val choice = SmartComboPlanner.choose(
+            task(paid = true, maxCostUsd = 0.02),
+            listOf(route("paid-credit-only", free = false, quota = listOf(credit)))
+        )
+        assertEquals("paid-credit-only", choice.primary?.id)
+        // Sufficient account credit is not proof of the provider's request/token limits.
+        assertTrue(choice.requiresLiveQuotaConfirmation)
+    }
+
     @Test fun paidRouteStillRequiresRealCreditDespiteExplicitBudget() {
         val credit = SmartComboPlanner.QuotaWindow(
             SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS, 0L, 1_000_000L,

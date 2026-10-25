@@ -198,6 +198,21 @@ class SmartComboQuotaLedgerTest {
         assertFalse(ledger.reserve(plan("r2", amount = 2000, micros = 5000)).accepted)
     }
 
+    @Test fun paidDispatchWithOnlyCreditEvidenceKeepsUnknownQuotaConcurrencyBounded() {
+        val ledger = SmartComboQuotaLedger(now = { clock }, maxUnknownInFlightPerScope = 1)
+        ledger.observe("shared-account", listOf(
+            quota(kind = SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS,
+                remaining = 1_000_000L, limit = 2_000_000L)
+        ))
+        val first = ledger.reserve(plan("paid-one", micros = 10_000L))
+        assertTrue(first.accepted)
+        assertTrue(first.needsQuotaRefresh)
+        val second = ledger.reserve(plan("paid-two", micros = 10_000L))
+        assertFalse(second.accepted)
+        assertTrue(second.needsQuotaRefresh)
+        assertEquals("Unknown quota concurrency limit", second.reason)
+    }
+
     @Test fun freeDispatchWithOnlyCreditEvidenceKeepsUnknownQuotaConcurrencyBounded() {
         val ledger = SmartComboQuotaLedger(now = { clock }, maxUnknownInFlightPerScope = 1)
         ledger.observe("shared-account", listOf(
