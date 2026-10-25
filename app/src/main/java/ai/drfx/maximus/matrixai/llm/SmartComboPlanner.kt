@@ -154,7 +154,8 @@ object SmartComboPlanner {
             if (window.kind == LimitKind.DOLLAR_BALANCE_MICROS && needed == 0L) continue
             // Reserve at least the current task's demand plus a 15% headroom of the limit
             // where published; do not allocate the provider's quota here.
-            val guard = max(needed, window.limit?.let { (it.toDouble() * 0.15).toLong() } ?: 0L)
+            // Match the admission ledger: fractional headroom must round UP, not down.
+            val guard = max(needed, window.limit?.let { kotlin.math.ceil(it.toDouble() * 0.15).toLong() } ?: 0L)
             if (balance < needed || balance - needed < guard) return "Quota nearing exhaustion: ${window.kind}"
         }
         return null
