@@ -24,6 +24,18 @@ class ReaPolicyTest {
         assertFalse(on.contains("api_key", ignoreCase = true))
     }
 
+    @Test fun javascriptAnalysisCommandIsScopedAndInjectionResistant() {
+        assertEquals("set -e; rea analyze-javascript-application '/root/workspace/source/app' --json",
+            ReaHostCommands.analyzeJavascript("/root/workspace/source/app"))
+        for (invalid in listOf("", "/tmp/app", "/root/workspace/../secret",
+            "/root/workspace/unsafe';touch /tmp/x", "/root/workspace/dir with spaces",
+            "/root/workspace/./app", "/root/workspace/")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ReaHostCommands.analyzeJavascript(invalid)
+            }
+        }
+    }
+
     @Test fun hostSetupIsExplicitAndContainsNoAutomaticModelDispatch() {
         assertTrue(ReaHostCommands.CHECK.contains("rea --version"))
         assertTrue(ReaHostCommands.INSTALL.contains("rea-agents@latest"))
