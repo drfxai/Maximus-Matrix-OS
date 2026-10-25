@@ -56,4 +56,17 @@ class ReaModeStore private constructor(context: Context) {
 object ReaHostCommands {
     const val CHECK = "set -e; command -v node; node --version; command -v npm; npm --version; command -v rea; rea --version"
     const val INSTALL = "set -e; node --version; npm --version; npm install --global rea-agents@latest; rea --version"
+
+    /** Allow only paths within the manually approved Phone Linux workspace. */
+    fun analyzeJavascript(target: String): String {
+        val path = target.trim()
+        require(path.startsWith("/root/workspace/")) { "Choose a file under /root/workspace." }
+        val tail = path.removePrefix("/root/workspace/")
+        require(tail.isNotEmpty() && tail.length <= 240 &&
+            tail.split('/').all { component ->
+                component.isNotBlank() && component != "." && component != ".." &&
+                    component.all { it.isLetterOrDigit() && it.code < 128 || it in "._-" }
+            }) { "Target path contains unsafe characters." }
+        return "set -e; rea analyze-javascript-application '$path' --json"
+    }
 }
