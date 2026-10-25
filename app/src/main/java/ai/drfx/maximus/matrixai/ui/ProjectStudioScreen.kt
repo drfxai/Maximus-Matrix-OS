@@ -208,11 +208,12 @@ fun ProjectStudioScreen(
                         Text("Tools ↓", color = MaximusReference.gold, fontSize = 11.sp)
                     }
                 }
+                // Keep the existing LazyColumn item indices stable for Work navigation.
+                ReaWorkspaceControls(Modifier.fillMaxWidth())
             }
         }
 
 
-        item { ReaWorkspaceControls(Modifier.fillMaxWidth()) }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 Surface(
