@@ -1,5 +1,37 @@
 # MAXIMUS MATRIX OS — continuity checkpoint
 
+## Supervisor refresh — 2026-10-25 (credit-only quota evidence, reviewable change)
+
+This is a **proposed**, secret-free change based on live GitHub readback, not an approval to use paid models, merge, deploy, release or bypass Work limits.
+
+- Observed `main`: `8c12c9fbe2c1be50008b7f3dda3ae7b6db593e96` (merge of [PR #192](https://github.com/drfxai/Maximus-Matrix-OS/pull/192)). PR #192 is merged with **zero submitted reviews**; [issue #89](https://github.com/drfxai/Maximus-Matrix-OS/issues/89) remains open, `main.protected=false`, rulesets `[]`.
+- Exact-main push [Actions #40176482982](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40176482982) completed **SUCCESS** (`validate`, both `emulator-smoke`, `required-ci`); `build-release` skipped. A separate manually triggered run #40177835503 was still in progress when inspected. Final heads #184 and #186 now have successful exact-head CI; neither retroactively satisfies missing independent review.
+- Proposed bounded fix: both Smart Combo planner and admission ledger must treat **dollar-credit-only** evidence as insufficient to confirm request/token allowance, regardless of whether the route is paid or free. The existing unknown-quota concurrency cap remains in force; paid dispatch still requires explicit authorization and a per-request budget. Add regression tests for planner confirmation and ledger admission. No provider calls or paid-model use.
+- Proposed branch: `fix/smart-combo-credit-only-quota-confirmation-20261025`. Local Gradle/emulator/physical-device tests **NOT RUN** in the connector environment; exact-head Actions and independent review **PENDING**.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_date_utc: "2026-10-25"
+base_sha: 8c12c9fbe2c1be50008b7f3dda3ae7b6db593e96
+task: require live quota confirmation for paid credit-only routes
+task_state: VERIFYING
+branch: fix/smart-combo-credit-only-quota-confirmation-20261025
+changed_paths:
+  - app/src/main/java/ai/drfx/maximus/matrixai/llm/SmartComboPlanner.kt
+  - app/src/main/java/ai/drfx/maximus/matrixai/llm/SmartComboQuotaLedger.kt
+  - app/src/test/java/ai/drfx/maximus/matrixai/llm/SmartComboPlannerTest.kt
+  - app/src/test/java/ai/drfx/maximus/matrixai/llm/SmartComboQuotaLedgerTest.kt
+  - docs/engineering/WORK_RESUME.md
+tests:
+  - command: GitHub source readback, branch diff, exact-head Actions
+    result: PENDING
+  - command: local Gradle and physical device
+    result: NOT_RUN
+approvals_needed: [independent_PR_review, explicit_owner_merge_authorization, repository_admin_enforce_main_protection]
+blockers: [issue_89_main_unprotected, independent_review_missing]
+next_action: verify branch diff and exact-head CI; obtain independent review; do not merge without required gates
+```
+
 ## Verified supervisor gate audit — 2026-10-25 (post-merge, build 10036)
 
 This is a **live GitHub readback checkpoint**, not authorization to merge, release, deploy, use paid models or resume ChatGPT Work. Older entries below are historical and can describe now-merged PRs as drafts.
