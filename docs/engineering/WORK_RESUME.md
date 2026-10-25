@@ -1,5 +1,9 @@
 # MAXIMUS MATRIX OS — continuity checkpoint
 
+## Reconciled paid quota rounding checkpoint — 2026-10-25
+
+Historical review and pending-CI text below reflects the original PR before the current integration; consult current GitHub PR and CI for latest status.
+
 ## Supervisor refresh — 2026-10-25 (proposed conservative paid-quota rounding)
 
 This is a **reviewable branch checkpoint**. All previous snapshots below are historical. It does not authorize paid provider usage, a merge, release, deployment, or unattended Work execution.
@@ -32,6 +36,78 @@ tests:
 approvals_needed: [independent_PR_review, explicit_owner_merge_authorization, repository_admin_branch_protection]
 blockers: [issue_89_main_unprotected, independent_review_missing]
 next_action: verify final PR head and exact-head CI; obtain independent review; do not merge without verified gates and explicit authorization
+```
+
+
+## Reconciled Galaxy Timeline checkpoint — 2026-10-25
+
+The archived proposed checkpoint below describes its original historical state; present merge and test status must be read from GitHub.
+
+## Supervisor refresh — 2026-10-24 (proposed deterministic Neural Galaxy activity projection)
+
+This is a **reviewable branch checkpoint**, not an assertion that the change has merged or that Android CI, emulator, or physical-device acceptance has passed. Historical entries below are snapshots, not live state.
+
+- Observed live `main`: `178249629330b8eec913929c570a264e30fb7d9a` (merge of PR #183). Exact-main push [Actions #40115637552](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40115637552) completed SUCCESS: `validate`, both `emulator-smoke` shards, and `required-ci` passed; `build-release` skipped.
+- No open PRs at the time this branch was created. [PR #145](https://github.com/drfxai/Maximus-Matrix-OS/pull/145) was already merged; all three continuity instruction files exist on main.
+- Main branch API reports `protected=false`; repository rulesets `[]`; [issue #89](https://github.com/drfxai/Maximus-Matrix-OS/issues/89) remains open. This GitHub app cannot administer protection settings. **Do not merge without independent review and explicit authorization.**
+- Scoped change: resolve conflicting duplicate activity IDs deterministically for the read-only Timeline projection, independent of source iteration order. Add a regression test. No Room data mutation, service execution, provider usage, permissions, signing or version changes.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_date_utc: "2026-10-24"
+base_sha: 178249629330b8eec913929c570a264e30fb7d9a
+task: stabilize conflicting duplicate activity IDs in Neural Galaxy Timeline
+task_state: VERIFYING
+branch: fix/galaxy-deterministic-activity-ids-20261024
+changed_paths:
+  - app/src/main/java/ai/drfx/maximus/matrixai/ui/NeuralGalaxyLayouts.kt
+  - app/src/test/java/ai/drfx/maximus/matrixai/ui/NeuralGalaxyStage2Test.kt
+  - docs/engineering/WORK_RESUME.md
+implemented: [deterministic_duplicate_activity_selection, regression_test]
+tests:
+  - command: GitHub readback and exact-base diff
+    result: PENDING
+  - command: exact-head Android GitHub Actions
+    result: PENDING
+  - command: local Gradle / physical-device acceptance
+    result: NOT_RUN
+approvals_needed: [independent_PR_review, explicit_owner_merge_authorization, repository_admin_branch_protection]
+blockers: [issue_89_main_unprotected, independent_review_missing]
+next_action: verify final PR head, exact-head CI and review; do not merge without gates
+```
+
+## Supervisor increment — 2026-10-25 (free-route unknown quota admission)
+
+This branch proposes a bounded, reviewable Smart Combo quota safety fix; it is **not merged**, deployed, signed or device-verified. Earlier checkpoints below are historical and may refer to superseded GitHub states.
+
+- Verified live base `main`: `178249629330b8eec913929c570a264e30fb7d9a`. PR #145 is merged and the continuity instruction files are present on main.
+- Open draft PRs #184–#187: exact-head Actions reported SUCCESS on their respective heads; none had an independent submitted review at this observation. Do not merge without required review and authorization.
+- Issue #89 remains open; main protection still requires authorized repository administration. No protection settings were modified.
+- Scope: when a free dispatch has only dollar-credit quota evidence, that zero-cost credit window cannot establish request/token headroom. Apply the existing bounded unknown-quota concurrency policy instead of allowing unbounded free in-flight requests. Preserve normal admission when a confirmed request quota is present.
+- Added two deterministic regression tests. CI and physical-device verification are not claimed by this checkpoint.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_date_utc: "2026-10-25"
+base_sha: 178249629330b8eec913929c570a264e30fb7d9a
+task: prevent free credit-only quota evidence from bypassing unknown-concurrency admission
+task_state: VERIFYING
+branch: fix/smart-combo-free-credit-unknown-concurrency-20261025
+changed_paths:
+  - app/src/main/java/ai/drfx/maximus/matrixai/llm/SmartComboQuotaLedger.kt
+  - app/src/test/java/ai/drfx/maximus/matrixai/llm/SmartComboQuotaLedgerTest.kt
+  - docs/engineering/WORK_RESUME.md
+implemented: [free_credit_only_refresh_gate, two_regression_tests]
+tests:
+  - command: GitHub source readback and branch diff
+    result: PENDING
+  - command: exact-head Android GitHub Actions
+    result: PENDING
+  - command: local Gradle and physical-device tests
+    result: NOT_RUN
+approvals_needed: [independent_PR_review, explicit_owner_merge_authorization, repository_admin_branch_protection]
+blockers: [issue_89_main_unprotected, independent_review_missing]
+next_action: inspect exact-head CI and request independent review; do not merge or release without approval
 ```
 
 

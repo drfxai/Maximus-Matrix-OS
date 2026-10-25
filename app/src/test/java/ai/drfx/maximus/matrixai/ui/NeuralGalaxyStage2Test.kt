@@ -32,6 +32,21 @@ class NeuralGalaxyStage2Test {
         }
     }
 
+    @Test fun subpixelAlternateViewportsStayWithinMeasuredCanvas() {
+        val sizes = listOf(0.25f to 0.5f, 0.5f to 0.25f, 1f to 1f, 2f to 0.5f)
+        for (mode in NeuralGalaxyLayout.entries.filter { it != NeuralGalaxyLayout.BRAIN }) {
+            for ((width, height) in sizes) {
+                val viewport = requireNotNull(NeuralGalaxyLayouts.viewport(mode, width, height, 3f))
+                assertTrue("left bound: $mode, $width", viewport.left >= 0f)
+                assertTrue("top bound: $mode, $height", viewport.top >= 0f)
+                assertTrue("positive width: $mode", viewport.right > viewport.left)
+                assertTrue("positive height: $mode", viewport.bottom > viewport.top)
+                assertTrue("right bound: $mode, $width", viewport.right <= width)
+                assertTrue("bottom bound: $mode, $height", viewport.bottom <= height)
+            }
+        }
+    }
+
     @Test fun measuredAreaLabelBoxesNeverOverlapOrEscapeTheUsableCanvas() {
         val viewport=GraphViewport(12f,64f,348f,500f)
         val occupied=mutableListOf<GraphLabelBox>()
@@ -65,6 +80,20 @@ class NeuralGalaxyStage2Test {
         assertTrue(result.activityPositions.getValue("one").x < result.activityPositions.getValue("two").x)
         assertNotEquals(result.activityPositions["two"],result.activityPositions["three"])
         assertEquals(result,NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.TIMELINE,emptyList(),emptyList(),events.reversed()))
+    }
+
+    @Test fun conflictingDuplicateActivityIdsHaveStableTimelineEvidence() {
+        val older = GalaxyActivity("shared",1000L,"agent","project","RUNNING","Earlier")
+        val newer = older.copy(timestamp=2000L, type="COMPLETED", summary="Later")
+        val separate = GalaxyActivity("other",1500L,"agent","project","INFO","Distinct event")
+        val records = listOf(older, separate, newer)
+        val forward = NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.TIMELINE,emptyList(),emptyList(),records)
+        val reverse = NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.TIMELINE,emptyList(),emptyList(),records.reversed())
+        assertEquals(forward, reverse)
+        assertEquals(setOf("shared","other"), forward.activityPositions.keys)
+        assertEquals(1500L, forward.firstTimestamp)
+        assertEquals(2000L, forward.lastTimestamp)
+        assertEquals(0, forward.undatedCount)
     }
 
     @Test fun futureAndInvalidRecordedTimesAreFlaggedAndNeverBecomeChronology() {

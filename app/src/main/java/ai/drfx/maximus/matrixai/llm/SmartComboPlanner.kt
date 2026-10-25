@@ -118,9 +118,12 @@ object SmartComboPlanner {
             standby = sorted.drop(1).firstOrNull(),
             eligible = sorted,
             rejectedReasons = rejected,
-            requiresLiveQuotaConfirmation = sorted.firstOrNull()?.quota
-                ?.let { windows -> windows.isEmpty() || windows.any { !isFreshConfirmed(it, task.nowEpochMs) } }
-                ?: false
+            requiresLiveQuotaConfirmation = sorted.firstOrNull()?.let { route ->
+                val windows = route.quota
+                windows.isEmpty() || windows.any { !isFreshConfirmed(it, task.nowEpochMs) } ||
+                    // Dollar credit alone cannot confirm the request/token allowance of a free model.
+                    (route.price?.isFree == true && windows.none { it.kind != LimitKind.DOLLAR_BALANCE_MICROS })
+            } ?: false
         )
     }
 
@@ -159,7 +162,8 @@ object SmartComboPlanner {
             if (window.kind == LimitKind.DOLLAR_BALANCE_MICROS && needed == 0L) continue
             // Reserve at least the current task's demand plus a 15% headroom of the limit
             // where published; do not allocate the provider's quota here.
-            val guard = max(needed, window.limit?.let { (it.toDouble() * 0.15).toLong() } ?: 0L)
+            // Match the admission ledger: fractional headroom must round UP, not down.
+            val guard = max(needed, window.limit?.let { kotlin.math.ceil(it.toDouble() * 0.15).toLong() } ?: 0L)
             if (balance < needed || balance - needed < guard) return "Quota nearing exhaustion: ${window.kind}"
         }
         return null
