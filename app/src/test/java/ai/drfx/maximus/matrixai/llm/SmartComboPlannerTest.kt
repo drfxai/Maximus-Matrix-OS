@@ -52,6 +52,27 @@ class SmartComboPlannerTest {
         assertEquals("backup", choice.standby?.id)
     }
 
+    @Test fun fractionalPublishedQuotaHeadroomRoundsUpLikeAdmissionLedger() {
+        val at = task().nowEpochMs
+        val low = SmartComboPlanner.QuotaWindow(
+            kind = SmartComboPlanner.LimitKind.REQUESTS_PER_MINUTE,
+            remaining = 2L,
+            limit = 10L,
+            observedAtEpochMs = at,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+        )
+        // 15% of 10 requests is 1.5, requiring 2 whole requests of guard.
+        // Reserving one request from a balance of two leaves only one: reject.
+        val rejected = SmartComboPlanner.choose(task(), listOf(route("low", quota = listOf(low))))
+        assertNull(rejected.primary)
+        assertTrue(rejected.rejectedReasons.getValue("low").contains("Quota nearing exhaustion"))
+
+        // Three remaining requests leave two after reservation: exactly enough.
+        val enough = low.copy(remaining = 3L)
+        val accepted = SmartComboPlanner.choose(task(), listOf(route("enough", quota = listOf(enough))))
+        assertEquals("enough", accepted.primary?.id)
+    }
+
     @Test fun switchesBeforeConfirmedTokenWindowExhaustion() {
         val capacity = SmartComboPlanner.QuotaWindow(
             kind = SmartComboPlanner.LimitKind.TOTAL_TOKENS_PER_DAY,
