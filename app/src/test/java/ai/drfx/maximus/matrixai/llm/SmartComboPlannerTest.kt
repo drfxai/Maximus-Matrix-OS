@@ -124,6 +124,37 @@ class SmartComboPlannerTest {
             listOf(route("free", quota = listOf(credit)))).primary?.id)
     }
 
+    @Test fun confirmedDollarCreditAloneCannotConfirmFreeRouteQuota() {
+        val credit = SmartComboPlanner.QuotaWindow(
+            SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS,
+            remaining = 0L, limit = 1_000_000L,
+            observedAtEpochMs = task().nowEpochMs,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+        )
+        val choice = SmartComboPlanner.choose(task(), listOf(route("free", quota = listOf(credit))))
+        assertEquals("free", choice.primary?.id)
+        assertTrue(choice.requiresLiveQuotaConfirmation)
+    }
+
+    @Test fun confirmedRequestWindowResolvesFreeCreditOnlyConfirmation() {
+        val at = task().nowEpochMs
+        val credit = SmartComboPlanner.QuotaWindow(
+            SmartComboPlanner.LimitKind.DOLLAR_BALANCE_MICROS,
+            remaining = 0L, limit = 1_000_000L,
+            observedAtEpochMs = at,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+        )
+        val requests = SmartComboPlanner.QuotaWindow(
+            SmartComboPlanner.LimitKind.REQUESTS_PER_MINUTE,
+            remaining = 100L, limit = 100L,
+            observedAtEpochMs = at,
+            confidence = SmartComboPlanner.Confidence.PROVIDER_VERIFIED
+        )
+        val choice = SmartComboPlanner.choose(task(), listOf(route("free", quota = listOf(credit, requests))))
+        assertEquals("free", choice.primary?.id)
+        assertFalse(choice.requiresLiveQuotaConfirmation)
+    }
+
     @Test fun freeCreditExceptionNeverBypassesRequestWindowExhaustion() {
         val at = task().nowEpochMs
         val windows = listOf(
