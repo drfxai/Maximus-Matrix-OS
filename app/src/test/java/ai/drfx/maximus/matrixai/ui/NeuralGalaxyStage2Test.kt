@@ -82,6 +82,20 @@ class NeuralGalaxyStage2Test {
         assertEquals(result,NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.TIMELINE,emptyList(),emptyList(),events.reversed()))
     }
 
+    @Test fun conflictingDuplicateActivityIdsHaveStableTimelineEvidence() {
+        val older = GalaxyActivity("shared",1000L,"agent","project","RUNNING","Earlier")
+        val newer = older.copy(timestamp=2000L, type="COMPLETED", summary="Later")
+        val separate = GalaxyActivity("other",1500L,"agent","project","INFO","Distinct event")
+        val records = listOf(older, separate, newer)
+        val forward = NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.TIMELINE,emptyList(),emptyList(),records)
+        val reverse = NeuralGalaxyLayouts.prepare(NeuralGalaxyLayout.TIMELINE,emptyList(),emptyList(),records.reversed())
+        assertEquals(forward, reverse)
+        assertEquals(setOf("shared","other"), forward.activityPositions.keys)
+        assertEquals(1500L, forward.firstTimestamp)
+        assertEquals(2000L, forward.lastTimestamp)
+        assertEquals(0, forward.undatedCount)
+    }
+
     @Test fun futureAndInvalidRecordedTimesAreFlaggedAndNeverBecomeChronology() {
         val raw = GalaxyActivity("future",5000L,"source",null,"COMPLETED","Not independently verified")
         val checked = NeuralGalaxyLayouts.clockChecked(raw,1000L)
