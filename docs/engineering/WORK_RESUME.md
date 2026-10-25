@@ -1,5 +1,38 @@
 # MAXIMUS MATRIX OS — continuity checkpoint
 
+## Verified supervisor gate audit — 2026-10-25 (post-merge, build 10036)
+
+This is a **live GitHub readback checkpoint**, not authorization to merge, release, deploy, use paid models or resume ChatGPT Work. Older entries below are historical and can describe now-merged PRs as drafts.
+
+- Verified `main` at `bc9aed009a7c30e264a847d102881a6506c9dce9`, the merge commit of [PR #191](https://github.com/drfxai/Maximus-Matrix-OS/pull/191). `app/build.gradle.kts` has `versionCode=10036`, `versionName=1.0.0`, and unchanged `applicationId=ai.drfx.maximus.matrixai`. The **public release** remains [v1.0.0](https://github.com/drfxai/Maximus-Matrix-OS/releases/tag/v1.0.0) with previously published assets; an updated signed APK is **not verified or published** by this checkpoint.
+- [PR #145](https://github.com/drfxai/Maximus-Matrix-OS/pull/145) is merged. All three continuity instructions were read from current main.
+- No open PRs were returned at this observation. PRs **#184–#191 have merged**. GitHub's submitted-review endpoint returned **zero reviews for each of #184–#191**. The supervisor did not authorize or perform these merges. Independent review remains an unmet process gate; retroactive review cannot replace required pre-merge enforcement.
+- Critical exact-head distinction: the *final* merged heads of [PR #184](https://github.com/drfxai/Maximus-Matrix-OS/pull/184) `10400b00fa048fb8a3037f143105772332ebb948` and [PR #186](https://github.com/drfxai/Maximus-Matrix-OS/pull/186) `b90b5e045bf0f0a21d87d72acd745431aac824f6` differ from the earlier green checkpoint heads. Their exact-head [Actions #40172931960](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40172931960) and [#40173010599](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40173010599) were **IN_PROGRESS** when read; do not substitute earlier green runs. PR #191's exact-head workflow completed SUCCESS, but its review list was empty.
+- The current `main` push [Actions #40173513899](https://github.com/drfxai/Maximus-Matrix-OS/actions/runs/40173513899), head `bc9aed009a7c30e264a847d102881a6506c9dce9`, was **IN_PROGRESS**. Signed upgrade, signer identity, on-device installation and publication remain **NOT VERIFIED**.
+- The live branch API reports `main.protected=false`; repository rulesets return `[]`. [Issue #89](https://github.com/drfxai/Maximus-Matrix-OS/issues/89) is **OPEN**. GitHub integration does not expose a branch-protection/ruleset write action. Repository administration must enforce required exact observed Android checks, mandatory PR reviews, and force-push/deletion restrictions before further merges.
+
+```yaml
+project: drfxai/Maximus-Matrix-OS
+observed_date_utc: "2026-10-25"
+base_sha: bc9aed009a7c30e264a847d102881a6506c9dce9
+task: reconcile merged PRs, exact-head checks, and missing branch review enforcement
+task_state: AWAITING_APPROVAL
+branch: docs/continuity-review-gate-audit-20261025
+changed_paths: [docs/engineering/WORK_RESUME.md]
+implemented: [documentation_only_secret_free_audit_checkpoint]
+tests:
+  - command: GitHub main branch, rulesets, PR review lists, exact-head workflow readbacks
+    result: PASS
+    evidence: "main bc9aed0; PRs 184-191 merged with zero submitted reviews"
+  - command: current main push Actions 40173513899
+    result: PENDING
+  - command: local Gradle, emulator, signed upgrade, physical device
+    result: NOT_RUN
+approvals_needed: [repository_admin_enforce_main_protection, independent_review, explicit_owner_merge_authorization]
+blockers: [issue_89_main_unprotected, review_gate_not_enforced, current_main_CI_pending]
+next_action: enforce branch protection and independent review; verify current exact-main CI and signed upgrade before any publication
+```
+
 ## Reconciled paid quota rounding checkpoint — 2026-10-25
 
 Historical review and pending-CI text below reflects the original PR before the current integration; consult current GitHub PR and CI for latest status.
