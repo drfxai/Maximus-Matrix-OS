@@ -8,6 +8,19 @@ class ProjectProgressContextPolicyTest {
         "Model: model-$revision. Task: continue revision $revision. Proposed result: " +
             ("Revision $revision progress. ").repeat(45) + "Unverified until files/tests are checked."
 
+    @Test fun futureAndExpiredJournalTimestampsCannotEnterModelHandoff() {
+        val now = 1_800_000_000_000L
+        val retention = 30L * 24 * 60 * 60 * 1000
+        assertTrue(ProjectProgressContextPolicy.isRecentTimestamp(now, now))
+        assertTrue(ProjectProgressContextPolicy.isRecentTimestamp(now - retention + 1, now))
+        assertFalse(ProjectProgressContextPolicy.isRecentTimestamp(now - retention, now))
+        assertFalse(ProjectProgressContextPolicy.isRecentTimestamp(now + 1, now))
+        assertFalse(ProjectProgressContextPolicy.isRecentTimestamp(0, now))
+        assertFalse(ProjectProgressContextPolicy.isRecentTimestamp(-1, now))
+        assertFalse(ProjectProgressContextPolicy.isRecentTimestamp(Long.MAX_VALUE, now))
+        assertFalse(ProjectProgressContextPolicy.isRecentTimestamp(1, Long.MAX_VALUE))
+    }
+
     @Test fun newestPersistedJournalEntrySurvivesBothActualPromptBudgets() {
         // rememberProgress appends entries and keeps its last four, oldest first.
         val journal = (1..4).map(::progress)
