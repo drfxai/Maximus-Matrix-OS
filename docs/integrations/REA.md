@@ -27,6 +27,11 @@ an LLM provider, a Pine Script interpreter, or an AI reasoning mode implemented 
 - No APK includes a bundled Hopper, Ghidra, JADX, licensed reverse-engineering
   engine, or copied REA binary. This avoids falsely advertising Android ARM64
   support for tools that currently require x64 Linux/macOS/Windows.
+- **Analyze JS** accepts a user-authorized JavaScript/Electron target exclusively
+  under `/root/workspace`, builds a strictly validated path argument and shows the
+  exact `rea analyze-javascript-application <path> --json` command before execution.
+  Results remain in the bounded Phone Linux console; no file is analyzed on toggle
+  or provider change. Pine is NOT an eligible REA JavaScript target.
 - No API credential, chat history, Pine draft or repository is sent to REA when
   changing modes or checking its version. No reverse engineering is launched
   automatically. Installing packages and analyzing a user-selected target remain
