@@ -110,6 +110,8 @@ internal fun ChatLiveHeader(
     onSearch: () -> Unit,
     onTools: () -> Unit,
     onSettings: () -> Unit,
+    toolsOpen: Boolean = false,
+    toolsLabel: String = "Workspace controls",
     modifier: Modifier = Modifier
 ) {
     val request = state.activeRequest
@@ -169,6 +171,9 @@ internal fun ChatLiveHeader(
                 }
             }
             TokenGauge(state, numbers, onOpenTokens)
+            IconButton(onClick = onTools, modifier = Modifier.size(40.dp).testTag("chat_workspace_controls_toggle")) {
+                Icon(Icons.Default.Tune, toolsLabel, tint = if (toolsOpen) MaximusReference.gold else MaximusReference.muted)
+            }
             Box {
                 IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(40.dp).testTag("chat_header_more")) {
                     Icon(Icons.Default.MoreVert, "More chat actions")
@@ -176,8 +181,6 @@ internal fun ChatLiveHeader(
                 DropdownMenu(menuOpen, { menuOpen = false }) {
                     DropdownMenuItem(text = { Text("Search conversation") }, leadingIcon = { Icon(Icons.Default.Search, null) },
                         onClick = { menuOpen = false; onSearch() })
-                    DropdownMenuItem(text = { Text("Tools, voice and REA") }, leadingIcon = { Icon(Icons.Default.Tune, null) },
-                        onClick = { menuOpen = false; onTools() })
                     DropdownMenuItem(text = { Text("Models & providers") }, leadingIcon = { Icon(Icons.Default.SwapHoriz, null) },
                         onClick = { menuOpen = false; onOpenSwitcher() })
                     DropdownMenuItem(text = { Text("Advanced API settings") }, leadingIcon = { Icon(Icons.Default.Settings, null) },
