@@ -317,18 +317,18 @@ internal fun ChatTypingCard(state: LlmUiState) {
     LaunchedEffect(started) {
         while (started != null) { elapsed = (System.currentTimeMillis() - started).coerceAtLeast(0L); delay(250) }
     }
+    val pet = chatPetEnabled()
     val transition = rememberInfiniteTransition(label = "typing")
+    val pulse by transition.animateFloat(.45f, 1f, infiniteRepeatable(tween(900, easing = FastOutSlowInEasing),
+        RepeatMode.Reverse), label = "typing-working")
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.testTag("chat_typing_card")) {
-        ProviderOrb(provider, brand, true, Modifier.size(30.dp))
+        if (pet) ChatPet(size = 38.dp, working = true) else ProviderOrb(provider, brand, true, Modifier.size(30.dp))
         Column {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                repeat(3) { index ->
-                    val alpha by transition.animateFloat(.25f, 1f, infiniteRepeatable(tween(560, easing = FastOutSlowInEasing),
-                        RepeatMode.Reverse, StartOffset(index * 140)), label = "typing-dot-$index")
-                    Box(Modifier.size(6.dp).graphicsLayer(alpha = alpha).background(brand, CircleShape))
-                }
-                Spacer(Modifier.width(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Working", color = Color(0xFFB4B9C4), fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                    modifier = Modifier.graphicsLayer { alpha = pulse })
+                Box(Modifier.size(5.dp).background(brand, CircleShape))
                 Text((request?.agentName ?: "Assistant") + " · " + shortModelName(request?.modelId ?: state.selectedModel),
                     color = MaximusReference.white, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
@@ -764,5 +764,36 @@ private fun StepRow(label: String, done: Boolean, running: Boolean, failed: Bool
         Spacer(Modifier.width(8.dp))
         Text(label, color = if (failed) Color(0xFFF0585B) else if (done) MaximusReference.white else MaximusReference.muted,
             fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Composer chip for the pending attachment: type icon, name, what was extracted, remove. */
+@Composable
+internal fun ChatAttachmentChip(attachment: ai.drfx.maximus.matrixai.llm.ChatAttachment, onRemove: () -> Unit) {
+    val mime = attachment.mimeType
+    val icon = when {
+        mime.startsWith("audio/") -> Icons.Default.AudioFile
+        mime.startsWith("image/") -> Icons.Default.Image
+        mime == "application/pdf" -> Icons.Default.PictureAsPdf
+        mime == "text/html" -> Icons.Default.Language
+        attachment.summary.startsWith("ZIP") || attachment.summary.startsWith("RAR") ||
+            attachment.summary.startsWith("7-Zip") || attachment.summary.startsWith("TAR") -> Icons.Default.FolderZip
+        else -> Icons.Default.Description
+    }
+    Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF0B2236), border = BorderStroke(1.dp, MaximusReference.stroke),
+        modifier = Modifier.fillMaxWidth().testTag("chat_attachment_chip")) {
+        Row(Modifier.padding(start = 10.dp, end = 2.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, Modifier.size(20.dp), tint = MaximusReference.gold)
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(attachment.name, color = MaximusReference.white, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val detail = attachment.summary.ifBlank { mime } +
+                    (if (attachment.fallbackText != null) " · text extracted" else "")
+                Text(detail, color = MaximusReference.muted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.Close, "Remove attachment", Modifier.size(16.dp))
+            }
+        }
     }
 }

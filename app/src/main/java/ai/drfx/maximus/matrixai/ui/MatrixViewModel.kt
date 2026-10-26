@@ -999,13 +999,18 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
-    fun sendChat(text: String, attachment: ChatAttachment? = null, fromVoice: Boolean = false): Boolean {
+    fun sendChat(text: String, attachmentInput: ChatAttachment? = null, fromVoice: Boolean = false): Boolean {
         if (text.trim().startsWith("/mission ")) { executeMission(text.trim().removePrefix("/mission "), true); return true }
+        // PDFs and other converted files fall back to their extracted text for models that
+        // cannot read the original format; Smart Combo routes always get the text form.
+        val attachment = attachmentInput?.forProvider(
+            if (_llmState.value.smartComboEnabled) null else _llmState.value.provider)
         val prompt = text.trim().ifBlank {
             if (attachment == null) return false else when {
                 attachment.mimeType.startsWith("audio/") -> "Transcribe and respond to this voice message."
                 attachment.mimeType.startsWith("image/") -> "Please analyze the attached image."
-                else -> "Please analyze the attached document."
+                attachment.mimeType == "text/html" -> "Please review the attached HTML page."
+                else -> "Please analyze the attached " + (attachment.summary.substringBefore(" ·").ifBlank { "document" }) + "."
             }
         }
         val current = _llmState.value
@@ -1032,8 +1037,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 "'s capabilities, so General answered." else null
         if (current.isGenerating || projectTeamJob?.isActive == true) return false
         if (current.smartComboEnabled) {
-            if (attachment != null) {
-                appendAssistantError("Free-only Smart Combo currently supports text. Disable it before choosing a verified multimodal route.")
+            if (attachment != null && !attachment.isText) {
+                appendAssistantError("Smart Combo free routes read text, code, documents and archives. Images and audio need a direct vision or audio model.")
                 return false
             }
             if (freeOffers.isEmpty()) {
@@ -1063,7 +1068,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             }
             if (attachment.mimeType == "application/pdf" &&
                 current.provider != LlmProvider.ANTHROPIC && current.provider != LlmProvider.GEMINI) {
-                appendAssistantError("PDF upload is supported with Anthropic or Gemini here. Text files work with all providers.")
+                appendAssistantError("No text could be extracted from this PDF (it may be scanned). Gemini and Claude read PDFs directly; select one of them.")
                 return false
             }
         }
@@ -1757,7 +1762,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             append("• Trade Setup: Entry: ${analysis.tradePlan.entryZone} | SL: ${analysis.tradePlan.stopLoss} | TP: ${analysis.tradePlan.target1} (R:R: ${analysis.tradePlan.riskRewardRatio})\n\n")
             append("Let's review this chart setup together. What additional risk or confirmation signals should I look for before execution?")
         }
-        sendChat(text = prompt, attachment = attachment)
+        sendChat(text = prompt, attachmentInput = attachment)
     }
 
     fun appendEvent(event: MatrixEvent) {

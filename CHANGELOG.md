@@ -6,6 +6,9 @@
 - New Models & providers switcher: animated provider cards with key status, a searchable model list with capability tags, context size and measured response time, filters (responsive, vision, reasoning, free) and persona chips. Switching to a provider with a saved key loads its models immediately.
 - Smart key entry: pasting a key detects the provider, verifies the key by listing models and then tests which models answer (one tiny request each, can be turned off), showing the fastest working models first.
 - Smart Combo failover: if the free model fails, hits a rate limit or quota, or does not start answering within 25 seconds before any text appears, the same message goes to the next verified free model automatically (up to three models) and Chat shows which model took over. The header shows the model that is ready next and its standby. A reply that breaks off mid-stream is kept and can be finished with Continue.
+- Code in Chat is recognised by content even without a language tag (Pine Script, Python, Java, C/C++, C#, Kotlin, JavaScript/TypeScript, Rust, Go, SQL, shell, JSON and more) and shown with proper syntax colours, including in the full-screen viewer.
+- Chat reads more files: PDF (native for Gemini and Claude, extracted text for other providers), HTML, text and code, Word/Excel/PowerPoint, ZIP, RAR (RAR4), 7z and TAR archives, common audio formats and all image formats. Archives are read with size and entry limits.
+- New Chat pet: a small blue robot whose screen switches between a terminal prompt and happy eyes, with a pulsing "Working" label while a reply is written. It follows the companion and animation settings.
 - Public version 1.0.0, package identity and signing certificate are preserved; the Android build number increases for an in-place update.
 
 ## V1.0.0 — internal build 10035

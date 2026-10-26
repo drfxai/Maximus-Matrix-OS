@@ -100,8 +100,20 @@ data class ChatAttachment(
     val mimeType: String,
     val data: String,
     val isText: Boolean,
-    val durationMs: Long = 0
-)
+    val durationMs: Long = 0,
+    /** Extracted text used when the chosen model cannot read the original format (e.g. a PDF). */
+    val fallbackText: String? = null,
+    /** Short description for the attachment chip, e.g. "ZIP · 12 text files". */
+    val summary: String = ""
+) {
+    /** The form of this attachment that [provider] can read, or the original when it can. */
+    fun forProvider(provider: LlmProvider?): ChatAttachment {
+        val text = fallbackText ?: return this
+        val nativePdf = mimeType == "application/pdf" && provider in setOf(LlmProvider.GEMINI, LlmProvider.ANTHROPIC)
+        if (nativePdf) return this
+        return copy(mimeType = "text/plain", data = "[Text extracted from $name]\n" + text, isText = true, fallbackText = null)
+    }
+}
 
 enum class ConnectionStatus {
     DISCONNECTED,

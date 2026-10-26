@@ -66,6 +66,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
@@ -380,7 +381,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         scope.launch {
             runCatching { withContext(Dispatchers.IO) { loadChatAttachment(context, uri) } }
                 .onSuccess { attachment = it; attachmentError = null }
-                .onFailure { attachmentError = context.getString(R.string.speech_attachment_read_error) }
+                .onFailure { error ->
+                    attachmentError = (error as? IllegalArgumentException)?.message
+                        ?: context.getString(R.string.speech_attachment_read_error)
+                }
         }
     }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -758,7 +762,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     MaximusFramedCard {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            WorkspaceCompanion(modifier = Modifier.size(46.dp))
+                            if (chatPetEnabled()) ChatPet(size = 56.dp) else WorkspaceCompanion(modifier = Modifier.size(46.dp))
                             Column(Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Text("MAXIMUS AI Chat", color = MaximusReference.white,
@@ -953,27 +957,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         if (state.isGenerating) {
             TextButton(onClick = { viewModel.cancelChat() }) { Text(stringResource(R.string.chat_stop)) }
         }
-        if (attachment != null) {
-            AssistChip(
-                onClick = { attachment = null },
-                label = {
-                    Text(
-                        attachment!!.name +
-                            (if (attachment!!.mimeType.startsWith("audio/")) " · " + attachment!!.durationMs / 1_000 + "s" else "") +
-                            "  ·  remove",
-                        maxLines = 1,
-                        fontSize = 11.sp
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        if (attachment!!.mimeType.startsWith("audio/")) Icons.Default.Mic else Icons.Default.AttachFile,
-                        null,
-                        modifier = Modifier.size(14.dp)
-                    )
-                },
-                modifier = Modifier.height(28.dp)
-            )
+        attachment?.let { current ->
+            ChatAttachmentChip(current, onRemove = { attachment = null })
         }
         if (attachment?.mimeType?.startsWith("image/") == true &&
             ModelImagePolicy.requiresUnverifiedRouterAttempt(
@@ -1083,7 +1068,10 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                                 onClick = { attachmentMenuOpen = false; imagePicker.launch("image/*") })
                             DropdownMenuItem(text = { Text(stringResource(R.string.speech_attach_document)) },
                                 leadingIcon = { Icon(Icons.Default.AttachFile, null) },
-                                onClick = { attachmentMenuOpen = false; filePicker.launch(arrayOf("text/*", "application/pdf", "application/json")) })
+                                onClick = { attachmentMenuOpen = false; filePicker.launch(arrayOf("*/*")) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.chat_attach_audio_file)) },
+                                leadingIcon = { Icon(Icons.Default.AudioFile, null) },
+                                onClick = { attachmentMenuOpen = false; filePicker.launch(arrayOf("audio/*")) })
                             DropdownMenuItem(text = { Text(stringResource(R.string.speech_record)) },
                                 leadingIcon = { Icon(Icons.Default.Mic, null) },
                                 onClick = {
@@ -1774,48 +1762,4 @@ private class VoicePlaybackController(private val context: Context) {
             active.prepareAsync()
         } catch (error: Exception) { stop(); throw error }
     }
-}
-
-private fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
-    val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
-    val isText = mimeType.startsWith("text/") || mimeType == "application/json"
-    var name = context.getString(R.string.conv_attachment_default)
-    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-        if (cursor.moveToFirst() && nameIndex >= 0) {
-            name = cursor.getString(nameIndex) ?: context.getString(R.string.conv_attachment_default)
-        }
-    }
-    if (mimeType.startsWith("image/") || name.lowercase().endsWith(".heic") ||
-        name.lowercase().endsWith(".heif") || name.lowercase().endsWith(".bmp")) {
-        val prepared = ImageInputPipeline.prepare(context, uri, name)
-        return ChatAttachment(name = prepared.name, mimeType = "image/jpeg",
-            data = Base64.encodeToString(prepared.jpeg, Base64.NO_WRAP), isText = false)
-    }
-    require(isText || mimeType in setOf("image/png", "image/jpeg", "image/webp", "application/pdf")) {
-        context.getString(R.string.conv_attachment_unsupported)
-    }
-    val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
-        val output = java.io.ByteArrayOutputStream()
-        val buffer = ByteArray(8192)
-        while (true) {
-            val count = stream.read(buffer)
-            if (count < 0) break
-            require(output.size() + count <= 5 * 1024 * 1024) { context.getString(R.string.conv_attachment_size) }
-            output.write(buffer, 0, count)
-        }
-        output.toByteArray()
-    }
-        ?: throw IllegalStateException(context.getString(R.string.conv_attachment_read))
-    require(bytes.isNotEmpty()) { context.getString(R.string.conv_attachment_empty) }
-    if (mimeType.startsWith("image/")) {
-        val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-        require(options.outWidth > 0 && options.outHeight > 0 &&
-            options.outWidth.toLong() * options.outHeight <= 40_000_000) { context.getString(R.string.conv_image_invalid) }
-    }
-    if (mimeType == "application/pdf") require(bytes.take(5).toByteArray().toString(Charsets.US_ASCII) == "%PDF-") { context.getString(R.string.conv_pdf_invalid) }
-    if (isText) require(!bytes.contains(0)) { context.getString(R.string.conv_text_binary) }
-    val data = if (isText) String(bytes, Charsets.UTF_8) else Base64.encodeToString(bytes, Base64.NO_WRAP)
-    return ChatAttachment(name = name, mimeType = mimeType, data = data, isText = isText)
 }

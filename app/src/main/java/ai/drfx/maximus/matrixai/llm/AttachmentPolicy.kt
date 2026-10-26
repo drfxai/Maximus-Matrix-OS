@@ -3,11 +3,24 @@ package ai.drfx.maximus.matrixai.llm
 object AttachmentPolicy {
     const val MAX_BYTES = 10 * 1024 * 1024
     private val images = setOf("image/png", "image/jpeg", "image/webp", "image/gif")
+    private val audio = setOf("audio/m4a", "audio/mp4", "audio/x-m4a", "audio/mpeg", "audio/mp3", "audio/wav",
+        "audio/x-wav", "audio/aac", "audio/ogg", "audio/flac", "audio/webm", "audio/amr", "audio/3gpp")
+
+    /** File name extension the transcription endpoint uses to recognise the audio container. */
+    fun audioExtension(mime: String): String = when (mime) {
+        "audio/mpeg", "audio/mp3" -> "mp3"
+        "audio/wav", "audio/x-wav" -> "wav"
+        "audio/ogg" -> "ogg"
+        "audio/flac" -> "flac"
+        "audio/webm" -> "webm"
+        "audio/aac" -> "aac"
+        else -> "m4a"
+    }
     fun validate(provider: LlmProvider, attachment: ChatAttachment) {
         require(attachment.data.isNotBlank()) { "Attachment payload is unavailable. Attach the file again." }
         require(attachment.data.length <= MAX_BYTES * 4 / 3 + 8) { "Attachment exceeds the 10 MiB limit." }
         if (attachment.isText) {
-            require(attachment.mimeType.startsWith("text/") || attachment.mimeType in setOf("application/json", "application/javascript", "application/xml")) {
+            require(attachment.mimeType.startsWith("text/") || attachment.mimeType in setOf("application/json", "application/javascript", "application/xml", "image/svg+xml")) {
                 "Unsupported text attachment MIME type."
             }
             require(attachment.data.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Text attachment exceeds the 10 MiB limit." }
@@ -29,7 +42,7 @@ object AttachmentPolicy {
             else -> true
         }
         require(validSignature) { "Attachment content does not match its declared format." }
-        require(mime in images || mime == "application/pdf" || mime in setOf("audio/m4a", "audio/mp4", "audio/x-m4a")) {
+        require(mime in images || mime == "application/pdf" || mime in audio) {
             "Unsupported attachment format."
         }
         require(!mime.startsWith("audio/") || provider in setOf(LlmProvider.GEMINI, LlmProvider.OPENAI)) {

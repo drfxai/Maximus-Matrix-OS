@@ -116,6 +116,10 @@ internal fun WorkspaceCodeCard(
     var fullScreen by remember(part.text) { mutableStateOf(false) }
     val lineCount = remember(part.text) { part.text.count { it == '\n' } + 1 }
     val highlight: (String) -> AnnotatedString = if (language.extension == "pine") ::highlightPineLine else { line -> highlightCodeLine(line) }
+    val highlighter = remember(part.text, language.extension) {
+        if (language.extension == "pine") null else CodeHighlighter.forLanguage(part.text, language.extension)
+    }
+    val highlightAt: ((Int, String) -> AnnotatedString)? = highlighter?.let { it::line }
     Surface(shape = RoundedCornerShape(12.dp), color = MaximusReference.navy,
         border = BorderStroke(1.dp, MaximusReference.stroke), modifier = Modifier.fillMaxWidth().animateContentSize()) {
         Column {
@@ -171,11 +175,11 @@ internal fun WorkspaceCodeCard(
             }
             HorizontalDivider(color = MaximusReference.stroke)
             // Virtualized: only visible rows are laid out, so 10k+ line replies stay smooth.
-            LargeCodeView(part.text, maxHeight = 340.dp, highlight = highlight)
+            LargeCodeView(part.text, maxHeight = 340.dp, highlight = highlight, highlightAt = highlightAt)
         }
     }
     if (fullScreen) LargeCodeDialog(title ?: "source.${language.extension}", part.text,
-        onDismiss = { fullScreen = false }, highlight = highlight, actions = {
+        onDismiss = { fullScreen = false }, highlight = highlight, highlightAt = highlightAt, actions = {
             IconButton(onClick = { clipboard.setText(AnnotatedString(part.text)); copied = true }) {
                 Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy, stringResource(R.string.chat_copy))
             }
