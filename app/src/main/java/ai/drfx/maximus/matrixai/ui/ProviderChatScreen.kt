@@ -429,6 +429,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 if (!searchOpen) { messageSearch = ""; followLatest = true }
             },
             onTools = { workspaceControlsOpen = !workspaceControlsOpen },
+            toolsOpen = workspaceControlsOpen,
+            toolsLabel = stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show),
             onSettings = { settingsOpen = true }
         )
         if (searchOpen) OutlinedTextField(
