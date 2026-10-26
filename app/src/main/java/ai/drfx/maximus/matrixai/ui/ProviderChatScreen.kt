@@ -206,11 +206,9 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         }
     }
     var tokenDetailsOpen by remember { mutableStateOf(false) }
-    var quickKeyDialogOpen by remember { mutableStateOf(false) }
+    var switcherOpen by remember { mutableStateOf(false) }
+    var switcherKeyEntry by remember { mutableStateOf(false) }
     var confirmDirectProvider by remember { mutableStateOf(false) }
-    var quickKeyTargetProvider by remember { mutableStateOf(state.provider) }
-    var quickKeyInput by remember { mutableStateOf("") }
-    var quickConnectRequested by remember { mutableStateOf(false) }
     var showAllModels by remember { mutableStateOf(false) }
     var scanConfirmOpen by remember { mutableStateOf(false) }
 
@@ -229,7 +227,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         } else attachmentError = context.getString(R.string.ui_camera_permission)
     }
 
-    LaunchedEffect(state.provider) { apiKey = ""; quickKeyInput = ""; attachment = null }
+    LaunchedEffect(state.provider) { apiKey = ""; attachment = null }
     val listState = rememberLazyListState()
     var followLatest by remember(activeSessionId) { mutableStateOf(true) }
     val showJumpToLatest = messageSearch.isBlank() && messages.isNotEmpty() && listState.canScrollForward
@@ -419,50 +417,27 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         modifier = modifier.fillMaxSize().padding(horizontal = 2.dp, vertical = 0.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        if (!keyboardVisible) Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { sessionsOpen = true }) { Icon(Icons.Default.Menu, stringResource(R.string.ui_conversations)) }
-            Column(Modifier.weight(1f).clickable { sessionsOpen = true }) {
-                Text("MAXIMUS", color = MaximusReference.gold, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                val sessionLabel = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty()
-                if (sessionLabel.isNotBlank()) Text(sessionLabel, color = MaximusReference.muted, fontSize = 10.sp,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            IconButton(onClick = { tokenDetailsOpen = true }) {
-                Icon(Icons.Default.DataUsage, stringResource(R.string.dash_session_tokens))
-            }
-            IconButton(onClick = { workspaceControlsOpen = !workspaceControlsOpen },
-                modifier = Modifier.testTag("chat_workspace_controls_toggle")) {
-                Icon(Icons.Default.Tune,
-                    stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show))
-            }
-            IconButton(onClick = {
+        if (!keyboardVisible) ChatLiveHeader(
+            state = state,
+            sessionTitle = sessions.firstOrNull { it.id == activeSessionId }?.title.orEmpty(),
+            sendable = sendable,
+            onMenu = { sessionsOpen = true },
+            onOpenSwitcher = { switcherKeyEntry = !state.hasSavedKey; switcherOpen = true },
+            onOpenTokens = { tokenDetailsOpen = true },
+            onSearch = {
                 searchOpen = !searchOpen
                 if (!searchOpen) { messageSearch = ""; followLatest = true }
-            }) {
-                Icon(Icons.Default.Search, "Search conversation")
-            }
-            IconButton(onClick = { settingsOpen = true }) {
-                Icon(Icons.Default.Settings, "Chat settings")
-            }
-        }
+            },
+            onTools = { workspaceControlsOpen = !workspaceControlsOpen },
+            toolsOpen = workspaceControlsOpen,
+            toolsLabel = stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show),
+            onSettings = { settingsOpen = true }
+        )
         if (searchOpen) OutlinedTextField(
             value = messageSearch, onValueChange = { messageSearch = it },
             modifier = Modifier.fillMaxWidth(), singleLine = true,
             label = { Text("Search this conversation") }
         )
-        if (!keyboardVisible) {
-            MaximusContextStrip(
-                usedFraction = if (displayedModel.isBlank() || !sendable) null else metrics.contextUsagePercent,
-                remaining = if (displayedModel.isBlank() || !sendable) stringResource(R.string.api_unknown)
-                    else numberFormat.format(metrics.remainingContextTokens),
-                provider = displayedProvider.displayName,
-                model = displayedModel,
-                modifier = Modifier.clickable { settingsOpen = true },
-                compact = true
-            )
-        }
-        if (!keyboardVisible) ReaWorkspaceControls(Modifier.fillMaxWidth())
         if (workspaceControlsOpen && !keyboardVisible) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.nav_chat), fontSize = 11.sp) })
             FilterChip(selected = false, onClick = onWork, label = { Text(stringResource(R.string.ui_work), fontSize = 11.sp) })
@@ -495,7 +470,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         // Optional controls share a bounded viewport so the conversation retains space.
         AnimatedVisibility(visible = workspaceControlsOpen && !keyboardVisible, enter = fadeIn(), exit = fadeOut()) {
             Column(
-                Modifier.fillMaxWidth().heightIn(max = 240.dp).verticalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth().heightIn(max = 280.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // Compact unified header: Model info, Token telemetry badge, settings trigger, voice toggle
@@ -697,28 +672,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     )
                 }
 
-                // Dedicated In-Chat LLM Provider Switcher Bar
-                ChatProviderSwitcherBar(
-                    currentProvider = state.provider,
-                    currentModel = state.selectedModel,
-                    models = state.models,
-                    probeEvidence = state.modelProbeEvidence,
-                    hasSavedKey = state.hasSavedKey,
-                    onSelectProvider = { provider ->
-                        viewModel.applyProviderPreset(provider)
-                        baseUrl = viewModel.llmState.value.baseUrl
-                    },
-                    onSelectModel = { modelId ->
-                        viewModel.selectModel(modelId)
-                    },
-                    onConfigureKey = { provider ->
-                        if (state.provider != provider) viewModel.applyProviderPreset(provider)
-                        baseUrl = viewModel.llmState.value.baseUrl
-                        quickKeyTargetProvider = provider
-                        quickKeyInput = ""
-                        quickKeyDialogOpen = true
-                    }
-                )
+                ReaWorkspaceControls(Modifier.fillMaxWidth())
 
                 // A missing catalog-confirmed free route should never strand a configured
                 // user in an opaque error. Manual provider usage requires a separate tap
@@ -818,11 +772,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         )
                         if (!state.hasSavedKey) {
                             Button(
-                                onClick = {
-                                    quickKeyTargetProvider = state.provider
-                                    quickKeyInput = ""
-                                    quickKeyDialogOpen = true
-                                },
+                                onClick = { switcherKeyEntry = true; switcherOpen = true },
                                 modifier = Modifier.fillMaxWidth(),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                 colors = ButtonDefaults.buttonColors(
@@ -942,7 +892,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     }
                     if (state.isGenerating) {
                         item {
-                            GeneratingPulse(state.provider.displayName)
+                            ChatTypingCard(state)
                         }
                     }
                 }
@@ -1259,100 +1209,25 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             }) { Text("Send test request") } },
             dismissButton = { TextButton(onClick = { confirmApiTest = false }) { Text("Cancel") } })
     }
-    // Quick In-Chat API Key Entry Dialog: detect the provider from the key, connect, then test models.
-    if (quickKeyDialogOpen) {
-        val detected = remember(quickKeyInput) { ai.drfx.maximus.matrixai.llm.ProviderKeyDetector.detect(quickKeyInput) }
-        val switching = remember(quickKeyInput, state.provider) {
-            ai.drfx.maximus.matrixai.llm.ProviderKeyDetector.mismatch(state.provider, quickKeyInput)
-        }
-        val needsEndpoint = quickKeyTargetProvider.isNineRouter || quickKeyTargetProvider == LlmProvider.OPENAI_COMPATIBLE ||
-            switching?.provider == LlmProvider.OPENAI_COMPATIBLE || detected?.ambiguous == true
-        val connected = quickConnectRequested && state.status in setOf(ConnectionStatus.CONFIGURED, ConnectionStatus.CONNECTED,
-            ConnectionStatus.DEGRADED) && state.models.isNotEmpty()
-        AlertDialog(
-            onDismissRequest = { quickKeyDialogOpen = false; quickConnectRequested = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Key, null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.chat_connect_provider, (switching?.service ?: state.provider.displayName)), fontSize = 16.sp)
-                }
-            },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = when (quickKeyTargetProvider) {
-                            LlmProvider.GEMINI -> stringResource(R.string.conv_gemini_hint)
-                            LlmProvider.NVIDIA -> stringResource(R.string.conv_nvidia_hint)
-                            LlmProvider.ROUTER_9_SMART -> stringResource(R.string.conv_router_hint)
-                            LlmProvider.ROUTER_9_COMBO -> stringResource(R.string.conv_combo_hint)
-                            else -> stringResource(R.string.chat_enter_provider_key, quickKeyTargetProvider.displayName)
-                        },
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 16.sp
-                    )
-                    SmartApiKeyField(
-                        value = quickKeyInput,
-                        onValueChange = {
-                            quickKeyInput = it
-                            quickConnectRequested = false
-                            viewModel.invalidateApiInputs()
-                        },
-                        selected = state.provider,
-                        label = stringResource(R.string.chat_api_key),
-                        onPaste = {
-                            val clip = clipboardManager.getText()?.text.orEmpty()
-                            if (clip.isNotBlank()) { quickKeyInput = clip.trim(); quickConnectRequested = false; viewModel.invalidateApiInputs() }
-                        }
-                    )
-                    if (needsEndpoint) {
-                        val suggested = switching?.baseUrl ?: detected?.takeIf { !it.ambiguous }?.baseUrl
-                        LaunchedEffect(suggested) { if (suggested != null && (baseUrl.isBlank() || baseUrl == state.provider.defaultBaseUrl)) baseUrl = suggested }
-                        OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it; quickConnectRequested = false; viewModel.invalidateApiInputs() },
-                            label = { Text(stringResource(R.string.chat_trusted_endpoint)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    }
-                    if (quickConnectRequested) when {
-                        state.status == ConnectionStatus.DETECTING -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Checking the key and listing chat models…", fontSize = 12.sp)
-                        }
-                        state.status == ConnectionStatus.ERROR -> Text(state.statusMessage, color = MaterialTheme.colorScheme.error,
-                            fontSize = 12.sp, modifier = Modifier.testTag("api_connect_error"))
-                        connected -> {
-                            Text("✓ Key accepted by ${state.provider.displayName} · ${state.models.size} chat models listed",
-                                color = Color(0xFF2AD49F), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.testTag("api_connect_ok"))
-                            ModelCompatibilityPanel(state, showAllModels, { showAllModels = it },
-                                onScan = { scanConfirmOpen = true }, onCancel = viewModel::cancelModelScan)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                if (connected) Button(onClick = { quickKeyDialogOpen = false; quickConnectRequested = false }) { Text("Done") }
-                else Button(
-                    onClick = {
-                        val key = quickKeyInput.trim()
-                        if (key.isNotBlank()) {
-                            quickConnectRequested = true
-                            viewModel.connectWithKey(if (needsEndpoint) baseUrl else "", key)
-                        }
-                    },
-                    enabled = quickKeyInput.isNotBlank() && state.status != ConnectionStatus.DETECTING,
-                    modifier = Modifier.testTag("api_connect_button")
-                ) {
-                    Text("Connect & list models")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { quickKeyDialogOpen = false; quickConnectRequested = false }) {
-                    Text(stringResource(R.string.studio_cancel))
-                }
-            }
-        )
-    }
+    if (switcherOpen) ModelSwitcherSheet(
+        state = state,
+        hasKey = { provider -> viewModel.providerHasKey(provider) },
+        startWithKeyEntry = switcherKeyEntry,
+        onDismiss = { switcherOpen = false },
+        onSelectProvider = { provider ->
+            viewModel.applyProviderPreset(provider, discover = true)
+            baseUrl = viewModel.llmState.value.baseUrl
+        },
+        onSelectModel = { viewModel.selectModel(it) },
+        onSelectAgent = { viewModel.selectAgent(it) },
+        onConnectKey = { endpoint, key -> viewModel.connectWithKey(endpoint, key, autoTest = true) },
+        onSmartCombo = { enabled -> if (enabled) viewModel.setSmartComboEnabled(true) else confirmDirectProvider = true },
+        onScan = { scanConfirmOpen = true },
+        onCancelScan = viewModel::cancelModelScan,
+        onAutoTest = viewModel::setAutoTestModels,
+        onReloadModels = { viewModel.detectApi(state.baseUrl, "") },
+        onAdvanced = { switcherOpen = false; settingsOpen = true }
+    )
     if (scanConfirmOpen) ModelScanConfirmDialog(state,
         onConfirm = { revision -> scanConfirmOpen = false; viewModel.scanModelCompatibility(revision) },
         onDismiss = { scanConfirmOpen = false })
@@ -1674,239 +1549,6 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-/**
- * Dedicated in-chat interactive LLM Provider Switcher Bar (Compact 50% size).
- * Precision micro-design: 1-row layout, 11dp icons, 9.5sp crisp typography, inline model selector.
- */
-@Composable
-private fun ChatProviderSwitcherBar(
-    currentProvider: LlmProvider,
-    currentModel: String,
-    models: List<ModelDescriptor>,
-    probeEvidence: Map<String, ModelProbeEvidence>,
-    hasSavedKey: Boolean,
-    onSelectProvider: (LlmProvider) -> Unit,
-    onSelectModel: (String) -> Unit,
-    onConfigureKey: (LlmProvider) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var modelPickerOpen by remember { mutableStateOf(false) }
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-        border = BorderStroke(0.75.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 3.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Horizontal micro-chips for providers
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 1. Google Gemini
-                MicroProviderChip(
-                    name = "Gemini",
-                    modelSuffix = if (currentProvider == LlmProvider.GEMINI) currentModel.removePrefix("gemini-").take(10) else null,
-                    icon = Icons.Default.AutoAwesome,
-                    brandColor = MaterialTheme.colorScheme.primary,
-                    selected = currentProvider == LlmProvider.GEMINI,
-                    onChipClick = { onSelectProvider(LlmProvider.GEMINI) },
-                    onDropdownClick = { modelPickerOpen = true }
-                )
-
-                // 2. NVIDIA NIM
-                MicroProviderChip(
-                    name = "NVIDIA NIM",
-                    modelSuffix = if (currentProvider == LlmProvider.NVIDIA) currentModel.substringAfterLast("/").take(10) else null,
-                    icon = Icons.Default.Memory,
-                    brandColor = MaterialTheme.colorScheme.primary,
-                    selected = currentProvider == LlmProvider.NVIDIA,
-                    onChipClick = { onSelectProvider(LlmProvider.NVIDIA) },
-                    onDropdownClick = { modelPickerOpen = true }
-                )
-
-                // 3. 9Router
-                MicroProviderChip(
-                    name = "9Router",
-                    modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_SMART) currentModel.take(10) else null,
-                    icon = Icons.Default.Hub,
-                    brandColor = MaterialTheme.colorScheme.primary,
-                    selected = currentProvider == LlmProvider.ROUTER_9_SMART,
-                    onChipClick = { onSelectProvider(LlmProvider.ROUTER_9_SMART) },
-                    onDropdownClick = { modelPickerOpen = true }
-                )
-
-                // 4. 9Router (server combo)
-                MicroProviderChip(
-                    name = stringResource(R.string.chat_server_combo),
-                    modelSuffix = if (currentProvider == LlmProvider.ROUTER_9_COMBO) currentModel.take(10) else null,
-                    icon = Icons.Default.AltRoute,
-                    brandColor = MaterialTheme.colorScheme.primary,
-                    selected = currentProvider == LlmProvider.ROUTER_9_COMBO,
-                    onChipClick = { onSelectProvider(LlmProvider.ROUTER_9_COMBO) },
-                    onDropdownClick = { modelPickerOpen = true }
-                )
-
-                // 5. OpenAI
-                MicroProviderChip(
-                    name = "OpenAI",
-                    modelSuffix = if (currentProvider == LlmProvider.OPENAI) currentModel.take(8) else null,
-                    icon = Icons.Default.Bolt,
-                    brandColor = MaterialTheme.colorScheme.primary,
-                    selected = currentProvider == LlmProvider.OPENAI,
-                    onChipClick = { onSelectProvider(LlmProvider.OPENAI) },
-                    onDropdownClick = { modelPickerOpen = true }
-                )
-
-                // 6. Claude
-                MicroProviderChip(
-                    name = "Claude",
-                    modelSuffix = if (currentProvider == LlmProvider.ANTHROPIC) currentModel.removePrefix("claude-").take(8) else null,
-                    icon = Icons.Default.Psychology,
-                    brandColor = MaterialTheme.colorScheme.primary,
-                    selected = currentProvider == LlmProvider.ANTHROPIC,
-                    onChipClick = { onSelectProvider(LlmProvider.ANTHROPIC) },
-                    onDropdownClick = { modelPickerOpen = true }
-                )
-            }
-
-            Spacer(Modifier.width(4.dp))
-
-            // Micro Key Status Pill
-            Surface(
-                onClick = { onConfigureKey(currentProvider) },
-                shape = RoundedCornerShape(6.dp),
-                color = if (hasSavedKey) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f),
-                border = BorderStroke(0.75.dp, if (hasSavedKey) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        if (hasSavedKey) Icons.Default.CheckCircle else Icons.Default.Key,
-                        contentDescription = stringResource(R.string.chat_configure_key_description),
-                        tint = if (hasSavedKey) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.size(10.dp)
-                    )
-                    Spacer(Modifier.width(3.dp))
-                    Text(
-                        text = stringResource(if (hasSavedKey) R.string.conv_key_ready else R.string.conv_key_setup),
-                        fontSize = 8.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (hasSavedKey) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                }
-            }
-
-            if (modelPickerOpen) WorkspaceChoiceSheet(
-                title = stringResource(R.string.chat_select_model),
-                choices = ModelCompatibilityFilter.visible(models, probeEvidence, false, currentModel).map { WorkspaceChoice(it.id, it.id, modelProbeChoiceDetail(probeEvidence[it.id]) + " · " + it.capabilities.joinToString(" · ") { capability -> capability.name.lowercase() }, it.capabilities.map { capability -> capability.name.lowercase() }) },
-                selected = currentModel,
-                confirmSelection = true,
-                onDismiss = { modelPickerOpen = false },
-                onSelect = { onSelectModel(it); modelPickerOpen = false }
-            )
-        }
-    }
-}
-
-@Composable
-private fun MicroProviderChip(
-    name: String,
-    modelSuffix: String?,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    brandColor: Color,
-    selected: Boolean,
-    onChipClick: () -> Unit,
-    onDropdownClick: () -> Unit
-) {
-    val chipColor by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        label = "provider-selection")
-    Surface(
-        onClick = onChipClick,
-        shape = RoundedCornerShape(12.dp),
-        color = chipColor,
-        border = BorderStroke(
-            width = if (selected) 1.dp else 0.75.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = name,
-                fontSize = 12.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            if (selected && !modelSuffix.isNullOrBlank()) {
-                Spacer(Modifier.width(3.dp))
-                Text(
-                    text = "· $modelSuffix",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = brandColor
-                )
-                Spacer(Modifier.width(2.dp))
-                Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = stringResource(R.string.chat_select_model),
-                    tint = brandColor,
-                    modifier = Modifier
-                        .size(11.dp)
-                        .clickable(onClick = onDropdownClick)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun GeneratingPulse(provider: String) {
-    val animation = rememberInfiniteTransition(label = "generation")
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        WorkspaceCompanion(working = true, modifier = Modifier.size(42.dp))
-        Surface(color = MaximusReference.navy, shape = RoundedCornerShape(12.dp)) {
-            Column(Modifier.padding(horizontal = 11.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    repeat(3) { index ->
-                        val opacity by animation.animateFloat(
-                            initialValue = .25f, targetValue = 1f,
-                            animationSpec = infiniteRepeatable(tween(600, easing = FastOutSlowInEasing),
-                                RepeatMode.Reverse, initialStartOffset = StartOffset(index * 150)),
-                            label = "thinking-dot-$index")
-                        Box(Modifier.size(6.dp).graphicsLayer(alpha = opacity)
-                            .background(MaximusReference.orange, CircleShape))
-                    }
-                }
-                Text(stringResource(R.string.chat_generating_provider, provider),
-                    color = MaximusReference.muted, fontSize = 11.sp)
             }
         }
     }

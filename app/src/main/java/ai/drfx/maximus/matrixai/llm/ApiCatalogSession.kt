@@ -28,9 +28,10 @@ class ApiCatalogSession(private val clock: () -> Long = System::currentTimeMilli
     }
     /** Evidence can only be recorded for the currently authorized account/catalog/selection revision. */
     @Synchronized fun recordProbe(expected: Long, provider: LlmProvider, endpoint: String,
-        credential: String, model: String, outcome: ModelProbeOutcome, failure: ProviderFailure? = null): Boolean {
+        credential: String, model: String, outcome: ModelProbeOutcome, failure: ProviderFailure? = null,
+        latencyMs: Long? = null): Boolean {
         if (!permits(expected, provider, endpoint, credential, model)) return false
-        probes[model] = ModelProbeEvidence(outcome, clock(), failure)
+        probes[model] = ModelProbeEvidence(outcome, clock(), failure, latencyMs?.takeIf { it in 1L..120_000L })
         return true
     }
     /** Immutable projection; contains no credentials, prompts, response bodies or raw errors. */

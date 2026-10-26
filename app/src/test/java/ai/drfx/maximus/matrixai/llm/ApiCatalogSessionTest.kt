@@ -91,4 +91,15 @@ class ApiCatalogSessionTest {
         assertFalse(observation.isFresh(1001L + ApiCatalogSession.CATALOG_TTL_MS))
         assertFalse(ModelProbeEvidence(ModelProbeOutcome.SUCCEEDED, Long.MIN_VALUE).isFresh(Long.MAX_VALUE))
     }
+    @Test fun probeLatencyIsKeptOnlyWhenPlausible() {
+        val session = ApiCatalogSession { 1000 }
+        val revision = session.invalidate()
+        session.bind(revision, LlmProvider.OPENAI, "https://api.openai.com/v1", "key", listOf(model))
+        assertTrue(session.recordProbe(revision, LlmProvider.OPENAI, "https://api.openai.com/v1", "key", "chat",
+            ModelProbeOutcome.SUCCEEDED, latencyMs = 840))
+        assertEquals(840L, session.probeEvidence()["chat"]?.latencyMs)
+        assertTrue(session.recordProbe(revision, LlmProvider.OPENAI, "https://api.openai.com/v1", "key", "chat",
+            ModelProbeOutcome.SUCCEEDED, latencyMs = -5))
+        assertNull(session.probeEvidence()["chat"]?.latencyMs)
+    }
 }

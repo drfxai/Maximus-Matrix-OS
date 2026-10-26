@@ -65,6 +65,12 @@ class SecureApiConfigStore(context: Context) {
         check(preferences.edit().putBoolean("smart_combo_free_enabled", enabled).commit())
     }
 
+    /** Auto-test a freshly connected key's models with tiny "OK" requests (user-visible, can be turned off). */
+    fun autoTestModels(): Boolean = preferences.getBoolean("auto_test_models", true)
+    fun setAutoTestModels(enabled: Boolean) {
+        preferences.edit().putBoolean("auto_test_models", enabled).apply()
+    }
+
     fun loadBaseUrlForProvider(provider: LlmProvider): String = preferences.getString("endpoint_" + provider.name, null) ?: provider.defaultBaseUrl
     fun loadModelForProvider(provider: LlmProvider): String = preferences.getString("model_" + provider.name, null) ?: provider.defaultModel
     /** Stored identity for offline history; never a discovered or dispatch-authorized model. */

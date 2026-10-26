@@ -176,6 +176,8 @@ data class LlmUiState(
     val monthlyTokenBudget: Long = 0L,
     val tokenMetrics: TokenMetrics = TokenMetrics(),
     val smartComboEnabled: Boolean = false,
+    /** Run the tiny responsiveness test automatically after a key connects. */
+    val autoTestModels: Boolean = true,
     val smartComboRefreshing: Boolean = false,
     val smartComboOffers: Int = 0,
     /** Public route labels only; never contains credentials or model response content. */
