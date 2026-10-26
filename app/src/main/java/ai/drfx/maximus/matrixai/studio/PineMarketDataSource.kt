@@ -40,7 +40,7 @@ data class PineMarketSeries(
 /** Strictly parse Coinbase Exchange candles [timestamp, low, high, open, close, volume]. */
 object PineCandleParser {
     fun parseCoinbase(payload: String, limit: Int = 200, maxEpochExclusive: Long? = null): List<PineCandle> {
-        require(limit in 1..200)
+        require(limit in 1..300)
         val rows = JSONArray(payload)
         require(rows.length() > 0) { "Exchange returned no candles." }
         val unique = LinkedHashMap<Long, PineCandle>()
@@ -106,16 +106,17 @@ class PineMarketDataSource(
         require(product in PRODUCTS) { "Unsupported market symbol." }
         val currentOpen = (nowSeconds / timeframe.seconds) * timeframe.seconds
         val end = currentOpen - timeframe.seconds
-        val start = end - (206L * timeframe.seconds)
+        // Coinbase returns at most 300 candles per request.
+        val start = end - (299L * timeframe.seconds)
         val url = "https://api.exchange.coinbase.com/products/$product/candles" +
             "?granularity=${timeframe.seconds}" +
             "&start=${DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochSecond(start))}" +
             "&end=${DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochSecond(end))}"
-        val candles = PineCandleParser.parseCoinbase(fetch(url), maxEpochExclusive = currentOpen).filter {
+        val candles = PineCandleParser.parseCoinbase(fetch(url), limit = 300, maxEpochExclusive = currentOpen).filter {
             it.epochSeconds >= start
         }
         require(candles.isNotEmpty()) { "No recent candles from Coinbase Exchange." }
-        PineMarketSeries(product, "Coinbase Exchange", timeframe, candles.takeLast(200),
+        PineMarketSeries(product, "Coinbase Exchange", timeframe, candles.takeLast(300),
             System.currentTimeMillis())
     }
 }

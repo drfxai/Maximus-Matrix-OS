@@ -37,7 +37,7 @@ class PineIndicatorPreviewTest {
     }
     @Test fun reportsUnrunnableScriptsInsteadOfDrawingThem() {
         listOf(
-            "indicator(\"X\")\nplot(array.new_float(3))",
+            "indicator(\"X\")\nplot(request.security_lower_tf(\"A\", \"1\", close))",
             "indicator(\"X\")\nplot(request.financial(\"A\", \"B\", \"FQ\"))",
             "indicator(\"X\")\nx = 1",
             "library(\"Lib\")\nexport f() => 1"

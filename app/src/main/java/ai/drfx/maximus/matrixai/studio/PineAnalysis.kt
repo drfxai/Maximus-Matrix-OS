@@ -54,6 +54,21 @@ object PineAnalysis {
                 else "Type: indicator, ${if (output.overlay) "drawn on price" else "drawn in its own pane"}.")
             candles.lastOrNull()?.let { appendLine("Last close: ${format(it.close)}.") }
             facts(output, candles).forEach { appendLine("- ${it.label}: ${it.value}") }
+            if (output.drawings.isNotEmpty()) {
+                val labels = output.drawings.filterIsInstance<PineScriptEngine.LabelDrawing>()
+                appendLine("Drawings: ${labels.size} labels, ${output.drawings.count { it is PineScriptEngine.LineDrawing }} lines, " +
+                    "${output.drawings.count { it is PineScriptEngine.BoxDrawing }} boxes.")
+                labels.takeLast(6).filter { it.text.isNotBlank() }.forEach {
+                    appendLine("- label at bar ${it.x.toInt()} (${format(it.y)}): ${it.text.take(60).replace('\n', ' ')}")
+                }
+            }
+            output.tables.forEach { table ->
+                appendLine("Table (${table.position.removePrefix("position.")}):")
+                (0 until table.rows).forEach { r ->
+                    val row = (0 until table.columns).mapNotNull { c -> table.cells[c to r]?.text?.takeIf { it.isNotBlank() } }
+                    if (row.isNotEmpty()) appendLine("  " + row.joinToString(" | ").take(160))
+                }
+            }
             val issues = output.diagnostics.filter { it.severity != PineScriptEngine.Severity.INFO }
             if (issues.isNotEmpty()) {
                 appendLine("Preview issues (${issues.size}):")

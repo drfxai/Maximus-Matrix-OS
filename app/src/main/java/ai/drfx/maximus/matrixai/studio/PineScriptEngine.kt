@@ -23,8 +23,10 @@ import kotlin.math.sqrt
  * history references, `if`/`for`/`while`/`switch`, user functions, tuples, the common
  * `ta.*`/`math.*` library, `plot*`, `hline`, `bgcolor`, `barcolor` and `strategy.*` orders.
  *
- * It is NOT TradingView: drawings, arrays, maps, tables and multi-timeframe requests are
- * skipped or approximated, and every skipped statement is reported in [Output.diagnostics].
+ * It also runs arrays, maps, matrices, user-defined types, methods, enums, and the label, line,
+ * box, linefill and table drawing APIs. It is NOT TradingView: libraries, polylines and other
+ * symbols or timeframes are skipped or approximated, and every skipped statement is reported in
+ * [Output.diagnostics].
  * Source text is data only; nothing is executed outside this interpreter.
  */
 object PineScriptEngine {
@@ -72,6 +74,24 @@ object PineScriptEngine {
     )
     data class AlertHit(val title: String, val bars: List<Int>)
 
+    /** Script drawings kept at the end of the run, x in bar indexes (may lie past the last bar). */
+    sealed interface Drawing
+    data class LabelDrawing(val x: Double, val y: Double, val text: String, val color: Long?, val textColor: Long?,
+                            val style: String, val size: String) : Drawing
+    data class LineDrawing(val x1: Double, val y1: Double, val x2: Double, val y2: Double, val color: Long?,
+                           val width: Double, val style: String, val extend: String) : Drawing
+    data class BoxDrawing(val left: Double, val top: Double, val right: Double, val bottom: Double, val border: Long?,
+                          val background: Long?, val text: String, val textColor: Long?, val extend: String) : Drawing
+    data class LinefillDrawing(val first: LineDrawing, val second: LineDrawing, val color: Long?) : Drawing
+
+    data class TableCell(val text: String, val background: Long?, val textColor: Long?, val textSize: String)
+    data class Table(val position: String, val columns: Int, val rows: Int, val background: Long?, val frame: Long?,
+                     val cells: Map<Pair<Int, Int>, TableCell>)
+
+    /** fill() between two plots (by index in [Output.plots]) or two price levels. */
+    data class FillEdge(val plot: Int?, val price: Double?)
+    data class Fill(val upper: FillEdge, val lower: FillEdge, val colors: List<Long?>, val pane: Pane)
+
     data class Output(
         val title: String,
         val overlay: Boolean,
@@ -85,10 +105,16 @@ object PineScriptEngine {
         val alerts: List<AlertHit>,
         val diagnostics: List<Diagnostic>,
         val statements: Int,
-        val skippedStatements: Int
+        val skippedStatements: Int,
+        val drawings: List<Drawing> = emptyList(),
+        val fills: List<Fill> = emptyList(),
+        val tables: List<Table> = emptyList(),
+        /** Strategy equity per bar in percent of the starting capital (100 = flat); empty for indicators. */
+        val equity: List<Double?> = emptyList()
     ) {
         val hasVisualOutput: Boolean get() = plots.isNotEmpty() || hlines.isNotEmpty() ||
-            signals.isNotEmpty() || backgrounds.any { it != null } || barColors.any { it != null }
+            signals.isNotEmpty() || backgrounds.any { it != null } || barColors.any { it != null } ||
+            drawings.isNotEmpty() || tables.isNotEmpty()
         val errors: List<Diagnostic> get() = diagnostics.filter { it.severity == Severity.ERROR }
     }
 
@@ -234,6 +260,8 @@ object PineScriptEngine {
     internal class Unary(val op: String, val operand: Expr) : Expr()
     internal class Binary(val op: String, val left: Expr, val right: Expr) : Expr()
     internal class Ternary(val cond: Expr, val yes: Expr, val no: Expr) : Expr()
+    internal class Member(val target: Expr, val name: String) : Expr()
+    internal class MethodCall(val target: Expr, val name: String, val args: List<Expr>, val named: Map<String, Expr>) : Expr()
     internal class TupleLit(val items: List<Expr>) : Expr()
     internal class SwitchExpr(val subject: Expr?, val cases: List<Pair<Expr?, List<Stmt>>>) : Expr()
     internal class IfExpr(val branches: List<Pair<Expr, List<Stmt>>>, val otherwise: List<Stmt>?) : Expr()
@@ -245,13 +273,17 @@ object PineScriptEngine {
     internal class ExprStmt(val expr: Expr) : Stmt()
     internal class IfStmt(val branches: List<Pair<Expr, List<Stmt>>>, val otherwise: List<Stmt>?) : Stmt()
     internal class ForStmt(val variable: String, val from: Expr, val to: Expr, val step: Expr?, val body: List<Stmt>) : Stmt()
+    internal class ForInStmt(val indexVar: String?, val valueVar: String, val source: Expr, val body: List<Stmt>) : Stmt()
+    internal class FieldAssign(val path: List<String>, val op: String, val value: Expr) : Stmt()
+    internal class TypeDecl(val name: String) : Stmt()
+    internal class TypeDef(val name: String, val fields: List<Pair<String, Expr?>>, val isEnum: Boolean)
     internal class WhileStmt(val cond: Expr, val body: List<Stmt>) : Stmt()
     internal class FuncDef(val name: String, val params: List<Pair<String, Expr?>>, val body: List<Stmt>) : Stmt()
     internal class Control(val kind: String) : Stmt()
     internal class Skipped(val reason: String) : Stmt()
 
     internal class Program(val statements: List<Stmt>, val functions: Map<String, FuncDef>,
-        val diagnostics: List<Diagnostic>, val nodeCount: Int)
+        val diagnostics: List<Diagnostic>, val nodeCount: Int, val types: Map<String, TypeDef> = emptyMap())
 
     // ---------------------------------------------------------------- parser
 
@@ -263,10 +295,11 @@ object PineScriptEngine {
         private var nodes = 0
         private val diagnostics = mutableListOf<Diagnostic>()
         private val functions = linkedMapOf<String, FuncDef>()
+        private val types = linkedMapOf<String, TypeDef>()
 
         fun parseProgram(): Program {
             val body = parseBlock(-1)
-            return Program(body, functions, diagnostics, nodes)
+            return Program(body, functions, diagnostics, nodes, types)
         }
 
         private fun parseBlock(parentIndent: Int): List<Stmt> {
@@ -301,10 +334,19 @@ object PineScriptEngine {
             val first = s.peek()
             if (first.type == T.ID) when (first.text) {
                 "indicator", "study", "strategy", "library" -> if (s.peekAt(1)?.text == "(") return ExprStmt(parseExpr(s).also { s.end() })
-                "import", "export", "type", "method", "enum" -> if (s.peekAt(1)?.type == T.ID) {
-                    diagnostics += Diagnostic(line.line, "'${first.text}' is not supported by the local preview.", Severity.WARNING)
-                    while (cursor < lines.size && lines[cursor].indent > indent) cursor++
-                    return Skipped("'${first.text}' unsupported")
+                "export", "method" -> if (s.peekAt(1)?.type == T.ID) {
+                    // `export f(x) =>` and `method m(Type self, ...) =>` define ordinary functions here.
+                    return parseStatement(LogicalLine(line.indent, line.tokens.drop(1), line.line), indent)
+                }
+                "type", "enum" -> if (s.peekAt(1)?.type == T.ID && line.tokens.size == 2) {
+                    val name = line.tokens[1].text
+                    types[name] = TypeDef(name, parseFields(indent, first.text == "enum"), first.text == "enum")
+                    return TypeDecl(name)
+                }
+                "import" -> if (s.peekAt(1)?.type == T.ID) {
+                    diagnostics += Diagnostic(line.line, "Libraries are not available in the local preview; calls into '" +
+                        line.tokens.drop(1).joinToString("") { it.text }.substringBefore(" as") + "' will be skipped.", Severity.WARNING)
+                    return Skipped("import")
                 }
                 "if" -> {
                     s.next()
@@ -312,7 +354,18 @@ object PineScriptEngine {
                 }
                 "for" -> {
                     s.next()
-                    if (s.peekAt(1)?.text == "in") throw PineException("for...in loops over arrays are not supported.", line.line)
+                    if (s.peek().text == "[" ) {
+                        s.next()
+                        val index = s.expectId(); s.expect(","); val value = s.expectId(); s.expect("]")
+                        if (s.next().text != "in") throw PineException("Expected 'in' in for loop.", line.line)
+                        val source = parseExpr(s); s.end()
+                        return ForInStmt(index, value, source, parseBlock(indent))
+                    }
+                    if (s.peekAt(1)?.text == "in") {
+                        val value = s.expectId(); s.next()
+                        val source = parseExpr(s); s.end()
+                        return ForInStmt(null, value, source, parseBlock(indent))
+                    }
                     val variable = s.expectId()
                     s.expect("=")
                     val from = parseExpr(s)
@@ -337,8 +390,7 @@ object PineScriptEngine {
                 s.expect("(")
                 val params = mutableListOf<Pair<String, Expr?>>()
                 while (s.peek().text != ")") {
-                    while (s.peek().type == T.ID && s.peek().text in typeWords + setOf("simple", "series") &&
-                        s.peekAt(1)?.type == T.ID) s.next()
+                    skipParamType(s)
                     val pname = s.expectId()
                     val default = if (s.peekOrNull()?.text == "=") { s.next(); parseExpr(s) } else null
                     params += pname to default
@@ -363,6 +415,20 @@ object PineScriptEngine {
                 s.expect("=")
                 return TupleDeclare(names, parseValue(s, indent))
             }
+            // obj.field := value, obj.a.b += value
+            if (first.type == T.ID && s.peekAt(1)?.text == "." ) {
+                var k = 0
+                val path = mutableListOf<String>()
+                while (k < line.tokens.size && line.tokens[k].type == T.ID) {
+                    path += line.tokens[k].text
+                    if (line.tokens.getOrNull(k + 1)?.text == ".") k += 2 else { k++; break }
+                }
+                val op = line.tokens.getOrNull(k)?.text
+                if (path.size >= 2 && op in setOf(":=", "+=", "-=", "*=", "/=", "%=") ) {
+                    repeat(k + 1) { s.next() }
+                    return FieldAssign(path, op!!, parseValue(s, indent))
+                }
+            }
             // Declarations with optional var/varip and type keywords.
             var persistent = false
             var position = 0
@@ -382,9 +448,47 @@ object PineScriptEngine {
             return ExprStmt(expr)
         }
 
+        private fun skipParamType(s: Stream) {
+            while (s.peek().type == T.ID) {
+                val next = s.peekAt(1)
+                when {
+                    next?.type == T.ID -> s.next()
+                    next?.text == "<" -> { s.next(); while (s.peek().text != ">") s.next(); s.next() }
+                    next?.text == "." && s.peekAt(2)?.type == T.ID && s.peekAt(3)?.type == T.ID -> { s.next(); s.next() }
+                    else -> return
+                }
+            }
+        }
+
+        /** Field lines of a `type` (or the members of an `enum`). */
+        private fun parseFields(indent: Int, isEnum: Boolean): List<Pair<String, Expr?>> {
+            val fields = mutableListOf<Pair<String, Expr?>>()
+            if (cursor >= lines.size || lines[cursor].indent <= indent) return fields
+            val fieldIndent = lines[cursor].indent
+            while (cursor < lines.size && lines[cursor].indent >= fieldIndent) {
+                val line = lines[cursor]
+                cursor++
+                if (line.indent > fieldIndent) continue
+                val toks = line.tokens.dropWhile { it.text == "varip" }
+                val equals = toks.indexOfFirst { it.text == "=" }
+                val nameIndex = if (equals >= 0) equals - 1 else toks.lastIndex
+                val name = toks.getOrNull(nameIndex)?.takeIf { it.type == T.ID }?.text ?: continue
+                val default = if (equals >= 0 && equals < toks.lastIndex) {
+                    val s = Stream(toks.subList(equals + 1, toks.size), line.line)
+                    runCatching { parseExpr(s).also { s.end() } }.getOrNull()
+                } else null
+                fields += name to (if (isEnum) (default ?: mark(Str(name), line.line)) else default)
+            }
+            return fields
+        }
+
         private fun skipType(toks: List<Tok>, start: Int): Int {
             var position = start
-            while (position < toks.size - 2 && toks[position].type == T.ID && toks[position].text in typeWords) {
+            // A user-defined type name directly before the variable name, e.g. `var Pivot p = ...`.
+            if (position < toks.size - 2 && toks[position].type == T.ID && toks[position].text in types &&
+                toks[position + 1].type == T.ID) return position + 1
+            while (position < toks.size - 2 && toks[position].type == T.ID && (toks[position].text in typeWords ||
+                    (toks[position + 1].text == "<" && toks[position].text in setOf("array", "matrix", "map")))) {
                 position++
                 // array<float> style generics
                 if (position < toks.size && toks[position].text == "<") {
@@ -482,6 +586,8 @@ object PineScriptEngine {
 
         private fun <E : Expr> mark(e: E, line: Int): E { e.id = ++nodes; e.line = line; return e }
 
+        fun parseArguments(s: Stream, name: String, line: Int) = parseArgumentsImpl(s, name, line)
+
         // Precedence climbing.
         fun parseExpr(s: Stream): Expr = parseTernary(s)
 
@@ -567,9 +673,14 @@ object PineScriptEngine {
                     val offset = parseExpr(s)
                     s.expect("]")
                     expr = mark(Index(expr, offset), t.line)
-                } else if (t.type == T.OP && t.text == "." && expr is Name && s.peekAt(1)?.type == T.ID) {
-                    // Member access on a call result, e.g. color.new(...).rgb, is not supported.
-                    break
+                } else if (t.type == T.OP && t.text == "." && s.peekAt(1)?.type == T.ID) {
+                    s.next()
+                    val name = s.next().text
+                    expr = if (s.peekOrNull()?.text == "(") {
+                        s.next()
+                        val (args, named) = parseArguments(s, name, t.line)
+                        mark(MethodCall(expr, name, args, named), t.line)
+                    } else mark(Member(expr, name), t.line)
                 } else break
             }
             return expr
@@ -587,20 +698,18 @@ object PineScriptEngine {
                         s.next()
                         name += "." + s.next().text
                     }
+                    // Generic constructors: array.new<float>(...), map.new<string, float>(), matrix.new<int>(...)
+                    if (s.peekOrNull()?.text == "<" && (name.endsWith(".new") || name == "array.from")) {
+                        var depth = 0
+                        while (true) {
+                            val g = s.next()
+                            if (g.text == "<") depth++
+                            if (g.text == ">") { depth--; if (depth == 0) break }
+                        }
+                    }
                     if (s.peekOrNull()?.text == "(") {
                         s.next()
-                        val args = mutableListOf<Expr>()
-                        val named = linkedMapOf<String, Expr>()
-                        while (s.peek().text != ")") {
-                            if (s.peek().type == T.ID && s.peekAt(1)?.text == "=") {
-                                val key = s.next().text
-                                s.next()
-                                named[key] = parseExpr(s)
-                            } else args += parseExpr(s)
-                            if (s.peek().text == ",") s.next() else if (s.peek().text != ")")
-                                throw PineException("Expected ',' or ')' in call to $name.", t.line)
-                        }
-                        s.expect(")")
+                        val (args, named) = parseArguments(s, name, t.line)
                         mark(Call(name, args, named), t.line)
                     } else mark(Name(name), t.line)
                 }
@@ -622,6 +731,22 @@ object PineScriptEngine {
         }
     }
 
+    private fun Parser.parseArgumentsImpl(s: Stream, name: String, line: Int): Pair<List<Expr>, Map<String, Expr>> {
+        val args = mutableListOf<Expr>()
+        val named = linkedMapOf<String, Expr>()
+        while (s.peek().text != ")") {
+            if (s.peek().type == T.ID && s.peekAt(1)?.text == "=") {
+                val key = s.next().text
+                s.next()
+                named[key] = parseExpr(s)
+            } else args += parseExpr(s)
+            if (s.peek().text == ",") s.next() else if (s.peek().text != ")")
+                throw PineException("Expected ',' or ')' in call to $name.", line)
+        }
+        s.expect(")")
+        return args to named
+    }
+
     internal class Stream(private val tokens: List<Tok>, val line: Int) {
         private var i = 0
         fun atEnd() = i >= tokens.size
@@ -640,6 +765,8 @@ object PineScriptEngine {
     /** Colour value as 0xAARRGGBB. */
     data class PineColor(val argb: Long)
     private class TupleValue(val items: List<Any?>)
+    private class PlotRef(val key: String)
+    private class HLineRef(val price: Double)
     private object Unsupported
 
     internal fun parseHexColor(text: String): Long? {
@@ -726,6 +853,22 @@ object PineScriptEngine {
         private var positionBar = 0
         private var positionLabel = ""
         private val trades = mutableListOf<Trade>()
+        private var realizedEquity = 100.0
+        private val equityCurve = arrayOfNulls<Double>(n)
+        private val labels = ArrayList<PineLabel>()
+        private val drawnLines = ArrayList<PineLine>()
+        private val boxes = ArrayList<PineBox>()
+        private val linefills = ArrayList<PineLinefill>()
+        private val tables = ArrayList<PineTable>()
+        private val fills = LinkedHashMap<String, Triple<Any?, Any?, Array<Long?>>>()
+        private var maxLabels = 50
+        private var maxLines = 50
+        private var maxBoxes = 50
+        private val namespaces = setOf("ta", "math", "color", "str", "array", "map", "matrix", "label", "line", "box",
+            "table", "linefill", "polyline", "chart", "strategy", "request", "input", "ticker", "timeframe", "syminfo",
+            "barstate", "runtime", "log", "plot", "hline", "shape", "location", "size", "xloc", "yloc", "extend",
+            "position", "text", "font", "format", "display", "session", "currency", "order", "alert", "dayofweek",
+            "barmerge", "scale", "adjustment")
 
         fun execute(): Output {
             val countStatements = countStatements(program.statements)
@@ -736,6 +879,8 @@ object PineScriptEngine {
                 for (scope in functionScopes.values) for (variable in scope.vars.values)
                     if (variable.persistent && b > 0) variable.values[b] = variable.values[b - 1]
                 runBlock(program.statements, global, topLevel = true)
+                if (isStrategy) equityCurve[b] = realizedEquity *
+                    (if (position != 0 && positionEntry > 0) 1 + (candles[b].close - positionEntry) / positionEntry * position else 1.0)
             }
             if (!declared) diagnostics.add(0, Diagnostic(0,
                 "No indicator() or strategy() declaration; previewed as a separate pane.", Severity.INFO))
@@ -744,10 +889,41 @@ object PineScriptEngine {
                 Plot(p.title, shift(p.values.toList(), p.offset), p.style, p.pane, shift(p.colors.toList(), p.offset), p.text)
             }
             val backtest = if (isStrategy || trades.isNotEmpty()) buildBacktest() else null
+            val plotKeys = plots.keys.toList()
+            fun edge(ref: Any?): FillEdge? = when (ref) {
+                is PlotRef -> plotKeys.indexOf(ref.key).takeIf { it >= 0 }?.let { FillEdge(it, null) }
+                is HLineRef -> FillEdge(null, ref.price)
+                else -> null
+            }
+            val outFills = fills.values.mapNotNull { (a, b, colors) ->
+                val upper = edge(a) ?: return@mapNotNull null
+                val lower = edge(b) ?: return@mapNotNull null
+                val fillPane = upper.plot?.let { outPlots[it].pane } ?: lower.plot?.let { outPlots[it].pane } ?: pane
+                Fill(upper, lower, colors.toList(), fillPane)
+            }
+            fun lineOut(l: PineLine) = LineDrawing(l.x1, l.y1, l.x2, l.y2, l.color, l.width, l.style, l.extend)
+            val drawings = buildList<Drawing> {
+                linefills.filter { !it.deleted && !it.first.deleted && !it.second.deleted }
+                    .forEach { add(LinefillDrawing(lineOut(it.first), lineOut(it.second), it.color)) }
+                boxes.filter { !it.deleted }.forEach { add(BoxDrawing(it.left, it.top, it.right, it.bottom, it.border, it.background, it.text, it.textColor, it.extend)) }
+                drawnLines.filter { !it.deleted }.forEach { add(lineOut(it)) }
+                labels.filter { !it.deleted }.forEach { add(LabelDrawing(it.x, labelPrice(it), it.text, it.color, it.textColor, it.style, it.size)) }
+            }
+            val outTables = tables.filter { !it.deleted }.map { Table(it.position, it.columns, it.rows, it.background, it.frame, HashMap(it.cells)) }
             return Output(title, overlay, isStrategy, outPlots, hlines.map { it.copy(pane = if (it.pane == Pane.PRICE) Pane.PRICE else pane) },
                 backgrounds.toList(), barColors.toList(), signals, backtest,
                 alerts.map { AlertHit(it.key, it.value) }, diagnostics.sortedBy { it.line },
-                countStatements, disabled.size)
+                countStatements, disabled.size, drawings, outFills, outTables,
+                if (isStrategy) equityCurve.toList() else emptyList())
+        }
+
+        private fun labelPrice(label: PineLabel): Double {
+            val index = label.x.toInt().coerceIn(0, n - 1)
+            return when {
+                label.yloc.contains("abovebar") -> candles[index].high
+                label.yloc.contains("belowbar") -> candles[index].low
+                else -> label.y
+            }
         }
 
         /** Pine's `offset=` moves a series right (positive) or left (negative) by whole bars. */
@@ -761,6 +937,7 @@ object PineScriptEngine {
             1 + when (stmt) {
                 is IfStmt -> stmt.branches.sumOf { countStatements(it.second) } + countStatements(stmt.otherwise.orEmpty())
                 is ForStmt -> countStatements(stmt.body)
+                is ForInStmt -> countStatements(stmt.body)
                 is WhileStmt -> countStatements(stmt.body)
                 else -> 0
             }
@@ -867,6 +1044,41 @@ object PineScriptEngine {
                     }
                     last
                 }
+                is ForInStmt -> {
+                    val source = eval(stmt.source, scope)
+                    val items: List<Pair<Any?, Any?>> = when (source) {
+                        is PineArray -> source.items.toList().mapIndexed { i, v -> i.toDouble() to v }
+                        is PineMap -> source.entries.entries.map { it.key to it.value }
+                        is PineMatrix -> (0 until source.rows).map { r -> r.toDouble() to
+                            PineArray(ArrayList((0 until source.columns).map { source.cells[r * source.columns + it] })) }
+                        null -> emptyList()
+                        else -> throw PineException("for...in needs an array, map or matrix.", stmt.line)
+                    }
+                    val loopScope = Scope(scope)
+                    val valueVar = Variable(n, false).also { loopScope.vars[stmt.valueVar] = it }
+                    val indexVar = stmt.indexVar?.let { name -> Variable(n, false).also { loopScope.vars[name] = it } }
+                    var last: Any? = null
+                    for ((k, v) in items) {
+                        indexVar?.values?.set(bar, k)
+                        valueVar.values[bar] = v
+                        try { last = runBlock(stmt.body, loopScope) }
+                        catch (_: BreakSignal) { break }
+                        catch (_: ContinueSignal) { }
+                    }
+                    last
+                }
+                is FieldAssign -> {
+                    val root = scope.find(stmt.path[0]) ?: throw PineException("'${stmt.path[0]}' is assigned before it is declared.", stmt.line)
+                    var target: Any? = root.values[bar]
+                    for (field in stmt.path.subList(1, stmt.path.size - 1)) target = fieldOf(target, field, stmt.line)
+                    val obj = target as? PineObject ?: throw PineException("'${stmt.path.dropLast(1).joinToString(".")}' is na or not an object.", stmt.line)
+                    val field = stmt.path.last()
+                    if (!obj.fields.containsKey(field)) throw PineException("${obj.type} has no field '$field'.", stmt.line)
+                    val value = eval(stmt.value, scope)
+                    obj.fields[field] = if (stmt.op == ":=") value else arithmetic(stmt.op.dropLast(1), obj.fields[field], value)
+                    obj.fields[field]
+                }
+                is TypeDecl -> null
                 is Control -> if (stmt.kind == "break") throw BreakSignal() else throw ContinueSignal()
                 is FuncDef -> null
                 is Skipped -> null
@@ -899,6 +1111,8 @@ object PineScriptEngine {
                 }
                 is Ternary -> if (truthy(eval(e.cond, scope))) eval(e.yes, scope) else eval(e.no, scope)
                 is TupleLit -> TupleValue(e.items.map { eval(it, scope) })
+                is Member -> fieldOf(eval(e.target, scope), e.name, e.line)
+                is MethodCall -> invokeMethod(eval(e.target, scope), e.name, e.args, e.named, scope, e.line, e.id)
                 is Index -> {
                     val offset = num(eval(e.offset, scope))
                     if (offset.isNaN() || offset < 0) throw PineException("History offset must be a non-negative number.", e.line)
@@ -960,6 +1174,15 @@ object PineScriptEngine {
 
         private fun lookup(name: String, scope: Scope, line: Int): Any? {
             scope.find(name)?.let { return it.values[bar] }
+            if ('.' in name) {
+                val parts = name.split('.')
+                scope.find(parts[0])?.let { root ->
+                    var value: Any? = root.values[bar]
+                    for (field in parts.drop(1)) value = fieldOf(value, field, line)
+                    return value
+                }
+                program.types[parts[0]]?.takeIf { it.isEnum && parts.size == 2 }?.let { return name }
+            }
             builtinSeries(name)?.let { return seriesAt(it, bar) }
             val c = candles[bar]
             val dt = Instant.ofEpochSecond(c.epochSeconds).atZone(ZoneOffset.UTC)
@@ -1067,6 +1290,25 @@ object PineScriptEngine {
             if (name in legacyMath && program.functions[name] == null) name = "math.$name"
             if (name == "input" ) return input(e, scope)
             program.functions[name]?.let { return callUser(it, e, scope) }
+            if ('.' in name) {
+                val head = name.substringBefore('.')
+                val rest = name.substringAfter('.')
+                if (head !in namespaces) {
+                    scope.find(head)?.let { root ->
+                        var receiver: Any? = root.values[bar]
+                        val parts = rest.split('.')
+                        for (field in parts.dropLast(1)) receiver = fieldOf(receiver, field, e.line)
+                        return invokeMethod(receiver, parts.last(), e.args, e.named, scope, e.line, e.id)
+                    }
+                    program.types[head]?.let { type ->
+                        return when (rest) {
+                            "new" -> construct(type, e, scope)
+                            "copy" -> (argument(e, 0, "object", scope) as? PineObject)?.copy()
+                            else -> throw PineException("${type.name}.$rest is not defined.", e.line)
+                        }
+                    }
+                }
+            }
             if (name.startsWith("input.")) return input(e, scope)
             if (name.startsWith("ta.")) return technical(name.removePrefix("ta."), e, scope)
             if (name.startsWith("math.")) return mathFn(name.removePrefix("math."), e, scope)
@@ -1074,19 +1316,23 @@ object PineScriptEngine {
             if (name.startsWith("str.") || name == "tostring") return strFn(name.removePrefix("str."), e, scope)
             if (name.startsWith("strategy")) return strategyFn(name, e, scope)
             if (name.startsWith("label.") || name.startsWith("line.") || name.startsWith("box.") ||
-                name.startsWith("table.") || name.startsWith("linefill.") || name.startsWith("polyline.") ||
-                name.startsWith("chart.point")) {
-                note(e.line, "Drawing objects (${name.substringBefore('.')}.*) are not drawn in the local preview.", Severity.INFO)
+                name.startsWith("table.") || name.startsWith("linefill.") || name.startsWith("chart.point."))
+                return drawing(name, evalArgs(e, scope), e.line)
+            if (name.startsWith("polyline.")) {
+                note(e.line, "polyline drawings are not drawn in the local preview.", Severity.INFO)
                 return null
             }
-            if (name.startsWith("array.") || name.startsWith("matrix.") || name.startsWith("map."))
-                throw PineException("$name collections are not supported by the local preview.", e.line)
+            if (name.startsWith("array.")) return PineCollections.array(name.removePrefix("array."), evalArgs(e, scope), e.line)
+            if (name.startsWith("map.")) return PineCollections.map(name.removePrefix("map."), evalArgs(e, scope), e.line)
+            if (name.startsWith("matrix.")) return PineCollections.matrix(name.removePrefix("matrix."), evalArgs(e, scope), e.line)
             return when (name) {
                 "indicator", "strategy" -> {
                     declared = true
                     isStrategy = name == "strategy"
                     title = (argument(e, 0, "title", scope) as? String)?.take(80) ?: title
                     overlay = truthy(argument(e, 1, "overlay", scope) ?: false)
+                    fun limit(key: String) = if (has(e, -1, key)) num(argument(e, -1, key, scope)).toInt().coerceIn(1, 500) else 50
+                    maxLabels = limit("max_labels_count"); maxLines = limit("max_lines_count"); maxBoxes = limit("max_boxes_count")
                     null
                 }
                 "library" -> throw PineException("Libraries cannot be previewed on a chart.", e.line)
@@ -1099,11 +1345,23 @@ object PineScriptEngine {
                     val k = key(e)
                     if (!price.isNaN() && hlineKeys.add(k)) hlines += HLine(price,
                         (argument(e, 1, "title", scope) as? String) ?: "", colorOf(argument(e, 2, "color", scope)), Pane.INDICATOR)
-                    null
+                    if (price.isNaN()) null else HLineRef(price)
                 }
                 "bgcolor" -> { colorOf(argument(e, 0, "color", scope))?.let { backgrounds[bar] = withMinimumTransparency(it) }; null }
                 "barcolor" -> { barColors[bar] = colorOf(argument(e, 0, "color", scope)); null }
-                "fill" -> null
+                "fill" -> {
+                    val a = argument(e, 0, "hline1", scope) ?: argument(e, 0, "plot1", scope)
+                    val b = argument(e, 1, "hline2", scope) ?: argument(e, 1, "plot2", scope)
+                    val gradient = has(e, -1, "top_color") || e.args.size >= 6
+                    val color = if (gradient) colorOf(argument(e, 4, "top_color", scope))?.let { top ->
+                        colorOf(argument(e, 5, "bottom_color", scope))?.let { lerpColor(top, it, 0.5) } ?: top }
+                        else colorOf(argument(e, 2, "color", scope)) ?: if (has(e, 2, "color")) null else 0x332962FFL
+                    if (a != null && b != null) {
+                        val entry = fills.getOrPut(key(e)) { Triple(a, b, arrayOfNulls(n)) }
+                        entry.third[bar] = color?.let(::withMinimumTransparency)
+                    }
+                    null
+                }
                 "alertcondition" -> {
                     val title = (argument(e, 1, "title", scope) as? String) ?: "Alert"
                     val hits = alerts.getOrPut(title) { mutableListOf() }
@@ -1138,12 +1396,15 @@ object PineScriptEngine {
             }
         }
 
-        private fun callUser(def: FuncDef, e: Call, caller: Scope): Any? {
+        private fun callUser(def: FuncDef, e: Call, caller: Scope): Any? =
+            invokeUser(def, e.args.map { eval(it, caller) }, e, caller)
+
+        private fun invokeUser(def: FuncDef, positional: List<Any?>, e: Call, caller: Scope): Any? {
             if (callPath.count { it == '/' } > 24) throw PineException("Function recursion is too deep.", e.line)
             val values = def.params.mapIndexed { i, (pname, default) ->
                 when {
                     e.named.containsKey(pname) -> eval(e.named.getValue(pname), caller)
-                    i < e.args.size -> eval(e.args[i], caller)
+                    i < positional.size -> positional[i]
                     default != null -> eval(default, caller)
                     else -> null
                 }
@@ -1199,7 +1460,7 @@ object PineScriptEngine {
             val v = when (value) { is Boolean -> if (value) 1.0 else 0.0; else -> num(value) }
             st.values[bar] = v.takeIf { it.isFinite() }
             st.colors[bar] = colorOf(argument(e, 2, "color", scope)) ?: if (has(e, 2, "color")) null else defaultPalette(plots.size - 1)
-            return null
+            return PlotRef(k)
         }
 
         private fun plotShape(e: Call, scope: Scope, isChar: Boolean): Any? {
@@ -1325,6 +1586,7 @@ object PineScriptEngine {
 
         private fun closePosition(at: Int, price: Double) {
             trades += Trade(position, positionBar, positionEntry, at, price, positionLabel)
+            if (positionEntry > 0) realizedEquity *= 1 + (price - positionEntry) / positionEntry * position
             position = 0
             exitRules.clear()
         }
@@ -1859,8 +2121,19 @@ object PineScriptEngine {
         }
 
         private fun strFn(fn: String, e: Call, scope: Scope): Any? = when (fn) {
-            "tostring" -> argument(e, 0, "value", scope).let { v -> if (v is Double) (if (v == floor(v) && abs(v) < 1e15) v.toLong().toString() else "%.4f".format(java.util.Locale.US, v)) else v?.toString() ?: "NaN" }
-            "format" -> argument(e, 0, "formatString", scope)?.toString()
+            "tostring" -> PineText.format(argument(e, 0, "value", scope), argument(e, 1, "format", scope) as? String)
+            "format" -> PineText.formatString(argument(e, 0, "formatString", scope)?.toString().orEmpty(),
+                e.args.drop(1).map { eval(it, scope) })
+            "split" -> PineArray(ArrayList(argument(e, 0, "string", scope)?.toString().orEmpty()
+                .split(argument(e, 1, "separator", scope)?.toString().orEmpty()).let { parts ->
+                    if (argument(e, 1, "separator", scope)?.toString().isNullOrEmpty()) parts.filter { it.isNotEmpty() } else parts }))
+            "pos" -> argument(e, 0, "source", scope)?.toString()?.indexOf(argument(e, 1, "str", scope)?.toString().orEmpty())?.takeIf { it >= 0 }?.toDouble()
+            "trim" -> argument(e, 0, "source", scope)?.toString()?.trim()
+            "repeat" -> argument(e, 0, "source", scope)?.toString()?.let { text ->
+                List(num(argument(e, 1, "repeat", scope)).toInt().coerceIn(0, 1000)) { text }
+                    .joinToString(argument(e, 2, "separator", scope)?.toString().orEmpty()) }
+            "match" -> argument(e, 0, "source", scope)?.toString()?.let { text ->
+                runCatching { Regex(argument(e, 1, "regex", scope)?.toString().orEmpty()).find(text)?.value }.getOrNull().orEmpty() }
             "length" -> argument(e, 0, "string", scope)?.toString()?.length?.toDouble()
             "contains" -> argument(e, 0, "source", scope)?.toString()?.contains(argument(e, 1, "str", scope)?.toString().orEmpty())
             "upper" -> argument(e, 0, "source", scope)?.toString()?.uppercase()
@@ -1869,8 +2142,309 @@ object PineScriptEngine {
             "replace_all", "replace" -> argument(e, 0, "source", scope)?.toString()?.replace(argument(e, 1, "target", scope)?.toString().orEmpty(), argument(e, 2, "replacement", scope)?.toString().orEmpty())
             "startswith" -> argument(e, 0, "source", scope)?.toString()?.startsWith(argument(e, 1, "str", scope)?.toString().orEmpty())
             "endswith" -> argument(e, 0, "source", scope)?.toString()?.endsWith(argument(e, 1, "str", scope)?.toString().orEmpty())
-            "substring" -> argument(e, 0, "source", scope)?.toString()
+            "substring" -> argument(e, 0, "source", scope)?.toString()?.let { text ->
+                val begin = num(argument(e, 1, "begin_pos", scope)).toInt().coerceIn(0, text.length)
+                val end = if (has(e, 2, "end_pos")) num(argument(e, 2, "end_pos", scope)).toInt().coerceIn(begin, text.length) else text.length
+                text.substring(begin, end)
+            }
             else -> null
+        }
+
+        // ------------------------------------------------ objects, methods and drawings
+
+        private fun evalArgs(e: Call, scope: Scope, receiver: Any? = Unit): PineArgs {
+            val positional = ArrayList<Any?>()
+            if (receiver != Unit) positional += receiver
+            e.args.forEach { positional += eval(it, scope) }
+            return PineArgs(positional, e.named.mapValues { eval(it.value, scope) })
+        }
+
+        private fun fieldOf(value: Any?, field: String, line: Int): Any? = when (value) {
+            null -> null
+            is PineObject -> if (value.fields.containsKey(field)) value.fields[field]
+                else throw PineException("${value.type} has no field '$field'.", line)
+            is PineLabel, is PineLine, is PineBox -> throw PineException("Use getters such as line.get_x1() to read drawing fields.", line)
+            else -> throw PineException("Cannot read '.$field' from this value.", line)
+        }
+
+        private fun construct(type: TypeDef, e: Call, scope: Scope): PineObject {
+            if (type.isEnum) throw PineException("Enums have no constructor.", e.line)
+            val fields = LinkedHashMap<String, Any?>()
+            type.fields.forEachIndexed { i, (field, default) ->
+                fields[field] = when {
+                    e.named.containsKey(field) -> eval(e.named.getValue(field), scope)
+                    i < e.args.size -> eval(e.args[i], scope)
+                    default != null -> eval(default, scope)
+                    else -> null
+                }
+            }
+            return PineObject(type.name, fields)
+        }
+
+        /** `receiver.method(args)`: built-in methods of collections and drawings, or a user `method`. */
+        private fun invokeMethod(receiver: Any?, method: String, args: List<Expr>, named: Map<String, Expr>, scope: Scope,
+                                 line: Int, id: Int): Any? {
+            val call = Call(method, args, named).also { it.id = id; it.line = line }
+            program.functions[method]?.let { def ->
+                if (def.params.isNotEmpty() && (receiver is PineObject || receiver !is PineArray && receiver !is PineMap &&
+                        receiver !is PineMatrix && receiver !is PineLabel && receiver !is PineLine && receiver !is PineBox && receiver !is PineTable)) {
+                    return invokeUser(def, listOf(receiver) + args.map { eval(it, scope) }, call, scope)
+                }
+            }
+            val evaluated = { evalArgs(call, scope, receiver) }
+            return when (receiver) {
+                is PineArray -> PineCollections.array(method, evaluated(), line)
+                is PineMap -> PineCollections.map(method, evaluated(), line)
+                is PineMatrix -> PineCollections.matrix(method, evaluated(), line)
+                is PineLabel -> drawing("label.$method", evaluated(), line)
+                is PineLine -> drawing("line.$method", evaluated(), line)
+                is PineBox -> drawing("box.$method", evaluated(), line)
+                is PineTable -> drawing("table.$method", evaluated(), line)
+                is PineLinefill -> drawing("linefill.$method", evaluated(), line)
+                is PineObject -> when (method) {
+                    "copy" -> receiver.copy()
+                    else -> program.functions[method]?.let { invokeUser(it, listOf(receiver) + args.map { a -> eval(a, scope) }, call, scope) }
+                        ?: throw PineException("${receiver.type} has no method '$method'.", line)
+                }
+                null -> program.functions[method]?.let { invokeUser(it, listOf(null) + args.map { a -> eval(a, scope) }, call, scope) }
+                else -> throw PineException("'.$method()' cannot be called on this value.", line)
+            }
+        }
+
+        private fun barOfTime(millis: Double): Double {
+            if (millis.isNaN() || n == 0) return Double.NaN
+            val seconds = (millis / 1000).toLong()
+            var lo = 0; var hi = n - 1
+            if (seconds > candles[hi].epochSeconds) return hi + (seconds - candles[hi].epochSeconds).toDouble() / timeframeSeconds
+            while (lo < hi) {
+                val mid = (lo + hi + 1) / 2
+                if (candles[mid].epochSeconds <= seconds) lo = mid else hi = mid - 1
+            }
+            return lo.toDouble()
+        }
+
+        private fun x(value: Any?, xloc: Any?): Double {
+            val v = num(value)
+            return if ((xloc as? String)?.contains("bar_time") == true) barOfTime(v) else v
+        }
+
+        private fun <T> keep(list: ArrayList<T>, item: T, limit: Int, deleted: (T) -> Boolean, delete: (T) -> Unit): T {
+            list += item
+            val alive = list.filter { !deleted(it) }
+            if (alive.size > limit) alive.take(alive.size - limit).forEach(delete)
+            if (list.size > limit * 4) list.removeAll { deleted(it) }
+            return item
+        }
+
+        private fun point(value: Any?): PineObject? = (value as? PineObject)?.takeIf { it.type == "chart.point" }
+
+        private fun pointX(p: PineObject, xloc: Any?): Double =
+            if ((xloc as? String)?.contains("bar_time") == true) barOfTime(num(p.fields["time"])) else num(p.fields["index"])
+
+        private fun drawing(name: String, a: PineArgs, line: Int): Any? {
+            val (kind, fn) = name.substringBeforeLast('.') to name.substringAfterLast('.')
+            when (kind) {
+                "chart.point" -> return when (fn) {
+                    "new" -> PineObject("chart.point", linkedMapOf("time" to a[0, "time"], "index" to a[1, "index"], "price" to a[2, "price"]))
+                    "from_index" -> PineObject("chart.point", linkedMapOf("time" to seriesAt("time", num(a[0, "index"]).toInt()),
+                        "index" to a[0, "index"], "price" to a[1, "price"]))
+                    "from_time" -> PineObject("chart.point", linkedMapOf("time" to a[0, "time"], "index" to barOfTime(num(a[0, "time"])), "price" to a[1, "price"]))
+                    "now" -> PineObject("chart.point", linkedMapOf("time" to seriesAt("time", bar), "index" to bar.toDouble(), "price" to (a[0, "price"] ?: seriesAt("close", bar))))
+                    "copy" -> point(a[0, "id"])?.copy()
+                    else -> throw PineException("$name is not supported by the local preview.", line)
+                }
+                "label" -> {
+                    if (fn == "new") {
+                        val p = point(a[0, "point"])
+                        val shift = if (p != null) 1 else 0
+                        val xloc = a[3 - shift, "xloc"]
+                        val label = PineLabel(
+                            x = if (p != null) pointX(p, xloc) else x(a[0, "x"], xloc),
+                            y = if (p != null) num(p.fields["price"]) else num(a[1, "y"]),
+                            text = a[2 - shift, "text"]?.let(PineText::of).orEmpty(),
+                            color = colorOf(a[5 - shift, "color"]) ?: if (a.has(5 - shift, "color")) null else 0xFF2962FFL,
+                            textColor = colorOf(a[7 - shift, "textcolor"]) ?: 0xFFFFFFFFL,
+                            style = (a[6 - shift, "style"] as? String) ?: "label.style_label_down",
+                            size = (a[8 - shift, "size"] as? String) ?: "size.normal",
+                            yloc = (a[4 - shift, "yloc"] as? String) ?: "yloc.price",
+                            tooltip = a[10 - shift, "tooltip"]?.toString().orEmpty())
+                        return keep(labels, label, maxLabels, { it.deleted }) { it.deleted = true }
+                    }
+                    if (fn == "all") return PineArray(ArrayList(labels.filter { !it.deleted }))
+                    val label = a[0, "id"] as? PineLabel ?: return null
+                    when (fn) {
+                        "delete" -> label.deleted = true
+                        "copy" -> return keep(labels, PineLabel(label.x, label.y, label.text, label.color, label.textColor, label.style,
+                            label.size, label.yloc, label.tooltip), maxLabels, { it.deleted }) { it.deleted = true }
+                        "set_x" -> label.x = num(a[1, "x"])
+                        "set_y" -> label.y = num(a[1, "y"])
+                        "set_xy" -> { label.x = num(a[1, "x"]); label.y = num(a[2, "y"]) }
+                        "set_point" -> point(a[1, "point"])?.let { label.x = num(it.fields["index"]); label.y = num(it.fields["price"]) }
+                        "set_text" -> label.text = a[1, "text"]?.let(PineText::of).orEmpty()
+                        "set_color" -> label.color = colorOf(a[1, "color"])
+                        "set_textcolor" -> label.textColor = colorOf(a[1, "textcolor"])
+                        "set_style" -> label.style = (a[1, "style"] as? String) ?: label.style
+                        "set_size" -> label.size = (a[1, "size"] as? String) ?: label.size
+                        "set_yloc" -> label.yloc = (a[1, "yloc"] as? String) ?: label.yloc
+                        "set_xloc" -> { label.x = x(a[1, "x"], a[2, "xloc"]) }
+                        "set_tooltip", "set_textalign", "set_text_font_family", "set_text_formatting" -> Unit
+                        "get_x" -> return label.x
+                        "get_y" -> return label.y
+                        "get_text" -> return label.text
+                        else -> throw PineException("$name is not supported by the local preview.", line)
+                    }
+                    return null
+                }
+                "line" -> {
+                    if (fn == "new") {
+                        val p1 = point(a[0, "first_point"])
+                        val drawn = if (p1 != null) {
+                            val p2 = point(a[1, "second_point"]) ?: throw PineException("line.new() needs two chart points.", line)
+                            val xloc = a[2, "xloc"]
+                            PineLine(pointX(p1, xloc), num(p1.fields["price"]), pointX(p2, xloc), num(p2.fields["price"]),
+                                colorOf(a[4, "color"]) ?: 0xFF2962FFL, num(a[6, "width"]).takeIf { !it.isNaN() } ?: 1.0,
+                                (a[5, "style"] as? String) ?: "line.style_solid", (a[3, "extend"] as? String) ?: "extend.none")
+                        } else {
+                            val xloc = a[4, "xloc"]
+                            PineLine(x(a[0, "x1"], xloc), num(a[1, "y1"]), x(a[2, "x2"], xloc), num(a[3, "y2"]),
+                                colorOf(a[6, "color"]) ?: 0xFF2962FFL, num(a[8, "width"]).takeIf { !it.isNaN() } ?: 1.0,
+                                (a[7, "style"] as? String) ?: "line.style_solid", (a[5, "extend"] as? String) ?: "extend.none")
+                        }
+                        return keep(drawnLines, drawn, maxLines, { it.deleted }) { it.deleted = true }
+                    }
+                    if (fn == "all") return PineArray(ArrayList(drawnLines.filter { !it.deleted }))
+                    val l = a[0, "id"] as? PineLine ?: return null
+                    when (fn) {
+                        "delete" -> l.deleted = true
+                        "copy" -> return keep(drawnLines, PineLine(l.x1, l.y1, l.x2, l.y2, l.color, l.width, l.style, l.extend),
+                            maxLines, { it.deleted }) { it.deleted = true }
+                        "set_x1" -> l.x1 = num(a[1, "x"])
+                        "set_x2" -> l.x2 = num(a[1, "x"])
+                        "set_y1" -> l.y1 = num(a[1, "y"])
+                        "set_y2" -> l.y2 = num(a[1, "y"])
+                        "set_xy1" -> { l.x1 = num(a[1, "x"]); l.y1 = num(a[2, "y"]) }
+                        "set_xy2" -> { l.x2 = num(a[1, "x"]); l.y2 = num(a[2, "y"]) }
+                        "set_first_point" -> point(a[1, "point"])?.let { l.x1 = num(it.fields["index"]); l.y1 = num(it.fields["price"]) }
+                        "set_second_point" -> point(a[1, "point"])?.let { l.x2 = num(it.fields["index"]); l.y2 = num(it.fields["price"]) }
+                        "set_color" -> l.color = colorOf(a[1, "color"])
+                        "set_width" -> l.width = num(a[1, "width"]).takeIf { !it.isNaN() } ?: l.width
+                        "set_style" -> l.style = (a[1, "style"] as? String) ?: l.style
+                        "set_extend" -> l.extend = (a[1, "extend"] as? String) ?: l.extend
+                        "set_xloc" -> { l.x1 = x(a[1, "x1"], a[3, "xloc"]); l.x2 = x(a[2, "x2"], a[3, "xloc"]) }
+                        "get_x1" -> return l.x1
+                        "get_x2" -> return l.x2
+                        "get_y1" -> return l.y1
+                        "get_y2" -> return l.y2
+                        "get_price" -> {
+                            val at = num(a[1, "x"])
+                            return if (l.x2 == l.x1) l.y1 else l.y1 + (l.y2 - l.y1) * (at - l.x1) / (l.x2 - l.x1)
+                        }
+                        else -> throw PineException("$name is not supported by the local preview.", line)
+                    }
+                    return null
+                }
+                "box" -> {
+                    if (fn == "new") {
+                        val p1 = point(a[0, "top_left"])
+                        val shift = if (p1 != null) 2 else 0
+                        val xloc = a[8 - shift, "xloc"]
+                        val drawn = if (p1 != null) {
+                            val p2 = point(a[1, "bottom_right"]) ?: throw PineException("box.new() needs two chart points.", line)
+                            PineBox(pointX(p1, xloc), num(p1.fields["price"]), pointX(p2, xloc), num(p2.fields["price"]),
+                                0L, 0L, "", null, "extend.none")
+                        } else PineBox(x(a[0, "left"], xloc), num(a[1, "top"]), x(a[2, "right"], xloc), num(a[3, "bottom"]),
+                            0L, 0L, "", null, "extend.none")
+                        drawn.border = colorOf(a[4 - shift, "border_color"]) ?: if (a.has(4 - shift, "border_color")) null else 0xFF2962FFL
+                        drawn.extend = (a[7 - shift, "extend"] as? String) ?: "extend.none"
+                        drawn.background = colorOf(a[9 - shift, "bgcolor"]) ?: if (a.has(9 - shift, "bgcolor")) null else 0x332962FFL
+                        drawn.text = a[10 - shift, "text"]?.let(PineText::of).orEmpty()
+                        drawn.textColor = colorOf(a[12 - shift, "text_color"]) ?: 0xFFFFFFFFL
+                        return keep(boxes, drawn, maxBoxes, { it.deleted }) { it.deleted = true }
+                    }
+                    if (fn == "all") return PineArray(ArrayList(boxes.filter { !it.deleted }))
+                    val b = a[0, "id"] as? PineBox ?: return null
+                    when (fn) {
+                        "delete" -> b.deleted = true
+                        "copy" -> return keep(boxes, PineBox(b.left, b.top, b.right, b.bottom, b.border, b.background, b.text,
+                            b.textColor, b.extend), maxBoxes, { it.deleted }) { it.deleted = true }
+                        "set_left" -> b.left = num(a[1, "left"])
+                        "set_right" -> b.right = num(a[1, "right"])
+                        "set_top" -> b.top = num(a[1, "top"])
+                        "set_bottom" -> b.bottom = num(a[1, "bottom"])
+                        "set_lefttop" -> { b.left = num(a[1, "left"]); b.top = num(a[2, "top"]) }
+                        "set_rightbottom" -> { b.right = num(a[1, "right"]); b.bottom = num(a[2, "bottom"]) }
+                        "set_top_left_point" -> point(a[1, "point"])?.let { b.left = num(it.fields["index"]); b.top = num(it.fields["price"]) }
+                        "set_bottom_right_point" -> point(a[1, "point"])?.let { b.right = num(it.fields["index"]); b.bottom = num(it.fields["price"]) }
+                        "set_border_color" -> b.border = colorOf(a[1, "color"])
+                        "set_bgcolor" -> b.background = colorOf(a[1, "color"])
+                        "set_text" -> b.text = a[1, "text"]?.let(PineText::of).orEmpty()
+                        "set_text_color" -> b.textColor = colorOf(a[1, "text_color"])
+                        "set_extend" -> b.extend = (a[1, "extend"] as? String) ?: b.extend
+                        "set_border_width", "set_border_style", "set_text_size", "set_text_halign", "set_text_valign",
+                        "set_text_wrap", "set_text_font_family", "set_xloc", "set_text_formatting" -> Unit
+                        "get_left" -> return b.left
+                        "get_right" -> return b.right
+                        "get_top" -> return b.top
+                        "get_bottom" -> return b.bottom
+                        else -> throw PineException("$name is not supported by the local preview.", line)
+                    }
+                    return null
+                }
+                "linefill" -> {
+                    if (fn == "new") {
+                        val first = a[0, "line1"] as? PineLine ?: return null
+                        val second = a[1, "line2"] as? PineLine ?: return null
+                        return PineLinefill(first, second, colorOf(a[2, "color"])?.let(::withMinimumTransparency)).also { linefills += it }
+                    }
+                    val f = a[0, "id"] as? PineLinefill ?: return null
+                    when (fn) {
+                        "delete" -> f.deleted = true
+                        "set_color" -> f.color = colorOf(a[1, "color"])?.let(::withMinimumTransparency)
+                        "get_line1" -> return f.first
+                        "get_line2" -> return f.second
+                        else -> throw PineException("$name is not supported by the local preview.", line)
+                    }
+                    return null
+                }
+                "table" -> {
+                    if (fn == "new") {
+                        val columns = num(a[1, "columns"]).toInt().coerceIn(1, 100)
+                        val rows = num(a[2, "rows"]).toInt().coerceIn(1, 100)
+                        tables.forEach { if (!it.deleted && tables.size > 8) it.deleted = true }
+                        return PineTable((a[0, "position"] as? String) ?: "position.top_right", columns, rows,
+                            colorOf(a[3, "bgcolor"]), colorOf(a[4, "frame_color"])).also { tables += it }
+                    }
+                    val t = a[0, "table_id"] as? PineTable ?: return null
+                    fun cellAt(): Pair<Int, Int> = num(a[1, "column"]).toInt() to num(a[2, "row"]).toInt()
+                    fun update(change: (TableCell) -> TableCell) {
+                        val at = cellAt()
+                        t.cells[at] = change(t.cells[at] ?: TableCell("", null, null, "size.normal"))
+                    }
+                    when (fn) {
+                        "cell" -> {
+                            val at = cellAt()
+                            if (at.first in 0 until t.columns && at.second in 0 until t.rows)
+                                t.cells[at] = TableCell(a[3, "text"]?.let(PineText::of).orEmpty(), colorOf(a[10, "bgcolor"]),
+                                    colorOf(a[6, "text_color"]) ?: 0xFFFFFFFFL, (a[9, "text_size"] as? String) ?: "size.normal")
+                        }
+                        "cell_set_text" -> update { it.copy(text = a[3, "text"]?.let(PineText::of).orEmpty()) }
+                        "cell_set_bgcolor" -> update { it.copy(background = colorOf(a[3, "bgcolor"])) }
+                        "cell_set_text_color" -> update { it.copy(textColor = colorOf(a[3, "text_color"])) }
+                        "cell_set_text_size" -> update { it.copy(textSize = (a[3, "text_size"] as? String) ?: it.textSize) }
+                        "clear" -> t.cells.clear()
+                        "delete" -> t.deleted = true
+                        "set_bgcolor" -> t.background = colorOf(a[1, "bgcolor"])
+                        "set_frame_color" -> t.frame = colorOf(a[1, "frame_color"])
+                        "set_position" -> t.position = (a[1, "position"] as? String) ?: t.position
+                        "merge_cells", "cell_set_width", "cell_set_height", "cell_set_text_halign", "cell_set_text_valign",
+                        "cell_set_tooltip", "cell_set_text_font_family", "set_border_color", "set_border_width",
+                        "set_frame_width", "cell_set_text_formatting" -> Unit
+                        else -> throw PineException("$name is not supported by the local preview.", line)
+                    }
+                    return null
+                }
+            }
+            throw PineException("$name is not supported by the local preview.", line)
         }
 
         // ------------------------------------------------ primitive helpers
