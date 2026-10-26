@@ -4,7 +4,9 @@ package ai.drfx.maximus.matrixai.llm
 enum class ModelProbeOutcome { SUCCEEDED, FAILED, UNCERTAIN }
 
 data class ModelProbeEvidence(val outcome: ModelProbeOutcome, val observedAtEpochMs: Long,
-    val failure: ProviderFailure? = null) {
+    val failure: ProviderFailure? = null,
+    /** Wall time of the test request when it answered; shown as responsiveness, never a quota. */
+    val latencyMs: Long? = null) {
     fun isFresh(nowEpochMs: Long): Boolean =
         observedAtEpochMs >= 0 && nowEpochMs >= observedAtEpochMs && nowEpochMs - observedAtEpochMs <= ApiCatalogSession.CATALOG_TTL_MS
 }

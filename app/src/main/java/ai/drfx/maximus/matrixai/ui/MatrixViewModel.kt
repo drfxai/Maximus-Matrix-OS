@@ -317,6 +317,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             monthlyBudgetUsd = apiStore.loadMonthlyBudgetUsd(),
             monthlyTokenBudget = initialTokenBudget,
             smartComboEnabled = apiStore.smartComboEnabled(),
+            autoTestModels = apiStore.autoTestModels(),
             tokenMetrics = TokenMetrics(
                 consumedLifetimeTokens = initialSummary.totalTokens,
                 contextCapacity = initialCapacity,
@@ -553,7 +554,18 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun applyProviderPreset(provider: LlmProvider) {
+    fun providerHasKey(provider: LlmProvider): Boolean = runCatching { apiStore.hasKeyForProvider(provider) }.getOrDefault(false)
+
+    fun setAutoTestModels(enabled: Boolean) {
+        apiStore.setAutoTestModels(enabled)
+        _llmState.value = _llmState.value.copy(autoTestModels = enabled)
+    }
+
+    /**
+     * Switches the provider preset. With [discover], a provider that already has a saved key
+     * immediately fetches its authenticated catalog (a free GET), so the switcher shows models.
+     */
+    fun applyProviderPreset(provider: LlmProvider, discover: Boolean = false) {
         cancelChat()
         invalidateApiInputs()
         val current = _llmState.value
@@ -597,6 +609,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             current.monthlyBudgetUsd,
             current.monthlyTokenBudget
         )
+        if (discover && apiStore.hasKeyForProvider(provider)) detectApi(providerEndpoint, "")
     }
 
     /** Unsaved endpoint/key edits revoke both the catalog and any pending probe approval. */
@@ -623,7 +636,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /** Authenticated GET only. Listing a model never proves that chat inference succeeds. */
-    fun detectApi(baseUrl: String, apiKeyInput: String) {
+    fun detectApi(baseUrl: String, apiKeyInput: String, autoTest: Boolean = false) {
         if (projectTeamJob?.isActive == true || SmartComboSessionBroker.busy()) return
         val ownership = UUID.randomUUID().toString()
         if (!SmartComboSessionBroker.acquire(ownership)) return
@@ -634,6 +647,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         val originalCredential = catalogFingerprint(requested.provider, baseUrl)
         _llmState.value = requested.copy(status = ConnectionStatus.DETECTING,
             statusMessage = "Fetching authenticated model catalog; no inference request is sent.")
+        var catalogReady = false
         validationJob = viewModelScope.launch {
             try {
                 val key = apiKeyInput.ifBlank { apiStore.resolveCredential(requested.provider, baseUrl) }
@@ -659,13 +673,20 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     statusMessage = result.message + " Chat compatibility must be tested per model.",
                     tokenMetrics = _llmState.value.tokenMetrics.copy(contextCapacity = ModelLimitsResolver.contextWindow(result.provider, model.id)))
                 if (requested.selectedModel != model.id || requested.baseUrl != result.baseUrl) createChatSession()
+                catalogReady = true
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
                 if (apiCatalogSession.isCurrent(revision)) _llmState.value = _llmState.value.copy(
                     status = ConnectionStatus.ERROR, models = emptyList(), selectedModel = requested.selectedModel, supportedAgents = emptyList(),
                     statusMessage = error.message ?: "Authenticated catalog discovery failed.")
             }
-        }.also { it.invokeOnCompletion { SmartComboSessionBroker.release(ownership) } }
+        }.also { it.invokeOnCompletion { cause ->
+            SmartComboSessionBroker.release(ownership)
+            // A freshly entered key goes straight on to the visible responsiveness test.
+            if (cause == null && catalogReady && autoTest && _llmState.value.autoTestModels) viewModelScope.launch {
+                scanModelCompatibility(_llmState.value.apiInputRevision, AUTO_TEST_LIMIT)
+            }
+        } }
     }
 
     /** Called only after the UI confirms potential provider charges for this exact revision. */
@@ -734,18 +755,18 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
      * Pastes a key with the right provider: a key that clearly belongs to another service switches
      * the preset (and its endpoint) first, then fetches that provider's authenticated catalog.
      */
-    fun connectWithKey(baseUrlInput: String, apiKeyInput: String) {
+    fun connectWithKey(baseUrlInput: String, apiKeyInput: String, autoTest: Boolean = false) {
         val key = apiKeyInput.trim()
         val current = _llmState.value
         val switch = if (key.isBlank()) null else ProviderKeyDetector.mismatch(current.provider, key)
         if (switch != null) {
             applyProviderPreset(switch.provider)
-            detectApi(switch.baseUrl, key)
+            detectApi(switch.baseUrl, key, autoTest)
             return
         }
         val detected = ProviderKeyDetector.detect(key)?.takeIf { it.provider == current.provider && !it.ambiguous }
         val base = baseUrlInput.trim().ifBlank { detected?.baseUrl ?: current.baseUrl.ifBlank { current.provider.defaultBaseUrl } }
-        detectApi(base, key)
+        detectApi(base, key, autoTest)
     }
 
     private var scanJob: Job? = null
@@ -790,6 +811,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                             gate.acquire()
                             try {
                                 if (stopReason != null || !apiCatalogSession.isCurrent(expectedRevision)) return@launch
+                                val startedAt = android.os.SystemClock.elapsedRealtime()
+                                var latency: Long? = null
                                 val outcome = try {
                                     val result = withTimeout(25_000L) {
                                         chatClient.send(ApiConnectionConfig(requested.baseUrl, credential.first, requested.provider,
@@ -800,6 +823,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                                             })
                                     }
                                     usageStore.record(requested.provider, model.id, result.usage)
+                                    latency = android.os.SystemClock.elapsedRealtime() - startedAt
                                     ModelProbeOutcome.SUCCEEDED to null
                                 } catch (error: Throwable) {
                                     if (error is CancellationException && error !is TimeoutCancellationException) throw error
@@ -814,7 +838,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                                     (if (uncertain) ModelProbeOutcome.UNCERTAIN else ModelProbeOutcome.FAILED) to failure
                                 }
                                 apiCatalogSession.recordProbe(expectedRevision, requested.provider, requested.baseUrl,
-                                    credential.second, model.id, outcome.first, outcome.second)
+                                    credential.second, model.id, outcome.first, outcome.second, latency)
                                 progress { scan -> scan.copy(tested = scan.tested + 1,
                                     passed = scan.passed + if (outcome.first == ModelProbeOutcome.SUCCEEDED) 1 else 0,
                                     failed = scan.failed + if (outcome.first == ModelProbeOutcome.FAILED) 1 else 0,
@@ -1674,3 +1698,5 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 
 /** Upper bound on one compatibility scan, so a huge router catalog cannot fan out hundreds of requests. */
 private const val MODEL_SCAN_LIMIT = 40
+/** Automatic test after a key connects stays small; more models can be tested on request. */
+private const val AUTO_TEST_LIMIT = 12
