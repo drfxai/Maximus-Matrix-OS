@@ -11,6 +11,8 @@
 - New Chat pet: a small blue robot whose screen switches between a terminal prompt and happy eyes, with a pulsing "Working" label while a reply is written. It follows the companion and animation settings.
 - Chat has a built-in web browser (menu → Web browser): type a URL or a Google search, go back and forward, and tap "Ask about this page" to hand the page's text to the assistant. HTML files attached in Chat open in a safe view with scripts and network off.
 - Agent tools (on by default, switch in the Tools panel): the assistant can ask the app to search the web, read a public page, or inspect the Pine Studio draft (local syntax check plus a run on a live BTC-USD chart with plots, signals and strategy results). Each lookup appears as its own message and sends one follow-up request, up to three rounds per question. Private and local network addresses are refused.
+- Pine Studio engine runs much more of Pine v5/v6: arrays, maps and matrices (with method syntax such as `values.push(close)`), `for … in` loops, user-defined `type`s with fields and `method`s, enums, `str.format`/`str.split`/`str.tostring` formats, and the label, line, box, linefill and table drawing APIs including chart points and limits like `max_labels_count`.
+- Pro chart: script labels, lines, boxes and fills are drawn on the chart, tables appear under it, strategies get an equity curve, the last price has a tag, long-press shows a crosshair with the exact price, two fingers zoom, and 300 candles are loaded.
 - Public version 1.0.0, package identity and signing certificate are preserved; the Android build number increases for an in-place update.
 
 ## V1.0.0 — internal build 10035

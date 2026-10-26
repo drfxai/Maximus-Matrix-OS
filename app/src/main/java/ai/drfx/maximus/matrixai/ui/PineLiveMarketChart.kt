@@ -3,6 +3,10 @@ package ai.drfx.maximus.matrixai.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -24,7 +28,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -72,7 +78,7 @@ internal fun PineLiveMarketChart(
     var error by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
-    var candleWidth by remember { mutableIntStateOf(if (compact) 6 else 7) }
+    var candleWidth by remember { mutableFloatStateOf(if (compact) 6f else 7f) }
     var selected by remember { mutableIntStateOf(-1) }
     var showIssues by remember { mutableStateOf(false) }
 
@@ -194,14 +200,28 @@ internal fun PineLiveMarketChart(
                 val paneHeight = if (compact) 82.dp else 110.dp
                 val hasPane = paneLines.isNotEmpty() || paneLevels.isNotEmpty()
                 val chartWidth: Modifier = if (previewOnly) Modifier.fillMaxWidth()
-                    else Modifier.width((max(320, market.candles.size * candleWidth)).dp)
+                    else Modifier.width(max(320f, market.candles.size * candleWidth).dp)
                 val visiblePriceLines = priceLines.map { it.copy(values = it.values.visible(), colors = it.colors.visible()) }
                 val priceRange = remember(visibleCandles, visiblePriceLines, priceLevels) {
                     priceRange(visibleCandles, visiblePriceLines, priceLevels)
                 }
                 val paneRange = remember(paneLines, paneLevels) { paneRange(paneLines, paneLevels) }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                    Box(Modifier.weight(1f).then(if (previewOnly) Modifier else Modifier.horizontalScroll(horizontal))) {
+                    // Two fingers zoom the candles; one finger keeps scrolling through history.
+                    val pinch = Modifier.pointerInput(Unit) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                            do {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.changes.count { it.pressed } >= 2) {
+                                    val zoom = event.calculateZoom()
+                                    if (zoom != 1f) candleWidth = (candleWidth * zoom).coerceIn(2f, 24f)
+                                    event.changes.forEach { it.consume() }
+                                }
+                            } while (event.changes.any { it.pressed })
+                        }
+                    }
+                    Box(Modifier.weight(1f).then(if (previewOnly) Modifier else pinch.horizontalScroll(horizontal))) {
                         Column(chartWidth, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             PineOhlcvCanvas(
                                 candles = visibleCandles,
@@ -214,6 +234,10 @@ internal fun PineLiveMarketChart(
                                 barColors = output?.barColors.orEmpty().visible(),
                                 signals = output?.signals.orEmpty(),
                                 range = priceRange,
+                                drawings = output?.drawings.orEmpty(),
+                                fills = output?.fills.orEmpty(),
+                                allLines = lines,
+                                firstBar = trim,
                                 modifier = Modifier.fillMaxWidth().height(priceHeight)
                                     .testTag("pine_real_ohlcv_canvas")
                                     .semantics { contentDescription = "OHLCV price candles" }
@@ -222,6 +246,8 @@ internal fun PineLiveMarketChart(
                                 size = market.candles.size,
                                 lines = paneLines,
                                 levels = paneLevels,
+                                fills = output?.fills.orEmpty(),
+                                allLines = lines,
                                 selectedIndex = selected,
                                 onSelect = { selected = it },
                                 range = paneRange,
@@ -229,12 +255,22 @@ internal fun PineLiveMarketChart(
                                     .testTag("pine_indicator_pane")
                                     .semantics { contentDescription = "Indicator pane" }
                             )
+                            val equity = output?.equity.orEmpty()
+                            if (equity.any { it != null } && !previewOnly) PineEquityCanvas(equity, trim,
+                                step = with(androidx.compose.ui.platform.LocalDensity.current) { candleWidth.dp.toPx() },
+                                modifier = Modifier.fillMaxWidth().height(if (compact) 46.dp else 64.dp))
                         }
                     }
                     Column(Modifier.width(58.dp).padding(start = 3.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         AxisLabels(priceRange, priceHeight * .80f, 6)
                         Spacer(Modifier.height(priceHeight * .20f))
                         if (hasPane && !previewOnly) AxisLabels(paneRange, paneHeight, 3)
+                        if (output?.equity.orEmpty().any { it != null } && !previewOnly) {
+                            Spacer(Modifier.height(3.dp))
+                            Text("Equity", color = MaximusReference.muted, fontSize = 9.sp)
+                            Text("%+.1f%%".format(Locale.US, (output!!.equity.lastOrNull { it != null } ?: 100.0) - 100.0),
+                                color = if ((output.equity.lastOrNull { it != null } ?: 100.0) >= 100.0) chartGreen else chartRed, fontSize = 9.sp)
+                        }
                     }
                 }
                 val activeIndex = selected.takeIf { it in market.candles.indices } ?: market.candles.lastIndex
@@ -263,13 +299,13 @@ internal fun PineLiveMarketChart(
                 if (!previewOnly) Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Zoom", color = MaximusReference.muted, fontSize = 10.sp)
                     Spacer(Modifier.width(5.dp))
-                    OutlinedButton(onClick = { candleWidth = max(3, candleWidth - 2) },
-                        enabled = candleWidth > 3,
+                    OutlinedButton(onClick = { candleWidth = max(2f, candleWidth - 2f) },
+                        enabled = candleWidth > 2f,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                         modifier = Modifier.height(28.dp)) { Text("−", fontSize = 15.sp) }
                     Spacer(Modifier.width(5.dp))
-                    OutlinedButton(onClick = { candleWidth = min(16, candleWidth + 2) },
-                        enabled = candleWidth < 16,
+                    OutlinedButton(onClick = { candleWidth = min(24f, candleWidth + 2f) },
+                        enabled = candleWidth < 24f,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                         modifier = Modifier.height(28.dp)) { Text("+", fontSize = 15.sp) }
                     Spacer(Modifier.weight(1f))
@@ -277,6 +313,7 @@ internal fun PineLiveMarketChart(
                         fontSize = 9.sp, color = MaximusReference.muted)
                 }
                 if (output != null && !previewOnly) {
+                    PineTablesView(output.tables)
                     PineAnalysisCard(output, market.candles, compact)
                     val issues = output.diagnostics
                     if (issues.isNotEmpty()) {
@@ -457,12 +494,29 @@ private fun PineOhlcvCanvas(
     backgrounds: List<Long?> = emptyList(),
     barColors: List<Long?> = emptyList(),
     signals: List<PineScriptEngine.Signal> = emptyList(),
-    range: ClosedFloatingPointRange<Double> = priceRange(candles, overlays, levels)
+    range: ClosedFloatingPointRange<Double> = priceRange(candles, overlays, levels),
+    drawings: List<PineScriptEngine.Drawing> = emptyList(),
+    fills: List<PineScriptEngine.Fill> = emptyList(),
+    allLines: List<PineIndicatorPreview.Line> = emptyList(),
+    firstBar: Int = 0
 ) {
+    val measurer = rememberTextMeasurer()
+    var crosshair by remember { mutableStateOf<Offset?>(null) }
     Canvas(modifier.background(chartBackground).pointerInput(candles) {
         detectTapGestures { position ->
             onSelect(((position.x / size.width) * candles.size)
                 .toInt().coerceIn(0, candles.lastIndex))
+        }
+    }.pointerInput(candles) {
+        // Long-press and drag shows a crosshair with the exact price, like a trading terminal.
+        detectDragGesturesAfterLongPress(
+            onDragStart = { crosshair = it },
+            onDragEnd = { crosshair = null },
+            onDragCancel = { crosshair = null }
+        ) { change, _ ->
+            change.consume()
+            crosshair = change.position
+            onSelect(((change.position.x / size.width) * candles.size).toInt().coerceIn(0, candles.lastIndex))
         }
     }) {
         if (candles.isEmpty()) return@Canvas
@@ -485,6 +539,7 @@ private fun PineOhlcvCanvas(
             val x = size.width * i / 8
             drawLine(chartGrid.copy(alpha = .6f), Offset(x, 0f), Offset(x, size.height), 1f)
         }
+        drawPineFills(fills, allLines, PineScriptEngine.Pane.PRICE, firstBar, candles.size, step, ::priceY)
         candles.forEachIndexed { i, candle ->
             val x = (i + .5f) * step
             val rising = candle.close >= candle.open
@@ -574,10 +629,21 @@ private fun PineOhlcvCanvas(
                 }
             }
         }
+        drawPineDrawings(drawings, ChartX(firstBar, step), ::priceY, measurer, candleArea)
         val last = candles.last()
-        drawLine(MaximusReference.gold.copy(alpha = .5f),
+        val lastColor = if (last.close >= last.open) chartGreen else chartRed
+        drawLine(lastColor.copy(alpha = .6f),
             Offset(0f, priceY(last.close)), Offset(size.width, priceY(last.close)),
             1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f)))
+        drawPriceTag(measurer, priceY(last.close), PineAnalysis.format(last.close), lastColor, Color.Black)
+        crosshair?.let { point ->
+            val y = point.y.coerceIn(0f, candleArea)
+            val dashed = PathEffect.dashPathEffect(floatArrayOf(4f, 4f))
+            drawLine(MaximusReference.white.copy(alpha = .55f), Offset(point.x, 0f), Offset(point.x, size.height), 1f, pathEffect = dashed)
+            drawLine(MaximusReference.white.copy(alpha = .55f), Offset(0f, y), Offset(size.width, y), 1f, pathEffect = dashed)
+            val price = maxPrice - (y / candleArea) * (maxPrice - minPrice)
+            drawPriceTag(measurer, y, crosshairLabel(price), MaximusReference.white, Color.Black)
+        }
         drawRect(MaximusReference.stroke, style = Stroke(1f))
     }
 }
@@ -590,7 +656,9 @@ private fun PineIndicatorPaneCanvas(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     range: ClosedFloatingPointRange<Double>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    fills: List<PineScriptEngine.Fill> = emptyList(),
+    allLines: List<PineIndicatorPreview.Line> = emptyList()
 ) {
     Canvas(modifier.background(chartBackground).pointerInput(size) {
         detectTapGestures { position ->
@@ -603,6 +671,7 @@ private fun PineIndicatorPaneCanvas(
         fun y(value: Double) = ((range.endInclusive - value) / (range.endInclusive - range.start) * height).toFloat()
         val zeroY = y(0.0).coerceIn(0f, height)
         for (i in 0..2) drawLine(chartGrid, Offset(0f, height * i / 2), Offset(this.size.width, height * i / 2), 1f)
+        drawPineFills(fills, allLines, PineScriptEngine.Pane.INDICATOR, 0, size, step, ::y)
         levels.forEach { level ->
             drawLine((level.color?.let { Color(it) } ?: MaximusReference.muted).copy(alpha = .75f),
                 Offset(0f, y(level.price)), Offset(this.size.width, y(level.price)), 1f,

@@ -123,8 +123,8 @@ class PineScriptEngineTest {
         val out = run("""
             //@version=5
             indicator("Partial", overlay=true)
-            arr = array.new_float(0)
-            label.new(bar_index, high, "hi")
+            eps = request.financial("AAPL", "EPS", "FQ")
+            polyline.new(array.new<chart.point>())
             plot(close, "close")
         """, 1.0, 2.0)
         assertEquals(listOf(1.0, 2.0), out.plot("close").values)
