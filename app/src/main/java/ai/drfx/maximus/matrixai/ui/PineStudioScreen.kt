@@ -152,6 +152,7 @@ fun PineStudioScreen(
                 MaximusSectionHeader("Pine Studio", "Build indicators with AI", Modifier.weight(1f))
             }
         }
+        item { ReaWorkspaceControls(Modifier.fillMaxWidth()) }
         item {
             PinePanel {
                 Row(verticalAlignment = Alignment.CenterVertically) {

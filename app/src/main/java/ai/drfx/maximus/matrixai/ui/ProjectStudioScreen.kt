@@ -264,7 +264,11 @@ fun ProjectStudioScreen(
                 onSelect = { activeId = it; showSelector = false })
         }
         if (section == 0) item {
-            PremiumPineWorkCard(onOpen = onPine)
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                PremiumPineWorkCard(onOpen = onPine)
+                // Below the hero: the Pine CTA remains visible when Work returns to its header.
+                ReaWorkspaceControls(Modifier.fillMaxWidth())
+            }
         }
         item {
             if (section != 0) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {

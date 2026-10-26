@@ -462,6 +462,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 compact = true
             )
         }
+        if (!keyboardVisible) ReaWorkspaceControls(Modifier.fillMaxWidth())
         if (workspaceControlsOpen && !keyboardVisible) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             FilterChip(selected = true, onClick = {}, label = { Text(stringResource(R.string.nav_chat), fontSize = 11.sp) })
             FilterChip(selected = false, onClick = onWork, label = { Text(stringResource(R.string.ui_work), fontSize = 11.sp) })

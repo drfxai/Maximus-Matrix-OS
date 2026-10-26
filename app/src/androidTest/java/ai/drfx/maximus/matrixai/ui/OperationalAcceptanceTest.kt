@@ -31,6 +31,8 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import ai.drfx.maximus.matrixai.MainActivity
+import ai.drfx.maximus.matrixai.rea.ReaMode
+import ai.drfx.maximus.matrixai.rea.ReaModeStore
 import ai.drfx.maximus.matrixai.operations.EvidenceState
 import ai.drfx.maximus.matrixai.operations.OperationsRepository
 import ai.drfx.maximus.matrixai.ui.theme.AppLanguage
@@ -54,6 +56,44 @@ class OperationalAcceptanceTest {
     private val context = instrumentation.targetContext
     private val device = UiDevice.getInstance(instrumentation).also {
         Configurator.getInstance().setWaitForIdleTimeout(500L)
+    }
+
+    @Test fun reaModesAreSharedAndPersistentWithoutExecutingTools() = inEnglishActivity {
+        val state = ReaModeStore.get(context)
+        state.select(ReaMode.OFF)
+        try {
+            onActivity { activity ->
+                activity.setContent {
+                    MaximusMatrixTheme {
+                        Scaffold(containerColor = Color.Black, contentWindowInsets = WindowInsets.safeDrawing) { insets ->
+                            Column(Modifier.fillMaxSize().padding(insets).consumeWindowInsets(insets)) {
+                                ReaWorkspaceControls()
+                            }
+                        }
+                    }
+                }
+            }
+            checkNotNull(device.wait(Until.findObject(By.text("Always on")), 10_000)).click()
+            assertEquals(ReaMode.ALWAYS_ON, state.mode.value)
+            assertTrue(context.getSharedPreferences("maximus_rea_workflow", 0).getBoolean("always_on", false))
+            onActivity { activity ->
+                // Simulate leaving Chat for Pine/Work: all three embed this same controller.
+                activity.setContent {
+                    MaximusMatrixTheme {
+                        Scaffold(containerColor = Color.Black) { insets ->
+                            Column(Modifier.padding(insets)) { ReaWorkspaceControls() }
+                        }
+                    }
+                }
+            }
+            assertNotNull(device.wait(Until.findObject(By.text("Always on")), 10_000))
+            assertEquals(ReaMode.ALWAYS_ON, state.mode.value)
+            state.select(ReaMode.ON)
+            assertFalse(context.getSharedPreferences("maximus_rea_workflow", 0).getBoolean("always_on", false))
+            assertEquals(ReaMode.ON, state.mode.value)
+        } finally {
+            state.select(ReaMode.OFF)
+        }
     }
 
     @Test fun sixGalaxyLayoutsKeepBrainAccessibleAndCaptureActualFrames() = inEnglishActivity {
