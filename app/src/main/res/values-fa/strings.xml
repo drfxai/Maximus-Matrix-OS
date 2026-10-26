@@ -103,6 +103,8 @@
     <string name="speech_delete">حذف</string>
     <string name="speech_retry">تلاش دوباره برای درخواست قبلی</string>
     <string name="chat_continue_reply">ادامهٔ پاسخ</string>
+    <string name="chat_agent_tools">ابزارهای عامل</string>
+    <string name="chat_agent_tools_detail">دستیار می‌تواند در وب جست‌وجو کند، صفحه‌ها را بخواند و نمودارهای Pine Studio را بررسی کند. هر جست‌وجو یک درخواست پیگیری قابل‌مشاهده اضافه می‌کند.</string>
     <string name="chat_attach_audio_file">فایل صوتی</string>
     <string name="speech_stop_audio">توقف صدا</string>
     <string name="speech_enable_replies">فعال‌کردن پاسخ صوتی</string>

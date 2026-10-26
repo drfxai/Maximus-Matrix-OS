@@ -103,6 +103,8 @@
     <string name="speech_delete">Sil</string>
     <string name="speech_retry">Son isteği yeniden dene</string>
     <string name="chat_continue_reply">Yanıta devam et</string>
+    <string name="chat_agent_tools">Ajan araçları</string>
+    <string name="chat_agent_tools_detail">Asistan web\'de arama yapabilir, sayfaları okuyabilir ve Pine Studio grafiklerini inceleyebilir. Her arama görünür bir takip isteği ekler.</string>
     <string name="chat_attach_audio_file">Ses dosyası</string>
     <string name="speech_stop_audio">Sesi durdur</string>
     <string name="speech_enable_replies">Sesli yanıtları aç</string>

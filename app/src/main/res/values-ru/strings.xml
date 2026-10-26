@@ -103,6 +103,8 @@
     <string name="speech_delete">Удалить</string>
     <string name="speech_retry">Повторить последний запрос</string>
     <string name="chat_continue_reply">Продолжить ответ</string>
+    <string name="chat_agent_tools">Инструменты агента</string>
+    <string name="chat_agent_tools_detail">Ассистент может искать в интернете, читать страницы и проверять графики Pine Studio. Каждый запрос добавляет один видимый дополнительный запрос.</string>
     <string name="chat_attach_audio_file">Аудиофайл</string>
     <string name="speech_stop_audio">Остановить звук</string>
     <string name="speech_enable_replies">Включить голосовые ответы</string>

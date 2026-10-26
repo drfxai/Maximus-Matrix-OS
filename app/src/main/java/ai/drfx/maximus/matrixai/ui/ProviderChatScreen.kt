@@ -215,6 +215,13 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
 
     var attachment by remember { mutableStateOf<ChatAttachment?>(null) }
     var attachmentError by remember { mutableStateOf<String?>(null) }
+    var browserStart by remember { mutableStateOf<BrowserStart?>(null) }
+    browserStart?.let { start ->
+        ChatBrowserDialog(start, onDismiss = { browserStart = null }, onAskAboutPage = { page ->
+            attachment = page
+            browserStart = null
+        })
+    }
     val cameraPreview = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         if (bitmap != null) {
             val bytes = java.io.ByteArrayOutputStream().also { bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
@@ -435,7 +442,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             onTools = { workspaceControlsOpen = !workspaceControlsOpen },
             toolsOpen = workspaceControlsOpen,
             toolsLabel = stringResource(if (workspaceControlsOpen) R.string.focus_controls_hide else R.string.focus_controls_show),
-            onSettings = { settingsOpen = true }
+            onSettings = { settingsOpen = true },
+            onBrowser = { browserStart = BrowserStart.Address("") }
         )
         if (searchOpen) OutlinedTextField(
             value = messageSearch, onValueChange = { messageSearch = it },
@@ -485,6 +493,15 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 Modifier.fillMaxWidth().heightIn(max = 280.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.chat_agent_tools), color = MaximusReference.white, fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.chat_agent_tools_detail), color = MaximusReference.muted, fontSize = 10.sp)
+                    }
+                    Switch(checked = state.agentToolsEnabled, onCheckedChange = { viewModel.setAgentTools(it) },
+                        modifier = Modifier.testTag("chat_agent_tools_switch"))
+                }
                 // Compact unified header: Model info, Token telemetry badge, settings trigger, voice toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -958,7 +975,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
             TextButton(onClick = { viewModel.cancelChat() }) { Text(stringResource(R.string.chat_stop)) }
         }
         attachment?.let { current ->
-            ChatAttachmentChip(current, onRemove = { attachment = null })
+            ChatAttachmentChip(current, onRemove = { attachment = null },
+                onView = if (current.mimeType == "text/html") ({ browserStart = BrowserStart.Html(current.name, current.data) }) else null)
         }
         if (attachment?.mimeType?.startsWith("image/") == true &&
             ModelImagePolicy.requiresUnverifiedRouterAttempt(

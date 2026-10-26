@@ -110,6 +110,7 @@ internal fun ChatLiveHeader(
     onSearch: () -> Unit,
     onTools: () -> Unit,
     onSettings: () -> Unit,
+    onBrowser: () -> Unit = {},
     toolsOpen: Boolean = false,
     toolsLabel: String = "Workspace controls",
     modifier: Modifier = Modifier
@@ -179,6 +180,8 @@ internal fun ChatLiveHeader(
                     Icon(Icons.Default.MoreVert, "More chat actions")
                 }
                 DropdownMenu(menuOpen, { menuOpen = false }) {
+                    DropdownMenuItem(text = { Text("Web browser") }, leadingIcon = { Icon(Icons.Default.Public, null) },
+                        onClick = { menuOpen = false; onBrowser() }, modifier = Modifier.testTag("chat_open_browser"))
                     DropdownMenuItem(text = { Text("Search conversation") }, leadingIcon = { Icon(Icons.Default.Search, null) },
                         onClick = { menuOpen = false; onSearch() })
                     DropdownMenuItem(text = { Text("Models & providers") }, leadingIcon = { Icon(Icons.Default.SwapHoriz, null) },
@@ -326,10 +329,10 @@ internal fun ChatTypingCard(state: LlmUiState) {
         if (pet) ChatPet(size = 38.dp, working = true) else ProviderOrb(provider, brand, true, Modifier.size(30.dp))
         Column {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Working", color = Color(0xFFB4B9C4), fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                Text(if (state.agentLookup.isNotBlank()) "Looking up" else "Working", color = Color(0xFFB4B9C4), fontSize = 13.sp, fontWeight = FontWeight.Medium,
                     modifier = Modifier.graphicsLayer { alpha = pulse })
                 Box(Modifier.size(5.dp).background(brand, CircleShape))
-                Text((request?.agentName ?: "Assistant") + " · " + shortModelName(request?.modelId ?: state.selectedModel),
+                Text(state.agentLookup.ifBlank { (request?.agentName ?: "Assistant") + " · " + shortModelName(request?.modelId ?: state.selectedModel) },
                     color = MaximusReference.white, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
             }
@@ -769,7 +772,8 @@ private fun StepRow(label: String, done: Boolean, running: Boolean, failed: Bool
 
 /** Composer chip for the pending attachment: type icon, name, what was extracted, remove. */
 @Composable
-internal fun ChatAttachmentChip(attachment: ai.drfx.maximus.matrixai.llm.ChatAttachment, onRemove: () -> Unit) {
+internal fun ChatAttachmentChip(attachment: ai.drfx.maximus.matrixai.llm.ChatAttachment, onRemove: () -> Unit,
+                                onView: (() -> Unit)? = null) {
     val mime = attachment.mimeType
     val icon = when {
         mime.startsWith("audio/") -> Icons.Default.AudioFile
@@ -791,6 +795,8 @@ internal fun ChatAttachmentChip(attachment: ai.drfx.maximus.matrixai.llm.ChatAtt
                     (if (attachment.fallbackText != null) " · text extracted" else "")
                 Text(detail, color = MaximusReference.muted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+            if (onView != null) TextButton(onClick = onView, contentPadding = PaddingValues(horizontal = 8.dp),
+                modifier = Modifier.height(32.dp).testTag("chat_attachment_view")) { Text("View", fontSize = 12.sp, color = MaximusReference.gold) }
             IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.Close, "Remove attachment", Modifier.size(16.dp))
             }
