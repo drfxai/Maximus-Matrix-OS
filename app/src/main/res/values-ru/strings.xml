@@ -102,6 +102,7 @@
     <string name="speech_rename">Переименовать</string>
     <string name="speech_delete">Удалить</string>
     <string name="speech_retry">Повторить последний запрос</string>
+    <string name="chat_continue_reply">Продолжить ответ</string>
     <string name="speech_stop_audio">Остановить звук</string>
     <string name="speech_enable_replies">Включить голосовые ответы</string>
     <string name="speech_disable_replies">Отключить голосовые ответы</string>

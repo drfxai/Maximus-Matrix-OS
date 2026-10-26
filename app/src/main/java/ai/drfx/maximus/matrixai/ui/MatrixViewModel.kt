@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
@@ -458,6 +459,14 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 freeOffers = refreshed
                 val checkedAt = System.currentTimeMillis()
                 // Human-readable non-secret catalog evidence; free price does not prove live account quota.
+                // Preview which free model would answer next and which one stands by, so Chat
+                // can show a ready model before the user sends anything. Nothing is reserved.
+                val preview = runCatching {
+                    SmartComboPlanner.choose(SmartComboPlanner.Task(
+                        requiredCapabilities = AgentRegistry.byId(_llmState.value.selectedAgentId)?.requiredCapabilities.orEmpty(),
+                        estimatedInputTokens = 1_000, reservedOutputTokens = 2_048, nowEpochMs = checkedAt
+                    ), freeRouteHealth.decorate(refreshed, checkedAt).map { it.route })
+                }.getOrNull()
                 val routes = refreshed.take(8).map { offer ->
                     offer.route.provider.displayName.take(25) + " · " +
                         offer.route.modelId.take(55) + " · zero catalog price"
@@ -465,6 +474,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 _llmState.value = _llmState.value.copy(
                     smartComboOffers = freeOffers.size,
                     smartComboRouteLabels = routes,
+                    comboReadyModel = preview?.primary?.modelId.orEmpty(),
+                    comboStandbyModel = preview?.standby?.modelId.orEmpty(),
                     smartComboProviderChecks = report.checks.take(8).map { status ->
                         status.provider.displayName + ": " + status.message
                     },
@@ -1089,7 +1100,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             SmartComboSessionBroker.release(dispatchOwnership)
             return false
         }
-        _llmState.value = current.copy(isGenerating = true, activeRequest = null, tokenMetrics = current.tokenMetrics.copy(
+        _llmState.value = current.copy(isGenerating = true, activeRequest = null, interruptedReply = false,
+            comboNotice = "", tokenMetrics = current.tokenMetrics.copy(
             streamingEstimateActive = false,
             streamingOutputTokensEstimate = 0,
             verifiedRateRequestsRemaining = null,
@@ -1102,6 +1114,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         chatJob = viewModelScope.launch {
             var autoPrepared: SmartComboFreeExecutor.Prepared? = null
             var comboOutputBudget = 2048
+            var streamTime = System.currentTimeMillis()
+            val streamedText = StringBuilder()
             try {
             chatRepository.saveMessage(
                 ChatMessageEntity(
@@ -1119,6 +1133,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val requestHistory = selectedContext.messages
                 val comboIntent = SmartComboModelScorer.classify(prompt,
                     selectedContext.estimatedTokens + memoryAndSystemBudget)
+                val triedRoutes = linkedSetOf<String>()
+                var lastFailover: SmartComboFailover.Reason? = null
+                var failedModel: String? = null
+                var config: ApiConnectionConfig
+                var result: ChatCompletionResult
+                while (true) {
                 if (current.smartComboEnabled) {
                     // Code asks for room to return whole files first, then falls back to smaller
                     // reservations so tight-context or low token-per-minute routes stay usable.
@@ -1130,7 +1150,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                             estimatedInput = (selectedContext.estimatedTokens.toLong() + memoryAndSystemBudget).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                             reservedOutput = budget,
                             requiredCapabilities = selectedAgent.requiredCapabilities,
-                            offers = freeRouteHealth.decorate(freeOffers, System.currentTimeMillis()),
+                            offers = freeRouteHealth.decorate(freeOffers, System.currentTimeMillis())
+                                .filterNot { it.route.id in triedRoutes },
                             resolveCredential = { provider, endpoint -> apiStore.resolveCredential(provider, endpoint) },
                             agentId = selectedAgent.id,
                             intent = comboIntent
@@ -1142,11 +1163,19 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         })
                     }
                     require(autoPrepared != null) {
-                        "No compatible, verified free route passed the capability and quota admission checks."
+                        if (triedRoutes.isEmpty()) "No compatible, verified free route passed the capability and quota admission checks."
+                        else "Smart Combo tried ${triedRoutes.size} free route(s) and none could answer: " +
+                            (lastFailover?.label ?: "unavailable") + ". Refresh routes or try again shortly."
                     }
                     autoPrepared?.let { chosen ->
                         val route = chosen.offer.route
-                        _llmState.value = _llmState.value.copy(statusMessage = listOfNotNull(personaFallbackNote,
+                        val switched = failedModel?.let { from ->
+                            SmartComboFailover.notice(from, route.modelId, requireNotNull(lastFailover))
+                        }
+                        _llmState.value = _llmState.value.copy(
+                            comboStandbyModel = chosen.standby?.substringAfter("::").orEmpty(),
+                            comboNotice = switched ?: _llmState.value.comboNotice,
+                            statusMessage = listOfNotNull(personaFallbackNote, switched,
                             "Smart Combo routed this ${comboIntent.label} request to ${route.modelId} " +
                                 "(${route.provider.displayName}, est. quality ${route.quality}" +
                                 (route.contextWindowTokens?.let { ", ${it / 1000}k context" } ?: "") + ")" +
@@ -1154,7 +1183,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         ).joinToString(" "))
                     }
                 }
-                val config = autoPrepared?.config ?: ApiConnectionConfig(
+                config = autoPrepared?.config ?: ApiConnectionConfig(
                     baseUrl = current.baseUrl,
                     apiKey = apiStore.resolveCredential(current.provider, current.baseUrl),
                     provider = current.provider,
@@ -1176,8 +1205,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 )
                 AppLogStore.info("CHAT", "Request started provider=" + config.provider.name +
                     " model=" + config.selectedModel + " agent=" + selectedAgent.id)
-                val streamTime = System.currentTimeMillis()
-                val streamedText = StringBuilder()
+                streamTime = System.currentTimeMillis()
+                streamedText.clear()
                 val dispatchedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
                 var firstTokenObserved = false
                 var lastStreamUiAtMs = Long.MIN_VALUE
@@ -1205,7 +1234,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 _llmState.value = _llmState.value.copy(activeRequest = dispatched, lastRequest = dispatched,
                     tokenMetrics = ChatTokenTelemetry.dispatched(_llmState.value.tokenMetrics,
                         dispatchedCapacity, selectedContext.estimatedTokens + memoryAndSystemBudget))
-                val result = chatClient.send(config, requestHistory, equippedAgent, maxOutputTokens = if (autoPrepared != null) comboOutputBudget else OutputTokenLimit.directCap(config.provider, config.selectedModel, comboIntent),
+                val attemptConfig = config
+                var timedOut = false
+                try {
+                result = kotlinx.coroutines.coroutineScope {
+                val call = async { chatClient.send(attemptConfig, requestHistory, equippedAgent, maxOutputTokens = if (autoPrepared != null) comboOutputBudget else OutputTokenLimit.directCap(config.provider, config.selectedModel, comboIntent),
                     beforeDispatch = { if (!current.smartComboEnabled) requireCatalogSelection(current) }, onQuota = { windows ->
                     if (windows.isNotEmpty()) {
                         autoPrepared?.let { freeExecutor.observeProviderQuota(it, windows) }
@@ -1262,6 +1295,41 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                             )
                         }
                     }
+                }
+                }
+                // A streaming free route that has not produced its first token in time is
+                // cancelled so the next verified route can take over.
+                val watchdog = if (autoPrepared != null && SmartComboFailover.watchesFirstToken(attemptConfig.provider)) launch {
+                    kotlinx.coroutines.delay(SmartComboFailover.FIRST_TOKEN_TIMEOUT_MS)
+                    if (!firstTokenObserved) { timedOut = true; call.cancel() }
+                } else null
+                try { call.await() } finally { watchdog?.cancel() }
+                }
+                break
+                } catch (error: Throwable) {
+                    val failedAttempt = autoPrepared ?: throw error
+                    val userCancelled = kotlinx.coroutines.currentCoroutineContext()[Job]?.isActive == false || requestGeneration != chatGeneration
+                    val decision = SmartComboFailover.decide(error, timedOut, streamedText.isNotEmpty(),
+                        triedRoutes.size + 1, userCancelled)
+                    if (decision !is SmartComboFailover.Decision.Switch) {
+                        // A watchdog cancellation is a route failure, not a user stop.
+                        if (timedOut && !userCancelled) throw IllegalStateException(
+                            failedAttempt.offer.route.modelId + " " + SmartComboFailover.Reason.SLOW.label + ".")
+                        throw error
+                    }
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) {
+                        freeExecutor.failed(failedAttempt)
+                        refreshSmartComboDurability()
+                    }
+                    freeRouteHealth.failed(failedAttempt.offer.route.id, System.currentTimeMillis())
+                    triedRoutes += failedAttempt.offer.route.id
+                    lastFailover = decision.reason
+                    failedModel = failedAttempt.offer.route.modelId
+                    autoPrepared = null
+                    AppLogStore.info("CHAT", "Smart Combo failover from model=" + failedModel + " reason=" + decision.reason.name)
+                    appendLlmEvent(MatrixEventType.MODEL_FAILED, "model:" + failedModel, "agent:" + selectedAgent.id,
+                        "Smart Combo switching route: " + decision.reason.label)
+                }
                 }
                 autoPrepared?.let {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -1327,7 +1395,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     status = ConnectionStatus.CONNECTED,
                     statusMessage = "Inference succeeded: " + config.provider.displayName + " / " + config.selectedModel +
                         if (autoPrepared != null) " (verified free-text offer; account quota unknown)." else ".",
-                    isGenerating = false, activeRequest = null,
+                    isGenerating = false, activeRequest = null, interruptedReply = false,
                     tokenMetrics = updatedMetrics
                 )
                 AppLogStore.info("CHAT", "Response completed model=" + config.selectedModel + " inputTokens=" + result.usage.inputTokens + " outputTokens=" + result.usage.outputTokens + " remainingCtx=" + remainingCtx)
@@ -1354,12 +1422,26 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     if (requestGeneration == chatGeneration) _llmState.value = _llmState.value.copy(isGenerating = false, activeRequest = null, tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                     throw error
                 }
+                val partial = streamedText.toString()
                 streamingTimestamp?.let { t -> _chatMessages.value = _chatMessages.value.filterNot { it.role == "assistant" && it.timestampMs == t } }
                 streamingTimestamp = null
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
+                // Text the user already watched arrive is kept, clearly marked, and never replayed
+                // automatically; the user can explicitly continue it on another route.
+                if (partial.isNotBlank()) {
+                    val kept = ChatMessage("assistant", partial.trimEnd() + "\n\n— reply interrupted —", streamTime)
+                    _chatMessages.value = _chatMessages.value + kept
+                    runCatching {
+                        chatRepository.saveMessage(ChatMessageEntity(sessionId = requestSessionId, role = "assistant",
+                            content = kept.content, timestampMs = kept.timestampMs))
+                    }
+                }
                 AppLogStore.error("CHAT", error.message ?: "The model request failed.")
-                appendAssistantError(error.message ?: "The model request failed.")
-                _llmState.value = _llmState.value.copy(isGenerating = false, activeRequest = null, status = ConnectionStatus.DEGRADED, statusMessage = error.message ?: "Inference failed", tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
+                appendAssistantError(if (partial.isNotBlank()) "The reply was interrupted: " + (error.message ?: "connection lost") +
+                    " Tap Continue to finish it." else error.message ?: "The model request failed.")
+                _llmState.value = _llmState.value.copy(isGenerating = false, activeRequest = null, status = ConnectionStatus.DEGRADED,
+                    interruptedReply = partial.isNotBlank(), statusMessage = error.message ?: "Inference failed",
+                    tokenMetrics = _llmState.value.tokenMetrics.copy(streamingEstimateActive = false, streamingOutputTokensEstimate = 0))
                 appendLlmEvent(
                     MatrixEventType.MODEL_FAILED,
                     "model:" + (autoPrepared?.config?.selectedModel ?: current.selectedModel),
@@ -1370,6 +1452,10 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         }.also { job -> job.invokeOnCompletion { SmartComboSessionBroker.release(dispatchOwnership) } }
         return true
     }
+
+    /** Explicit, user-initiated continuation of a reply that was cut off mid-stream. */
+    fun continueInterruptedReply(): Boolean = sendChat(
+        "Continue your previous reply exactly where it was interrupted. Do not repeat text you already wrote.")
 
     fun cancelChat() {
         if (projectTeamJob?.isActive == true) { cancelProjectTeam(); return }

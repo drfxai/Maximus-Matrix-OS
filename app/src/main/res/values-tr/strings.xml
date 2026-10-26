@@ -102,6 +102,7 @@
     <string name="speech_rename">Yeniden adlandır</string>
     <string name="speech_delete">Sil</string>
     <string name="speech_retry">Son isteği yeniden dene</string>
+    <string name="chat_continue_reply">Yanıta devam et</string>
     <string name="speech_stop_audio">Sesi durdur</string>
     <string name="speech_enable_replies">Sesli yanıtları aç</string>
     <string name="speech_disable_replies">Sesli yanıtları kapat</string>

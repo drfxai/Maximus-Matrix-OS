@@ -463,10 +463,18 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                     }
                 )
         if (messages.lastOrNull()?.isError == true && !state.isGenerating && sendable) {
-            TextButton(onClick = {
-                messages.lastOrNull { it.role == "user" }?.let { viewModel.sendChat(it.content, it.attachment, false) }
-            }) { Text(stringResource(R.string.speech_retry)) }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (state.interruptedReply) Button(onClick = { viewModel.continueInterruptedReply() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaximusReference.gold, contentColor = Color.Black),
+                    modifier = Modifier.testTag("chat_continue_reply")) {
+                    Text(stringResource(R.string.chat_continue_reply))
+                }
+                TextButton(onClick = {
+                    messages.lastOrNull { it.role == "user" }?.let { viewModel.sendChat(it.content, it.attachment, false) }
+                }) { Text(stringResource(R.string.speech_retry)) }
+            }
         }
+        ComboFailoverNotice(state.comboNotice)
         // Optional controls share a bounded viewport so the conversation retains space.
         AnimatedVisibility(visible = workspaceControlsOpen && !keyboardVisible, enter = fadeIn(), exit = fadeOut()) {
             Column(

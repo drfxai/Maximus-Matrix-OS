@@ -158,8 +158,9 @@ internal fun ChatLiveHeader(
                                 color = brand, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         } else Text(
                             when {
-                                state.smartComboEnabled -> "${state.smartComboOffers} free routes ready" +
-                                    (if (agentName.isNotBlank()) " · $agentName" else "")
+                                state.smartComboEnabled -> (if (state.comboReadyModel.isNotBlank())
+                                    "Ready: " + shortModelName(state.comboReadyModel) else "${state.smartComboOffers} free routes ready") +
+                                    (if (state.comboStandbyModel.isNotBlank()) " · standby " + shortModelName(state.comboStandbyModel) else "")
                                 !sendable && !state.hasSavedKey -> "Tap to connect ${ProviderBrand.short(state.provider)}"
                                 !sendable -> statusLine(state)
                                 else -> ProviderBrand.short(provider) + (if (agentName.isNotBlank()) " · $agentName" else "")
@@ -279,6 +280,26 @@ private fun ContextFlowBar(usedFraction: Float, color: Color, streaming: Boolean
             val x = size.width * shift
             drawRect(Brush.horizontalGradient(listOf(Color.Transparent, color, Color.Transparent),
                 startX = x - size.width * .18f, endX = x + size.width * .18f))
+        }
+    }
+}
+
+/**
+ * Brief notice when Smart Combo moved a request to another free model; it fades out by itself.
+ */
+@Composable
+internal fun ComboFailoverNotice(notice: String, modifier: Modifier = Modifier) {
+    var visible by remember(notice) { mutableStateOf(notice.isNotBlank()) }
+    LaunchedEffect(notice) { if (notice.isNotBlank()) { delay(7_000); visible = false } }
+    AnimatedVisibility(visible, modifier = modifier, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+        Surface(shape = RoundedCornerShape(12.dp), color = MaximusReference.gold.copy(alpha = .12f),
+            border = BorderStroke(1.dp, MaximusReference.gold.copy(alpha = .45f)),
+            modifier = Modifier.fillMaxWidth().testTag("combo_failover_notice")) {
+            Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.AltRoute, null, Modifier.size(16.dp), tint = MaximusReference.gold)
+                Spacer(Modifier.width(7.dp))
+                Text(notice, color = MaximusReference.white, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
