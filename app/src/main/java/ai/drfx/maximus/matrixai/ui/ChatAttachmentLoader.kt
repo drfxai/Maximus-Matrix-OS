@@ -74,7 +74,7 @@ internal fun loadChatAttachment(context: Context, uri: Uri): ChatAttachment {
             require(ChatFileIntake.looksLikeText(bytes.copyOfRange(0, minOf(bytes.size, 64 * 1024)))) {
                 context.getString(R.string.conv_text_binary)
             }
-            val text = String(bytes, Charsets.UTF_8).removePrefix("﻿")
+            val text = String(bytes, Charsets.UTF_8).removePrefix("\uFEFF")
             val lines = text.count { it == '\n' } + 1
             val language = CodeLanguageCatalog.forFileName(name)
             ChatAttachment(name, if (kind == Kind.HTML) "text/html" else ChatFileIntake.textMime(name), text, true,
