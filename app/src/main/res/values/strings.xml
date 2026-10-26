@@ -103,6 +103,7 @@
     <string name="speech_delete">Delete</string>
     <string name="speech_retry">Retry last request</string>
     <string name="chat_continue_reply">Continue reply</string>
+    <string name="chat_attach_audio_file">Audio file</string>
     <string name="speech_stop_audio">Stop audio</string>
     <string name="speech_enable_replies">Enable spoken replies</string>
     <string name="speech_disable_replies">Disable spoken replies</string>

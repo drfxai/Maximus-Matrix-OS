@@ -93,6 +93,7 @@ dependencies {
 
     // Optional Android ARM64 PRoot runtime installer: verified zstd/tar release bundles.
     implementation("org.apache.commons:commons-compress:1.27.1")
+    implementation("com.github.junrar:junrar:7.5.5")
     implementation("com.github.luben:zstd-jni:1.5.7-12@aar")
 
     // Room persistence

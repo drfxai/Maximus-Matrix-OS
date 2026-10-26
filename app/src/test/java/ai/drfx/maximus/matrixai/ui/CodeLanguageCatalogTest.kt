@@ -35,3 +35,22 @@ class CodeLanguageCatalogTest {
         assertEquals("js", CodeLanguageCatalog.resolve("js", "const plot = () => 1").extension)
     }
 }
+
+class CodeLanguageDetectionTest {
+    @Test fun untaggedCodeIsDetectedByContent() {
+        assertEquals("py", CodeLanguageCatalog.detect("import os\n\ndef main():\n    print(os.getcwd())\n\nif __name__ == '__main__':\n    main()\n")?.extension)
+        assertEquals("java", CodeLanguageCatalog.detect("public class Hello {\n  public static void main(String[] args) {\n    System.out.println(\"hi\");\n  }\n}")?.extension)
+        assertEquals("c", CodeLanguageCatalog.detect("#include <stdio.h>\n\nint main(void) {\n  printf(\"hi\\n\");\n  return 0;\n}")?.extension)
+        assertEquals("pine", CodeLanguageCatalog.detect("//@version=6\nindicator(\"RSI\")\nplot(ta.rsi(close, 14))")?.extension)
+        assertEquals("json", CodeLanguageCatalog.detect("{\n  \"name\": \"demo\",\n  \"version\": 1\n}")?.extension)
+    }
+
+    @Test fun proseIsNotCode() {
+        assertNull(CodeLanguageCatalog.detect("This is a plain sentence about the market today."))
+    }
+
+    @Test fun genericFenceUsesContent() {
+        assertEquals("py", CodeLanguageCatalog.resolve("text", "def f(x):\n    return x\n\nfor i in range(3):\n    print(f(i))").extension)
+        assertEquals("py", CodeLanguageCatalog.forFileName("bot.py")?.extension)
+    }
+}

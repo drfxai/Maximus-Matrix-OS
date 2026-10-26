@@ -63,8 +63,9 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
             connection.outputStream.use { output ->
                 fun write(text: String) = output.write(text.toByteArray(Charsets.UTF_8))
                 write("--$boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n")
-                write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"voice.m4a\"\r\n")
-                write("Content-Type: audio/m4a\r\n\r\n")
+                val extension = AttachmentPolicy.audioExtension(attachment.mimeType)
+                write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.$extension\"\r\n")
+                write("Content-Type: ${attachment.mimeType}\r\n\r\n")
                 output.write(Base64.decode(attachment.data, Base64.DEFAULT))
                 write("\r\n--$boundary--\r\n")
             }

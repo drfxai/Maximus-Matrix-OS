@@ -103,6 +103,7 @@
     <string name="speech_delete">حذف</string>
     <string name="speech_retry">تلاش دوباره برای درخواست قبلی</string>
     <string name="chat_continue_reply">ادامهٔ پاسخ</string>
+    <string name="chat_attach_audio_file">فایل صوتی</string>
     <string name="speech_stop_audio">توقف صدا</string>
     <string name="speech_enable_replies">فعال‌کردن پاسخ صوتی</string>
     <string name="speech_disable_replies">غیرفعال‌کردن پاسخ صوتی</string>

@@ -34,6 +34,8 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
@@ -46,25 +48,51 @@ import androidx.compose.ui.window.DialogProperties
 import ai.drfx.maximus.matrixai.studio.LargeSource
 import kotlinx.coroutines.launch
 
-private val codeKeywords = Regex(
-    "\\b(class|fun|val|var|if|else|for|while|switch|return|import|package|override|def|const|let|function|export|" +
-        "async|await|public|private|true|false|null|na|and|or|not|indicator|strategy|library|method|type|input)\\b"
-)
-private val codeTokens = Regex("//[^\n]*|#[^\n]*$|\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|\\b\\d+(?:\\.\\d+)?\\b")
+/** Display colours per token kind, tuned for the navy code surface. */
+internal fun syntaxStyle(kind: TokenKind): SpanStyle = when (kind) {
+    TokenKind.KEYWORD -> SpanStyle(color = Color(0xFFC792EA), fontWeight = FontWeight.SemiBold)
+    TokenKind.TYPE -> SpanStyle(color = Color(0xFFFFCB6B))
+    TokenKind.BUILTIN -> SpanStyle(color = Color(0xFF56C8D8))
+    TokenKind.STRING -> SpanStyle(color = Color(0xFFC3E88D))
+    TokenKind.NUMBER -> SpanStyle(color = Color(0xFFF78C6C))
+    TokenKind.COMMENT -> SpanStyle(color = Color(0xFF6E7F96), fontStyle = FontStyle.Italic)
+    TokenKind.FUNCTION -> SpanStyle(color = Color(0xFF82AAFF))
+    TokenKind.ANNOTATION -> SpanStyle(color = MaximusReference.gold)
+    TokenKind.PREPROCESSOR -> SpanStyle(color = Color(0xFFC792EA))
+    TokenKind.TAG -> SpanStyle(color = Color(0xFFF07178))
+    TokenKind.ATTRIBUTE -> SpanStyle(color = Color(0xFFFFCB6B))
+    TokenKind.PROPERTY -> SpanStyle(color = Color(0xFF80CBC4))
+    TokenKind.CONSTANT -> SpanStyle(color = Color(0xFFF78C6C))
+}
 
-/** Single-line highlighter: cheap enough to run per visible row of a 20k line file. */
-internal fun highlightCodeLine(line: String, keyword: Color = MaximusReference.gold): AnnotatedString = buildAnnotatedString {
+private fun styled(line: String, spans: List<TokenSpan>): AnnotatedString = buildAnnotatedString {
     append(line)
-    if (line.length > 2_000) return@buildAnnotatedString
-    codeKeywords.findAll(line).forEach { addStyle(SpanStyle(color = keyword), it.range.first, it.range.last + 1) }
-    codeTokens.findAll(line).forEach { match ->
-        val value = match.value
-        val color = when {
-            value.startsWith("//") || value.startsWith("#") -> Color(0xFF718397)
-            value.first().isDigit() -> Color(0xFF8FD3FF)
-            else -> Color(0xFF9BE59B)
-        }
-        addStyle(SpanStyle(color = color), match.range.first, match.range.last + 1)
+    spans.forEach { span ->
+        val start = span.start.coerceIn(0, line.length)
+        val end = span.end.coerceIn(start, line.length)
+        if (end > start) addStyle(syntaxStyle(span.kind), start, end)
+    }
+}
+
+/** Single-line highlighter with generic C-family/script rules; used when no language is known. */
+internal fun highlightCodeLine(line: String, @Suppress("UNUSED_PARAMETER") keyword: Color = MaximusReference.gold): AnnotatedString =
+    styled(line, SyntaxTokenizer.line(line, SyntaxSpecs.generic).first)
+
+/**
+ * Language-aware highlighter for one source. Line-start states (block comments, multi-line
+ * strings) are computed once, so each visible row is coloured independently and cheaply.
+ */
+internal class CodeHighlighter(code: String, private val spec: LanguageSpec) {
+    private val states: ByteArray? = if (spec.blockComment != null || spec.tripleQuotes || spec.backtickStrings || spec.markup)
+        SyntaxTokenizer.lineStates(code, spec) else null
+
+    fun line(lineNumber: Int, text: String): AnnotatedString {
+        val state = states?.getOrNull(lineNumber - 1)?.let { LexState.entries[it.toInt()] } ?: LexState.NONE
+        return styled(text, SyntaxTokenizer.line(text, spec, state).first)
+    }
+
+    companion object {
+        fun forLanguage(code: String, extension: String) = CodeHighlighter(code, SyntaxSpecs.forExtension(extension))
     }
 }
 
@@ -81,7 +109,9 @@ internal fun LargeCodeView(
     listState: LazyListState = rememberLazyListState(),
     markedLine: Int? = null,
     showLineNumbers: Boolean = true,
-    highlight: (String) -> AnnotatedString = { highlightCodeLine(it) }
+    highlight: (String) -> AnnotatedString = { highlightCodeLine(it) },
+    /** Line-aware highlighter (1-based line number); takes precedence over [highlight]. */
+    highlightAt: ((Int, String) -> AnnotatedString)? = null
 ) {
     val index = remember(code) { LargeSource.LineIndex(code) }
     val widest = remember(code) {
@@ -110,7 +140,7 @@ internal fun LargeCodeView(
                     items(index.lineCount) { i ->
                         val lineNumber = i + 1
                         val line = index.line(lineNumber)
-                        val styled = remember(line) { highlight(line) }
+                        val styled = remember(line, lineNumber, highlightAt) { highlightAt?.invoke(lineNumber, line) ?: highlight(line) }
                         Row(Modifier.fillMaxWidth().height(rowHeight)
                             .background(if (lineNumber == markedLine) MaximusReference.gold.copy(alpha = .16f) else Color.Transparent),
                             verticalAlignment = Alignment.CenterVertically) {
@@ -181,7 +211,8 @@ internal fun LargeCodeDialog(
     code: String,
     onDismiss: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
-    highlight: (String) -> AnnotatedString = { highlightCodeLine(it) }
+    highlight: (String) -> AnnotatedString = { highlightCodeLine(it) },
+    highlightAt: ((Int, String) -> AnnotatedString)? = null
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -218,7 +249,7 @@ internal fun LargeCodeDialog(
                     },
                     onGoTo = ::reveal)
                 LargeCodeView(code, Modifier.weight(1f).padding(top = 4.dp), fillHeight = true,
-                    listState = listState, markedLine = marked, highlight = highlight)
+                    listState = listState, markedLine = marked, highlight = highlight, highlightAt = highlightAt)
             }
         }
     }
