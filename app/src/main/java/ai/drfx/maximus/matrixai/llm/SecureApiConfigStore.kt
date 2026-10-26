@@ -71,6 +71,12 @@ class SecureApiConfigStore(context: Context) {
         preferences.edit().putBoolean("auto_test_models", enabled).apply()
     }
 
+    /** Let Chat replies ask the app for read-only lookups (web search, a web page, Pine Studio). */
+    fun agentTools(): Boolean = preferences.getBoolean("agent_tools", true)
+    fun setAgentTools(enabled: Boolean) {
+        preferences.edit().putBoolean("agent_tools", enabled).apply()
+    }
+
     fun loadBaseUrlForProvider(provider: LlmProvider): String = preferences.getString("endpoint_" + provider.name, null) ?: provider.defaultBaseUrl
     fun loadModelForProvider(provider: LlmProvider): String = preferences.getString("model_" + provider.name, null) ?: provider.defaultModel
     /** Stored identity for offline history; never a discovered or dispatch-authorized model. */

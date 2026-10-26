@@ -13,7 +13,7 @@ object ChatPresentation {
     private val contents = Regex("""<parameter\s+name=["']contents["']\s*>(.*?)</parameter>""", RegexOption.DOT_MATCHES_ALL)
 
     fun draft(raw: String): ToolDraft? {
-        val plainTool = Regex("<((?:web_search|image_gen|execute_code))>.*?</\\1>", RegexOption.DOT_MATCHES_ALL).find(raw)
+        val plainTool = Regex("<((?:image_gen|execute_code))>.*?</\\1>", RegexOption.DOT_MATCHES_ALL).find(raw)
         if (plainTool != null) return ToolDraft(plainTool.groupValues[1], null,
             "Suggested tool operation — not executed or verified")
         if (!raw.contains("<function_calls>") && !raw.contains("<invoke ")) return null
@@ -23,7 +23,7 @@ object ChatPresentation {
     }
 
     /** The reply text with suggested tool-call markup removed, so surrounding prose and code still show. */
-    fun withoutToolMarkup(raw: String): String = raw
+    fun withoutToolMarkup(raw: String): String = ai.drfx.maximus.matrixai.llm.AgentTools.stripTags(raw)
         .replace(Regex("<function_calls>.*?(?:</function_calls>|$)", RegexOption.DOT_MATCHES_ALL), "")
         .replace(Regex("<invoke\\s.*?(?:</invoke>|$)", RegexOption.DOT_MATCHES_ALL), "")
         .replace(Regex("<(web_search|image_gen|execute_code)>.*?</\\1>", RegexOption.DOT_MATCHES_ALL), "")

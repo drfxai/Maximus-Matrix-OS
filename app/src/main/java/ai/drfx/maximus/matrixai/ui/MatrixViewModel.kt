@@ -319,6 +319,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             monthlyTokenBudget = initialTokenBudget,
             smartComboEnabled = apiStore.smartComboEnabled(),
             autoTestModels = apiStore.autoTestModels(),
+            agentToolsEnabled = apiStore.agentTools(),
             tokenMetrics = TokenMetrics(
                 consumedLifetimeTokens = initialSummary.totalTokens,
                 contextCapacity = initialCapacity,
@@ -566,6 +567,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun providerHasKey(provider: LlmProvider): Boolean = runCatching { apiStore.hasKeyForProvider(provider) }.getOrDefault(false)
+
+    fun setAgentTools(enabled: Boolean) {
+        apiStore.setAgentTools(enabled)
+        _llmState.value = _llmState.value.copy(agentToolsEnabled = enabled)
+    }
 
     fun setAutoTestModels(enabled: Boolean) {
         apiStore.setAutoTestModels(enabled)
@@ -999,7 +1005,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
-    fun sendChat(text: String, attachmentInput: ChatAttachment? = null, fromVoice: Boolean = false): Boolean {
+    fun sendChat(text: String, attachmentInput: ChatAttachment? = null, fromVoice: Boolean = false,
+                 agentRound: Int = 0): Boolean {
         if (text.trim().startsWith("/mission ")) { executeMission(text.trim().removePrefix("/mission "), true); return true }
         // PDFs and other converted files fall back to their extracted text for models that
         // cannot read the original format; Smart Combo routes always get the text form.
@@ -1090,9 +1097,13 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         // another project's history into a request that is already in flight.
         val memoryEvidenceAtRequest = sharedProjectMemory.cachedContext(memoryAccessAtRequest)
         val reaGuidanceAtRequest = ReaPolicy.guidance(reaModes.mode.value)
+        // Lookups stop being offered on the last allowed round so the model must answer.
+        val toolGuidanceAtRequest = if (current.agentToolsEnabled && agentRound < AgentTools.MAX_ROUNDS)
+            AgentTools.instructions else ""
         val memoryAndSystemBudget = ChatContextPolicy.estimateTokens(memoryEvidenceAtRequest) +
             ChatContextPolicy.estimateTokens(selectedAgent.systemPrompt) +
-            ChatContextPolicy.estimateTokens(reaGuidanceAtRequest)
+            ChatContextPolicy.estimateTokens(reaGuidanceAtRequest) +
+            ChatContextPolicy.estimateTokens(toolGuidanceAtRequest)
         val modelContext = ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
         // Smart Combo picks among routes, so the history may use the LARGEST verified free
         // window; the planner then rejects any route whose own window is too small.
@@ -1116,6 +1127,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             rateModelId = ""
         ), statusMessage = if (selectedContext.omittedMessages > 0) "Older context omitted to fit the estimated limit; no automatic summary." else current.statusMessage)
 
+        var requestedLookups: List<AgentTools.Call> = emptyList()
         chatJob = viewModelScope.launch {
             var autoPrepared: SmartComboFreeExecutor.Prepared? = null
             var comboOutputBudget = 2048
@@ -1224,13 +1236,15 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         "For fa-IR use fluent Persian written in Persian script. " +
                         "Do not claim an audio recording or transcription was verified by the model."
                 } else ""
-                val equippedAgent = if (memoryEvidenceAtRequest.isBlank() && speechInstruction.isBlank() && reaGuidanceAtRequest.isBlank()) {
+                val equippedAgent = if (memoryEvidenceAtRequest.isBlank() && speechInstruction.isBlank() &&
+                    reaGuidanceAtRequest.isBlank() && toolGuidanceAtRequest.isBlank()) {
                     selectedAgent
                 } else {
                     selectedAgent.copy(systemPrompt = selectedAgent.systemPrompt +
                         (if (memoryEvidenceAtRequest.isBlank()) "" else "\n\n" + memoryEvidenceAtRequest) +
                         speechInstruction +
-                        (if (reaGuidanceAtRequest.isBlank()) "" else "\n\n" + reaGuidanceAtRequest))
+                        (if (reaGuidanceAtRequest.isBlank()) "" else "\n\n" + reaGuidanceAtRequest) +
+                        (if (toolGuidanceAtRequest.isBlank()) "" else "\n\n" + toolGuidanceAtRequest))
                 }
                 val dispatched = ChatRequestTelemetry(config.provider, config.selectedModel,
                     selectedAgent.id, selectedAgent.name, streamTime, current.smartComboEnabled)
@@ -1403,6 +1417,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     isGenerating = false, activeRequest = null, interruptedReply = false,
                     tokenMetrics = updatedMetrics
                 )
+                if (toolGuidanceAtRequest.isNotBlank()) requestedLookups = AgentTools.parse(result.text)
                 AppLogStore.info("CHAT", "Response completed model=" + config.selectedModel + " inputTokens=" + result.usage.inputTokens + " outputTokens=" + result.usage.outputTokens + " remainingCtx=" + remainingCtx)
                 appendLlmEvent(
                     MatrixEventType.MODEL_COMPLETED,
@@ -1454,8 +1469,43 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     error.message ?: "Model request failed"
                 )
             }
-        }.also { job -> job.invokeOnCompletion { SmartComboSessionBroker.release(dispatchOwnership) } }
+        }.also { job -> job.invokeOnCompletion { cause ->
+            SmartComboSessionBroker.release(dispatchOwnership)
+            val lookups = requestedLookups
+            if (cause == null && lookups.isNotEmpty() && requestGeneration == chatGeneration &&
+                _activeChatSessionId.value == requestSessionId) {
+                chatJob = viewModelScope.launch { runAgentLookups(lookups, agentRound + 1, requestSessionId) }
+            }
+        } }
         return true
+    }
+
+    /**
+     * Runs the read-only lookups a reply asked for and sends their results back as a visible
+     * follow-up turn. Each round is one more chat request on the same route rules, capped at
+     * [AgentTools.MAX_ROUNDS]; turning agent tools off or stopping the reply ends the loop.
+     */
+    private suspend fun runAgentLookups(calls: List<AgentTools.Call>, round: Int, sessionId: String) {
+        if (!_llmState.value.agentToolsEnabled || round > AgentTools.MAX_ROUNDS) return
+        val generation = chatGeneration
+        _llmState.value = _llmState.value.copy(isGenerating = true,
+            agentLookup = calls.joinToString(" · ") { it.title.replaceFirstChar(Char::uppercase) })
+        appendLlmEvent(MatrixEventType.MODEL_STARTED, "agent-lookup", "round:" + round,
+            "Agent lookup: " + calls.joinToString { it.tool.tag })
+        val results = try {
+            ChatAgentToolRunner(getApplication()).run(calls)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            "Lookups failed: " + (error.message ?: error.javaClass.simpleName)
+        } finally {
+            _llmState.value = _llmState.value.copy(isGenerating = false, agentLookup = "")
+        }
+        if (generation != chatGeneration || _activeChatSessionId.value != sessionId) return
+        val attachment = ChatAttachment(
+            name = "agent-lookup.md", mimeType = "text/markdown", data = results, isText = true,
+            summary = calls.joinToString(" · ") { it.tool.label })
+        sendChat(AgentTools.followUp(calls), attachment, agentRound = round)
     }
 
     /** Explicit, user-initiated continuation of a reply that was cut off mid-stream. */

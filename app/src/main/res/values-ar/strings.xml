@@ -103,6 +103,8 @@
     <string name="speech_delete">حذف</string>
     <string name="speech_retry">إعادة المحاولة للطلب السابق</string>
     <string name="chat_continue_reply">متابعة الرد</string>
+    <string name="chat_agent_tools">أدوات الوكيل</string>
+    <string name="chat_agent_tools_detail">يمكن للمساعد البحث في الويب وقراءة الصفحات وفحص مخططات Pine Studio. كل عملية بحث تضيف طلب متابعة واحدًا مرئيًا.</string>
     <string name="chat_attach_audio_file">ملف صوتي</string>
     <string name="speech_stop_audio">إيقاف الصوت</string>
     <string name="speech_enable_replies">تفعيل الردود الصوتية</string>

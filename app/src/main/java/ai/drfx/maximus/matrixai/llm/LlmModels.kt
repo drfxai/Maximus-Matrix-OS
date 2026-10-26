@@ -198,6 +198,9 @@ data class LlmUiState(
     val interruptedReply: Boolean = false,
     /** Run the tiny responsiveness test automatically after a key connects. */
     val autoTestModels: Boolean = true,
+    val agentToolsEnabled: Boolean = true,
+    /** Lookups the last reply asked for that are running now, shown in the typing card. */
+    val agentLookup: String = "",
     val smartComboRefreshing: Boolean = false,
     val smartComboOffers: Int = 0,
     /** Public route labels only; never contains credentials or model response content. */
