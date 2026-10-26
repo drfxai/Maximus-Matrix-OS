@@ -5,6 +5,7 @@
 - Chat command center: a slim live header shows the active provider, model and the agent that is answering, an exact count of context tokens left, and a live output-token counter and speed while a reply streams. The conversation gets the freed space; voice, REA and workspace controls move into the Tools panel.
 - New Models & providers switcher: animated provider cards with key status, a searchable model list with capability tags, context size and measured response time, filters (responsive, vision, reasoning, free) and persona chips. Switching to a provider with a saved key loads its models immediately.
 - Smart key entry: pasting a key detects the provider, verifies the key by listing models and then tests which models answer (one tiny request each, can be turned off), showing the fastest working models first.
+- Smart Combo failover: if the free model fails, hits a rate limit or quota, or does not start answering within 25 seconds before any text appears, the same message goes to the next verified free model automatically (up to three models) and Chat shows which model took over. The header shows the model that is ready next and its standby. A reply that breaks off mid-stream is kept and can be finished with Continue.
 - Public version 1.0.0, package identity and signing certificate are preserved; the Android build number increases for an in-place update.
 
 ## V1.0.0 — internal build 10035

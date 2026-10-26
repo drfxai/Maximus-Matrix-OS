@@ -1,8 +1,9 @@
 package ai.drfx.maximus.matrixai.llm
 
 /**
- * Single-dispatch verified-free routing. A network send is never replayed automatically:
- * retries after a socket timeout can incur duplicate charges or external side-effects.
+ * Verified-free routing. Each prepared request is dispatched at most once. When a route fails
+ * before any reply text arrived, Chat may prepare a NEW request on a different zero-price route
+ * (see [SmartComboFailover]); a reply that already streamed text is never replayed automatically.
  * Multi-device hard quota enforcement requires a trusted transactional backend.
  */
 internal class SmartComboFreeExecutor(

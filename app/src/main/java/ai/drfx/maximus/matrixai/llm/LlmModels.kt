@@ -176,6 +176,14 @@ data class LlmUiState(
     val monthlyTokenBudget: Long = 0L,
     val tokenMetrics: TokenMetrics = TokenMetrics(),
     val smartComboEnabled: Boolean = false,
+    /** Free model Smart Combo would use for the next message (planner preview, nothing reserved). */
+    val comboReadyModel: String = "",
+    /** Model Smart Combo keeps ready to take over the current request, when one is reserved. */
+    val comboStandbyModel: String = "",
+    /** Latest automatic route switch, shown briefly in Chat; never contains prompt text. */
+    val comboNotice: String = "",
+    /** The last reply stopped mid-stream and can be explicitly continued. */
+    val interruptedReply: Boolean = false,
     /** Run the tiny responsiveness test automatically after a key connects. */
     val autoTestModels: Boolean = true,
     val smartComboRefreshing: Boolean = false,
