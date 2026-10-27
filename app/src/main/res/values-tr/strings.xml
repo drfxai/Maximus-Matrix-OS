@@ -787,4 +787,5 @@
     <string name="motion_selected">Seçili</string>
     <string name="motion_team_scope">Zamanlanmış haber ve cihaz sağlığı görevleri. Proje ekipleri Studio bölümünde.</string>
     <string name="project_checkpoint_integrity_error">Kontrol noktası sürümü dosya listesiyle eşleşmiyor. Çalışma alanını inceleyip yeni bir kontrol noktası kaydedin.</string>
+    <string name="combo_state_keys_ready">Ücretsiz yol yok; kendi anahtarlarınızda %1$d model hazır (sağlayıcı ücretleri uygulanabilir).</string>
 </resources>

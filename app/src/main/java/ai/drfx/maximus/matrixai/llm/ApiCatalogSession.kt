@@ -37,5 +37,12 @@ class ApiCatalogSession(private val clock: () -> Long = System::currentTimeMilli
     /** Immutable projection; contains no credentials, prompts, response bodies or raw errors. */
     @Synchronized fun probeEvidence(): Map<String, ModelProbeEvidence> = probes.toMap()
 
-    companion object { const val CATALOG_TTL_MS = 5 * 60 * 1000L }
+    companion object {
+        /**
+         * How long an authenticated catalog (and its test results) stays valid. The credential
+         * fingerprint already revokes it on any key or endpoint change; five minutes used to expire
+         * the catalog mid-conversation and every send failed with "Model catalog is missing, stale…".
+         */
+        const val CATALOG_TTL_MS = 12 * 60 * 60 * 1000L
+    }
 }

@@ -140,7 +140,7 @@ class ApiDiscoveryEngine {
         val text = BoundedApiResponse.read(if (code in 200..299) connection.inputStream else connection.errorStream)
         connection.disconnect()
         if (code !in 200..299) {
-            throw ProviderRequestException.fromHttp(code)
+            throw ProviderRequestException.fromHttp(code, text)
         }
         return text
     }
@@ -180,15 +180,35 @@ class ApiDiscoveryEngine {
             return normalizeBaseUrl(input)
         }
 
+        /** Operation paths people paste along with the base URL, e.g. ".../v1/models". */
+        private val operationSuffixes = listOf("/chat/completions", "/completions", "/models", "/responses", "/messages")
+
         fun normalizeBaseUrl(input: String): String {
             var value = input.trim().trimEnd('/')
             if (!value.startsWith("http://") && !value.startsWith("https://")) value = "https://" + value
+            // ".../provider/v1/models" used to become ".../v1/models/v1/models" and fail with 404.
+            var stripped = true
+            while (stripped) {
+                stripped = false
+                for (suffix in operationSuffixes) {
+                    val pathStart = value.indexOf('/', value.indexOf("://") + 3)
+                    if (pathStart >= 0 && value.length - suffix.length >= pathStart &&
+                        value.endsWith(suffix, ignoreCase = true)) {
+                        value = value.dropLast(suffix.length).trimEnd('/')
+                        stripped = true
+                    }
+                }
+            }
             return value
         }
 
+        private val versionSegment = Regex("^v\\d+[a-z0-9.]*$", RegexOption.IGNORE_CASE)
+
+        /** Appends /v1 only when the endpoint has no version segment of its own (v1, v4, v1beta…). */
         fun apiRoot(base: String): String {
             val normalized = base.trimEnd('/')
-            return if (normalized.endsWith("/v1")) normalized else normalized + "/v1"
+            val path = runCatching { java.net.URI(normalized).path.orEmpty() }.getOrDefault("")
+            return if (path.split('/').any { versionSegment.matches(it) }) normalized else normalized + "/v1"
         }
 
         fun geminiRoot(base: String): String {

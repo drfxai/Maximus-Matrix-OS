@@ -72,7 +72,7 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
             val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
             val response = BoundedApiResponse.read(stream)
             if (connection.responseCode !in 200..299) {
-                throw ProviderRequestException.fromHttp(connection.responseCode)
+                throw ProviderRequestException.fromHttp(connection.responseCode, response)
             }
             return JSONObject(response).optString("text").takeIf { it.isNotBlank() }
                 ?: throw IllegalStateException("Audio transcription returned no text.")
@@ -140,11 +140,12 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
             return streamOpenAi(config, endpoint, body.toString(), headers, history, onQuota, onDelta)
         }
         val json = JSONObject(post(endpoint, body.toString(), headers))
-        val text = json.optJSONArray("choices")
-            ?.optJSONObject(0)
-            ?.optJSONObject("message")
-            ?.optString("content")
-            ?.takeIf { it.isNotBlank() }
+        val choice = json.optJSONArray("choices")?.optJSONObject(0)
+        val message = choice?.optJSONObject("message")
+        // JSON null content (common for thinking models) must never become the text "null".
+        val text = ReplyText.content(message).takeIf { it.isNotBlank() }
+            ?: if (ReplyText.isLengthStop(ReplyText.string(choice, "finish_reason"))) throw TruncatedReplyException()
+            else ReplyText.reasoning(message).takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("The provider returned no assistant message.")
         return ChatCompletionResult(text, parseOpenAiUsage(json) ?: estimateUsage(history, text))
     }
@@ -166,7 +167,7 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
         maxOutputTokens?.let { body.put("max_output_tokens", it) }
         val headers = if (config.apiKey.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer " + config.apiKey)
         val json = JSONObject(post(endpoint, body.toString(), headers))
-        val direct = json.optString("output_text")
+        val direct = ReplyText.string(json, "output_text")
         val text = if (direct.isNotBlank()) direct else extractResponsesText(json)
         if (text.isBlank()) throw IllegalStateException("The Responses API returned no assistant text.")
         return ChatCompletionResult(text, parseResponsesUsage(json) ?: estimateUsage(history, text))
@@ -180,7 +181,7 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
             val content = item.optJSONArray("content") ?: continue
             for (j in 0 until content.length()) {
                 val part = content.optJSONObject(j) ?: continue
-                val text = part.optString("text")
+                val text = ReplyText.string(part, "text")
                 if (text.isNotBlank()) parts += text
             }
         }
@@ -230,11 +231,12 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
         val parts = buildList {
             if (content != null) for (i in 0 until content.length()) {
                 val item = content.optJSONObject(i) ?: continue
-                if (item.optString("type") == "text") add(item.optString("text"))
+                if (item.optString("type") == "text") add(ReplyText.string(item, "text"))
             }
         }
         val text = parts.joinToString("\n").takeIf { it.isNotBlank() }
-            ?: throw IllegalStateException("The provider returned no assistant message.")
+            ?: if (ReplyText.isLengthStop(ReplyText.string(json, "stop_reason"))) throw TruncatedReplyException()
+            else throw IllegalStateException("The provider returned no assistant message.")
         val usage = json.optJSONObject("usage")
         return ChatCompletionResult(
             text,
@@ -280,16 +282,24 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
             .put("contents", contents)
         maxOutputTokens?.let { body.put("generationConfig", JSONObject().put("maxOutputTokens", it)) }
         val json = JSONObject(post(endpoint, body.toString(), mapOf("x-goog-api-key" to config.apiKey)))
-        val candidates = json.optJSONArray("candidates")
-        val parts = candidates?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
+        val candidate = json.optJSONArray("candidates")?.optJSONObject(0)
+        val parts = candidate?.optJSONObject("content")?.optJSONArray("parts")
         val texts = buildList {
             if (parts != null) for (i in 0 until parts.length()) {
-                val text = parts.optJSONObject(i)?.optString("text").orEmpty()
+                val part = parts.optJSONObject(i) ?: continue
+                // Thought summaries are not the answer.
+                if (part.optBoolean("thought", false)) continue
+                val text = ReplyText.string(part, "text")
                 if (text.isNotBlank()) add(text)
             }
         }
-        val text = texts.joinToString("\n").takeIf { it.isNotBlank() }
-            ?: throw IllegalStateException("Gemini returned no assistant response text.")
+        val text = texts.joinToString("\n").takeIf { it.isNotBlank() } ?: run {
+            // Thinking models spend small caps on hidden thoughts and stop with MAX_TOKENS.
+            if (ReplyText.isLengthStop(ReplyText.string(candidate, "finishReason"))) throw TruncatedReplyException()
+            val blocked = ReplyText.string(json.optJSONObject("promptFeedback"), "blockReason")
+            throw IllegalStateException(if (blocked.isNotBlank()) "Gemini blocked this prompt ($blocked)."
+                else "Gemini returned no assistant response text.")
+        }
         val usage = json.optJSONObject("usageMetadata")
         return ChatCompletionResult(
             text,
@@ -339,13 +349,26 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
             doOutput = true
             setRequestProperty("Content-Type", "application/json")
             setRequestProperty("Accept", "text/event-stream")
+            setRequestProperty("User-Agent", "MAXIMUS-AI/1.3")
             headers.forEach { (name, value) -> setRequestProperty(name, value) }
         }
         try {
             connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-            if (connection.responseCode !in 200..299) throw ProviderRequestException.fromHttp(connection.responseCode)
+            val code = connection.responseCode
+            if (code !in 200..299) throw ProviderRequestException.fromHttp(code,
+                runCatching { BoundedApiResponse.read(connection.errorStream) }.getOrNull())
             onQuota?.invoke(SmartComboRateLimitHeaders.parse(config.provider, config.baseUrl,
                 header = { headerName -> connection.getHeaderField(headerName) }))
+            // Some compatible hosts ignore "stream": true and answer with one JSON body.
+            if (connection.contentType?.startsWith("application/json", true) == true) {
+                val json = JSONObject(BoundedApiResponse.read(connection.inputStream))
+                val choice = json.optJSONArray("choices")?.optJSONObject(0)
+                val text = ReplyText.content(choice?.optJSONObject("message")).takeIf { it.isNotBlank() }
+                    ?: if (ReplyText.isLengthStop(ReplyText.string(choice, "finish_reason"))) throw TruncatedReplyException()
+                    else throw IllegalStateException("The provider returned no assistant message.")
+                onDelta(text)
+                return ChatCompletionResult(text, parseOpenAiUsage(json) ?: estimateUsage(history, text))
+            }
             require(connection.contentType?.startsWith("text/event-stream", true) == true) { "Provider did not return a supported event stream." }
             val parser = OpenAiStreamParser(onDelta)
             connection.inputStream.bufferedReader().use { reader ->
@@ -367,6 +390,7 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
             }
             require(parser.completed) { "Provider stream ended unexpectedly. Retry explicitly; partial text was not saved as success." }
             val text = parser.text()
+            if (text.isBlank() && parser.stoppedAtLimit) throw TruncatedReplyException()
             require(text.isNotBlank()) { "Provider stream returned no assistant text." }
             return ChatCompletionResult(text, parser.usage ?: estimateUsage(history, text))
         } finally { connection.disconnect() }
@@ -386,20 +410,15 @@ class LlmChatClient(private val requestTransport: ((String, String, Map<String, 
             setRequestProperty("User-Agent", "MAXIMUS-AI/1.3")
             headers.forEach { (key, value) -> setRequestProperty(key, value) }
         }
-        connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-        val code = connection.responseCode
-        val text = BoundedApiResponse.read(if (code in 200..299) connection.inputStream else connection.errorStream)
-        if (code !in 200..299) {
-            val message = runCatching {
-                val root = JSONObject(text)
-                root.optJSONObject("error")?.optString("message")
-                    ?.ifBlank { root.optJSONObject("error")?.optString("type") }
-                    ?.ifBlank { root.optString("message") }
-            }.getOrNull()
+        try {
+            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            val code = connection.responseCode
+            val text = BoundedApiResponse.read(if (code in 200..299) connection.inputStream else connection.errorStream)
+            // The provider's own words ("model not in your plan", "insufficient credits") are kept, redacted.
+            if (code !in 200..299) throw ProviderRequestException.fromHttp(code, text)
+            return text
+        } finally {
             connection.disconnect()
-            throw ProviderRequestException.fromHttp(code)
         }
-        connection.disconnect()
-        return text
     }
 }

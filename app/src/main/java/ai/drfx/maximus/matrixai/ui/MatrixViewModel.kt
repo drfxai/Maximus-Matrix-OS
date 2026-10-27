@@ -81,6 +81,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     private val freeRouteHealth = ai.drfx.maximus.matrixai.llm.SmartComboRouteHealth()
     private val sharedProjectMemory = SharedProjectMemory(application)
     @Volatile private var freeOffers: List<SmartComboFreeCatalog.Offer> = emptyList()
+    /** Models on the user's own saved keys that can take over a failed or unavailable route. */
+    @Volatile private var keyedRoutes: List<KeyedRoute> = emptyList()
+    @Volatile private var keyedRoutesAt = 0L
+    /** Model that took over after the selected one failed; later direct messages start there. */
+    @Volatile private var directTakeover: KeyedRoute? = null
     private val teamWorkspace = ProjectWorkspaceStore(application)
     private val teamContinuity = ProjectContinuityStore(application, teamWorkspace)
     private val teamStore = ProjectTeamRunStore(File(application.filesDir, "studio/team-run.json"))
@@ -319,6 +324,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             monthlyTokenBudget = initialTokenBudget,
             smartComboEnabled = apiStore.smartComboEnabled(),
             autoTestModels = apiStore.autoTestModels(),
+            autoSwitchKeys = apiStore.autoSwitchKeys(),
             agentToolsEnabled = apiStore.agentTools(),
             tokenMetrics = TokenMetrics(
                 consumedLifetimeTokens = initialSummary.totalTokens,
@@ -434,6 +440,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         _llmState.value = _llmState.value.copy(
             smartComboEnabled = enabled,
             smartComboOffers = if (enabled) freeOffers.size else 0,
+            smartComboKeyRoutes = if (enabled) _llmState.value.smartComboKeyRoutes else 0,
             smartComboRouteLabels = if (enabled) _llmState.value.smartComboRouteLabels else emptyList(),
             smartComboProviderChecks = if (enabled) _llmState.value.smartComboProviderChecks else emptyList(),
             smartComboCatalogChecks = if (enabled) _llmState.value.smartComboCatalogChecks else emptyList(),
@@ -454,10 +461,14 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 smartComboMessage = "Verifying free model offers…"
             )
             try {
-                val report = freeCatalog.refreshDetailed()
+                val report = freeCatalog.refreshDetailed(::probesFor)
                 if (!_llmState.value.smartComboEnabled) return@launch
                 val refreshed = report.offers
                 freeOffers = refreshed
+                keyedRoutes = report.keyed
+                keyedRoutesAt = System.currentTimeMillis()
+                val useKeys = _llmState.value.autoSwitchKeys
+                val keyedPreview = if (useKeys) KeyedRoutes.next(report.keyed, emptySet()) else null
                 val checkedAt = System.currentTimeMillis()
                 // Human-readable non-secret catalog evidence; free price does not prove live account quota.
                 // Preview which free model would answer next and which one stands by, so Chat
@@ -474,8 +485,9 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 _llmState.value = _llmState.value.copy(
                     smartComboOffers = freeOffers.size,
+                    smartComboKeyRoutes = if (useKeys) report.keyed.size else 0,
                     smartComboRouteLabels = routes,
-                    comboReadyModel = preview?.primary?.modelId.orEmpty(),
+                    comboReadyModel = preview?.primary?.modelId ?: keyedPreview?.modelId.orEmpty(),
                     comboStandbyModel = preview?.standby?.modelId.orEmpty(),
                     smartComboProviderChecks = report.checks.take(8).map { status ->
                         status.provider.displayName + ": " + status.message
@@ -487,6 +499,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     smartComboUiPhase = when {
                         refreshed.isNotEmpty() -> FreeCatalogUiPhase.READY
                         report.configuredProviders == 0 -> FreeCatalogUiPhase.NO_ACCOUNTS
+                        useKeys && report.keyed.isNotEmpty() -> FreeCatalogUiPhase.KEYS_READY
                         else -> FreeCatalogUiPhase.NONE_VERIFIED
                     },
                     smartComboCheckedAtEpochMs = checkedAt,
@@ -496,14 +509,14 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 if (error is CancellationException) throw error
                 if (!_llmState.value.smartComboEnabled) return@launch
                 freeOffers = emptyList()
-                _llmState.value = _llmState.value.copy(smartComboOffers = 0,
+                _llmState.value = _llmState.value.copy(smartComboOffers = 0, smartComboKeyRoutes = 0,
                     smartComboRouteLabels = emptyList(),
                     smartComboProviderChecks = emptyList(),
                     smartComboCatalogChecks = emptyList(),
                     smartComboConfiguredProviders = 0,
                     smartComboUiPhase = FreeCatalogUiPhase.UNAVAILABLE,
                     smartComboCheckedAtEpochMs = null,
-                    smartComboMessage = "Free catalogue unavailable. No automatic paid fallback.")
+                    smartComboMessage = "Route catalogues unavailable. Refresh to try again.")
             } finally {
                 _llmState.value = _llmState.value.copy(smartComboRefreshing = false)
             }
@@ -578,6 +591,40 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         _llmState.value = _llmState.value.copy(autoTestModels = enabled)
     }
 
+    /** Allow a failed or missing route to hand the conversation to a model on another saved key. */
+    fun setAutoSwitchKeys(enabled: Boolean) {
+        apiStore.setAutoSwitchKeys(enabled)
+        if (!enabled) directTakeover = null
+        _llmState.value = _llmState.value.copy(autoSwitchKeys = enabled,
+            smartComboKeyRoutes = if (enabled) keyedRoutes.size else 0)
+        if (_llmState.value.smartComboEnabled) refreshSmartCombo()
+    }
+
+    private fun probesFor(provider: LlmProvider): Map<String, ModelProbeEvidence> =
+        if (provider == _llmState.value.provider) apiCatalogSession.probeEvidence() else emptyMap()
+
+    /** Next model on the user's own keys for this message; lists them first when not known yet. */
+    private suspend fun nextKeyedRoute(tried: Set<String>, required: Set<ModelCapability>,
+        failedProvider: LlmProvider?, leaveProvider: Boolean, intent: SmartComboModelScorer.Intent,
+        requiredContext: Int): KeyedRoute? {
+        val now = System.currentTimeMillis()
+        if (keyedRoutes.isEmpty() || now - keyedRoutesAt > KEYED_ROUTES_TTL_MS) {
+            try {
+                keyedRoutes = freeCatalog.refreshDetailed(::probesFor).keyed
+                keyedRoutesAt = now
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+            }
+        }
+        return KeyedRoutes.next(keyedRoutes, tried, required, failedProvider, leaveProvider,
+            coolingDown = { id -> freeRouteHealth.remainingCooldownMs(id, now) > 0 }, intent = intent,
+            requiredContextTokens = requiredContext)
+    }
+
+    /** A reply cut off by a tiny test cap still proves the model answers with these credentials. */
+    private suspend fun answeredWithinCap(send: suspend () -> ChatCompletionResult): ChatCompletionResult =
+        try { send() } catch (_: TruncatedReplyException) { ChatCompletionResult("", ChatUsage(estimated = true)) }
+
     /**
      * Switches the provider preset. With [discover], a provider that already has a saved key
      * immediately fetches its authenticated catalog (a free GET), so the switcher shows models.
@@ -615,7 +662,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             statusMessage = "Switched to ${provider.displayName}. Discover its authenticated model catalog.",
             tokenMetrics = updatedMetrics
         )
-        createChatSession()
+        // The conversation continues with the new provider; nothing is wiped.
+        directTakeover = null
         apiStore.save(
             providerEndpoint,
             "",
@@ -653,7 +701,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /** Authenticated GET only. Listing a model never proves that chat inference succeeds. */
-    fun detectApi(baseUrl: String, apiKeyInput: String, autoTest: Boolean = false) {
+    fun detectApi(baseUrl: String, apiKeyInput: String, autoTest: Boolean = false, onReady: (() -> Unit)? = null) {
         if (projectTeamJob?.isActive == true || SmartComboSessionBroker.busy()) return
         val ownership = UUID.randomUUID().toString()
         if (!SmartComboSessionBroker.acquire(ownership)) return
@@ -689,7 +737,6 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     catalogCheckedAtEpochMs = System.currentTimeMillis(),
                     statusMessage = result.message + " Chat compatibility must be tested per model.",
                     tokenMetrics = _llmState.value.tokenMetrics.copy(contextCapacity = ModelLimitsResolver.contextWindow(result.provider, model.id)))
-                if (requested.selectedModel != model.id || requested.baseUrl != result.baseUrl) createChatSession()
                 catalogReady = true
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
@@ -699,6 +746,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             }
         }.also { it.invokeOnCompletion { cause ->
             SmartComboSessionBroker.release(ownership)
+            if (cause == null && catalogReady) onReady?.let { ready -> viewModelScope.launch { ready() } }
             // A freshly entered key goes straight on to the visible responsiveness test.
             if (cause == null && catalogReady && autoTest && _llmState.value.autoTestModels) viewModelScope.launch {
                 scanModelCompatibility(_llmState.value.apiInputRevision, AUTO_TEST_LIMIT)
@@ -725,19 +773,19 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val persona = requested.supportedAgents.firstOrNull { it.id == requested.selectedAgentId }
                     ?: error("No supported persona available.")
-                val result = withTimeout(30_000L) { chatClient.send(ApiConnectionConfig(requested.baseUrl, credential.first, requested.provider,
+                val result = withTimeout(30_000L) { answeredWithinCap { chatClient.send(ApiConnectionConfig(requested.baseUrl, credential.first, requested.provider,
                     requested.selectedModel, persona.id), listOf(ChatMessage("user", "Reply only OK.")), persona,
                     maxOutputTokens = 128, beforeDispatch = {
                         requireCatalogSelection(requested, expectedRevision)
                         check(apiStore.credentialSnapshot(requested.provider, requested.baseUrl) == credential) { "API credentials changed; test approval expired." }
-                    }) }
+                    }) } }
                 // Account for real usage even if the UI changed while the response was in flight.
                 usageStore.record(requested.provider, requested.selectedModel, result.usage)
                 _usage.value = usageStore.summary()
                 if (!apiCatalogSession.isCurrent(expectedRevision)) return@launch
                 requireCatalogSelection(requested, expectedRevision)
                 check(apiStore.credentialSnapshot(requested.provider, requested.baseUrl) == credential) { "API credentials changed; test evidence discarded." }
-                check(result.text.isNotBlank()) { "The model returned no text; chat inference remains unverified." }
+                // An empty reply here means the model hit the small test cap while thinking: it answered.
                 check(apiCatalogSession.recordProbe(expectedRevision, requested.provider, requested.baseUrl,
                     credential.second, requested.selectedModel, ModelProbeOutcome.SUCCEEDED)) { "Test evidence expired." }
                 _llmState.value = _llmState.value.copy(status = ConnectionStatus.CONNECTED,
@@ -831,13 +879,13 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                                 val startedAt = android.os.SystemClock.elapsedRealtime()
                                 var latency: Long? = null
                                 val outcome = try {
-                                    val result = withTimeout(25_000L) {
+                                    val result = withTimeout(25_000L) { answeredWithinCap {
                                         chatClient.send(ApiConnectionConfig(requested.baseUrl, credential.first, requested.provider,
                                             model.id, persona.id), listOf(ChatMessage("user", "Reply only OK.")), persona,
                                             maxOutputTokens = 16, beforeDispatch = {
                                                 check(apiCatalogSession.isCurrent(expectedRevision)) { "API inputs changed." }
                                                 check(apiStore.credentialSnapshot(requested.provider, requested.baseUrl) == credential) { "API credentials changed." }
-                                            })
+                                            }) }
                                     }
                                     usageStore.record(requested.provider, model.id, result.usage)
                                     latency = android.os.SystemClock.elapsedRealtime() - startedAt
@@ -902,7 +950,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         val revision = apiCatalogSession.changeSelection()
         // New-model recall starts before the next user input, without blocking UI.
         refreshProjectMemoriesInBackground()
-        if (_llmState.value.selectedModel != modelId) { cancelChat(); createChatSession(modelId) }
+        // Switching model keeps the current conversation so it can continue on the new model.
+        if (_llmState.value.selectedModel != modelId) { cancelChat(); directTakeover = null }
         val current = _llmState.value
         val model = current.models.firstOrNull { it.id == modelId }
         val capabilities = model?.capabilities ?: ModelCapabilityResolver.resolve(current.provider, modelId)
@@ -1006,7 +1055,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun sendChat(text: String, attachmentInput: ChatAttachment? = null, fromVoice: Boolean = false,
-                 agentRound: Int = 0): Boolean {
+                 agentRound: Int = 0, catalogRefreshed: Boolean = false): Boolean {
         if (text.trim().startsWith("/mission ")) { executeMission(text.trim().removePrefix("/mission "), true); return true }
         // PDFs and other converted files fall back to their extracted text for models that
         // cannot read the original format; Smart Combo routes always get the text form.
@@ -1030,7 +1079,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             return false
         }
         val eligibleAgents = if (current.smartComboEnabled) AgentRegistry.agents.filter { agent ->
-            freeOffers.any { it.route.capabilities.containsAll(agent.requiredCapabilities) }
+            freeOffers.any { it.route.capabilities.containsAll(agent.requiredCapabilities) } ||
+                (current.autoSwitchKeys && keyedRoutes.any { it.capabilities.containsAll(agent.requiredCapabilities) })
         } else current.supportedAgents
         val selectedAgent = eligibleAgents.firstOrNull { it.id == current.selectedAgentId }
             ?: if (current.smartComboEnabled) eligibleAgents.firstOrNull { it.id == "general" } else null
@@ -1048,7 +1098,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 appendAssistantError("Smart Combo free routes read text, code, documents and archives. Images and audio need a direct vision or audio model.")
                 return false
             }
-            if (freeOffers.isEmpty()) {
+            if (freeOffers.isEmpty() && !(current.autoSwitchKeys && keyedRoutes.isNotEmpty())) {
                 appendAssistantError(localizedUiString(
                     if (current.smartComboRefreshing)
                         R.string.chat_combo_refresh_status
@@ -1080,8 +1130,17 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
 
-        if (!current.smartComboEnabled) {
+        val takeover = directTakeover.takeIf { !current.smartComboEnabled && current.autoSwitchKeys }
+        if (!current.smartComboEnabled && takeover == null) {
             try { requireCatalogSelection(current) } catch (error: Exception) {
+                // An aged-out catalog for the saved key is renewed quietly, then this message is sent.
+                if (!catalogRefreshed && current.hasSavedKey && current.baseUrl.startsWith("https://") &&
+                    projectTeamJob?.isActive != true && !SmartComboSessionBroker.busy()) {
+                    detectApi(current.baseUrl, "", onReady = {
+                        sendChat(text, attachmentInput, fromVoice, agentRound, catalogRefreshed = true)
+                    })
+                    return true
+                }
                 appendAssistantError(error.message ?: "Discover the authenticated catalog again.")
                 return false
             }
@@ -1107,7 +1166,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
         val modelContext = ModelLimitsResolver.contextWindow(current.provider, current.selectedModel)
         // Smart Combo picks among routes, so the history may use the LARGEST verified free
         // window; the planner then rejects any route whose own window is too small.
-        val largestFreeContext = freeOffers.mapNotNull { it.route.contextWindowTokens }.maxOrNull()
+        val largestFreeContext = (freeOffers.mapNotNull { it.route.contextWindowTokens } +
+            (if (current.autoSwitchKeys) keyedRoutes.map { it.contextWindowTokens } else emptyList())).maxOrNull()
         val effectiveWindow = ((if (current.smartComboEnabled) largestFreeContext ?: modelContext else modelContext) -
             memoryAndSystemBudget).coerceAtLeast(1024)
         val selectedContext = ChatContextPolicy.bounded(_chatMessages.value, effectiveWindow)
@@ -1153,6 +1213,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 val triedRoutes = linkedSetOf<String>()
                 var lastFailover: SmartComboFailover.Reason? = null
                 var failedModel: String? = null
+                var failedProvider: LlmProvider? = null
+                var leaveProvider = false
+                var lastError: Throwable? = null
+                val allowKeys = current.autoSwitchKeys
+                val requiredContext = (selectedContext.estimatedTokens + memoryAndSystemBudget).coerceAtLeast(0)
+                var keyedAttempt: KeyedRoute? = takeover
                 var config: ApiConnectionConfig
                 var result: ChatCompletionResult
                 while (true) {
@@ -1179,10 +1245,31 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                             refreshSmartComboDurability()
                         })
                     }
-                    require(autoPrepared != null) {
-                        if (triedRoutes.isEmpty()) "No compatible, verified free route passed the capability and quota admission checks."
-                        else "Smart Combo tried ${triedRoutes.size} free route(s) and none could answer: " +
-                            (lastFailover?.label ?: "unavailable") + ". Refresh routes or try again shortly."
+                    // No free route left: a model on the user's own keys answers instead, when allowed.
+                    if (autoPrepared == null && allowKeys) {
+                        keyedAttempt = nextKeyedRoute(triedRoutes, selectedAgent.requiredCapabilities,
+                            failedProvider, leaveProvider, comboIntent, requiredContext)
+                    }
+                    require(autoPrepared != null || keyedAttempt != null) {
+                        if (triedRoutes.isEmpty()) "No compatible, verified free route passed the capability and quota admission checks." +
+                            (if (allowKeys) " No model on your saved keys is available either."
+                            else " Allow switching to your own keys in Models & providers, or pick a model directly.")
+                        else "Smart Combo tried ${triedRoutes.size} route(s) and none could answer: " +
+                            (lastFailover?.label ?: "unavailable") + ". " + (lastError?.message?.let { "$it " } ?: "") +
+                            "Refresh routes or try again shortly."
+                    }
+                    keyedAttempt?.let { chosen ->
+                        val switched = failedModel?.let { from ->
+                            SmartComboFailover.notice(requireNotNull(failedProvider), from, chosen.provider,
+                                chosen.modelId, requireNotNull(lastFailover))
+                        }
+                        _llmState.value = _llmState.value.copy(
+                            comboStandbyModel = "",
+                            comboNotice = switched ?: _llmState.value.comboNotice,
+                            statusMessage = listOfNotNull(personaFallbackNote, switched,
+                                "Smart Combo routed this ${comboIntent.label} request to ${chosen.modelId} on your " +
+                                    "${chosen.provider.displayName} key (no free route answered; provider charges may apply)."
+                            ).joinToString(" "))
                     }
                     autoPrepared?.let { chosen ->
                         val route = chosen.offer.route
@@ -1199,8 +1286,22 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                                 (chosen.standby?.let { " · standby ${it.substringAfter("::")}" } ?: "") + "."
                         ).joinToString(" "))
                     }
+                } else if (failedModel != null) {
+                    // The chosen model failed before any text arrived: another model on the user's
+                    // own keys takes over and the same conversation continues there.
+                    keyedAttempt = nextKeyedRoute(triedRoutes, selectedAgent.requiredCapabilities,
+                        failedProvider, leaveProvider, comboIntent, requiredContext)
+                    val chosen = keyedAttempt ?: throw requireNotNull(lastError)
+                    val switched = SmartComboFailover.notice(requireNotNull(failedProvider), requireNotNull(failedModel),
+                        chosen.provider, chosen.modelId, requireNotNull(lastFailover))
+                    _llmState.value = _llmState.value.copy(comboNotice = switched,
+                        statusMessage = "$switched The conversation continues there.")
                 }
-                config = autoPrepared?.config ?: ApiConnectionConfig(
+                val keyedConfig = keyedAttempt?.let { route ->
+                    ApiConnectionConfig(route.endpoint, apiStore.resolveCredential(route.provider, route.endpoint),
+                        route.provider, route.modelId, selectedAgent.id)
+                }
+                config = autoPrepared?.config ?: keyedConfig ?: ApiConnectionConfig(
                     baseUrl = current.baseUrl,
                     apiKey = apiStore.resolveCredential(current.provider, current.baseUrl),
                     provider = current.provider,
@@ -1226,6 +1327,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 streamedText.clear()
                 val dispatchedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
                 var firstTokenObserved = false
+                // Any streamed event, including hidden reasoning, shows the route is alive.
+                var routeAlive = false
                 var lastStreamUiAtMs = Long.MIN_VALUE
                 val speechInstruction = if (fromVoice) {
                     val speech = ai.drfx.maximus.matrixai.voice.SpeechLanguagePreferenceStore(
@@ -1254,11 +1357,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     tokenMetrics = ChatTokenTelemetry.dispatched(_llmState.value.tokenMetrics,
                         dispatchedCapacity, selectedContext.estimatedTokens + memoryAndSystemBudget))
                 val attemptConfig = config
+                val attemptKeyed = keyedAttempt
                 var timedOut = false
                 try {
                 result = kotlinx.coroutines.coroutineScope {
                 val call = async { chatClient.send(attemptConfig, requestHistory, equippedAgent, maxOutputTokens = if (autoPrepared != null) comboOutputBudget else OutputTokenLimit.directCap(config.provider, config.selectedModel, comboIntent),
-                    beforeDispatch = { if (!current.smartComboEnabled) requireCatalogSelection(current) }, onQuota = { windows ->
+                    beforeDispatch = { if (!current.smartComboEnabled && attemptKeyed == null) requireCatalogSelection(current) }, onQuota = { windows ->
                     if (windows.isNotEmpty()) {
                         autoPrepared?.let { freeExecutor.observeProviderQuota(it, windows) }
                         viewModelScope.launch {
@@ -1283,6 +1387,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                 }) { delta ->
+                    routeAlive = true
                     // Record only a genuine first NONEMPTY token after dispatch.
                     // This elapsed duration, not estimated billing or synthetic latency,
                     // feeds verified-free Smart Combo performance ranking.
@@ -1293,6 +1398,7 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     // Coalesce dense SSE tokens to <=4 UI updates per second.
                     streamedText.append(delta)
+                    if (delta.isEmpty()) return@send
                     val elapsed = android.os.SystemClock.elapsedRealtime()
                     if (lastStreamUiAtMs == Long.MIN_VALUE || elapsed - lastStreamUiAtMs >= 250L) {
                         lastStreamUiAtMs = elapsed
@@ -1318,36 +1424,46 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 // A streaming free route that has not produced its first token in time is
                 // cancelled so the next verified route can take over.
-                val watchdog = if (autoPrepared != null && SmartComboFailover.watchesFirstToken(attemptConfig.provider)) launch {
-                    kotlinx.coroutines.delay(SmartComboFailover.FIRST_TOKEN_TIMEOUT_MS)
-                    if (!firstTokenObserved) { timedOut = true; call.cancel() }
+                val watchdog = if ((autoPrepared != null || allowKeys) &&
+                    SmartComboFailover.watchesFirstToken(attemptConfig.provider)) launch {
+                    kotlinx.coroutines.delay(if (autoPrepared != null) SmartComboFailover.FIRST_TOKEN_TIMEOUT_MS
+                        else SmartComboFailover.KEYED_FIRST_TOKEN_TIMEOUT_MS)
+                    if (!routeAlive) { timedOut = true; call.cancel() }
                 } else null
                 try { call.await() } finally { watchdog?.cancel() }
                 }
                 break
                 } catch (error: Throwable) {
-                    val failedAttempt = autoPrepared ?: throw error
+                    val failedAttempt = autoPrepared
+                    // Direct chat fails over too when the user lets their other keys take over.
+                    val failedRouteId = failedAttempt?.offer?.route?.id ?: attemptKeyed?.id
+                        ?: if (allowKeys) KeyedRoutes.id(attemptConfig.provider, attemptConfig.selectedModel) else throw error
                     val userCancelled = kotlinx.coroutines.currentCoroutineContext()[Job]?.isActive == false || requestGeneration != chatGeneration
                     val decision = SmartComboFailover.decide(error, timedOut, streamedText.isNotEmpty(),
                         triedRoutes.size + 1, userCancelled)
                     if (decision !is SmartComboFailover.Decision.Switch) {
                         // A watchdog cancellation is a route failure, not a user stop.
                         if (timedOut && !userCancelled) throw IllegalStateException(
-                            failedAttempt.offer.route.modelId + " " + SmartComboFailover.Reason.SLOW.label + ".")
+                            attemptConfig.selectedModel + " " + SmartComboFailover.Reason.SLOW.label + ".")
                         throw error
                     }
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) {
+                    if (failedAttempt != null) kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) {
                         freeExecutor.failed(failedAttempt)
                         refreshSmartComboDurability()
                     }
-                    freeRouteHealth.failed(failedAttempt.offer.route.id, System.currentTimeMillis())
-                    triedRoutes += failedAttempt.offer.route.id
+                    freeRouteHealth.failed(failedRouteId, System.currentTimeMillis())
+                    if (attemptKeyed != null && attemptKeyed == directTakeover) directTakeover = null
+                    triedRoutes += failedRouteId
                     lastFailover = decision.reason
-                    failedModel = failedAttempt.offer.route.modelId
+                    lastError = error
+                    failedModel = attemptConfig.selectedModel
+                    failedProvider = attemptConfig.provider
+                    leaveProvider = SmartComboFailover.affectsWholeProvider(decision.reason, error)
                     autoPrepared = null
-                    AppLogStore.info("CHAT", "Smart Combo failover from model=" + failedModel + " reason=" + decision.reason.name)
+                    keyedAttempt = null
+                    AppLogStore.info("CHAT", "Chat failover from model=" + failedModel + " reason=" + decision.reason.name)
                     appendLlmEvent(MatrixEventType.MODEL_FAILED, "model:" + failedModel, "agent:" + selectedAgent.id,
-                        "Smart Combo switching route: " + decision.reason.label)
+                        "Switching route: " + decision.reason.label)
                 }
                 }
                 autoPrepared?.let {
@@ -1356,6 +1472,11 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                         refreshSmartComboDurability()
                     }
                     freeRouteHealth.succeeded(it.offer.route.id, System.currentTimeMillis())
+                }
+                keyedAttempt?.let { route ->
+                    freeRouteHealth.succeeded(route.id, System.currentTimeMillis())
+                    // Later direct messages start on the model that just took over.
+                    if (!current.smartComboEnabled) directTakeover = route
                 }
                 if (_activeChatSessionId.value != requestSessionId || requestGeneration != chatGeneration) return@launch
                 if (result.transcript != null) {
@@ -1413,7 +1534,8 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
                 _llmState.value = _llmState.value.copy(
                     status = ConnectionStatus.CONNECTED,
                     statusMessage = "Inference succeeded: " + config.provider.displayName + " / " + config.selectedModel +
-                        if (autoPrepared != null) " (verified free-text offer; account quota unknown)." else ".",
+                        if (autoPrepared != null) " (verified free-text offer; account quota unknown)."
+                        else if (keyedAttempt != null) " (on your own key; provider charges may apply)." else ".",
                     isGenerating = false, activeRequest = null, interruptedReply = false,
                     tokenMetrics = updatedMetrics
                 )
@@ -1676,6 +1798,12 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun appendAssistantError(message: String) {
+        // Repeating the same failure (tapping Send again) refreshes one card instead of stacking copies.
+        val previous = _chatMessages.value.lastOrNull()
+        if (previous != null && previous.isError && previous.role == "assistant" && previous.content == message) {
+            _chatMessages.value = _chatMessages.value.dropLast(1) + previous.copy(timestampMs = System.currentTimeMillis())
+            return
+        }
         val errorMsg = ChatMessage(
             role = "assistant",
             content = message,
@@ -1841,3 +1969,5 @@ class MatrixViewModel(application: Application) : AndroidViewModel(application) 
 private const val MODEL_SCAN_LIMIT = 40
 /** Automatic test after a key connects stays small; more models can be tested on request. */
 private const val AUTO_TEST_LIMIT = 12
+/** How long the list of models on saved keys is reused before it is fetched again. */
+private const val KEYED_ROUTES_TTL_MS = 10 * 60_000L

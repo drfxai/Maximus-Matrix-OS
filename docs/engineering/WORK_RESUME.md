@@ -1,5 +1,14 @@
 # MAXIMUS MATRIX OS — continuity checkpoint
 
+## Provider connection and failover fixes — 2026-10-27
+
+Owner report with real paid keys (Gemini, NVIDIA, CommandCode via a compatible endpoint): key tests mostly failed, chat spammed "Model catalog is missing, stale…", Smart Combo refused to route ("no verified free route"), and a failed model never handed over to another one.
+
+- Root causes fixed: authenticated catalog expired after 5 minutes (now 12 h; still revoked on any key/endpoint change, and an aged-out catalog is renewed quietly before sending); a pasted `…/v1/models` endpoint became `…/v1/models/v1/models` (404); `apiRoot` appended `/v1` to `/v4` or `/v1beta/openai` endpoints; thinking models stopped at the 16-token test cap with no visible text and were marked failed; JSON `null` content was read as text; provider error bodies were dropped (now shown, redacted).
+- Smart Combo now falls back to models on the user's own saved keys when no zero-price route answers, and Chat fails over before any reply text to another model on a saved key (same account for model-level errors, another provider for outages, quota or a rejected key). Controlled by the "continue on another model of my saved keys" switch in Models & providers (default on, owner request). Text already streamed is never replayed.
+- Switching model or provider no longer starts a new conversation.
+- Verified: 215 JVM unit tests for the `llm` package passed locally; Android build, lint and emulator suites are left to exact-head CI. Not device-verified.
+
 ## Supervisor refresh — 2026-10-25 (credit-only quota evidence, reviewable change)
 
 This is a **proposed**, secret-free change based on live GitHub readback, not an approval to use paid models, merge, deploy, release or bypass Work limits.
