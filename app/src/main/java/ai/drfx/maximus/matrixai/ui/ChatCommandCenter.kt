@@ -160,7 +160,8 @@ internal fun ChatLiveHeader(
                         } else Text(
                             when {
                                 state.smartComboEnabled -> (if (state.comboReadyModel.isNotBlank())
-                                    "Ready: " + shortModelName(state.comboReadyModel) else "${state.smartComboOffers} free routes ready") +
+                                    "Ready: " + shortModelName(state.comboReadyModel) else if (state.smartComboOffers == 0 && state.smartComboKeyRoutes > 0)
+                                    "${state.smartComboKeyRoutes} models on your keys" else "${state.smartComboOffers} free routes ready") +
                                     (if (state.comboStandbyModel.isNotBlank()) " · standby " + shortModelName(state.comboStandbyModel) else "")
                                 !sendable && !state.hasSavedKey -> "Tap to connect ${ProviderBrand.short(state.provider)}"
                                 !sendable -> statusLine(state)
@@ -365,7 +366,8 @@ internal fun ModelSwitcherSheet(
     onCancelScan: () -> Unit,
     onAutoTest: (Boolean) -> Unit,
     onReloadModels: () -> Unit,
-    onAdvanced: () -> Unit
+    onAdvanced: () -> Unit,
+    onAutoSwitch: (Boolean) -> Unit = {}
 ) {
     var keyEntry by remember { mutableStateOf(startWithKeyEntry) }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF040F1C)) {
@@ -399,7 +401,7 @@ internal fun ModelSwitcherSheet(
                 } else Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (state.supportedAgents.isNotEmpty()) PersonaChips(state.supportedAgents, state.selectedAgentId, onSelectAgent)
                     ModelCatalogList(state, onSelectModel, onScan, onCancelScan, onAutoTest, onReloadModels,
-                        onReplaceKey = { keyEntry = true }, modifier = Modifier.weight(1f))
+                        onReplaceKey = { keyEntry = true }, modifier = Modifier.weight(1f), onAutoSwitch = onAutoSwitch)
                 }
             }
             TextButton(onClick = onAdvanced, modifier = Modifier.align(Alignment.End)) {
@@ -476,7 +478,8 @@ private fun ModelCatalogList(
     onAutoTest: (Boolean) -> Unit,
     onReload: () -> Unit,
     onReplaceKey: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onAutoSwitch: (Boolean) -> Unit = {}
 ) {
     val evidence = state.modelProbeEvidence
     var query by remember { mutableStateOf("") }
@@ -513,7 +516,7 @@ private fun ModelCatalogList(
             }
             return@Column
         }
-        ScanStrip(state, onScan, onCancelScan, onAutoTest)
+        ScanStrip(state, onScan, onCancelScan, onAutoTest, onAutoSwitch)
         OutlinedTextField(value = query, onValueChange = { query = it }, singleLine = true,
             placeholder = { Text("Search ${state.models.size} models", fontSize = 13.sp) },
             leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
@@ -541,7 +544,8 @@ private fun ModelCatalogList(
 }
 
 @Composable
-private fun ScanStrip(state: LlmUiState, onScan: () -> Unit, onCancel: () -> Unit, onAutoTest: (Boolean) -> Unit) {
+private fun ScanStrip(state: LlmUiState, onScan: () -> Unit, onCancel: () -> Unit, onAutoTest: (Boolean) -> Unit,
+                      onAutoSwitch: (Boolean) -> Unit) {
     val scan = state.modelScan
     val evidence = state.modelProbeEvidence
     val passed = state.models.count { evidence[it.id]?.outcome == ModelProbeOutcome.SUCCEEDED }
@@ -570,6 +574,13 @@ private fun ScanStrip(state: LlmUiState, onScan: () -> Unit, onCancel: () -> Uni
                     fontSize = 10.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
                 Switch(checked = state.autoTestModels, onCheckedChange = onAutoTest, modifier = Modifier.height(28.dp)
                     .graphicsLayer { scaleX = .8f; scaleY = .8f }.testTag("switcher_auto_test"))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("If a model stops answering, continue the chat on another model of my saved keys " +
+                    "(Smart Combo uses them too when no free route answers; may use paid quota)",
+                    color = MaximusReference.muted, fontSize = 10.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
+                Switch(checked = state.autoSwitchKeys, onCheckedChange = onAutoSwitch, modifier = Modifier.height(28.dp)
+                    .graphicsLayer { scaleX = .8f; scaleY = .8f }.testTag("switcher_auto_switch"))
             }
         }
     }

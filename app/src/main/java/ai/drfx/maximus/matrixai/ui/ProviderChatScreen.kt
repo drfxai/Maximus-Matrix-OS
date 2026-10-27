@@ -151,7 +151,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
     var sessionTitle by remember { mutableStateOf("") }
-    val comboReady = state.smartComboEnabled && state.smartComboOffers > 0 && !state.smartComboRefreshing
+    val comboReady = state.smartComboEnabled && (state.smartComboOffers > 0 || state.smartComboKeyRoutes > 0) &&
+        !state.smartComboRefreshing
     val sendable = comboReady || (!state.smartComboEnabled && state.models.any { it.id == state.selectedModel && it.verified } &&
         state.status in setOf(ConnectionStatus.CONNECTED, ConnectionStatus.CONFIGURED, ConnectionStatus.DEGRADED))
     val context = LocalContext.current
@@ -706,7 +707,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 // A missing catalog-confirmed free route should never strand a configured
                 // user in an opaque error. Manual provider usage requires a separate tap
                 // and explicit cost warning; no previous prompt is replayed.
-                if (state.smartComboEnabled && state.smartComboOffers == 0) {
+                if (state.smartComboEnabled && state.smartComboOffers == 0 && state.smartComboKeyRoutes == 0) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -741,7 +742,8 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
 
             }
         }
-        if (state.smartComboEnabled && state.smartComboOffers == 0 && (!workspaceControlsOpen || keyboardVisible)) {
+        if (state.smartComboEnabled && state.smartComboOffers == 0 && state.smartComboKeyRoutes == 0 &&
+            (!workspaceControlsOpen || keyboardVisible)) {
             Surface(
                 color = MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -1028,7 +1030,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
                 Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        if (state.smartComboEnabled) "No verified free route available."
+                        if (state.smartComboEnabled) "No route available yet. Refresh, or allow your own keys."
                         else if (state.status == ConnectionStatus.DETECTING) "Restoring saved API models…"
                         else "API saved · model catalog needs verification.",
                         color = MaximusReference.muted, fontSize = 11.sp,
@@ -1239,6 +1241,7 @@ fun ProviderChatScreen(viewModel: MatrixViewModel, modifier: Modifier = Modifier
         onScan = { scanConfirmOpen = true },
         onCancelScan = viewModel::cancelModelScan,
         onAutoTest = viewModel::setAutoTestModels,
+        onAutoSwitch = viewModel::setAutoSwitchKeys,
         onReloadModels = { viewModel.detectApi(state.baseUrl, "") },
         onAdvanced = { switcherOpen = false; settingsOpen = true }
     )

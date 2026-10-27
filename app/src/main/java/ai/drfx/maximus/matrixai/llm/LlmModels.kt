@@ -138,7 +138,9 @@ data class FreeCatalogCheckUi(
 )
 
 enum class FreeCatalogUiPhase {
-    OFF, CHECKING, NO_ACCOUNTS, NONE_VERIFIED, READY, UNAVAILABLE
+    OFF, CHECKING, NO_ACCOUNTS, NONE_VERIFIED, READY, UNAVAILABLE,
+    /** No free route, but models on the user's own keys are ready (provider charges may apply). */
+    KEYS_READY
 }
 
 /** Public dispatch metadata only. Never stores endpoint, key, prompt or response. */
@@ -198,11 +200,15 @@ data class LlmUiState(
     val interruptedReply: Boolean = false,
     /** Run the tiny responsiveness test automatically after a key connects. */
     val autoTestModels: Boolean = true,
+    /** Let a failed or unavailable route hand the conversation to a model on another saved key. */
+    val autoSwitchKeys: Boolean = true,
     val agentToolsEnabled: Boolean = true,
     /** Lookups the last reply asked for that are running now, shown in the typing card. */
     val agentLookup: String = "",
     val smartComboRefreshing: Boolean = false,
     val smartComboOffers: Int = 0,
+    /** Models on the user's own keys Smart Combo can use when no free route answers. */
+    val smartComboKeyRoutes: Int = 0,
     /** Public route labels only; never contains credentials or model response content. */
     val smartComboRouteLabels: List<String> = emptyList(),
     /** Non-secret provider diagnostics: pricing evidence, missing context or failed catalog. */

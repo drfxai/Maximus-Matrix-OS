@@ -71,6 +71,12 @@ class SecureApiConfigStore(context: Context) {
         preferences.edit().putBoolean("auto_test_models", enabled).apply()
     }
 
+    /** Switch to a model on another saved key when a route fails or no free route exists. */
+    fun autoSwitchKeys(): Boolean = preferences.getBoolean("auto_switch_keys", true)
+    fun setAutoSwitchKeys(enabled: Boolean) {
+        preferences.edit().putBoolean("auto_switch_keys", enabled).apply()
+    }
+
     /** Let Chat replies ask the app for read-only lookups (web search, a web page, Pine Studio). */
     fun agentTools(): Boolean = preferences.getBoolean("agent_tools", true)
     fun setAgentTools(enabled: Boolean) {

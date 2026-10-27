@@ -787,4 +787,5 @@
     <string name="motion_selected">Selected</string>
     <string name="motion_team_scope">Scheduled news and device-health tasks. Project teams run in Studio.</string>
     <string name="project_checkpoint_integrity_error">Checkpoint revision does not match its file manifest. Review the workspace and save a new checkpoint.</string>
+    <string name="combo_state_keys_ready">No free route; %1$d models on your own keys are ready (provider charges may apply).</string>
 </resources>

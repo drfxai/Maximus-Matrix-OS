@@ -1,5 +1,14 @@
 # Changelog
 
+## V1.0.0 — internal build 10038
+
+- Provider keys work again for longer sessions: the verified model list no longer expires after five minutes (it stays valid for 12 hours, is renewed quietly when needed, and is still revoked when a key or endpoint changes). The repeated "Model catalog is missing, stale…" errors are gone, and identical errors no longer stack.
+- A compatible endpoint pasted with `/models` or `/chat/completions` at the end is cleaned up automatically, and endpoints with their own version (`/v4`, `/v1beta/openai`) are no longer given an extra `/v1`.
+- Model tests count thinking models that answer within the tiny test limit, so far more models show as responsive. Provider error messages (for example "model not in your plan") are shown, with keys hidden.
+- Smart Combo uses models on your own saved keys when no free route answers, clearly marked that provider charges may apply.
+- If a model fails before writing anything, the same conversation moves to another model on your saved keys (another provider for outages, quota or a rejected key) and later messages continue there. A switch in Models & providers controls this; it is on by default.
+- Switching provider or model keeps the current conversation.
+
 ## V1.0.0 — internal build 10037
 
 - Chat command center: a slim live header shows the active provider, model and the agent that is answering, an exact count of context tokens left, and a live output-token counter and speed while a reply streams. The conversation gets the freed space; voice, REA and workspace controls move into the Tools panel.

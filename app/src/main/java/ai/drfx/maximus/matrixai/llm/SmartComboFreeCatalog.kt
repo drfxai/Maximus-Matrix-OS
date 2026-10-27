@@ -4,6 +4,9 @@ package ai.drfx.maximus.matrixai.llm
  * Verified free-text model candidates from user-configured provider accounts.
  * A successful provider login is NOT proof of free pricing or remaining quota.
  * Never guess prices or model context from a provider label or model ID.
+ *
+ * The same scan also lists the chat models each saved key can reach ([ScanResult.keyed]); those
+ * are never labelled free and are used only when the user allows routing to their own keys.
  */
 internal class SmartComboFreeCatalog(
     private val discovery: ApiDiscoveryEngine,
@@ -27,13 +30,18 @@ internal class SmartComboFreeCatalog(
     data class ScanResult(
         val offers: List<Offer>,
         val checks: List<ProviderStatus>,
-        val configuredProviders: Int
+        val configuredProviders: Int,
+        /** Chat models on the user's own keys, best first per provider; pricing unknown or paid. */
+        val keyed: List<KeyedRoute> = emptyList()
     ) {
         val diagnosis: String get() = when {
             offers.isNotEmpty() ->
                 "${offers.size} verified zero-price catalog routes. Remaining account quota is unknown."
             configuredProviders == 0 ->
                 "No configured account found. Add a provider key, or switch off free-only routing."
+            keyed.isNotEmpty() ->
+                "No catalog-confirmed zero-price text route. ${keyed.size} models on your own keys " +
+                    "(${keyed.map { it.provider }.distinct().size} providers) can answer; provider charges may apply."
             else ->
                 "No catalog-confirmed zero-price text route. An API key or promotional credits do not prove a model is free."
         }
@@ -42,9 +50,10 @@ internal class SmartComboFreeCatalog(
     /** Compatibility entry point for existing callers. */
     suspend fun refresh(): List<Offer> = refreshDetailed().offers
 
-    suspend fun refreshDetailed(): ScanResult {
+    suspend fun refreshDetailed(probes: (LlmProvider) -> Map<String, ModelProbeEvidence> = { emptyMap() }): ScanResult {
         val offers = mutableListOf<Offer>()
         val checks = mutableListOf<ProviderStatus>()
+        val keyed = mutableListOf<KeyedRoute>()
         var configured = 0
         val supported = listOf(
             LlmProvider.ROUTER_9_COMBO,
@@ -70,6 +79,8 @@ internal class SmartComboFreeCatalog(
                     FreeCatalogCheckKind.CATALOG_UNAVAILABLE))
                 continue
             }
+            keyed += KeyedRoutes.rank(provider, catalog.baseUrl, catalog.models,
+                store.loadModelForProvider(provider), probes(provider))
             val scope = (if (provider.isNineRouter) "nine-router" else provider.name) +
                 "|" + catalog.baseUrl
             var chat = 0
@@ -130,6 +141,6 @@ internal class SmartComboFreeCatalog(
             }
             checks.add(ProviderStatus(provider, description, outcome, count))
         }
-        return ScanResult(offers.distinctBy { it.route.id }, checks, configured)
+        return ScanResult(offers.distinctBy { it.route.id }, checks, configured, keyed.distinctBy { it.id })
     }
 }

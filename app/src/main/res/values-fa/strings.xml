@@ -787,4 +787,5 @@
     <string name="motion_selected">انتخاب‌شده</string>
     <string name="motion_team_scope">وظایف زمان‌بندی‌شدهٔ اخبار و سلامت دستگاه. تیم‌های پروژه در استودیو هستند.</string>
     <string name="project_checkpoint_integrity_error">شناسهٔ نسخهٔ نقطهٔ بازیابی با فهرست فایل‌های آن مطابقت ندارد. فضای کار را بررسی و یک نقطهٔ بازیابی جدید ذخیره کنید.</string>
+    <string name="combo_state_keys_ready">مسیر رایگانی نیست؛ %1$d مدل روی کلیدهای خودتان آماده است (ممکن است هزینه داشته باشد).</string>
 </resources>

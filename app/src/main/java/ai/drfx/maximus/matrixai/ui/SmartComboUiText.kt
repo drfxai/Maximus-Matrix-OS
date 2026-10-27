@@ -27,6 +27,8 @@ internal fun smartComboStatusLabel(state: LlmUiState): String =
         FreeCatalogUiPhase.READY ->
             stringResource(R.string.combo_state_ready, state.smartComboOffers)
         FreeCatalogUiPhase.UNAVAILABLE -> stringResource(R.string.combo_state_unavailable)
+        FreeCatalogUiPhase.KEYS_READY ->
+            stringResource(R.string.combo_state_keys_ready, state.smartComboKeyRoutes)
     }
 
 @Composable
