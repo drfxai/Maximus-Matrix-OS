@@ -36,3 +36,15 @@ Screenshots are from the released build's Android emulator with no connected acc
 Download the [ARM64 or universal APK](https://github.com/drfxai/Maximus-Matrix-OS/releases/tag/v1.0.0), install or update the app, then connect your own model provider and optional news calendar feed. The app keeps unverified account limits visibly unknown. Pine Studio previews are illustrative; full Pine compilation and backtesting are not included.
 
 Built with Kotlin, Jetpack Compose and Android SDK 36. See the [changelog](CHANGELOG.md) and [news feed setup](docs/news-feed-v1.md).
+
+
+## Source, licensing and community
+
+The original code and documentation authored by DrFXAi are provided under the [MIT License](LICENSE). Independent third-party code, native runtime components and media retain their own licenses and copyright terms; read [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the [phone-runtime notices](docs/phone-build-third-party-notices.md) before redistribution. License-compliance review for packaged runtime assets remains necessary.
+
+- [Build and test guide](docs/BUILDING.md) — JDK/Android requirements and existing CI checks
+- [Contributing](CONTRIBUTING.md) — bug reports, pull requests and review expectations
+- [Security policy](SECURITY.md) — private vulnerability reporting and scope
+- [Codex for OSS application evidence](docs/OSS_PROGRAM_APPLICATION.md) — verifiable maintainer activity and proposed use of review automation
+
+The repository has a GitHub Actions Android validation and emulator-test pipeline. Local tests and physical-device tests are distinct gates; no release is implied by documentation changes.
